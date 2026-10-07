@@ -41,7 +41,9 @@ const COMMON=[
 ["소송비용","인지대·송달료 등 재판 진행에 든 비용과 법이 인정하는 범위의 비용을 누가 부담할지의 문제야. 실제 지출액 전부가 그대로 상대 부담이 되는 건 아니야."],
 ["기판력","확정판결의 판단을 같은 당사자가 뒤의 소송에서 함부로 다시 다툴 수 없게 하는 효력이야. 어떤 범위까지 미치는지가 중요해."]
 ];
-const SPEC={
+const BASIC=COMMON.slice(0,2);
+const COMMON_SORTED=COMMON.slice(2).sort((a,b)=>a[0].localeCompare(b[0],"ko"));
+{
  b:{title:"대여·금전 핵심용어",terms:["대여금","소비대차","변제","변제기","채무승인","변제충당","이자","기한의 이익","연대채무","보증채무","최고","차용증","원금","일부변제","대위변제","채권양도"]},
  c:{title:"임대·명도 핵심용어",terms:["임대차보증금","차임","관리비","계약갱신","계약해지","명도","인도","원상회복","임차권등기","대항력","우선변제권","묵시적 갱신","전대차","연체차임","보증금 공제","점유"]},
  d:{title:"매매·물품 핵심용어",terms:["매매대금","물품대금","계약금","중도금","잔금","계약해제","하자","담보책임","채무불이행","이행지체","손해배상","동시이행항변권","소유권이전","인도","검수","반품"]},
@@ -65,7 +67,8 @@ function open(term,detail,kind){
 function close(){const m=document.getElementById("term-modal");m.className="term-modal";m.setAttribute("aria-hidden","true");}
 function init(){
  const root=document.querySelector("[data-terms-category]"); if(!root)return; const cat=root.dataset.termsCategory;
- const cg=document.getElementById("common-term-grid"); COMMON.forEach(x=>cg.appendChild(card(x[0],x[1],"common")));
+ const bg=document.getElementById("basic-party-grid"); BASIC.forEach(x=>bg.appendChild(card(x[0],x[1],"basic")));
+ const cg=document.getElementById("common-term-grid"); COMMON_SORTED.forEach(x=>cg.appendChild(card(x[0],x[1],"common")));
  const s=SPEC[cat], sg=document.getElementById("specific-term-grid"); document.getElementById("specific-term-title").textContent=s.title;
  s.terms.forEach(t=>sg.appendChild(card(t,specDetail(t,cat),"specific")));
  document.querySelectorAll("[data-close-term]").forEach(x=>x.addEventListener("click",close));
