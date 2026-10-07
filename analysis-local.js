@@ -123,3 +123,29 @@ export function plainReport(data){
  out+='[동일 문구] '+data.repeated.length+'건\n';for(const x of data.repeated)out+=x.first.document+' '+x.first.page+'쪽 / '+x.second.document+' '+x.second.page+'쪽\n'+x.text+'\n\n';
  return out+'\n'+data.limitations;
 }
+
+/**
+ * Export structured source-backed candidates for testing the citation pipeline.
+ * These are NOT AI findings or independently verified facts.
+ */
+export function buildCandidateFindings(index,limit=100){
+ const seen=new Set(),findings=[];
+ const groups=[
+  ['날짜 언급 후보',index.timeline],
+  ['증거·항목 언급 후보',index.references],
+  ['주장 관련 표현 후보',index.claims]
+ ];
+ for(const [category,rows] of groups)for(const row of rows){
+  const key=row.document+'|'+row.page+'|'+row.text;
+  if(seen.has(key)||!row.text||row.text.length<8)continue;
+  seen.add(key);
+  findings.push({
+   title:category+' · '+row.document+' '+row.page+'쪽',
+   category,
+   status:'원문 표현 후보 · 사실 여부 미확인',
+   citations:[{document:row.document,page:row.page,quote:row.text}]
+  });
+  if(findings.length>=limit)return {schema:'squidlaw-findings-v1',kind:'local-candidates-not-ai',findings};
+ }
+ return {schema:'squidlaw-findings-v1',kind:'local-candidates-not-ai',findings};
+}
