@@ -106,7 +106,7 @@ export function plainReport(data){
  for(const [title,items] of [['날짜 원문',data.timeline],['주요 표현',data.claims],['증거·항목·사건번호',data.references]]){
   out+='['+title+'] '+items.length+'건\n';for(const x of items)out+=x.document+' / '+x.page+'쪽\n'+x.text+'\n\n';
  }
- for(const group of buildIssueCandidates(data)){out+='['+group.name+'] '+group.items.length+'건\\n';for(const x of group.items)out+=x.document+' / '+x.page+'쪽\\n'+x.text+'\\n\\n';}
+ for(const group of buildIssueCandidates(data)){out+='['+group.name+'] '+group.items.length+'건\n';for(const x of group.items)out+=x.document+' / '+x.page+'쪽\n'+x.text+'\n\n';}
  out+='[날짜순 원문 후보]\n';for(const x of buildDatedEvents(data))out+=x.date+' / '+x.document+' / '+x.page+'쪽\n'+x.text+'\n\n';
  out+='[여러 문서에서 등장한 번호]\n';for(const x of buildEvidenceMap(data).filter(x=>x.documentCount>1))out+=x.reference+' / '+x.occurrences.map(y=>y.document+' '+y.page+'쪽').join(', ')+'\n';
  out+='[동일 문구] '+data.repeated.length+'건\n';for(const x of data.repeated)out+=x.first.document+' '+x.first.page+'쪽 / '+x.second.document+' '+x.second.page+'쪽\n'+x.text+'\n\n';
