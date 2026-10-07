@@ -65,7 +65,7 @@ function section(root,title,items,formatter,max=40){
  if(!items.length){wrap.append(el('p','해당 항목을 찾지 못했습니다.'));root.append(wrap);return}
  const count=el('p',items.length+'건 검색 · 최초 '+Math.min(items.length,max)+'건 표시');count.className='notice';wrap.append(count);
  const list=el('ol');list.style.paddingLeft='24px';
- items.slice(0,max).forEach(x=>{const li=el('li');li.style.marginBottom='12px';const label=el('strong',formatter(x));li.append(label,el('p',x.text));li.dataset.sourceDocument=x.document||'';li.dataset.sourcePage=String(x.page||'');li.lastChild.style.whiteSpace='pre-wrap';li.lastChild.style.margin='4px 0';list.append(li)});
+ items.slice(0,max).forEach(x=>{const li=el('li');li.style.marginBottom='12px';const label=el('strong',formatter(x));li.append(label,el('p',x.text));li.dataset.sourceDocument=x.document||'';li.dataset.sourcePage=String(x.page||'');li.lastChild.style.whiteSpace='pre-wrap';const review=el('button','이 문장 검토');review.type='button';review.dataset.review='true';review.style.marginTop='4px';li.append(review);li.lastChild.style.margin='4px 0';list.append(li)});
  wrap.append(list);root.append(wrap);
 }
 export function renderLocalIndex(root,data){
@@ -81,7 +81,7 @@ export function renderLocalIndex(root,data){
  for(const g of candidates){
   const details=el('details');details.style.margin='12px 0';const summary=el('summary',g.name+' · '+g.items.length+'건');summary.style.cursor='pointer';summary.style.fontWeight='600';details.append(summary);
   const list=el('ol');list.style.paddingLeft='24px';
-  for(const x of g.items.slice(0,60)){const li=el('li');li.dataset.sourceDocument=x.document;li.dataset.sourcePage=String(x.page);li.style.margin='10px 0';li.append(el('strong',x.document+' · '+x.page+'쪽'),el('p',x.text));list.append(li)}
+  for(const x of g.items.slice(0,60)){const li=el('li');li.dataset.sourceDocument=x.document;li.dataset.sourcePage=String(x.page);li.style.margin='10px 0';li.append(el('strong',x.document+' · '+x.page+'쪽'),el('p',x.text));const review=el('button','이 문장 검토');review.type='button';review.dataset.review='true';li.append(review);list.append(li)}
   details.append(list);groupBox.append(details);
  }
  root.append(groupBox);
