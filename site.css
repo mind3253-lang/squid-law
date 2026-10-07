@@ -16,9 +16,3 @@ ol.steps{padding-left:1.35rem}ol.steps li{padding:.35rem 0}.term-grid{display:gr
 
 .term-grid.party{grid-template-columns:repeat(2,minmax(0,1fr));max-width:430px;margin-bottom:18px}.term-chip.basic{background:#dfe7ff;border:1px solid #9fb2ee;color:#1f3474}.term-modal.basic .term-kind{background:#dfe7ff;color:#1f3474}.term-subhead{margin:18px 0 10px;font-size:14px;color:#64748b;font-weight:900}
 
-/* term modal reading layout */
-.term-dialog{width:min(720px,100%);text-align:left}
-.term-dialog [data-term-body]{width:75%;max-width:520px;margin:18px 0 0;text-align:left;word-break:keep-all;overflow-wrap:normal}
-.term-paragraph{display:block;margin:0 0 1.15em}
-.term-paragraph:last-child{margin-bottom:0}
-@media(max-width:700px){.term-dialog [data-term-body]{width:100%;max-width:none}}
