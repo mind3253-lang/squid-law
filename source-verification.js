@@ -4,9 +4,11 @@
 const normalize=s=>String(s||'').normalize('NFKC').replace(/\s+/g,' ').trim();
 export function verifyCitation(documents,citation){
  if(!citation||typeof citation!=='object')return {status:'invalid',reason:'출처 형식 오류'};
- const doc=documents.find(d=>d.name===citation.document);
- if(!doc)return {status:'missing_document',reason:'해당 PDF가 없음'};
- const page=Number(citation.page);
+ const matches=documents.filter(d=>d.name===citation.document);
+ if(!matches.length)return {status:'missing_document',reason:'해당 PDF가 없음'};
+ if(matches.length>1)return {status:'ambiguous_document',reason:'동일한 파일명의 PDF가 여러 개 있어 출처를 특정할 수 없음'};
+ const doc=matches[0];
+ const page=citation.page;
  if(!Number.isInteger(page)||page<1||page>doc.pages.length)return {status:'invalid_page',reason:'페이지 범위 오류'};
  const quote=normalize(citation.quote);
  if(quote.length<8)return {status:'invalid_quote',reason:'원문 인용이 너무 짧음'};
