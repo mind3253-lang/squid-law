@@ -48,7 +48,7 @@ function section(root,title,items,formatter,max=40){
  if(!items.length){wrap.append(el('p','해당 항목을 찾지 못했습니다.'));root.append(wrap);return}
  const count=el('p',items.length+'건 검색 · 최초 '+Math.min(items.length,max)+'건 표시');count.className='notice';wrap.append(count);
  const list=el('ol');list.style.paddingLeft='24px';
- items.slice(0,max).forEach(x=>{const li=el('li');li.style.marginBottom='12px';const label=el('strong',formatter(x));li.append(label,el('p',x.text));li.lastChild.style.whiteSpace='pre-wrap';li.lastChild.style.margin='4px 0';list.append(li)});
+ items.slice(0,max).forEach(x=>{const li=el('li');li.style.marginBottom='12px';const label=el('strong',formatter(x));li.append(label,el('p',x.text));li.dataset.sourceDocument=x.document||'';li.dataset.sourcePage=String(x.page||'');li.lastChild.style.whiteSpace='pre-wrap';li.lastChild.style.margin='4px 0';list.append(li)});
  wrap.append(list);root.append(wrap);
 }
 export function renderLocalIndex(root,data){
@@ -67,7 +67,7 @@ export function renderLocalIndex(root,data){
  const evList=el('ol');evList.style.paddingLeft='24px';
  for(const entry of shared.slice(0,40)){
   const li=el('li');li.style.marginBottom='14px';li.append(el('strong',entry.reference+' · '+entry.documentCount+'개 문서'));
-  for(const occ of entry.occurrences.slice(0,8)){const p=el('p',occ.document+' · '+occ.page+'쪽 — '+occ.text);p.style.margin='4px 0';li.append(p)}
+  for(const occ of entry.occurrences.slice(0,8)){const p=el('p',occ.document+' · '+occ.page+'쪽 — '+occ.text);p.style.margin='4px 0';p.dataset.sourceDocument=occ.document;p.dataset.sourcePage=String(occ.page);li.append(p)}
   evList.append(li);
  }
  evBox.append(evList);root.append(evBox);
