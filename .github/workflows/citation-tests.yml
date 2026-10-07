@@ -4,7 +4,9 @@ on:
     branches: [main]
     paths:
       - 'source-verification.js'
+      - 'findings-schema.js'
       - 'tests/source-verification.test.mjs'
+      - 'tests/findings-schema.test.mjs'
       - '.github/workflows/citation-tests.yml'
   pull_request:
     paths:
@@ -22,4 +24,6 @@ jobs:
         with:
           node-version: '22'
       - name: Test PDF citation matching
-        run: node tests/source-verification.test.mjs
+        run: |
+          node tests/source-verification.test.mjs
+          node tests/findings-schema.test.mjs
