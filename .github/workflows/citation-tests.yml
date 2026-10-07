@@ -7,6 +7,8 @@ on:
       - 'findings-schema.js'
       - 'analysis-local.js'
       - 'analysis-quality.js'
+      - 'analysis-input.js'
+      - 'tests/analysis-input.test.mjs'
       - 'tests/analysis-quality.test.mjs'
       - 'tests/analysis-pipeline.test.mjs'
       - 'tests/source-verification.test.mjs'
@@ -18,6 +20,8 @@ on:
       - 'findings-schema.js'
       - 'analysis-local.js'
       - 'analysis-quality.js'
+      - 'analysis-input.js'
+      - 'tests/analysis-input.test.mjs'
       - 'tests/analysis-quality.test.mjs'
       - 'tests/analysis-pipeline.test.mjs'
       - 'tests/findings-schema.test.mjs'
@@ -39,3 +43,4 @@ jobs:
           node tests/findings-schema.test.mjs
           node tests/analysis-pipeline.test.mjs
           node tests/analysis-quality.test.mjs
+          node tests/analysis-input.test.mjs
