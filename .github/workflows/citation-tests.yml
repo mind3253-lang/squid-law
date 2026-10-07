@@ -1,0 +1,25 @@
+name: Citation verification tests
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'source-verification.js'
+      - 'tests/source-verification.test.mjs'
+      - '.github/workflows/citation-tests.yml'
+  pull_request:
+    paths:
+      - 'source-verification.js'
+      - 'tests/source-verification.test.mjs'
+      - '.github/workflows/citation-tests.yml'
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Test PDF citation matching
+        run: node tests/source-verification.test.mjs
