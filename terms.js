@@ -61,10 +61,10 @@ function card(term,detail,kind){
 }
 function open(term,detail,kind){
  const m=document.getElementById("term-modal"); m.className="term-modal open "+kind;
- m.querySelector("[data-term-title]").textContent=term; m.querySelector("[data-term-body]").textContent=detail.replace(/([.!?]) /g,"$1\\n").replace(/((?:[^\\n]+\\n){3})/g,"$1\\n");
+ m.querySelector("[data-term-title]").textContent=term; m.querySelector("[data-term-body]").textContent=detail;
  m.setAttribute("aria-hidden","false");
 }
-function formatDetail(detail){\n const sentences=detail.match(/[^.!?]+[.!?]?/g)||[detail];\n const groups=[];\n for(let i=0;i<sentences.length;i+=3){groups.push(sentences.slice(i,i+3).map(s=>s.trim().replace(/, /g,",<br>")).join("<br>"));}\n return groups.map(g=>"<span class=\"term-paragraph\">"+g+"</span>").join("");\n}\nfunction close(){const m=document.getElementById("term-modal");m.className="term-modal";m.setAttribute("aria-hidden","true");}
+function close(){const m=document.getElementById("term-modal");m.className="term-modal";m.setAttribute("aria-hidden","true");}
 function init(){
  const root=document.querySelector("[data-terms-category]"); if(!root)return; const cat=root.dataset.termsCategory;
  const cg=document.getElementById("common-term-grid"); BASIC.forEach(x=>cg.appendChild(card(x[0],x[1],"basic"))); COMMON_SORTED.forEach(x=>cg.appendChild(card(x[0],x[1],"common")));
