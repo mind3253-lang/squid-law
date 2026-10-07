@@ -21,3 +21,15 @@ ol.steps{padding-left:1.35rem}ol.steps li{padding:.35rem 0}.term-grid{display:gr
 /* term reading layout */
 .term-dialog [data-term-body]{white-space:pre-line;text-align:left;width:75%;max-width:520px;word-break:keep-all;overflow-wrap:normal}
 @media(max-width:700px){.term-dialog [data-term-body]{width:100%;max-width:none}}
+
+/* usage guide: two selectable views and readable article */
+.guide-choices{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin:20px 0 26px}
+.guide-choice{font:inherit;text-align:left;background:#fff;border:1px solid #dbe3ed;border-radius:15px;padding:22px 24px;cursor:pointer;display:flex;flex-direction:column;gap:8px;color:#172033}
+.guide-choice strong{font-size:20px}.guide-choice span{font-size:14px;color:#64748b}
+.guide-choice.active{background:#eef4ff;border-color:#8eace6;box-shadow:inset 0 0 0 1px #8eace6}
+.guide-panel[hidden]{display:none!important}
+.guide-prose{width:100%;max-width:650px;margin:0 0 34px;text-align:left;word-break:keep-all;overflow-wrap:break-word}
+.guide-intro{margin:0 0 28px}.guide-intro h2{font-size:23px;margin:0 0 12px}
+.guide-chapter{margin:0 0 32px}.guide-chapter h2{font-size:20px;line-height:1.5;margin:0 0 12px}.guide-chapter p,.guide-intro p,.guide-notice p,.guide-prose>p{font-size:16px;line-height:1.95;margin:0 0 13px}
+.guide-notice{border-top:1px solid #dce4ed;padding-top:22px;margin-top:36px}.guide-notice h2{font-size:17px;margin:0 0 10px}
+@media(max-width:700px){.guide-choices{gap:9px}.guide-choice{padding:16px 12px}.guide-choice strong{font-size:16px}.guide-choice span{font-size:12px}.guide-prose{max-width:100%}}
