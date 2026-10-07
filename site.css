@@ -33,3 +33,9 @@ ol.steps{padding-left:1.35rem}ol.steps li{padding:.35rem 0}.term-grid{display:gr
 .guide-chapter{margin:0 0 32px}.guide-chapter h2{font-size:20px;line-height:1.5;margin:0 0 12px}.guide-chapter p,.guide-intro p,.guide-notice p,.guide-prose>p{font-size:16px;line-height:1.95;margin:0 0 13px}
 .guide-notice{border-top:1px solid #dce4ed;padding-top:22px;margin-top:36px}.guide-notice h2{font-size:17px;margin:0 0 10px}
 @media(max-width:700px){.guide-choices{gap:9px}.guide-choice{padding:16px 12px}.guide-choice strong{font-size:16px}.guide-choice span{font-size:12px}.guide-prose{max-width:100%}}
+
+.guide-choices{grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.guide-choice{padding:16px 17px;gap:5px;min-width:0}
+.guide-choice strong{font-size:17px}
+.guide-choice span{font-size:12px;line-height:1.5}
+@media(max-width:700px){.guide-choices{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}.guide-choice{padding:12px 8px}.guide-choice strong{font-size:14px}.guide-choice span{font-size:11px}}
