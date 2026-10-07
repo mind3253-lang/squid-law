@@ -144,26 +144,46 @@ function showVerifiedFindings(checked,label){
  const status=document.getElementById('findings-status');
  output.replaceChildren();
  let matched=0,total=0,missing=0;
+ const problemRows=[],verifiedRows=[];
  for(const f of checked){
   const section=document.createElement('section');section.style.cssText='border-top:1px solid #dce4ed;padding:12px 0';
   const heading=document.createElement('h3');heading.textContent=f.title;section.append(heading);
-  if(!f.citationChecks.length){missing++;const p=document.createElement('p');p.textContent='출처 없음 · 근거 확인 불가';section.append(p);}
-  for(const item of f.citationChecks){
-   total++;if(item.verification.status==='matched')matched++;
-   const p=document.createElement('p');p.textContent=(item.verification.status==='matched'?'일치':'확인 필요')+' · '+item.document+' '+item.page+'쪽 · '+item.verification.reason+' — '+item.quote;p.style.overflowWrap='anywhere';
-   const jump=document.createElement('button');jump.type='button';jump.textContent='원문 페이지 보기';
-   jump.addEventListener('click',()=>{
-    const idx=documents.findIndex(d=>d.name===item.document);
-    if(idx<0||item.page<1||item.page>documents[idx].pages.length)return;
-    docSelect.value=String(idx);renderDocument();pageSelect.value=String(item.page-1);renderPage();
-    const details=document.getElementById('pdf-visual');details.open=true;
-    document.getElementById('local-review').scrollIntoView({behavior:'smooth'});
-   });
-   section.append(p,jump);
+  if(!f.citationChecks.length){
+   missing++;
+   const p=document.createElement('p');p.textContent='출처 없음 · 근거 확인 불가';p.style.color='#9a3412';section.append(p);
+   problemRows.push(section);continue;
   }
-  output.append(section);
+  let hasProblem=false;
+  for(const item of f.citationChecks){
+   total++;const ok=item.verification.status==='matched';if(ok)matched++;else hasProblem=true;
+   const p=document.createElement('p');
+   p.textContent=(ok?'원문 일치':'확인 필요')+' · '+item.document+' '+item.page+'쪽 · '+item.verification.reason+' — '+item.quote;
+   p.style.cssText='overflow-wrap:anywhere;color:'+(ok?'#166534':'#9a3412');section.append(p);
+   const matchingDocs=documents.filter(d=>d.name===item.document);
+   const canJump=matchingDocs.length===1&&Number.isInteger(item.page)&&item.page>=1&&item.page<=matchingDocs[0].pages.length;
+   if(canJump){
+    const jump=document.createElement('button');jump.type='button';jump.textContent='원문 페이지 보기';
+    jump.addEventListener('click',()=>{
+     const idx=documents.findIndex(d=>d.name===item.document);
+     if(idx<0)return;
+     docSelect.value=String(idx);renderDocument();pageSelect.value=String(item.page-1);renderPage();
+     const details=document.getElementById('pdf-visual');details.open=true;
+     document.getElementById('local-review').scrollIntoView({behavior:'smooth'});
+    });
+    section.append(jump);
+   }
+  }
+  (hasProblem?problemRows:verifiedRows).push(section);
  }
- status.textContent=label+' · 인용 '+total+'건 중 일치 '+matched+'건, 확인 필요 '+(total-matched)+'건'+(missing?' · 출처 없는 항목 '+missing+'건':'')+'. 원문 일치는 사실 여부를 증명하지 않습니다.';
+ const problems=total-matched+missing;
+ status.textContent=label+' · 원문 일치 '+matched+'건 / 확인 필요 '+(total-matched)+'건 / 출처 없는 항목 '+missing+'건. 원문 일치는 사실 여부를 증명하지 않습니다.';
+ if(problems){
+  const title=document.createElement('h3');title.textContent='우선 확인할 항목 ('+problemRows.length+'개)';output.append(title,...problemRows);
+ }
+ if(verifiedRows.length){
+  const details=document.createElement('details');details.open=!problems;
+  const summary=document.createElement('summary');summary.textContent='원문 일치 항목 ('+verifiedRows.length+'개)';details.append(summary,...verifiedRows);output.append(details);
+ }
 }
 document.getElementById('verify-local-candidates').addEventListener('click',()=>{
  if(!documents.length)return;
