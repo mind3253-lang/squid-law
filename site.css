@@ -17,4 +17,3 @@ ol.steps{padding-left:1.35rem}ol.steps li{padding:.35rem 0}.term-grid{display:gr
 .term-grid.party{grid-template-columns:repeat(2,minmax(0,1fr));max-width:430px;margin-bottom:18px}.term-chip.basic{background:#dfe7ff;border:1px solid #9fb2ee;color:#1f3474}.term-modal.basic .term-kind{background:#dfe7ff;color:#1f3474}.term-subhead{margin:18px 0 10px;font-size:14px;color:#64748b;font-weight:900}
 
 
-[data-term-body]{white-space:pre-line;text-align:left}
