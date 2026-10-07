@@ -73,6 +73,7 @@ const SPEC_DETAILS={
  }
 };
 function specDetail(term,cat){
+ if(SPEC_DETAILS[cat]&&SPEC_DETAILS[cat][term]) return SPEC_DETAILS[cat][term];
  return term+"은 "+SPEC[cat].title.replace(" 핵심용어","")+" 사건에서 자주 만나는 말이야. 단어만 외우지 말고, 이 말이 나온 계약서·카톡·계좌내역·서면의 앞뒤 문맥과 날짜를 같이 봐. 같은 단어라도 사건에서 맡는 역할이 달라질 수 있어.";
 }
 function card(term,detail,kind){
