@@ -3,13 +3,13 @@
 export function prepareAnalysisInput(documents,{maxPages=300,maxChars=450000}={}){
  if(!Array.isArray(documents)||!documents.length)throw Error('NO_DOCUMENTS');
  if(!Number.isInteger(maxPages)||maxPages<1||!Number.isInteger(maxChars)||maxChars<1)throw Error('INVALID_LIMITS');
- const names=new Set(),pages=[];let totalChars=0,unreadable=0;
+ const names=new Set(),pages=[];let totalChars=0,unreadable=0,totalPages=0;
  for(const doc of documents){
   if(!doc||typeof doc.name!=='string'||!doc.name.trim()||!Array.isArray(doc.pages))throw Error('INVALID_DOCUMENT');
   if(names.has(doc.name))throw Error('DUPLICATE_DOCUMENT_NAME');
   names.add(doc.name);
   for(let i=0;i<doc.pages.length;i++){
-   if(pages.length>=maxPages)throw Error('PAGE_LIMIT_EXCEEDED');
+   if(++totalPages>maxPages)throw Error('PAGE_LIMIT_EXCEEDED');
    const raw=doc.pages[i]?.text;
    if(typeof raw!=='string')throw Error('INVALID_PAGE_TEXT');
    const content=raw.trim();
