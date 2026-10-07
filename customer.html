@@ -3,6 +3,7 @@ import * as pdfjsLib from 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38
 import {buildLocalIndex,renderLocalIndex,plainReport,buildCandidateFindings} from './analysis-local.js';
 import {verifyCitation,verifyFindings} from './source-verification.js';
 import {validateFindingsPayload} from './findings-schema.js';
+import {summarizeCitationChecks,isSourceReadyForReview} from './analysis-quality.js';
 pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.worker.min.mjs';
 const fileInput=document.getElementById('analysis-files');
 const fileState=document.getElementById('file-state');
@@ -173,6 +174,12 @@ function showVerifiedFindings(checked,label){
  verifiedReportText=buildVerifiedReport(checked,label);
  document.getElementById('copy-verified-report').disabled=false;
  document.getElementById('save-verified-report').disabled=false;
+ const quality=summarizeCitationChecks(checked);
+ const ready=isSourceReadyForReview(checked);
+ const qualityLine=document.createElement('p');
+ qualityLine.style.cssText='font-weight:700;color:'+(ready?'#166534':'#9a3412');
+ qualityLine.textContent=ready?'출처 대조 완료 · 모든 인용이 등록 PDF의 추출 원문과 일치합니다.':'출처 확인 필요 · '+quality.needsReviewFindings+'개 항목에 누락되거나 불일치한 출처가 있습니다.';
+ output.append(qualityLine);
  let matched=0,total=0,missing=0;
  const problemRows=[],verifiedRows=[];
  for(const f of checked){
