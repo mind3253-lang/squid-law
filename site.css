@@ -15,3 +15,10 @@ ol.steps{padding-left:1.35rem}ol.steps li{padding:.35rem 0}.term-grid{display:gr
 @media(max-width:700px){.term-grid.compact{grid-template-columns:repeat(4,minmax(0,1fr));gap:5px}.term-chip{min-height:42px;padding:7px 3px;font-size:11px;word-break:keep-all}.term-section-head{align-items:start;flex-direction:column}.term-dialog{padding:22px}.term-dialog h2{font-size:24px}}
 
 .term-grid.party{grid-template-columns:repeat(2,minmax(0,1fr));max-width:430px;margin-bottom:18px}.term-chip.basic{background:#dfe7ff;border:1px solid #9fb2ee;color:#1f3474}.term-modal.basic .term-kind{background:#dfe7ff;color:#1f3474}.term-subhead{margin:18px 0 10px;font-size:14px;color:#64748b;font-weight:900}
+
+/* term modal reading layout */
+.term-dialog{width:min(720px,100%);text-align:left}
+.term-dialog [data-term-body]{width:75%;max-width:520px;margin:18px 0 0;text-align:left;word-break:keep-all;overflow-wrap:normal}
+.term-paragraph{display:block;margin:0 0 1.15em}
+.term-paragraph:last-child{margin-bottom:0}
+@media(max-width:700px){.term-dialog [data-term-body]{width:100%;max-width:none}}
