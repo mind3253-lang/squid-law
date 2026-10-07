@@ -63,9 +63,13 @@ function renderReviews(){
   const row=document.createElement('div');row.style.cssText='border-top:1px solid #e2e8f0;padding:12px 0';
   const head=document.createElement('strong');head.textContent=(i+1)+'. ['+record.status+'] '+record.document+' · '+record.page+'쪽';
   const quote=document.createElement('p');quote.textContent=record.text;
+  const check=verifyCitation(documents,{document:record.document,page:record.page,quote:record.text});
+  const checkLabel=document.createElement('p');
+  checkLabel.textContent='원문 대조: '+(check.status==='matched'?'인용 문구 일치':check.reason);
+  checkLabel.style.color=check.status==='matched'?'#166534':'#9a3412';
   const note=document.createElement('p');note.textContent='메모: '+(record.note||'없음');
   const del=document.createElement('button');del.type='button';del.textContent='이 기록 삭제';del.addEventListener('click',()=>{reviewRecords.splice(i,1);renderReviews()});
-  row.append(head,quote,note,del);reviewRecordsBox.append(row);
+  row.append(head,quote,checkLabel,note,del);reviewRecordsBox.append(row);
  });
  document.getElementById('review-export').disabled=!reviewRecords.length;
 }
@@ -163,6 +167,7 @@ fileInput.addEventListener('change',async e=>{
  const citationDoc=document.getElementById('citation-doc');citationDoc.replaceChildren();
  for(const d of documents){const option=document.createElement('option');option.value=d.name;option.textContent=d.name;citationDoc.append(option)}
  document.getElementById('citation-result').textContent=documents.length?'인용 문장을 입력해 확인할 수 있습니다.':'PDF를 먼저 선택하세요.';
+ renderReviews();
  const index=buildLocalIndex(documents);const overview=document.getElementById('analysis-overview-body');
  overview.replaceChildren();
  const rows=[
