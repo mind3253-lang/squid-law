@@ -11,6 +11,8 @@ on:
   pull_request:
     paths:
       - 'source-verification.js'
+      - 'findings-schema.js'
+      - 'tests/findings-schema.test.mjs'
       - 'tests/source-verification.test.mjs'
       - '.github/workflows/citation-tests.yml'
 permissions:
