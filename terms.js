@@ -61,7 +61,7 @@ function card(term,detail,kind){
 }
 function open(term,detail,kind){
  const m=document.getElementById("term-modal"); m.className="term-modal open "+kind;
- m.querySelector("[data-term-title]").textContent=term; m.querySelector("[data-term-body]").textContent=detail;
+ m.querySelector("[data-term-title]").textContent=term; m.querySelector("[data-term-body]").textContent=detail.replace(/([.!?]) /g,"$1\\n").replace(/((?:[^\\n]+\\n){3})/g,"$1\\n");
  m.setAttribute("aria-hidden","false");
 }
 function formatDetail(detail){\n const sentences=detail.match(/[^.!?]+[.!?]?/g)||[detail];\n const groups=[];\n for(let i=0;i<sentences.length;i+=3){groups.push(sentences.slice(i,i+3).map(s=>s.trim().replace(/, /g,",<br>")).join("<br>"));}\n return groups.map(g=>"<span class=\"term-paragraph\">"+g+"</span>").join("");\n}\nfunction close(){const m=document.getElementById("term-modal");m.className="term-modal";m.setAttribute("aria-hidden","true");}
