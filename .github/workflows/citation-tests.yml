@@ -8,6 +8,8 @@ on:
       - 'analysis-local.js'
       - 'analysis-quality.js'
       - 'analysis-input.js'
+      - 'analysis-batches.js'
+      - 'tests/analysis-batches.test.mjs'
       - 'tests/analysis-input.test.mjs'
       - 'tests/analysis-quality.test.mjs'
       - 'tests/analysis-pipeline.test.mjs'
@@ -21,6 +23,8 @@ on:
       - 'analysis-local.js'
       - 'analysis-quality.js'
       - 'analysis-input.js'
+      - 'analysis-batches.js'
+      - 'tests/analysis-batches.test.mjs'
       - 'tests/analysis-input.test.mjs'
       - 'tests/analysis-quality.test.mjs'
       - 'tests/analysis-pipeline.test.mjs'
@@ -44,3 +48,4 @@ jobs:
           node tests/analysis-pipeline.test.mjs
           node tests/analysis-quality.test.mjs
           node tests/analysis-input.test.mjs
+          node tests/analysis-batches.test.mjs
