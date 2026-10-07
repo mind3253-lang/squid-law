@@ -13,8 +13,11 @@ const textView=document.getElementById('extract-text');
 let documents=[];
 const pdfInstances=[];
 let visualToken=0;
+let pdfRenderTask=null;
 async function showPdfPage(){
  const token=++visualToken;
+ if(pdfRenderTask){pdfRenderTask.cancel();try{await pdfRenderTask.promise}catch{}pdfRenderTask=null;}
+ if(token!==visualToken)return;
  const d=Number(docSelect.value),p=Number(pageSelect.value)+1;
  const status=document.getElementById('render-pdf-status');
  const pdf=pdfInstances[d];
@@ -30,7 +33,9 @@ async function showPdfPage(){
   canvas.width=Math.ceil(viewport.width*pixelRatio);canvas.height=Math.ceil(viewport.height*pixelRatio);
   canvas.style.width=Math.ceil(viewport.width)+'px';canvas.style.height=Math.ceil(viewport.height)+'px';
   const context=canvas.getContext('2d');
-  await page.render({canvasContext:context,viewport,transform:pixelRatio===1?undefined:[pixelRatio,0,0,pixelRatio,0,0]}).promise;
+  const task=page.render({canvasContext:context,viewport,transform:pixelRatio===1?undefined:[pixelRatio,0,0,pixelRatio,0,0]});
+  pdfRenderTask=task;
+  try{await task.promise}finally{if(pdfRenderTask===task)pdfRenderTask=null;}
   if(token===visualToken)status.textContent=d+1+'번 문서 · '+p+'쪽 원본';
  }catch{if(token===visualToken)status.textContent='원본 페이지를 표시하지 못했습니다.';}
 }
@@ -131,7 +136,7 @@ document.getElementById('citation-check').addEventListener('click',()=>{
  el.style.color=result.status==='matched'?'#166534':'#9a3412';
 });
 fileInput.addEventListener('change',async e=>{
- documents=[];pdfInstances.length=0;visualToken++;document.getElementById('pdf-visual').open=false;document.getElementById('render-pdf-status').textContent='';reviewRecords=[];selectedReview=null;renderReviews();reviewEditor.hidden=true;document.getElementById('review-empty').hidden=false;controls.hidden=true;searchBox.hidden=true;searchResults.replaceChildren();docSelect.replaceChildren();textView.textContent='';
+ documents=[];visualToken++;if(pdfRenderTask){pdfRenderTask.cancel();pdfRenderTask=null;}for(const oldPdf of pdfInstances){oldPdf.destroy().catch(()=>{});}pdfInstances.length=0;document.getElementById('pdf-visual').open=false;document.getElementById('render-pdf-status').textContent='';reviewRecords=[];selectedReview=null;renderReviews();reviewEditor.hidden=true;document.getElementById('review-empty').hidden=false;controls.hidden=true;searchBox.hidden=true;searchResults.replaceChildren();docSelect.replaceChildren();textView.textContent='';
  let pages=0,failed=0,empty=0,skipped=0;const MAX_FILE_BYTES=30*1024*1024,MAX_TOTAL_PAGES=300;
  for(const f of e.target.files){
   if(!/\.pdf$/i.test(f.name)&&f.type!=='application/pdf'){failed++;continue;}if(f.size>MAX_FILE_BYTES){skipped++;status.textContent=f.name+' : 30MB 초과로 제외';continue;}
