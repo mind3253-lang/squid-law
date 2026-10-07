@@ -42,6 +42,23 @@ export function buildDatedEvents(data){
  }
  return events.sort((a,b)=>a.date.localeCompare(b.date)||a.document.localeCompare(b.document)||a.page-b.page);
 }
+const cueGroups=[
+ {name:'당사자의 주장·반박 후보',pattern:/(주장하|주장했|주장한다|반박하|부인하|다투고|다툰다|인정하)/},
+ {name:'청구·신청·요청 후보',pattern:/(청구하|신청하|요청하|구한다|명령하여|기각하여|인용하여)/},
+ {name:'계약·합의·해지 후보',pattern:/(계약을|계약서|합의하|합의서|해지하|종료하|해제하)/},
+ {name:'금전·지급 후보',pattern:/(지급하|반환하|입금하|송금하|미지급|손해배상|부당이득)/},
+ {name:'인용·판례 후보',pattern:/(대법원|고등법원|지방법원|선고|판례|판시하|판결문)/}
+];
+export function buildIssueCandidates(data){
+ const out=cueGroups.map(g=>({name:g.name,items:[]}));
+ const seen=new Set();
+ for(const row of data.claims){
+  const key=row.document+'|'+row.page+'|'+row.text;
+  if(seen.has(key))continue;seen.add(key);
+  for(let i=0;i<cueGroups.length;i++)if(cueGroups[i].pattern.test(row.text))out[i].items.push(row);
+ }
+ return out;
+}
 function el(tag,text){const e=document.createElement(tag);if(text!==undefined)e.textContent=text;return e}
 function section(root,title,items,formatter,max=40){
  const wrap=el('section');wrap.style.margin='22px 0';wrap.append(el('h3',title));
@@ -58,6 +75,16 @@ export function renderLocalIndex(root,data){
  const empty=data.documents.reduce((a,d)=>a+d.empty,0);
  if(empty)root.append(el('p','주의: 텍스트가 없는 페이지 '+empty+'쪽은 이 색인에서 누락되었습니다. 스캔 PDF는 별도 문자 인식이 필요합니다.'));
  section(root,'날짜별 원문 후보 (날짜순)',buildDatedEvents(data),x=>x.date+' · '+x.document+' · '+x.page+'쪽');
+ const candidates=buildIssueCandidates(data);
+ const groupBox=el('section');groupBox.style.margin='22px 0';groupBox.append(el('h3','쟁점별 문장 후보'));
+ groupBox.append(el('p','표현에 따라 자동 분류한 문장입니다. 작성자·진위·법적 의미는 확정하지 않습니다.'));
+ for(const g of candidates){
+  const details=el('details');details.style.margin='12px 0';const summary=el('summary',g.name+' · '+g.items.length+'건');summary.style.cursor='pointer';summary.style.fontWeight='600';details.append(summary);
+  const list=el('ol');list.style.paddingLeft='24px';
+  for(const x of g.items.slice(0,60)){const li=el('li');li.dataset.sourceDocument=x.document;li.dataset.sourcePage=String(x.page);li.style.margin='10px 0';li.append(el('strong',x.document+' · '+x.page+'쪽'),el('p',x.text));list.append(li)}
+  details.append(list);groupBox.append(details);
+ }
+ root.append(groupBox);
  section(root,'주요 표현이 포함된 원문',data.claims,x=>x.document+' · '+x.page+'쪽');
  section(root,'증거번호·항목·사건번호 후보',data.references,x=>x.refs.join(', ')+' · '+x.document+' · '+x.page+'쪽');
   const evidence=buildEvidenceMap(data);
@@ -79,6 +106,7 @@ export function plainReport(data){
  for(const [title,items] of [['날짜 원문',data.timeline],['주요 표현',data.claims],['증거·항목·사건번호',data.references]]){
   out+='['+title+'] '+items.length+'건\n';for(const x of items)out+=x.document+' / '+x.page+'쪽\n'+x.text+'\n\n';
  }
+ for(const group of buildIssueCandidates(data)){out+='['+group.name+'] '+group.items.length+'건\\n';for(const x of group.items)out+=x.document+' / '+x.page+'쪽\\n'+x.text+'\\n\\n';}
  out+='[날짜순 원문 후보]\n';for(const x of buildDatedEvents(data))out+=x.date+' / '+x.document+' / '+x.page+'쪽\n'+x.text+'\n\n';
  out+='[여러 문서에서 등장한 번호]\n';for(const x of buildEvidenceMap(data).filter(x=>x.documentCount>1))out+=x.reference+' / '+x.occurrences.map(y=>y.document+' '+y.page+'쪽').join(', ')+'\n';
  out+='[동일 문구] '+data.repeated.length+'건\n';for(const x of data.repeated)out+=x.first.document+' '+x.first.page+'쪽 / '+x.second.document+' '+x.second.page+'쪽\n'+x.text+'\n\n';
