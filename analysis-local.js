@@ -2,7 +2,18 @@
 const datePattern=/(?:20\d{2})\s*[.년\-/]\s*(?:0?[1-9]|1[0-2])\s*[.월\-/]\s*(?:0?[1-9]|[12]\d|3[01])\s*일?/g;
 const refPattern=/(?:소[갑을]\s*제?\s*\d+\s*호증(?:의\s*\d+)?|제\s*\d+\s*항|\d{4}[가-힣]{1,5}\d{3,})/g;
 const signal=/(주장|반박|인정|부인|제출|요청|신청|계약|해지|종료|취소|삭제|게시|지급|반환|판결|결정|증거|진술|위반)/;
-function snippets(text){return text.split(/\n+/).map(x=>x.replace(/\s+/g,' ').trim()).filter(x=>x.length>=12&&x.length<=420)}
+function snippets(text){
+ const lines=text.split(/\n+/).map(x=>x.replace(/\s+/g,' ').trim()).filter(Boolean);
+ const chunks=[];let current='';
+ const flush=()=>{if(current.length>=12)chunks.push(current);current='';};
+ for(const line of lines){
+  if(line.length>420){flush();for(let start=0;start<line.length;start+=350){const part=line.slice(start,start+350);if(part.length>=12)chunks.push(part)}continue;}
+  if(current&&current.length+line.length+1>420)flush();
+  current=current?current+' '+line:line;
+  if(/[.!?。]|다[.]?$/.test(line)&&current.length>=40)flush();
+ }
+ flush();return chunks;
+}
 function source(d,p,s){return {document:d.name,page:p+1,text:s}}
 export function buildLocalIndex(documents){
  const timeline=[],claims=[],references=[],seen=new Map(),repeated=[];
