@@ -187,19 +187,7 @@ document.getElementById('findings-file').addEventListener('change',async event=>
     return {document:x.document,page:x.page,quote:x.quote};
    })};
   });
-  const checked=verifyFindings(documents,findings);
-  let matched=0,total=0;
-  for(const f of checked){
-   const section=document.createElement('section');section.style.cssText='border-top:1px solid #dce4ed;padding:12px 0';
-   const heading=document.createElement('h3');heading.textContent=f.title;section.append(heading);
-   if(!f.citationChecks.length){const p=document.createElement('p');p.textContent='출처 없음 · 근거 확인 불가';section.append(p);}
-   for(const item of f.citationChecks){
-    total++;if(item.verification.status==='matched')matched++;
-    const p=document.createElement('p');p.textContent=(item.verification.status==='matched'?'일치':'확인 필요')+' · '+item.document+' '+item.page+'쪽 · '+item.verification.reason+' — '+item.quote;p.style.overflowWrap='anywhere';section.append(p);
-   }
-   output.append(section);
-  }
-  status.textContent='검사 완료 · 인용 '+total+'건 중 원문 일치 '+matched+'건, 확인 필요 '+(total-matched)+'건. 인용 일치는 사실관계의 진실성을 의미하지 않습니다.';
+  showVerifiedFindings(verifyFindings(documents,findings),'가져온 분석 결과 출처 검산 완료');
  }catch{status.textContent='불러오기 실패: squidlaw-findings-v1 형식의 JSON인지 확인하세요.';}
  event.target.value='';
 });
