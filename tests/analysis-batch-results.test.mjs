@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 const read=p=>readFileSync(new URL('../'+p,import.meta.url),'utf8');
-const uri=s=>'data:text/javascript;charset=utf-8,'+encodeURIComponent(s);
+const uri=s=>'data:text/javascript;charset=utf-8,'+encodeURIComponent(s).replace(/'/g,'%27');
 const sourceUri=uri(read('source-verification.js'));
 const schemaUri=uri(read('findings-schema.js'));
 const qualityUri=uri(read('analysis-quality.js'));
