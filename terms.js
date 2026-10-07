@@ -67,8 +67,7 @@ function open(term,detail,kind){
 function close(){const m=document.getElementById("term-modal");m.className="term-modal";m.setAttribute("aria-hidden","true");}
 function init(){
  const root=document.querySelector("[data-terms-category]"); if(!root)return; const cat=root.dataset.termsCategory;
- const bg=document.getElementById("basic-party-grid"); BASIC.forEach(x=>bg.appendChild(card(x[0],x[1],"basic")));
- const cg=document.getElementById("common-term-grid"); COMMON_SORTED.forEach(x=>cg.appendChild(card(x[0],x[1],"common")));
+ const cg=document.getElementById("common-term-grid"); BASIC.forEach(x=>cg.appendChild(card(x[0],x[1],"basic"))); COMMON_SORTED.forEach(x=>cg.appendChild(card(x[0],x[1],"common")));
  const s=SPEC[cat], sg=document.getElementById("specific-term-grid"); document.getElementById("specific-term-title").textContent=s.title;
  s.terms.forEach(t=>sg.appendChild(card(t,specDetail(t,cat),"specific")));
  document.querySelectorAll("[data-close-term]").forEach(x=>x.addEventListener("click",close));
