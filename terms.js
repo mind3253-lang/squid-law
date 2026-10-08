@@ -205,7 +205,7 @@ function init(){
  cg.parentNode.insertBefore(party,cg);
  COMMON_SORTED.forEach(x=>cg.appendChild(card(x[0],x[1],"common")));
  const s=SPEC[cat], sg=document.getElementById("specific-term-grid"); document.getElementById("specific-term-title").textContent=s.title;
- s.terms.forEach(t=>sg.appendChild(card(t,specDetail(t,cat),"specific")));
+ s.terms.slice().sort((a,b)=>a.localeCompare(b,"ko")).forEach(t=>sg.appendChild(card(t,specDetail(t,cat),"specific")));
  document.querySelectorAll("[data-close-term]").forEach(x=>x.addEventListener("click",close));
  document.getElementById("term-modal").addEventListener("click",e=>{if(e.target.id==="term-modal")close();});
  document.addEventListener("keydown",e=>{if(e.key==="Escape")close();});
