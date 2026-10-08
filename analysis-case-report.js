@@ -53,7 +53,7 @@ export function assembleVerifiedCaseAnalysis(documents,analysis,comparison){
  // Derive omissions from the original uploaded pages, not AI-supplied diagnostics.
  const unreadableDetails=documents.flatMap(doc=>
   Array.isArray(doc?.pages)?doc.pages.flatMap((page,index)=>
-   typeof page?.text==='string'&&!page.text.trim()?
+   (typeof page?.text!=='string'||!page.text.trim())?
     [{document:doc.name,page:index+1,totalPages:doc.pages.length}]:[]):[]
  );
  const checkedAnalysis={...analysis,diagnostics:{...analysis.diagnostics,unreadableDetails},findings:analysis.findings.map(f=>{
