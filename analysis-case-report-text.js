@@ -7,6 +7,7 @@ const relations={
 const status=x=>x==='matched'?'원문 일치':'출처 확인 필요';
 export function formatCaseReportText(report){
  if(!report||report.schema!=='squidlaw-case-analysis-v1'||!Array.isArray(report.findings)||!Array.isArray(report.comparisons))throw Error('INVALID_CASE_REPORT');
+ if(report.findings.some(f=>!f||typeof f!=='object'||(Array.isArray(f.citations)&&f.citations.some(c=>!c||typeof c!=='object')))||report.comparisons.some(c=>!c||typeof c!=='object'||(Array.isArray(c.citations)&&c.citations.some(x=>!x||typeof x!=='object'))))throw Error('INVALID_CASE_REPORT_ENTRY');
  const lines=['SQUID LAW · 사건자료 분석 보고서','',report.status==='source_checked'?'출처 검산: 원문 일치':report.status==='source_checked_partial'?'출처 검산: 일부 페이지 미식별':'출처 검산: 확인 필요',''];
  const documents=new Set();
  for(const f of report.findings)for(const [i,c] of (Array.isArray(f.citations)?f.citations:[]).entries())if(c.document&&f.citationChecks?.[i]?.verification?.status==='matched')documents.add(c.document);
@@ -36,7 +37,7 @@ export function formatCaseReportText(report){
   lines.push('',(i+1)+'. '+String(f.title||'제목 없음'));
   const checks=Array.isArray(f.citationChecks)?f.citationChecks:[];
   const citationsForFinding=Array.isArray(f.citations)?f.citations:[];
-  const verified=checks.length===citationsForFinding.length&&citationsForFinding.length>0&&checks.every(c=>c.verification?.status==='matched');
+  const verified=checks.length===citationsForFinding.length&&citationsForFinding.length>0&&checks.every(c=>c?.verification?.status==='matched');
   lines.push('   원문 인용 검산: '+(verified?'인용 일치':'원문 대조 필요'));
   if(typeof f.analysis==='string'&&f.analysis.trim())lines.push('   쟁점 검토: '+f.analysis);
   else lines.push('   쟁점 검토: 별도 설명 없음 · 원문 인용만 제공');
@@ -115,7 +116,7 @@ export function formatCaseReportText(report){
   lines.push('- 제출되지 않은 문서명을 인용한 항목: '+unknownNames.length+'개');
   for(const name of unknownNames)lines.push('  · 제출 문서 목록에 없음: '+name);
  }
- const unverifiedFindings=report.findings.filter(f=>!Array.isArray(f.citations)||f.citations.length===0||!Array.isArray(f.citationChecks)||f.citationChecks.length!==f.citations.length||f.citationChecks.some(c=>c.verification?.status!=='matched')).length;
+ const unverifiedFindings=report.findings.filter(f=>!Array.isArray(f.citations)||f.citations.length===0||!Array.isArray(f.citationChecks)||f.citationChecks.length!==f.citations.length||f.citationChecks.some(c=>c?.verification?.status!=='matched')).length;
  lines.push('- 인용 확인이 필요한 분석 항목: '+unverifiedFindings+'건');
  const unverifiedComparisons=report.comparisons.filter(c=>c.sourceReady!==true).length;
  lines.push('- 출처 확인이 필요한 비교 후보: '+unverifiedComparisons+'건');
