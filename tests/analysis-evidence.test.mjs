@@ -83,3 +83,13 @@ test('cross-document repeated snippets are deduplicated by normalized text',()=>
  assert.equal(result.repeated[0].first.document,'one.pdf');
  assert.equal(result.repeated[0].second.document,'two.pdf');
 });
+
+test('comparison cap is not reported as truncation when it exactly fits',()=>{
+ const source=[
+  {name:'one.pdf',pages:[{text:'원고는 갑 제42호증을 근거로 계약기간 5년을 주장한다.'}]},
+  {name:'two.pdf',pages:[{text:'피고는 갑 제42호증을 근거로 계약기간 2년을 주장한다.'}]}
+ ];
+ const exact=buildVerifiedComparisonReport(source,{maxLeads:1});
+ assert.equal(exact.leads.length,1);
+ assert.equal(exact.diagnostics.truncated,false);
+});
