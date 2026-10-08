@@ -44,7 +44,7 @@ assert.equal(partial.diagnostics.uncitedReadablePages,1);
 assert.deepEqual(partial.diagnostics.uncitedReadablePageDetails,[{document:'미인용.pdf',page:1}]);
 assert.deepEqual(partial.diagnostics.uncitedDocuments,['미인용.pdf']);
 assert.ok(partial.notices.some(x=>x.includes('식별되지 않은 페이지')));
-assert.ok(partial.notices.some(x=>x.includes('인용되지 않은 파일')));
+assert.ok(partial.notices.some(x=>x.includes('원문 일치가 검증된 인용이 없는 파일')));
 const missingText=assembleVerifiedCaseAnalysis([{name:'계약서.pdf',pages:[{text:source},{},null,{text:42}]}],analysis,comparison);
 assert.equal(missingText.diagnostics.totalPages,4);
 assert.equal(missingText.diagnostics.readablePages,1);
