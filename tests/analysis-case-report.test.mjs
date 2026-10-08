@@ -62,3 +62,8 @@ for(const invalid of [[null], [{name:'원고.pdf',pages:null}], [{name:'원고.p
 assert.throws(()=>assembleVerifiedCaseAnalysis([reportDocuments[0],reportDocuments[0]],analysis,comparison),/DUPLICATE_DOCUMENT_NAME/);
 
 assert.equal(assembleCaseAnalysis({...analysis,findings:[{...analysis.findings[0],citations:[{document:'원고.pdf',page:1,quote:'가          나'}]}]},comparison).status,'needs_source_review');
+
+for(const diagnostics of ['invalid',1,true]){
+ assert.throws(()=>assembleCaseAnalysis({...analysis,diagnostics},comparison),/INVALID_ANALYSIS_RESULT/);
+ assert.throws(()=>assembleCaseAnalysis(analysis,{...comparison,diagnostics}),/INVALID_COMPARISON_RESULT/);
+}
