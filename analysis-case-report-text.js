@@ -128,6 +128,7 @@ export function formatCaseReportText(report){
   if(Number.isInteger(report.diagnostics?.citedReadablePages)&&Number.isInteger(report.diagnostics?.uncitedReadablePages)){
    lines.push('- 원문 일치가 검증된 식별 가능 페이지: '+report.diagnostics.citedReadablePages+'쪽');
    if(Number.isInteger(report.diagnostics.verifiedPageCoveragePercent))lines.push('- 식별 가능 페이지 중 원문 인용 검증 범위: '+report.diagnostics.verifiedPageCoveragePercent+'% (분석 완성도나 내용 정확도 점수가 아님)');
+   if(Number.isInteger(report.diagnostics.totalPageCoveragePercent))lines.push('- 제출된 전체 PDF 페이지 중 원문 인용 검증 범위: '+report.diagnostics.totalPageCoveragePercent+'% (미식별 페이지 포함, 분석 품질 점수가 아님)');
    lines.push('- 원문 일치가 검증된 인용이 없는 식별 가능 페이지: '+report.diagnostics.uncitedReadablePages+'쪽');
    lines.push('- 검증된 인용이 없는 페이지는 분석 누락을 확정하지 않지만 주요 쟁점의 미반영 가능성을 점검해야 합니다.');
    const details=Array.isArray(report.diagnostics?.uncitedReadablePageDetails)?report.diagnostics.uncitedReadablePageDetails:[];
