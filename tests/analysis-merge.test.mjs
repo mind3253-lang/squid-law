@@ -34,3 +34,7 @@ assert.equal(invalidEntry.diagnostics.needsReview,1);
 const invalidCheck=mergeCheckedBatches(expected,[result(1),result(2,true,[null])]);
 assert.equal(invalidCheck.sourceReady,false);
 assert.equal(invalidCheck.diagnostics.needsReview,1);
+
+const invalidPage=mergeCheckedBatches(expected,[result(1),{...result(2),findings:[{...result(2).findings[0],citations:[{document:'test.pdf',page:'1',quote:'원문 인용 8자 이상'}]}]}]);
+assert.equal(invalidPage.sourceReady,false);
+assert.equal(invalidPage.diagnostics.needsReview,1);
