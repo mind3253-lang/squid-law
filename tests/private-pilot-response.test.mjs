@@ -1,0 +1,13 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {parsePilotModelResponse} from '../private-pilot-response.js';
+const finding=()=>({schema:'squidlaw-findings-v1',findings:[{title:'계약서 확인',citations:[{document:'a.pdf',page:1,quote:'계약서 작성 날짜 확인'}]}]});
+const wrap=(text)=>({status:'completed',output:[{type:'message',status:'completed',content:[{type:'output_text',text}]}]});
+test('accepts completed structured output',()=>assert.equal(parsePilotModelResponse(wrap(JSON.stringify(finding()))).findings.length,1));
+test('rejects incomplete API response',()=>assert.throws(()=>parsePilotModelResponse({...wrap('{}'),status:'incomplete'}),/MODEL_RESPONSE_INCOMPLETE/));
+test('rejects incomplete message',()=>{const x=wrap('{}');x.output[0].status='incomplete';assert.throws(()=>parsePilotModelResponse(x),/MODEL_MESSAGE_INCOMPLETE/)});
+test('rejects model refusal',()=>assert.throws(()=>parsePilotModelResponse({status:'completed',output:[{type:'message',content:[{type:'refusal',refusal:'cannot comply'}]}]}),/MODEL_REFUSAL/));
+test('rejects invalid JSON',()=>assert.throws(()=>parsePilotModelResponse(wrap('not JSON')),/INVALID_MODEL_JSON/));
+test('rejects empty citations',()=>{const x=finding();x.findings[0].citations=[];assert.throws(()=>parsePilotModelResponse(wrap(JSON.stringify(x))),/MISSING_FINDING_CITATIONS/)});
+test('rejects more than 12 findings',()=>{const x=finding();x.findings=Array.from({length:13},()=>x.findings[0]);assert.throws(()=>parsePilotModelResponse(wrap(JSON.stringify(x))),/TOO_MANY_MODEL_FINDINGS/)});
+test('accepts empty findings',()=>assert.equal(parsePilotModelResponse(wrap(JSON.stringify({schema:'squidlaw-findings-v1',findings:[]}))).findings.length,0));
