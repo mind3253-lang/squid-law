@@ -10,3 +10,6 @@ test('short search is rejected',()=>assert.throws(()=>searchDocumentPages(docs,'
 test('oversized search is rejected',()=>assert.throws(()=>searchDocumentPages(docs,'가'.repeat(201)),/INVALID_SEARCH_QUERY/));
 test('invalid search limit is rejected',()=>assert.throws(()=>searchDocumentPages(docs,'계약',{limit:101}),/INVALID_SEARCH_LIMIT/));
 test('search preserves document and page navigation',()=>{const r=searchDocumentPages(docs,'반환');assert.equal(r.results[0].documentIndex,1);assert.equal(r.results[0].pageIndex,0)});
+
+test('search matches phrases spanning a PDF line break',()=>assert.equal(searchDocumentPages(docs,'첫 줄 둘째 줄').total,1));
+test('search normalizes compatibility Unicode',()=>assert.equal(searchDocumentPages([{name:'a',pages:[{text:'ＡＢＣ 서류'}]}],'ABC').total,1));
