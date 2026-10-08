@@ -63,6 +63,7 @@ export function assembleVerifiedCaseAnalysis(documents,analysis,comparison){
   return {...c,citations:verified,sourceReady:verified.length===2&&verified.every(x=>x.verification.status==='matched')};
  })};
  const report=assembleCaseAnalysis(checkedAnalysis,checkedComparison);
+ report.diagnostics.submittedDocuments=documents.map(doc=>({name:doc.name,pageCount:Array.isArray(doc.pages)?doc.pages.length:0}));
  if(unreadableDetails.length&&report.status==='source_checked')return {...report,status:'source_checked_partial'};
  // A zero-finding analysis must never pass a vacuous every() check.
  if(report.findings.length===0)return {...report,status:'needs_source_review',diagnostics:{...report.diagnostics,analysisSourceReady:false}};
