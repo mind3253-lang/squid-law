@@ -33,4 +33,5 @@ await assert.rejects(analyzeBatchWithModel(batch,{enabled:true,apiKey:'test-secr
 await assert.rejects(analyzeBatchWithModel(batch,{enabled:true,apiKey:'test-secret',model:'gpt-test',fetchImpl:async()=>({ok:true,json:async()=>({status:'failed',output:[]})})}),/MODEL_RESPONSE_NOT_COMPLETED/);
 await assert.rejects(analyzeBatchWithModel(batch,{enabled:true,apiKey:'test-secret',model:'gpt-test',fetchImpl:async()=>({ok:true,json:async()=>({status:'incomplete',output:[]})})}),/MODEL_RESPONSE_INCOMPLETE/);
 await assert.rejects(analyzeBatchWithModel(batch,{enabled:true,apiKey:'test-secret',model:'gpt-test',fetchImpl:async()=>({ok:true,json:async()=>({status:'completed',output:[{content:[{type:'refusal',refusal:'Cannot comply'}]}]})})}),/MODEL_REFUSED/);
+await assert.rejects(analyzeBatchWithModel(batch,{enabled:true,apiKey:'test-secret',model:'gpt-test',fetchImpl:async(_url,{signal})=>{await new Promise(resolve=>signal.addEventListener('abort',resolve,{once:true}));throw Error('aborted');},timeoutMs:1000}),/MODEL_REQUEST_TIMEOUT/);
 console.log('PASS: worker stays disabled by default, mock request is private and output is validated');
