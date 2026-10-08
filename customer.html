@@ -29,7 +29,11 @@ operatorAiBtn.addEventListener('click',async()=>{
  operatorAiBtn.disabled=true;aiReport.replaceChildren();
  operatorAiStatus.textContent='AI 통합 분석 중입니다. 완료될 때까지 기다려 주세요.';
  try{
-  const response=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json','x-squidlaw-test-token':token},body:JSON.stringify({consent:true,documents})});
+  const controller=new AbortController();
+ const abortTimer=setTimeout(()=>controller.abort(),120000);
+ let response;
+ try{response=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json','x-squidlaw-test-token':token},body:JSON.stringify({consent:true,documents}),signal:controller.signal});}
+ finally{clearTimeout(abortTimer);}
   const payload=await response.json();
   if(revision!==sourceRevision)return;
   if(!response.ok){const messages={AI_TEST_DISABLED:'서버 AI 시험 기능이 아직 켜지지 않았습니다.',TEST_TOKEN_NOT_CONFIGURED:'서버 관리자 토큰이 설정되지 않았습니다.',UNAUTHORIZED:'관리자 시험 토큰이 일치하지 않습니다.',MODEL_KEY_NOT_CONFIGURED:'서버 AI API 키가 설정되지 않았습니다.',EXTERNAL_AI_CONSENT_REQUIRED:'외부 AI 전송 동의가 필요합니다.',REQUEST_TOO_LARGE:'AI 전송 크기 한도를 초과했습니다.',AI_ANALYSIS_FAILED:'AI 서버 분석을 완료하지 못했습니다.'};throw Error(messages[payload.error]||payload.error||'AI_REQUEST_FAILED');}
@@ -38,7 +42,7 @@ operatorAiBtn.addEventListener('click',async()=>{
   const report=document.createElement('pre');report.textContent=payload.text;report.style.cssText='white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.7;background:#f6f8fb;padding:16px;border-radius:8px';
   aiReport.append(title,report);
   operatorAiStatus.textContent='AI 분석 응답 수신 · 출처 검증 상태: '+(payload.sourceReady?'확인':'추가 확인 필요');
- }catch(error){if(revision===sourceRevision)operatorAiStatus.textContent='AI 실행 실패: '+error.message;}
+ }catch(error){if(revision===sourceRevision)operatorAiStatus.textContent=error.name==='AbortError'?'AI 서버 응답이 120초를 초과했습니다. 서버 실행 시간 설정을 확인하세요.':'AI 실행 실패: '+error.message;}
  finally{if(revision===sourceRevision)operatorAiBtn.disabled=false;}
 });
 
