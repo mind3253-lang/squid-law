@@ -184,7 +184,9 @@ function searchOriginal(offset=0){
   const li=document.createElement('li');li.style.margin='10px 0';
   const btn=document.createElement('button');btn.type='button';btn.textContent=item.name+' · '+(item.pageIndex+1)+'쪽';
   btn.addEventListener('click',()=>{if(searchRevision!==sourceRevision||searchInput.value.trim()!==query||!documents[item.documentIndex]||documents[item.documentIndex].name!==item.name||!documents[item.documentIndex].pages[item.pageIndex])return;docSelect.value=String(item.documentIndex);renderDocument();pageSelect.value=String(item.pageIndex);renderPage();document.getElementById('local-review').scrollIntoView({behavior:'smooth'});});
-  const snippet=document.createElement('p');snippet.textContent=item.snippet;snippet.style.margin='4px 0';
+  const snippet=document.createElement('p');snippet.style.margin='4px 0';
+  const at=item.snippet.toLocaleLowerCase().indexOf(query.normalize('NFKC').replace(/\\s+/g,' ').toLocaleLowerCase());
+  if(at>=0){snippet.append(document.createTextNode(item.snippet.slice(0,at)));const mark=document.createElement('mark');mark.textContent=item.snippet.slice(at,at+query.normalize('NFKC').replace(/\\s+/g,' ').length);snippet.append(mark,document.createTextNode(item.snippet.slice(at+mark.textContent.length)));}else snippet.textContent=item.snippet;
   li.append(btn,snippet);list.append(li);
  }
  const summary=document.createElement('p');summary.textContent=found.total+'개 페이지에서 검색어를 찾았습니다.'+(found.total?' '+(offset+1)+'~'+(offset+found.results.length)+'번째 표시.':'');
