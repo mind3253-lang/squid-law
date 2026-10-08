@@ -70,9 +70,13 @@ export function assembleVerifiedCaseAnalysis(documents,analysis,comparison){
  report.diagnostics.readablePages=documents.reduce((sum,doc)=>sum+(Array.isArray(doc.pages)?doc.pages.filter(p=>typeof p?.text==='string'&&p.text.trim()).length:0),0);
  report.diagnostics.unreadablePages=unreadableDetails.length;
  report.diagnostics.totalPages=report.diagnostics.readablePages+unreadableDetails.length;
- const citedNames=new Set([...report.findings.flatMap(f=>f.citations||[]),...report.comparisons.flatMap(c=>c.citations||[])].map(c=>c.document));
+ const verifiedCitations=[
+  ...report.findings.flatMap(f=>(f.citations||[]).filter((c,i)=>f.citationChecks?.[i]?.verification?.status==='matched')),
+  ...report.comparisons.flatMap(c=>(c.citations||[]).filter(source=>source.verification?.status==='matched'))
+ ];
+ const citedNames=new Set(verifiedCitations.map(c=>c.document));
  report.diagnostics.uncitedDocuments=report.diagnostics.submittedDocuments.filter(doc=>!citedNames.has(doc.name)).map(doc=>doc.name);
- const citedPageKeys=new Set([...report.findings.flatMap(f=>f.citations||[]),...report.comparisons.flatMap(c=>c.citations||[])].filter(c=>typeof c.document==='string'&&Number.isInteger(c.page)).map(c=>JSON.stringify([c.document,c.page])));
+ const citedPageKeys=new Set(verifiedCitations.filter(c=>typeof c.document==='string'&&Number.isInteger(c.page)).map(c=>JSON.stringify([c.document,c.page])));
  report.diagnostics.citedReadablePages=documents.reduce((count,doc)=>count+(Array.isArray(doc.pages)?doc.pages.filter((p,i)=>typeof p?.text==='string'&&p.text.trim()&&citedPageKeys.has(JSON.stringify([doc.name,i+1]))).length:0),0);
  report.diagnostics.uncitedReadablePages=report.diagnostics.readablePages-report.diagnostics.citedReadablePages;
  report.diagnostics.uncitedReadablePageDetails=documents.flatMap(doc=>Array.isArray(doc.pages)?doc.pages.flatMap((p,i)=>typeof p?.text==='string'&&p.text.trim()&&!citedPageKeys.has(JSON.stringify([doc.name,i+1]))?[{document:doc.name,page:i+1}]:[]):[]);
