@@ -11,7 +11,9 @@ const comparison={schema:'squidlaw-private-comparisons-v1',sourceReady:false,dia
 const report=assembleVerifiedCaseAnalysis(docs,analysis,comparison);
 const txt=formatCaseReportText(report);
 assert.match(txt,/「계약서.pdf」 총 3페이지 중 2페이지는 내용을 식별할 수 없어/);
-assert.match(txt,/해상도가 높은 파일로 다시 제출/);
+assert.match(txt,/선명하게 다시 스캔한 후 업로드/);
+assert.match(txt,/재판부가 판독하기 어려워 원본 제출/);
+assert.match(txt,/텍스트 추출 실패만으로 원본 자체가 판독 불가능하다고 단정할 수는 없습니다/);
 assert.match(txt,/계약서.pdf · 1쪽 · 원문 일치/);
 assert.throws(()=>prepareAnalysisInput([{name:'전체스캔.pdf',pages:[{text:''}]}]),/NO_READABLE_TEXT/);
 console.log('PASS: partially unreadable PDFs produce exact, friendly omission notice while readable pages are analyzed');
