@@ -20,7 +20,7 @@ export function assembleCaseAnalysis(analysis,comparison){
   sourceReady:c.sourceReady===true
  }));
  const validCitation=c=>!!c&&typeof c.document==='string'&&c.document.trim().length>0&&Number.isInteger(c.page)&&c.page>0&&typeof c.quote==='string'&&c.quote.normalize('NFKC').replace(/\s+/g,' ').trim().length>=8;
- const analysisReady=analysis.sourceReady===true&&analysis.diagnostics.missingBatches.length===0&&findings.length>0&&findings.every(f=>Array.isArray(f.citations)&&f.citations.length>0&&Array.isArray(f.citationChecks)&&f.citationChecks.length===f.citations.length&&f.citations.every(validCitation)&&f.citationChecks.every(c=>c?.verification?.status==='matched'));
+ const analysisReady=analysis.sourceReady===true&&(analysis.diagnostics.missingBatches??[]).length===0&&findings.length>0&&findings.every(f=>Array.isArray(f.citations)&&f.citations.length>0&&Array.isArray(f.citationChecks)&&f.citationChecks.length===f.citations.length&&f.citations.every(validCitation)&&f.citationChecks.every(c=>c?.verification?.status==='matched'));
  const comparisonReady=comparison.sourceReady===true&&comparisons.every(c=>c.sourceReady===true&&Array.isArray(c.citations)&&c.citations.length===2&&c.citations.every(x=>validCitation(x)&&x.verification?.status==='matched'));
  return {
   schema:'squidlaw-case-analysis-v1',
