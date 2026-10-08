@@ -7,6 +7,7 @@ export function assembleCaseAnalysis(analysis,comparison){
  const findings=analysis.findings.map(f=>({
   title:f.title,
   ...(typeof f.analysis==='string'?{analysis:f.analysis}:{}),
+  ...Object.fromEntries(['claim','evidence','rebuttal','proofGap'].filter(k=>typeof f[k]==='string').map(k=>[k,f[k]])),
   citations:f.citations,
   citationChecks:f.citationChecks
  }));
