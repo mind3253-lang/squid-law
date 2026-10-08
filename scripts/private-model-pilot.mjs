@@ -1,7 +1,7 @@
 // Private pilot only. Input: locally extracted PDF page text JSON.
 // Never place this file or an API key in browser code.
 import {readFile} from 'node:fs/promises';
-import {validateFindingsPayload} from '../findings-schema.js';
+import {parsePilotModelResponse} from '../private-pilot-response.js';
 import {verifyFindings} from '../source-verification.js';
 import {summarizeCitationChecks} from '../analysis-quality.js';
 import {validatePilotInput} from '../private-pilot-input.js';
@@ -40,15 +40,7 @@ async function main(){
  }finally{clearTimeout(timeout);}
  if(!response.ok)throw Error('MODEL_HTTP_'+response.status);
  const raw=await response.json();
- if(raw.status!=='completed'||raw.error||raw.incomplete_details)throw Error('MODEL_RESPONSE_INCOMPLETE');
- if(!Array.isArray(raw.output))throw Error('INVALID_MODEL_OUTPUT');
- const output=raw.output.filter(x=>x.type==='message').flatMap(x=>x.content||[]).filter(x=>x.type==='output_text').map(x=>x.text).join('');
- if(!output||output.length>50000)throw Error('EMPTY_OR_OVERSIZED_MODEL_RESPONSE');
- let parsed;
- try{parsed=JSON.parse(output)}catch{throw Error('INVALID_MODEL_JSON')}
- const validated=validateFindingsPayload(parsed);
- if(validated.findings.length>12)throw Error('TOO_MANY_MODEL_FINDINGS');
- if(validated.findings.some(f=>f.citations.length===0))throw Error('MISSING_FINDING_CITATIONS');
+ const validated=parsePilotModelResponse(raw);
  const checked=verifyFindings(input,validated.findings);
  const summary=summarizeCitationChecks(checked);
  // A matching citation proves only that the excerpt exists, not that the model's interpretation is sound.
