@@ -50,3 +50,7 @@ const reportDocuments=[
 ];
 assert.throws(()=>assembleVerifiedCaseAnalysis(reportDocuments,{...analysis,findings:[{...analysis.findings[0],citations:[null]}]},comparison),/INVALID_REPORT_ENTRY/);
 assert.throws(()=>assembleVerifiedCaseAnalysis(reportDocuments,analysis,{...comparison,comparisons:[{...comparison.comparisons[0],citations:[null,comparison.comparisons[0].citations[1]]}]}),/INVALID_REPORT_ENTRY/);
+
+const malformedCitation={document:'원고.pdf',page:'1',quote:'계약기간 5년을 주장한다'};
+assert.equal(assembleCaseAnalysis({...analysis,findings:[{...analysis.findings[0],citations:[malformedCitation]}]},comparison).status,'needs_source_review');
+assert.equal(assembleCaseAnalysis(analysis,{...comparison,comparisons:[{...comparison.comparisons[0],citations:[{...comparison.comparisons[0].citations[0],quote:''},comparison.comparisons[0].citations[1]]}]}).status,'needs_source_review');
