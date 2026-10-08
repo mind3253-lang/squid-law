@@ -47,6 +47,8 @@ on:
       - 'tests/analysis-evaluation.test.mjs'
       - 'tests/dry-run-analysis-cli.test.mjs'
       - 'tests/pilot-analysis-cli.test.mjs'
+      - 'analysis-private-case-runner.js'
+      - 'tests/analysis-private-case-runner.test.mjs'
       - 'analysis-private-runner.js'
       - 'analysis-entitlement.js'
       - 'analysis-authorized-runner.js'
@@ -133,6 +135,7 @@ jobs:
           node tests/analysis-comparison-semantic.test.mjs
           node tests/analysis-comparison-worker.test.mjs
           node tests/analysis-private-comparisons.test.mjs
+          node tests/analysis-private-case-runner.test.mjs
           node tests/analysis-case-report.test.mjs
           node tests/analysis-case-report-source-gate.test.mjs
           node tests/analysis-case-report-text.test.mjs
