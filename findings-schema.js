@@ -8,7 +8,8 @@ export function validateFindingsPayload(payload){
    if(!c||typeof c!=='object'||typeof c.document!=='string'||!c.document.trim()||c.document.length>300||!Number.isInteger(c.page)||c.page<1||typeof c.quote!=='string'||c.quote.length<8||c.quote.length>1500)throw Error('INVALID_CITATION');
    return {document:c.document,page:c.page,quote:c.quote};
   });
-  return {title:f.title,citations};
+  if(f.analysis!==undefined&&(typeof f.analysis!=='string'||!f.analysis.trim()||f.analysis.length>1800))throw Error('INVALID_FINDING_ANALYSIS');
+  return {title:f.title,...(f.analysis===undefined?{}:{analysis:f.analysis}),citations};
  });
  return {schema:'squidlaw-findings-v1',findings};
 }
