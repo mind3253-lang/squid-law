@@ -126,7 +126,7 @@ export function formatCaseReportText(report){
    lines.push('인용되지 않은 제출 문서:');
    for(const item of uncited)lines.push('  · '+item.name);
   }
-  if(submitted.some(item=>!documents.has(item.name)))lines.push('- 인용되지 않은 문서는 분석되지 않았다는 뜻이 아니며, 해당 문서의 쟁점 누락 여부는 별도로 확인해야 합니다.');
+  if(uncited.length)lines.push('- 인용되지 않은 문서는 분석되지 않았다는 뜻이 아니며, 해당 문서의 쟁점 누락 여부는 별도로 확인해야 합니다.');
  }
  lines.push('- 출처 검산 상태: '+(report.status==='source_checked'?'전체 일치':report.status==='source_checked_partial'?'확인된 인용은 일치하나 일부 페이지 미식별':'추가 확인 필요'));
  if(!report.comparisons.length)lines.push('- 공통 증거번호 기반 비교 후보가 없습니다. 이는 서면 사이에 모순이 없다는 뜻이 아닙니다.');
