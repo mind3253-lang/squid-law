@@ -62,6 +62,7 @@ export async function analyzeBatchWithModel(batch,{
   try{data=await response.json();}catch{throw Error('INVALID_MODEL_RESPONSE');}
   if(!data||typeof data!=='object'||Array.isArray(data))throw Error('INVALID_MODEL_RESPONSE');
   if(data.status==='incomplete')throw Error('MODEL_RESPONSE_INCOMPLETE');
+  if(typeof data.status!=='string')throw Error('MODEL_RESPONSE_NOT_COMPLETED');
   if(data.incomplete_details)throw Error('MODEL_RESPONSE_INCOMPLETE');
   if(data.status&&data.status!=='completed')throw Error('MODEL_RESPONSE_NOT_COMPLETED');
   if(data.error)throw Error('MODEL_RESPONSE_ERROR');
