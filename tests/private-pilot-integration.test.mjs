@@ -158,3 +158,15 @@ test('saved review notes pass the same schema as imported notes',()=>{
 test('stale review imports release only their original selected file',()=>{
  assert.ok(page.includes("finally{if(event.target.files?.[0]===f)event.target.value='';}"));
 });
+
+test('review save rejects a source PDF that is no longer loaded',()=>{
+ assert.match(page,/const source=documents\.find\(d=>d\.name===candidate\.document\)/);
+ assert.match(page,/if\(!source\|\|!source\.pages\[candidate\.page-1\]\)/);
+});
+test('review export validates its payload and refuses malformed records',()=>{
+ assert.match(page,/const records=validateReviewRecords\(\{schema:'squidlaw-review-v1',records:reviewRecords\}\)/);
+ assert.match(page,/검토 기록 형식에 오류가 있어 내보내지 않았습니다/);
+});
+test('PDF replacement resets the review import status message',()=>{
+ assert.match(page,/이전 검토 기록은 초기화했습니다/);
+});
