@@ -13,5 +13,6 @@ export function searchDocumentPages(documents,query,{limit=100,offset=0}={}){
   total++;
   if(total>offset&&results.length<limit)results.push({documentIndex:d,pageIndex:p,name:documents[d].name,snippet:normalized.slice(Math.max(0,at-70),Math.min(normalized.length,at+needle.length+100))});
  }
- return {total,results,offset,hasPrevious:offset>0,hasNext:total>offset+results.length,truncated:total>offset+results.length};
+ const effectiveOffset=total?Math.min(offset,Math.floor((total-1)/limit)*limit):0;
+ return {total,results,offset,hasPrevious:offset>0&&total>0,hasNext:total>offset+results.length,truncated:total>offset+results.length,offsetOutOfRange:offset>0&&offset>=total,suggestedOffset:effectiveOffset};
 }
