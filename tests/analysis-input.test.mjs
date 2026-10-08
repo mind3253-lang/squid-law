@@ -15,3 +15,5 @@ assert.throws(()=>prepareAnalysisInput(docs,{maxChars:10}),/TEXT_LIMIT_EXCEEDED/
 assert.throws(()=>prepareAnalysisInput([{name:'scan.pdf',pages:[{text:''}]}]),/NO_READABLE_TEXT/);
 assert.throws(()=>prepareAnalysisInput([{name:'bad.pdf',pages:[{}]}]),/INVALID_PAGE_TEXT/);
 console.log('PASS: bounded source-addressable analysis input, page references, duplicates, unreadable pages and limits');
+
+assert.throws(()=>prepareAnalysisInput([{name:'empty.pdf',pages:[]}]),/EMPTY_DOCUMENT_PAGES/);
