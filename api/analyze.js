@@ -17,7 +17,9 @@ export default async function handler(req,res){
  if(!token||token.length<24)return res.status(503).json({error:'TEST_TOKEN_NOT_CONFIGURED'});
  if(!equals(req.headers['x-squidlaw-test-token'],token))return res.status(401).json({error:'UNAUTHORIZED'});
  if(!process.env.OPENAI_API_KEY)return res.status(503).json({error:'MODEL_KEY_NOT_CONFIGURED'});
- if(Number(req.headers['content-length']||0)>160000)return res.status(413).json({error:'REQUEST_TOO_LARGE'});
+ const declaredLength=Number(req.headers['content-length']||0);
+ if(!Number.isFinite(declaredLength)||declaredLength>160000)return res.status(413).json({error:'REQUEST_TOO_LARGE'});
+ if(req.body&&Buffer.byteLength(JSON.stringify(req.body),'utf8')>160000)return res.status(413).json({error:'REQUEST_TOO_LARGE'});
  if(req.body?.consent!==true)return res.status(400).json({error:'EXTERNAL_AI_CONSENT_REQUIRED'});
  try{
   const documents=req.body?.documents;
