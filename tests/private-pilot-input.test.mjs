@@ -1,0 +1,12 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {validatePilotInput} from '../private-pilot-input.js';
+const one=(text='정상적인 계약서 본문입니다.')=>[{name:'contract.pdf',pages:[{text}]}];
+test('accepts a readable local export',()=>{assert.equal(validatePilotInput(one()).readable,1)});
+test('rejects empty input',()=>assert.throws(()=>validatePilotInput([]),/INVALID_DOCUMENT_COUNT/));
+test('rejects duplicate filenames',()=>assert.throws(()=>validatePilotInput([...one(),...one()]),/INVALID_DOCUMENT/));
+test('rejects unreadable-only PDF',()=>assert.throws(()=>validatePilotInput(one('')),/NO_READABLE_PAGES/));
+test('rejects more than 50 pages',()=>assert.throws(()=>validatePilotInput([{name:'large.pdf',pages:Array.from({length:51},()=>({text:'본문'}))}]),/PILOT_PAGE_LIMIT_50/));
+test('rejects overlong page',()=>assert.throws(()=>validatePilotInput(one('가'.repeat(12001))),/INVALID_PAGES/));
+test('rejects over 60000 total characters',()=>assert.throws(()=>validatePilotInput([{name:'long.pdf',pages:Array.from({length:6},()=>({text:'가'.repeat(11000)}))}]),/PILOT_INPUT_LIMIT_60000_CHARS/));
+test('accepts exactly 60000 characters',()=>assert.equal(validatePilotInput([{name:'limit.pdf',pages:Array.from({length:5},()=>({text:'가'.repeat(12000)}))}]).characters,60000));
