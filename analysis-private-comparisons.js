@@ -2,6 +2,7 @@
 // A failed or mismatched comparison stops the job; never claim full completion.
 import {buildVerifiedComparisonReport} from './analysis-comparison-report.js';
 import {analyzeComparisonWithModel} from './analysis-comparison-worker.js';
+import {validateComparisonResponse} from './analysis-comparison-response.js';
 
 export async function runPrivateComparisons(documents,{
  enabled=false,apiKey,model,fetchImpl,timeoutMs,maxComparisons=10,
@@ -17,7 +18,10 @@ export async function runPrivateComparisons(documents,{
  for(const lead of report.leads){
   const result=await compare(documents,lead,{enabled:true,apiKey,model,fetchImpl,timeoutMs});
   if(!result||result.sourceReady!==true)throw Error('COMPARISON_RESULT_NOT_READY');
-  comparisons.push(result);
+  // Never trust a caller-provided sourceReady flag or precomputed checks.
+  const verified=validateComparisonResponse(documents,lead,result);
+  if(!verified.sourceReady)throw Error('COMPARISON_RESULT_NOT_READY');
+  comparisons.push(verified);
  }
  return {
   schema:'squidlaw-private-comparisons-v1',
