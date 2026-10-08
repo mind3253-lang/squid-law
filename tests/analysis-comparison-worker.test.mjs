@@ -29,4 +29,15 @@ const altered=async()=>({ok:true,json:async()=>({status:'completed',output:[{con
 await assert.rejects(analyzeComparisonWithModel(documents,lead,{...config,fetchImpl:altered}),/COMPARISON_CITATION_CHANGED/);
 const refusal=async()=>({ok:true,json:async()=>({status:'completed',output:[{content:[{type:'refusal'}]}]})});
 await assert.rejects(analyzeComparisonWithModel(documents,lead,{...config,fetchImpl:refusal}),/COMPARISON_MODEL_REFUSED/);
+for(const bad of [
+ {ok:true},
+ {ok:true,json:async()=>null},
+ {ok:true,json:async()=>({status:'completed',output:[]})},
+ {ok:true,json:async()=>({status:'completed',output:[null]})},
+ {ok:true,json:async()=>({status:'completed',output:[{content:[null]}]})},
+ {ok:true,json:async()=>({output:[{content:[{type:'output_text',text:'{}'}]}]})}
+]){
+ await assert.rejects(analyzeComparisonWithModel(documents,lead,{...config,fetchImpl:async()=>bad}),/COMPARISON_MODEL_RESPONSE_INVALID|COMPARISON_MODEL_OUTPUT_INVALID|COMPARISON_MODEL_NOT_COMPLETED/);
+}
+await assert.rejects(analyzeComparisonWithModel(documents,lead,{...config,fetchImpl:async()=>({ok:true,json:async()=>({status:'completed',incomplete_details:{reason:'max_output_tokens'},output:[]})})}),/COMPARISON_MODEL_INCOMPLETE/);
 console.log('PASS: private comparison worker rejects unapproved requests and verifies both original citations');
