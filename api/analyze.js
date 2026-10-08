@@ -19,10 +19,11 @@ export default async function handler(req,res){
  if(process.env.SQUIDLAW_AI_TEST_ENABLED!=='true')return res.status(503).json({error:'AI_TEST_DISABLED'});
  const token=process.env.SQUIDLAW_AI_TEST_TOKEN;
  if(!token||token.length<24)return res.status(503).json({error:'TEST_TOKEN_NOT_CONFIGURED'});
- if(!equals(req.headers['x-squidlaw-test-token'],token))return res.status(401).json({error:'UNAUTHORIZED'});
+ if(!equals(req.headers?.['x-squidlaw-test-token'],token))return res.status(401).json({error:'UNAUTHORIZED'});
  if(!process.env.OPENAI_API_KEY)return res.status(503).json({error:'MODEL_KEY_NOT_CONFIGURED'});
- const declaredLength=Number(req.headers['content-length']||0);
- if(!Number.isFinite(declaredLength)||declaredLength>160000)return res.status(413).json({error:'REQUEST_TOO_LARGE'});
+ const rawLength=req.headers?.['content-length'];
+ const declaredLength=rawLength===undefined?0:Number(rawLength);
+ if(!Number.isSafeInteger(declaredLength)||declaredLength<0||declaredLength>160000)return res.status(413).json({error:'REQUEST_TOO_LARGE'});
  let bodySize;
  try{bodySize=Buffer.byteLength(JSON.stringify(req.body??null),'utf8');}
  catch{return res.status(400).json({error:'INVALID_REQUEST_BODY'});}
