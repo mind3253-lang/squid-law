@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {assembleCaseAnalysis} from '../analysis-case-report.js';
+import {assembleCaseAnalysis,assembleVerifiedCaseAnalysis} from '../analysis-case-report.js';
 const check={verification:{status:'matched'}};
 const analysis={
  schema:'squidlaw-merged-analysis-v1',
@@ -43,3 +43,10 @@ assert.throws(()=>assembleCaseAnalysis({...analysis,findings:[null]},comparison)
 assert.throws(()=>assembleCaseAnalysis(analysis,{...comparison,comparisons:[null]}),/INVALID_REPORT_ENTRY/);
 assert.equal(assembleCaseAnalysis({...analysis,findings:[{...analysis.findings[0],citationChecks:[null]}]},comparison).status,'needs_source_review');
 assert.equal(assembleCaseAnalysis(analysis,{...comparison,comparisons:[{...comparison.comparisons[0],citations:[null,comparison.comparisons[0].citations[1]]}]}).status,'needs_source_review');
+
+const reportDocuments=[
+ {name:'원고.pdf',pages:[{text:'원고는 계약기간 5년을 주장한다.'}]},
+ {name:'피고.pdf',pages:[{text:'피고는 계약기간 2년을 주장한다.'}]}
+];
+assert.throws(()=>assembleVerifiedCaseAnalysis(reportDocuments,{...analysis,findings:[{...analysis.findings[0],citations:[null]}]},comparison),/INVALID_REPORT_ENTRY/);
+assert.throws(()=>assembleVerifiedCaseAnalysis(reportDocuments,analysis,{...comparison,comparisons:[{...comparison.comparisons[0],citations:[null,comparison.comparisons[0].citations[1]]}]}),/INVALID_REPORT_ENTRY/);
