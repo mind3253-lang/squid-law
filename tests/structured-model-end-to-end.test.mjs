@@ -47,6 +47,10 @@ assert.deepEqual(partial.diagnostics.uncitedReadablePageDetails,[{document:'미�
 assert.deepEqual(partial.diagnostics.uncitedDocuments,['미인용.pdf']);
 assert.ok(partial.notices.some(x=>x.includes('식별되지 않은 페이지')));
 assert.ok(partial.notices.some(x=>x.includes('원문 일치가 검증된 인용이 없는 파일')));
+const lowCoverage=assembleVerifiedCaseAnalysis([{name:'계약서.pdf',pages:[{text:source},{text:'참고 2'},{text:'참고 3'},{text:'참고 4'},{text:'참고 5'}]}],analysis,comparison);
+assert.equal(lowCoverage.diagnostics.verifiedPageCoveragePercent,20);
+assert.ok(lowCoverage.notices.some(x=>x.includes('절반 미만')));
+assert.match(formatCaseReportText(lowCoverage),/원문 일치 인용이 확인된 페이지가 절반 미만/);
 const missingText=assembleVerifiedCaseAnalysis([{name:'계약서.pdf',pages:[{text:source},{},null,{text:42}]}],analysis,comparison);
 assert.equal(missingText.diagnostics.totalPages,4);
 assert.equal(missingText.diagnostics.readablePages,1);
