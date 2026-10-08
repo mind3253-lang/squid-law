@@ -26,3 +26,6 @@ const noCitations=validateBatchFindings(batch,payload([{title:'근거 없는 주
 assert.equal(noCitations.sourceReady,false);
 assert.equal(noCitations.quality.missingCitations,1);
 console.log('PASS: batch findings match source, reject altered quotes and out-of-batch pages');
+
+for(const bad of [null,{...batch,batch:0},{...batch,pages:[]},{...batch,pages:[null]},{...batch,pages:[{document:'원고.pdf',page:'3',text:'유효한 문장'}]},{...batch,pages:[{document:'원고.pdf',page:3,text:''}]}])assert.throws(()=>validateBatchFindings(bad,payload([])),/INVALID_BATCH/);
+assert.throws(()=>validateBatchFindings({...batch,pages:[batch.pages[0],batch.pages[0]]},payload([])),/DUPLICATE_BATCH_PAGE/);
