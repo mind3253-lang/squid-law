@@ -131,7 +131,7 @@ test('clipboard completion cannot overwrite status after PDF replacement',()=>{
 
 test('search navigation rejects results from an older PDF revision',()=>{
  assert.match(page,/const searchRevision=sourceRevision/);
- assert.match(page,/if\(searchRevision!==sourceRevision\|\|!documents\[item\.documentIndex\]/);
+ assert.match(page,/if\(searchRevision!==sourceRevision\|\|searchInput\.value\.trim\(\)!==query\|\|!documents\[item\.documentIndex\]/);
 });
 
 test('failed same-name PDF does not reserve the filename',()=>{
