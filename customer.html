@@ -354,10 +354,10 @@ fileInput.addEventListener('change',async e=>{
  verifiedReportText='';document.getElementById('findings-results').replaceChildren();document.getElementById('copy-verified-report').disabled=true;document.getElementById('save-verified-report').disabled=true;
  comparisonText='';comparisonResults.replaceChildren();compareBtn.disabled=true;copyComparison.disabled=true;saveComparison.disabled=true;comparisonStatus.textContent='PDF를 먼저 등록하세요.';
  documents=[];pilotExportBtn.disabled=true;pilotExportStatus.textContent='PDF 처리 중…';visualToken++;if(pdfRenderTask){pdfRenderTask.cancel();pdfRenderTask=null;}for(const oldPdf of pdfInstances){oldPdf.destroy().catch(()=>{});}pdfInstances.length=0;document.getElementById('pdf-visual').open=false;document.getElementById('render-pdf-status').textContent='';reviewRecords=[];selectedReview=null;renderReviews();reviewEditor.hidden=true;document.getElementById('review-empty').hidden=false;controls.hidden=true;searchBox.hidden=true;searchResults.replaceChildren();docSelect.replaceChildren();textView.textContent='';
- let pages=0,failed=0,empty=0,skipped=0;const MAX_FILE_BYTES=30*1024*1024,MAX_TOTAL_PAGES=300;
+ let pages=0,failed=0,empty=0,skipped=0,duplicateSkipped=0;const seenNames=new Set();const MAX_FILE_BYTES=30*1024*1024,MAX_TOTAL_PAGES=300;
  for(const f of selectedFiles){
   if(extractionRevision!==sourceRevision)return;
-  if(!/\.pdf$/i.test(f.name)&&f.type!=='application/pdf'){failed++;continue;}if(f.size>MAX_FILE_BYTES){skipped++;status.textContent=f.name+' : 30MB 초과로 제외';continue;}
+  if(!/\.pdf$/i.test(f.name)&&f.type!=='application/pdf'){failed++;continue;}if(seenNames.has(f.name)){duplicateSkipped++;continue;}seenNames.add(f.name);if(f.size>MAX_FILE_BYTES){skipped++;status.textContent=f.name+' : 30MB 초과로 제외';continue;}
   status.textContent=f.name+' 처리 중…';
   let pdf=null,committed=false;
   try{
@@ -389,7 +389,7 @@ fileInput.addEventListener('change',async e=>{
  const duplicateNames=[...nameCounts].filter(([,count])=>count>1).map(([name])=>name);
 
  const blocks=pages?Math.ceil(pages/50):0;
- fileState.textContent=(pages?'PDF '+documents.length+'개 · 총 '+pages+'페이지 · 예상 분석비 '+(blocks*29000).toLocaleString()+'원':'PDF 페이지를 확인하지 못했습니다.')+(skipped?' · 크기/페이지 제한으로 제외 '+skipped+'개':'')+(failed?' · 읽기 실패 '+failed+'개':'');
+ fileState.textContent=(pages?'PDF '+documents.length+'개 · 총 '+pages+'페이지 · 예상 분석비 '+(blocks*29000).toLocaleString()+'원':'PDF 페이지를 확인하지 못했습니다.')+(skipped?' · 크기/페이지 제한으로 제외 '+skipped+'개':'')+(failed?' · 읽기 실패 '+failed+'개':'')+(duplicateSkipped?' · 같은 이름 중복 제외 '+duplicateSkipped+'개':'');
  if(documents.length){searchBox.hidden=false;documents.forEach((d,i)=>{const o=document.createElement('option');o.value=String(i);o.textContent=d.name;docSelect.append(o)});controls.hidden=false;renderDocument();}
  const citationDoc=document.getElementById('citation-doc');citationDoc.replaceChildren();
  for(const d of documents){const option=document.createElement('option');option.value=d.name;option.textContent=d.name;citationDoc.append(option)}
