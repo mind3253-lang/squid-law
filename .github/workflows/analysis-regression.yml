@@ -8,10 +8,15 @@ on:
       - 'analysis-comparison-report.js'
       - 'source-verification.js'
       - 'private-pilot-validation.js'
+      - 'findings-schema.js'
+      - 'analysis-quality.js'
       - 'tests/**'
       - '.github/workflows/analysis-regression.yml'
   pull_request:
     paths:
+      - 'private-pilot-validation.js'
+      - 'findings-schema.js'
+      - 'analysis-quality.js'
       - 'analysis-local.js'
       - 'analysis-cross-document.js'
       - 'analysis-comparison-report.js'
