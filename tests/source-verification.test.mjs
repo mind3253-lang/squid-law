@@ -24,3 +24,7 @@ assert.equal(findings[0].citationChecks[0].verification.status,'matched');
 assert.equal(findings[0].citationChecks[1].verification.status,'unmatched');
 assert.equal(findings[1].citationChecks.length,0);
 console.log('PASS: 9 citation cases + 3 finding checks');
+
+assert.equal(verifyCitation(null,base).status,'invalid');
+assert.equal(verifyCitation([null,...docs],base).status,'matched');
+assert.equal(verifyCitation([{name:'준비서면.pdf',pages:null}],base).status,'invalid_page');
