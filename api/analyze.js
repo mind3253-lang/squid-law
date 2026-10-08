@@ -1,6 +1,8 @@
 import {timingSafeEqual} from 'node:crypto';
 import {runPrivateCaseReport} from '../analysis-private-case-runner.js';
 import {prepareAnalysisInput} from '../analysis-input.js';
+import {createAnalysisJob} from '../analysis-pipeline.js';
+import {createBatchModelRequest} from '../analysis-model-prompt.js';
 
 // Operator-only trial. Never publish the token or API key in frontend code.
 function equals(a,b){
@@ -28,6 +30,10 @@ export default async function handler(req,res){
   const documents=req.body?.documents;
   if(!Array.isArray(documents)||documents.length<1||documents.length>5)return res.status(422).json({error:'INVALID_DOCUMENT_COUNT'});
   const input=prepareAnalysisInput(documents,{maxPages:30,maxChars:60000});
+  // Reject jobs that cannot fit model batch constraints before any paid request.
+  const job=createAnalysisJob(documents,{input:{maxPages:30,maxChars:60000}});
+  if(job.plan.batches.length>8)return res.status(422).json({error:'TOO_MANY_BATCHES'});
+  for(const batch of job.plan.batches)createBatchModelRequest(batch);
   const result=await runPrivateCaseReport(documents,{
    enabled:true,apiKey:process.env.OPENAI_API_KEY,
    model:process.env.SQUIDLAW_AI_MODEL||'gpt-4.1-mini',
@@ -37,7 +43,7 @@ export default async function handler(req,res){
   return res.status(200).json(result);
  }catch(error){
   const code=String(error?.message||'UNKNOWN_ERROR');
-  const inputError=/^(INVALID_|NO_|DUPLICATE_|PAGE_LIMIT|TEXT_LIMIT|TOO_MANY_BATCHES|JOB_TEXT_BUDGET|COMPARISON_BUDGET)/.test(code);
+  const inputError=/^(INVALID_|NO_|DUPLICATE_|PAGE_LIMIT|TEXT_LIMIT|SOURCE_PAGE_TOO_LARGE|BATCH_PROMPT_TOO_LARGE|TOO_MANY_BATCHES|JOB_TEXT_BUDGET|COMPARISON_BUDGET)/.test(code);
   return res.status(inputError?422:502).json({error:inputError?code:'AI_ANALYSIS_FAILED'});
  }
 }
