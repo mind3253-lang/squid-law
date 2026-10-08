@@ -80,6 +80,22 @@ export function formatCaseReportText(report){
  const explained=report.findings.filter(f=>typeof f.analysis==='string'&&f.analysis.trim()).length;
  lines.push('- 쟁점별 설명 포함: '+explained+'건');
  lines.push('- 쟁점별 설명 누락: '+(report.findings.length-explained)+'건');
+ const sectionKeys=[['claim','주장'],['evidence','근거'],['rebuttal','반박·반증'],['proofGap','추가 입증사항']];
+ for(const [key,label] of sectionKeys){
+  const filled=report.findings.filter(f=>typeof f[key]==='string'&&f[key].trim()).length;
+  lines.push('- '+label+' 기재 항목: '+filled+'건');
+  lines.push('- '+label+' 미기재 항목: '+(report.findings.length-filled)+'건');
+ }
+ const withRebuttal=report.findings.filter(f=>typeof f.rebuttal==='string'&&f.rebuttal.trim());
+ const withGap=report.findings.filter(f=>typeof f.proofGap==='string'&&f.proofGap.trim());
+ if(withRebuttal.length){
+  lines.push('','반박·반증이 확인된 쟁점');
+  for(const f of withRebuttal)lines.push('· '+String(f.title||'제목 없음')+': '+f.rebuttal);
+ }
+ if(withGap.length){
+  lines.push('','추가 입증 검토가 필요한 쟁점');
+  for(const f of withGap)lines.push('· '+String(f.title||'제목 없음')+': '+f.proofGap);
+ }
  if(explained<report.findings.length)lines.push('- 설명이 누락된 항목은 제목과 원문 인용만 제공됩니다.');
  lines.push('- 출처 인용 총수: '+citationCount+'건');
  lines.push('- 원문 일치 인용: '+matchedCount+'건');
