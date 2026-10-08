@@ -22,6 +22,7 @@ try{
  const circular={consent:true,documents:[]};circular.self=circular;
  r=await run(req(circular,{'x-squidlaw-test-token':token}));assert.equal(r.statusCode,400);assert.equal(r.body.error,'INVALID_REQUEST_BODY');
  r=await run(req({consent:true,documents:[{name:'synthetic.pdf',pages:[{text:''}]}]},{'x-squidlaw-test-token':token}));assert.equal(r.statusCode,422);assert.equal(r.body.error,'NO_READABLE_TEXT');
+ r=await run(req({consent:true,documents:[{name:'oversized.pdf',pages:[{text:'x'.repeat(30001)}]}]},{'x-squidlaw-test-token':token}));assert.equal(r.statusCode,422);assert.equal(r.body.error,'SOURCE_PAGE_TOO_LARGE');
  r=await run({...req({consent:true,documents:[]},{'x-squidlaw-test-token':token,'content-length':'160001'})});assert.equal(r.statusCode,413);
  const get=response();await handler({method:'GET',headers:{}},get);assert.equal(get.statusCode,405);
  console.log('PASS: AI endpoint requires operator access, explicit consent, bounded payload, and valid PDF text');
