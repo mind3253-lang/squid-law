@@ -31,6 +31,10 @@ export function formatCaseReportText(report){
  if(!report.findings.length)lines.push('분석 항목 없음');
  for(const [i,f] of report.findings.entries()){
   lines.push('',(i+1)+'. '+String(f.title||'제목 없음'));
+  const checks=Array.isArray(f.citationChecks)?f.citationChecks:[];
+  const citationsForFinding=Array.isArray(f.citations)?f.citations:[];
+  const verified=checks.length===citationsForFinding.length&&citationsForFinding.length>0&&checks.every(c=>c.verification?.status==='matched');
+  lines.push('   원문 인용 검산: '+(verified?'인용 일치':'원문 대조 필요'));
   if(typeof f.analysis==='string'&&f.analysis.trim())lines.push('   쟁점 검토: '+f.analysis);
   else lines.push('   쟁점 검토: 별도 설명 없음 · 원문 인용만 제공');
   for(const [key,label] of [['claim','주장'],['evidence','근거'],['rebuttal','반박·반증'],['proofGap','추가 입증사항']]){
@@ -77,6 +81,7 @@ export function formatCaseReportText(report){
  const missing=Array.isArray(report.diagnostics?.missingBatches)?report.diagnostics.missingBatches:[];
  if(missing.length)lines.push('- 결과가 누락된 분석 묶음: '+missing.join(', '));
  lines.push('- AI 분석 항목: '+report.findings.length+'건');
+ lines.push('- 쟁점별 검토 설명과 네 가지 구분 항목은 AI 생성 문장이며, 인용 일치가 설명의 사실성·법률적 타당성을 증명하지 않습니다.');
  const explained=report.findings.filter(f=>typeof f.analysis==='string'&&f.analysis.trim()).length;
  lines.push('- 쟁점별 설명 포함: '+explained+'건');
  lines.push('- 쟁점별 설명 누락: '+(report.findings.length-explained)+'건');
