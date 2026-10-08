@@ -78,3 +78,5 @@ for(const diagnostics of [[],{missingBatches:'none'},{missingBatches:1},{missing
 }
 assert.throws(()=>assembleCaseAnalysis(analysis,{...comparison,diagnostics:[]}),/INVALID_COMPARISON_RESULT/);
 assert.throws(()=>assembleVerifiedCaseAnalysis(reportDocuments,analysis,{...comparison,diagnostics:[]}),/INVALID_COMPARISON_RESULT/);
+
+for(const invalid of [[],[{name:'빈문서.pdf',pages:[]}],[{name:'원고.pdf',pages:[]},reportDocuments[1]]])assert.throws(()=>assembleVerifiedCaseAnalysis(invalid,analysis,comparison),/INVALID_DOCUMENTS/);
