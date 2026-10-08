@@ -37,14 +37,19 @@ export async function analyzeComparisonWithModel(documents,lead,{
    signal:controller.signal
   });
   if(!response?.ok)throw Error('COMPARISON_MODEL_REQUEST_FAILED');
-  const data=await response.json();
-  if(data.status==='incomplete')throw Error('COMPARISON_MODEL_INCOMPLETE');
+  if(typeof response.json!=='function')throw Error('COMPARISON_MODEL_RESPONSE_INVALID');
+  let data;
+  try{data=await response.json();}catch{throw Error('COMPARISON_MODEL_RESPONSE_INVALID');}
+  if(!data||typeof data!=='object'||Array.isArray(data))throw Error('COMPARISON_MODEL_RESPONSE_INVALID');
+  if(data.status==='incomplete'||data.incomplete_details)throw Error('COMPARISON_MODEL_INCOMPLETE');
+  if(typeof data.status!=='string')throw Error('COMPARISON_MODEL_NOT_COMPLETED');
   if(data.status&&data.status!=='completed')throw Error('COMPARISON_MODEL_NOT_COMPLETED');
   if(data.error)throw Error('COMPARISON_MODEL_ERROR');
-  const output=Array.isArray(data.output)?data.output:[];
-  if(output.some(item=>item.type==='refusal'||(Array.isArray(item.content)&&item.content.some(c=>c.type==='refusal'))))throw Error('COMPARISON_MODEL_REFUSED');
-  const raw=output.flatMap(item=>Array.isArray(item.content)?item.content:[])
-   .filter(item=>item.type==='output_text'&&typeof item.text==='string')
+  if(!Array.isArray(data.output)||data.output.length===0)throw Error('COMPARISON_MODEL_OUTPUT_INVALID');
+  const output=data.output;
+  if(output.some(item=>item?.type==='refusal'||(Array.isArray(item?.content)&&item.content.some(c=>c?.type==='refusal'))))throw Error('COMPARISON_MODEL_REFUSED');
+  const raw=output.flatMap(item=>Array.isArray(item?.content)?item.content:[])
+   .filter(item=>item?.type==='output_text'&&typeof item.text==='string')
    .map(item=>item.text).join('');
   if(!raw||raw.length>12000)throw Error('COMPARISON_MODEL_OUTPUT_INVALID');
   let parsed;
