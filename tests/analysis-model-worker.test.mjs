@@ -47,3 +47,5 @@ await assert.rejects(analyzeBatchWithModel(batch,{
   output:[{content:[{type:'output_text',text:' '.repeat(120001)}]}]
  })})
 }),/INVALID_MODEL_OUTPUT/);
+
+await assert.rejects(analyzeBatchWithModel(batch,{enabled:true,apiKey:'test-secret',model:'gpt-test',fetchImpl:async()=>({ok:true,json:async()=>({status:'',output:[{content:[{type:'output_text',text:'{}'}]}]})})}),/MODEL_RESPONSE_NOT_COMPLETED/);
