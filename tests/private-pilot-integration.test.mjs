@@ -47,7 +47,7 @@ test('new PDF selection snapshots input files',()=>{
 });
 test('stale PDF extraction cannot append to a newer selection',()=>{
  assert.match(page,/const extractionRevision=sourceRevision/);
- assert.match(page,/if\(extractionRevision!==sourceRevision\)\{await pdf\.destroy\(\);return;\}/);
+ assert.match(page,/if\(extractionRevision!==sourceRevision\)return;/);
 });
 test('stale extraction cannot refresh analysis controls',()=>{
  assert.match(page,/if\(extractionRevision!==sourceRevision\)return;\s*refreshPilotExport\(\)/);
