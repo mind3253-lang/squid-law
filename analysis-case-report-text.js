@@ -145,7 +145,7 @@ export function formatCaseReportText(report){
   if(uncited.length)lines.push('- 인용되지 않은 문서는 분석되지 않았다는 뜻이 아니며, 해당 문서의 쟁점 누락 여부는 별도로 확인해야 합니다.');
  }
  lines.push('- 출처 검산 상태: '+(report.status==='source_checked'?'전체 일치':report.status==='source_checked_partial'?'확인된 인용은 일치하나 일부 페이지 미식별':'추가 확인 필요'));
- if(!report.comparisons.length)lines.push('- 공통 증거번호 기반 비교 후보가 없습니다. 이는 서면 사이에 모순이 없다는 뜻이 아닙니다.');
+ if(!report.comparisons.length)lines.push('- 공통 증거번호 기반 비교는 수행되지 않았습니다. 비교 후보가 없다는 것은 서면 사이에 모순이 없다는 뜻이 아닙니다.');
  if(report.diagnostics?.comparisonSourceReady!==true)lines.push('- 서면 비교 출처 검산이 완료되지 않았으므로 통합보고서 전체를 검증 완료로 표시하지 않습니다.');
  if(report.diagnostics?.analysisSourceReady!==true)lines.push('- 분석 인용의 출처 검산이 완료되지 않았습니다.');
  lines.push('- 이 보고서에서 확인하지 못한 법률 쟁점, 반박 논리 및 유불리 판단을 임의로 생성하지 않았습니다.');
