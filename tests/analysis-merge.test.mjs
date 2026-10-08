@@ -30,3 +30,7 @@ assert.equal(falselyReadyUnchecked.sourceReady,false,'A claimed sourceReady flag
 const invalidEntry=mergeCheckedBatches(expected,[result(1),{...result(2),findings:[null]}]);
 assert.equal(invalidEntry.sourceReady,false);
 assert.equal(invalidEntry.diagnostics.needsReview,1);
+
+const invalidCheck=mergeCheckedBatches(expected,[result(1),result(2,true,[null])]);
+assert.equal(invalidCheck.sourceReady,false);
+assert.equal(invalidCheck.diagnostics.needsReview,1);
