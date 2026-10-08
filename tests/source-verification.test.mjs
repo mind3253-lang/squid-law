@@ -32,3 +32,5 @@ assert.equal(verifyCitation([{name:'준비서면.pdf',pages:null}],base).status,
 assert.throws(()=>verifyFindings(docs,[null]),/INVALID_FINDING/);
 assert.throws(()=>verifyFindings(docs,[{title:'missing citations'}]),/INVALID_FINDING/);
 assert.equal(verifyFindings(docs,[{title:'bad source',citations:[null]}])[0].citationChecks[0].verification.status,'invalid');
+
+for(const malformed of [{...base,quote:1234567890},{...base,quote:null},{...base,document:42},{...base,document:'   '},[]])assert.equal(verifyCitation(docs,malformed).status,'invalid');
