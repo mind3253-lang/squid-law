@@ -205,3 +205,7 @@ test('PDF search highlights matched text using safe DOM text nodes',()=>{
  assert.match(page,/document\.createTextNode\(item\.snippet\.slice\(0,at\)\)/);
  assert.doesNotMatch(page,/snippet\.innerHTML=/);
 });
+
+test('editing a PDF search query clears old results immediately',()=>{
+ assert.match(page,/searchInput\.addEventListener\('input',\(\)=>searchResults\.replaceChildren\(\)\)/);
+});
