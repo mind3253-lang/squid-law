@@ -1,6 +1,6 @@
 // Merge independently verified batches without promoting unsupported findings.
 // A partial or missing batch always prevents an all-clear result.
-const citationReady=f=>!!f&&Array.isArray(f.citations)&&f.citations.length>0&&Array.isArray(f.citationChecks)&&f.citationChecks.length===f.citations.length&&f.citations.every(c=>c&&typeof c.document==='string'&&Number.isInteger(c.page)&&typeof c.quote==='string')&&f.citationChecks.every(c=>c?.verification?.status==='matched');
+const citationReady=f=>!!f&&Array.isArray(f.citations)&&f.citations.length>0&&Array.isArray(f.citationChecks)&&f.citationChecks.length===f.citations.length&&f.citations.every(c=>c&&typeof c.document==='string'&&c.document.trim().length>0&&Number.isInteger(c.page)&&c.page>0&&typeof c.quote==='string'&&c.quote.trim().length>=8)&&f.citationChecks.every(c=>c?.verification?.status==='matched');
 export function mergeCheckedBatches(expectedBatches,results){
  if(!expectedBatches||expectedBatches.schema!=='squidlaw-analysis-batches-v1'||!Array.isArray(expectedBatches.batches))throw Error('INVALID_EXPECTED_BATCHES');
  if(!Array.isArray(results))throw Error('INVALID_BATCH_RESULTS');
