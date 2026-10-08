@@ -31,6 +31,7 @@ export function formatCaseReportText(report){
  if(!report.findings.length)lines.push('분석 항목 없음');
  for(const [i,f] of report.findings.entries()){
   lines.push('',(i+1)+'. '+String(f.title||'제목 없음'));
+  if(typeof f.analysis==='string'&&f.analysis.trim())lines.push('   쟁점 검토: '+f.analysis);
   const citations=Array.isArray(f.citations)?f.citations:[];
   if(!citations.length)lines.push('   출처 없음 · 확인 필요');
   citations.forEach((c,j)=>{
