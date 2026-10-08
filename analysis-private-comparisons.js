@@ -17,7 +17,7 @@ export async function runPrivateComparisons(documents,{
  if(report.diagnostics.truncated||report.leads.length>maxComparisons)throw Error('COMPARISON_BUDGET_EXCEEDED');
  if(report.diagnostics.needsReview)throw Error('COMPARISON_SOURCE_NOT_READY');
  if(report.leads.length===0){
-  return {schema:'squidlaw-private-comparisons-v1',comparisons:[],diagnostics:{processed:0,sourceVerified:0,reason:'NO_SHARED_REFERENCE_LEADS'},sourceReady:false,limitation:'비교할 공통 증거번호 언급을 찾지 못했습니다. 분석 완료 또는 모순 없음으로 해석하지 마세요.'};
+  return {schema:'squidlaw-private-comparisons-v1',comparisons:[],diagnostics:{processed:0,sourceVerified:0,reason:'NO_SHARED_REFERENCE_LEADS'},sourceReady:true,limitation:'공통 증거번호를 통한 비교 후보가 없습니다. 비교 분석을 수행하지 않았으며, 모순이 없거나 전체 검토가 완료되었다는 뜻이 아닙니다.'};
  }
  const comparisons=[];
  for(const lead of report.leads){
