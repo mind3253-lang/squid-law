@@ -80,6 +80,7 @@ export function assembleVerifiedCaseAnalysis(documents,analysis,comparison){
   ...report.findings.flatMap(f=>f.citations||[]),
   ...report.comparisons.flatMap(c=>c.citations||[])
  ].map(c=>c.document).filter(name=>typeof name==='string'&&!submittedNames.has(name)))];
+ if(report.diagnostics.unknownCitationDocuments.length)report.notices.push('제출되지 않은 PDF 파일명을 인용한 항목이 있습니다. 해당 인용은 원문 검증에 실패했으므로 문서명과 쟁점을 확인하세요.');
  report.diagnostics.verifiedCitationCount=verifiedCitations.length;
  report.diagnostics.unverifiedCitationCount=report.findings.reduce((sum,f)=>sum+(f.citations||[]).length,0)+report.comparisons.reduce((sum,c)=>sum+(c.citations||[]).length,0)-verifiedCitations.length;
  report.diagnostics.uncitedDocuments=report.diagnostics.submittedDocuments.filter(doc=>!citedNames.has(doc.name)).map(doc=>doc.name);
