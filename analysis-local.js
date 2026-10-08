@@ -31,7 +31,11 @@ export function buildLocalIndex(documents){
  }
  return {documents:documents.map(d=>({name:d.name,pages:d.pages.length,empty:d.pages.filter(p=>!p.text).length})),timeline,claims,references,repeated,generatedAt:new Date().toISOString(),limitations:'문자열 기반 예비 색인입니다. 날짜가 사건 발생일인지 제출일인지, 문장이 당사자의 주장인지 인용인지 자동 확정하지 않습니다. 반복 문구는 모순을 뜻하지 않습니다. AI 판단 및 원본 진위 검증은 수행하지 않습니다.'};
 }
-function normalizedRef(x){return x.replace(/\s+/g,'').replace(/제/g,'').replace(/호증의/g,'호증-')}
+function normalizedRef(x){
+ const compact=x.replace(/\s+/g,'').replace(/호증의/g,'호증-');
+ // 소갑/소을 are alternate written forms of 갑/을 exhibits; preserve 갑 vs 을.
+ return compact.replace(/^소(?=[갑을])/, '').replace(/제(?=\d)/g,'');
+}
 export function buildEvidenceMap(data){
  const map=new Map();
  for(const row of data.references)for(const ref of row.refs){
