@@ -110,7 +110,7 @@ export function formatCaseReportText(report){
  lines.push('- 출처 인용 총수: '+citationCount+'건');
  lines.push('- 원문 일치 인용: '+matchedCount+'건');
  lines.push('- 원문 확인 필요 인용: '+unmatchedCount+'건');
- const unverifiedFindings=report.findings.filter(f=>!Array.isArray(f.citationChecks)||f.citationChecks.length!==(Array.isArray(f.citations)?f.citations.length:0)||f.citationChecks.some(c=>c.verification?.status!=='matched')).length;
+ const unverifiedFindings=report.findings.filter(f=>!Array.isArray(f.citations)||f.citations.length===0||!Array.isArray(f.citationChecks)||f.citationChecks.length!==f.citations.length||f.citationChecks.some(c=>c.verification?.status!=='matched')).length;
  lines.push('- 인용 확인이 필요한 분석 항목: '+unverifiedFindings+'건');
  const unverifiedComparisons=report.comparisons.filter(c=>c.sourceReady!==true).length;
  lines.push('- 출처 확인이 필요한 비교 후보: '+unverifiedComparisons+'건');
