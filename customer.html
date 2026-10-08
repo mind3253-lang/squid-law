@@ -6,6 +6,7 @@ import {buildVerifiedComparisonReport} from './analysis-comparison-report.js';
 import {validateFindingsPayload} from './findings-schema.js';
 import {summarizeCitationChecks,isSourceReadyForReview} from './analysis-quality.js';
 import {validatePrivatePilotResult} from './private-pilot-validation.js';
+import {validatePilotInput} from './private-pilot-input.js';
 pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.worker.min.mjs';
 let comparisonText='';
 const compareBtn=document.getElementById('compare-documents');
@@ -292,11 +293,14 @@ document.getElementById('findings-file').addEventListener('change',async event=>
 const pilotExportBtn=document.getElementById('export-private-pilot');
 const pilotExportStatus=document.getElementById('private-pilot-status');
 function refreshPilotExport(){
- const total=documents.reduce((n,d)=>n+d.pages.length,0);
- const chars=documents.reduce((n,d)=>n+d.pages.reduce((m,p)=>m+p.text.length,0),0);
- const unique=new Set(documents.map(d=>d.name)).size===documents.length;
- pilotExportBtn.disabled=!documents.length||documents.length>12||total>50||chars>60000||!unique||chars===0||documents.some(d=>d.pages.some(p=>p.text.length>12000));
- pilotExportStatus.textContent=pilotExportBtn.disabled?'AI 시험 입력 저장 불가: 파일명 중복·문서 12개·50페이지·6만 자 제한 또는 텍스트 추출 상태를 확인하세요.':'시험 입력 준비 완료 · '+documents.length+'개 문서 · '+total+'쪽 · '+chars.toLocaleString()+'자. 외부 전송 없음.';
+ try{
+  const info=validatePilotInput(documents);
+  pilotExportBtn.disabled=false;
+  pilotExportStatus.textContent='시험 입력 준비 완료 · '+info.documents+'개 문서 · '+info.pages+'쪽 · '+info.characters.toLocaleString()+'자. 외부 전송 없음.';
+ }catch(error){
+  pilotExportBtn.disabled=true;
+  pilotExportStatus.textContent='AI 시험 입력 저장 불가 ('+error.message+'). 문서 수·50페이지·6만 자·중복 파일명·추출 상태를 확인하세요.';
+ }
 }
 pilotExportBtn.addEventListener('click',()=>{
  refreshPilotExport();
