@@ -121,6 +121,11 @@ export function formatCaseReportText(report){
   lines.push('- 제출 문서 전체 페이지: '+totalPages+'쪽');
   lines.push('- 텍스트 식별 가능 페이지: '+Math.max(0,totalPages-skipped.length)+'쪽');
   lines.push('- 분석 인용에 등장하지 않은 제출 문서: '+submitted.filter(item=>!documents.has(item.name)).length+'개');
+  const uncited=submitted.filter(item=>!documents.has(item.name));
+  if(uncited.length){
+   lines.push('인용되지 않은 제출 문서:');
+   for(const item of uncited)lines.push('  · '+item.name);
+  }
   if(submitted.some(item=>!documents.has(item.name)))lines.push('- 인용되지 않은 문서는 분석되지 않았다는 뜻이 아니며, 해당 문서의 쟁점 누락 여부는 별도로 확인해야 합니다.');
  }
  lines.push('- 출처 검산 상태: '+(report.status==='source_checked'?'전체 일치':report.status==='source_checked_partial'?'확인된 인용은 일치하나 일부 페이지 미식별':'추가 확인 필요'));
