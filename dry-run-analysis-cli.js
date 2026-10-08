@@ -2,6 +2,7 @@
 // Offline rehearsal of the full analysis pipeline. NO network or model calls.
 import {readFile,writeFile} from 'node:fs/promises';
 import {createAnalysisJob,finishAnalysisJob} from './analysis-pipeline.js';
+import {buildVerifiedComparisonReport} from './analysis-comparison-report.js';
 
 const [inputPath,outputPath]=process.argv.slice(2);
 if(!inputPath||!outputPath){
@@ -24,8 +25,9 @@ if(!inputPath||!outputPath){
    }
   }));
   const result=finishAnalysisJob(job,responses);
-  await writeFile(outputPath,JSON.stringify({...result,mode:'offline-fixture-not-ai'},null,2)+'\n',{flag:'wx',mode:0o600});
-  console.log('OFFLINE ONLY: sourceReady='+result.sourceReady+', findings='+result.findings.length+', batches='+job.plan.batches.length);
+  const comparison=buildVerifiedComparisonReport(documents);
+  await writeFile(outputPath,JSON.stringify({...result,comparison,mode:'offline-fixture-not-ai'},null,2)+'\n',{flag:'wx',mode:0o600});
+  console.log('OFFLINE ONLY: sourceReady='+result.sourceReady+', findings='+result.findings.length+', comparisonLeads='+comparison.leads.length+', batches='+job.plan.batches.length);
  }catch(error){
   console.error('Dry run failed:',error.message);
   process.exitCode=1;
