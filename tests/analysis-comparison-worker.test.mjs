@@ -40,4 +40,5 @@ for(const bad of [
  await assert.rejects(analyzeComparisonWithModel(documents,lead,{...config,fetchImpl:async()=>bad}),/COMPARISON_MODEL_RESPONSE_INVALID|COMPARISON_MODEL_OUTPUT_INVALID|COMPARISON_MODEL_NOT_COMPLETED/);
 }
 await assert.rejects(analyzeComparisonWithModel(documents,lead,{...config,fetchImpl:async()=>({ok:true,json:async()=>({status:'completed',incomplete_details:{reason:'max_output_tokens'},output:[]})})}),/COMPARISON_MODEL_INCOMPLETE/);
+await assert.rejects(analyzeComparisonWithModel(documents,lead,{...config,fetchImpl:async(_url,{signal})=>{await new Promise(resolve=>signal.addEventListener('abort',resolve,{once:true}));throw Error('aborted');},timeoutMs:1000}),/MODEL_REQUEST_TIMEOUT/);
 console.log('PASS: private comparison worker rejects unapproved requests and verifies both original citations');
