@@ -114,3 +114,8 @@ test('review import reports source matched and unverified counts',()=>{
  assert.match(page,/const matched=checked\.filter\(record=>verifyCitation\(documents,/);
  assert.match(page,/원문 문구 일치 '\+matched\+'건 · 확인 필요 '/);
 });
+
+test('review labels are explicitly user classifications',()=>{
+ assert.match(page,/\[사용자 분류: '\+record\.status/);
+ assert.match(page,/인용 문구 일치 \(사실관계 확정 아님\)/);
+});
