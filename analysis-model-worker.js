@@ -33,9 +33,10 @@ export async function analyzeBatchWithModel(batch,{
       properties:{
        schema:{type:'string',enum:['squidlaw-findings-v1']},
        findings:{type:'array',items:{
-        type:'object',additionalProperties:false,required:['title','citations'],
+        type:'object',additionalProperties:false,required:['title','analysis','citations'],
         properties:{
          title:{type:'string'},
+         analysis:{type:'string'},
          citations:{type:'array',items:{
           type:'object',additionalProperties:false,
           required:['document','page','quote'],
