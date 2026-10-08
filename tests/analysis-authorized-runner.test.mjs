@@ -1,0 +1,22 @@
+import assert from 'node:assert/strict';
+import {runAuthorizedAnalysis} from '../analysis-authorized-runner.js';
+const docs=[{name:'원고.pdf',pages:[{text:'원고는 임대차기간이 5년이라고 주장한다.'}]}];
+const base={session:'server-session',entitlementId:'ent_12345678',jobId:'job_12345678',apiKey:'test-key',model:'gpt-test'};
+let calls=0,charges=0;
+const fetchImpl=async(_url,options)=>{
+ calls++;
+ const input=JSON.parse(JSON.parse(options.body).input.slice(JSON.parse(options.body).input.indexOf('{')));
+ const page=input.pages[0];
+ return {ok:true,json:async()=>({output:[{content:[{type:'output_text',text:JSON.stringify({schema:'squidlaw-findings-v1',findings:[{title:'원고 주장',citations:[{document:page.document,page:page.page,quote:page.text}]}]})}]}]})};
+};
+const ledger={async consumeEntitlement(v){charges++;assert.equal(v.actualPages,1);assert.equal(v.accountId,'verified-user');return {accepted:true,jobId:v.jobId};}};
+const authenticate=async session=>session==='server-session'?{accountId:'verified-user'}:null;
+await assert.rejects(runAuthorizedAnalysis(docs,{...base,authenticate,ledger,fetchImpl,session:'invalid'}),/UNAUTHENTICATED/);
+assert.equal(charges,0);assert.equal(calls,0);
+await assert.rejects(runAuthorizedAnalysis(docs,{...base,authenticate,fetchImpl}),/DURABLE_LEDGER_REQUIRED/);
+assert.equal(charges,0);assert.equal(calls,0);
+await assert.rejects(runAuthorizedAnalysis(docs,{...base,authenticate,ledger,fetchImpl,apiKey:''}),/MISSING_SERVER_API_KEY/);
+assert.equal(charges,0);assert.equal(calls,0);
+const result=await runAuthorizedAnalysis(docs,{...base,authenticate,ledger,fetchImpl});
+assert.equal(result.sourceReady,true);assert.equal(charges,1);assert.equal(calls,1);
+console.log('PASS: authenticated paid runner blocks unauthorized model calls and verifies cited output');
