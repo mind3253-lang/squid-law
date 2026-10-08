@@ -1,0 +1,40 @@
+// Private worker adapter. Never import into browser code or public routes.
+// Caller must enforce authentication, payment, rate limits and privacy policy first.
+import {createBatchModelRequest} from './analysis-model-prompt.js';
+import {parseModelFindings} from './analysis-model-response.js';
+
+export async function analyzeBatchWithModel(batch,{
+ apiKey,model,fetchImpl=globalThis.fetch,enabled=false,timeoutMs=45000
+}={}){
+ if(!enabled)throw Error('AI_WORKER_DISABLED');
+ if(typeof apiKey!=='string'||!apiKey.trim())throw Error('MISSING_SERVER_API_KEY');
+ if(typeof model!=='string'||!/^gpt-[a-zA-Z0-9.-]+$/.test(model))throw Error('INVALID_MODEL');
+ if(typeof fetchImpl!=='function')throw Error('INVALID_FETCH');
+ if(!Number.isInteger(timeoutMs)||timeoutMs<1000||timeoutMs>120000)throw Error('INVALID_TIMEOUT');
+ const prompt=createBatchModelRequest(batch);
+ const controller=new AbortController();
+ const timer=setTimeout(()=>controller.abort(),timeoutMs);
+ try{
+  const response=await fetchImpl('https://api.openai.com/v1/responses',{
+   method:'POST',
+   headers:{'Content-Type':'application/json',Authorization:'Bearer '+apiKey},
+   body:JSON.stringify({
+    model,
+    instructions:prompt.system,
+    input:prompt.user,
+    text:{format:{type:'json_object'}},
+    max_output_tokens:5000,
+    store:false
+   }),
+   signal:controller.signal
+  });
+  if(!response||!response.ok)throw Error('MODEL_REQUEST_FAILED');
+  const data=await response.json();
+  if(data.status==='incomplete')throw Error('MODEL_RESPONSE_INCOMPLETE');
+  const raw=(Array.isArray(data.output)?data.output:[])
+   .flatMap(item=>Array.isArray(item.content)?item.content:[])
+   .filter(item=>item.type==='output_text'&&typeof item.text==='string')
+   .map(item=>item.text).join('');
+  return parseModelFindings(raw);
+ }finally{clearTimeout(timer);}
+}
