@@ -4,9 +4,11 @@ const docs=[{name:'원고.pdf',pages:[{text:'원고는 임대차기간이 5년�
 const job=createAnalysisJob(docs,{batches:{maxBatchPages:1,maxBatchChars:100}});
 assert.equal(job.plan.batches.length,2);
 const responses=job.plan.batches.map(b=>({batch:b.batch,payload:{schema:'squidlaw-findings-v1',findings:[{title:'원문 주장 후보',citations:[{document:b.pages[0].document,page:b.pages[0].page,quote:b.pages[0].text}]}]}}));
-const complete=finishAnalysisJob(job,responses);
+const rawResponses=responses.map(r=>({...r,payload:JSON.stringify(r.payload)}));
+const complete=finishAnalysisJob(job,rawResponses);
 assert.equal(complete.sourceReady,true);
 assert.equal(complete.findings.length,2);
+assert.throws(()=>finishAnalysisJob(job,[{...responses[0],payload:'not JSON'}]),/MODEL_RESPONSE_NOT_JSON/);
 assert.equal(complete.diagnostics.unreadablePages,1);
 const partial=finishAnalysisJob(job,responses.slice(0,1));
 assert.equal(partial.sourceReady,false);
