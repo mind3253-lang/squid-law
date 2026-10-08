@@ -277,6 +277,7 @@ function showVerifiedFindings(checked,label){
 }
 document.getElementById('verify-local-candidates').addEventListener('click',()=>{
  if(!documents.length)return;
+ resultImportRevision++;pilotImportRevision++;
  const index=buildLocalIndex(documents);
  const payload=buildCandidateFindings(index);
  showVerifiedFindings(verifyFindings(documents,payload.findings),'로컬 표현 후보 자동 검산 완료 (AI 분석 아님)');
@@ -293,6 +294,7 @@ document.getElementById('findings-file').addEventListener('change',async event=>
   const parsed=JSON.parse(await file.text());
   if(sourceRevision!==requestSourceRevision||resultImportRevision!==requestResultRevision)throw Error('STALE_RESULT_IMPORT');
   const {findings}=validateFindingsPayload(parsed);
+  pilotImportRevision++;
   showVerifiedFindings(verifyFindings(documents,findings),'가져온 분석 결과 출처 검산 완료');
  }catch{if(sourceRevision===requestSourceRevision&&resultImportRevision===requestResultRevision)status.textContent='불러오기 실패: squidlaw-findings-v1 형식의 JSON인지 확인하세요.';}
  event.target.value='';
