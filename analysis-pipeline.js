@@ -25,5 +25,5 @@ export function finishAnalysisJob(job,responses){
   checked.push(validateBatchFindings(batch,payload));
  }
  const merged=mergeCheckedBatches(job.plan,checked);
- return {...merged,diagnostics:{...merged.diagnostics,unreadablePages:job.input.diagnostics.unreadablePages}};
+ return {...merged,diagnostics:{...merged.diagnostics,unreadablePages:job.input.diagnostics.unreadablePages,unreadableDetails:job.input.diagnostics.unreadableDetails}};
 }
