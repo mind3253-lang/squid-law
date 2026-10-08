@@ -35,6 +35,7 @@ export function assembleCaseAnalysis(analysis,comparison){
    comparisonNotPerformed:comparisons.length===0
   },
   notices:[
+   ...(comparisons.length===0?['공통 증거번호 기반 서면 비교를 수행하지 않았습니다. 서로 다른 주장이나 모순이 없다는 결론이 아닙니다.']:[]),
    '원문 일치는 인용 문구가 업로드된 텍스트에 있다는 뜻이며, 사실의 진위 또는 법적 결론을 증명하지 않습니다.',
    'AI가 제시한 주장 차이와 충돌 가능성은 사람의 검토가 필요한 해석 후보입니다.'
   ]
