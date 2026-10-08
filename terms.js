@@ -190,12 +190,21 @@ function card(term,detail,kind){
  const b=document.createElement("button"); b.type="button"; b.className="term-chip "+kind; b.textContent=term;
  b.addEventListener("click",()=>open(term,detail,kind)); return b;
 }
+let previousFocus=null;
 function open(term,detail,kind){
- const m=document.getElementById("term-modal"); m.className="term-modal open "+kind;
+ const m=document.getElementById("term-modal"); previousFocus=document.activeElement;
+ m.className="term-modal open "+kind;
  m.querySelector("[data-term-title]").textContent=term; m.querySelector("[data-term-body]").textContent=detail;
  m.setAttribute("aria-hidden","false");
+ m.querySelector("[data-close-term]").focus();
 }
-function close(){const m=document.getElementById("term-modal");m.className="term-modal";m.setAttribute("aria-hidden","true");}
+function close(){
+ const m=document.getElementById("term-modal");
+ if(!m.classList.contains("open"))return;
+ m.className="term-modal";m.setAttribute("aria-hidden","true");
+ if(previousFocus&&previousFocus.isConnected)previousFocus.focus();
+ previousFocus=null;
+}
 function init(){
  const root=document.querySelector("[data-terms-category]"); if(!root)return; const cat=root.dataset.termsCategory;
  const cg=document.getElementById("common-term-grid");
@@ -208,7 +217,17 @@ function init(){
  s.terms.slice().sort((a,b)=>a.localeCompare(b,"ko")).forEach(t=>sg.appendChild(card(t,specDetail(t,cat),"specific")));
  document.querySelectorAll("[data-close-term]").forEach(x=>x.addEventListener("click",close));
  document.getElementById("term-modal").addEventListener("click",e=>{if(e.target.id==="term-modal")close();});
- document.addEventListener("keydown",e=>{if(e.key==="Escape")close();});
+ document.addEventListener("keydown",e=>{
+ const m=document.getElementById("term-modal"); if(!m.classList.contains("open"))return;
+ if(e.key==="Escape"){e.preventDefault();close();return;}
+ if(e.key==="Tab"){
+  const items=Array.from(m.querySelectorAll("button:not([disabled]),a[href]"));
+  if(!items.length)return;
+  const first=items[0],last=items[items.length-1];
+  if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}
+  else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}
+ }
+});
 }
 document.addEventListener("DOMContentLoaded",init);
 })();
