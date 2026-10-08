@@ -25,4 +25,7 @@ assert.equal(result.findings.length,1);
 assert.equal(calls,1);
 await assert.rejects(analyzeBatchWithModel(batch,{enabled:true,model:'gpt-test',fetchImpl:mock}),/MISSING_SERVER_API_KEY/);
 await assert.rejects(analyzeBatchWithModel(batch,{enabled:true,apiKey:'test-secret',model:'gpt-test',fetchImpl:async()=>({ok:false})}),/MODEL_REQUEST_FAILED/);
+await assert.rejects(analyzeBatchWithModel(batch,{enabled:true,apiKey:'test-secret',model:'gpt-test',fetchImpl:async()=>({ok:true,json:async()=>({status:'failed',output:[]})})}),/MODEL_RESPONSE_NOT_COMPLETED/);
+await assert.rejects(analyzeBatchWithModel(batch,{enabled:true,apiKey:'test-secret',model:'gpt-test',fetchImpl:async()=>({ok:true,json:async()=>({status:'incomplete',output:[]})})}),/MODEL_RESPONSE_INCOMPLETE/);
+await assert.rejects(analyzeBatchWithModel(batch,{enabled:true,apiKey:'test-secret',model:'gpt-test',fetchImpl:async()=>({ok:true,json:async()=>({status:'completed',output:[{content:[{type:'refusal',refusal:'Cannot comply'}]}]})})}),/MODEL_REFUSED/);
 console.log('PASS: worker stays disabled by default, mock request is private and output is validated');
