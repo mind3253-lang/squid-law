@@ -54,6 +54,7 @@ assert.deepEqual(missingText.diagnostics.unreadableDetails.map(p=>p.page),[2,3,4
 const unknown=assembleVerifiedCaseAnalysis([{name:'계약서.pdf',pages:[{text:source}]}],{...analysis,findings:[{...finding,citations:[{document:'존재하지않는.pdf',page:1,quote:'계약기간은 5년이며'}]}]},comparison);
 assert.equal(unknown.status,'needs_source_review');
 assert.deepEqual(unknown.diagnostics.unknownCitationDocuments,['존재하지않는.pdf']);
+assert.ok(unknown.notices.some(x=>x.includes('제출되지 않은 PDF 파일명')));
 assert.equal(unknown.diagnostics.verifiedCitationCount,0);
 assert.equal(unknown.diagnostics.unverifiedCitationCount,1);
 assert.match(formatCaseReportText(unknown),/제출 문서 목록에 없음: 존재하지않는.pdf/);
