@@ -88,6 +88,7 @@ export function assembleVerifiedCaseAnalysis(documents,analysis,comparison){
  report.diagnostics.citedReadablePages=documents.reduce((count,doc)=>count+(Array.isArray(doc.pages)?doc.pages.filter((p,i)=>typeof p?.text==='string'&&p.text.trim()&&citedPageKeys.has(JSON.stringify([doc.name,i+1]))).length:0),0);
  report.diagnostics.uncitedReadablePages=report.diagnostics.readablePages-report.diagnostics.citedReadablePages;
  report.diagnostics.verifiedPageCoveragePercent=report.diagnostics.readablePages>0?Math.round(report.diagnostics.citedReadablePages/report.diagnostics.readablePages*100):0;
+ report.diagnostics.totalPageCoveragePercent=report.diagnostics.totalPages>0?Math.round(report.diagnostics.citedReadablePages/report.diagnostics.totalPages*100):0;
  report.diagnostics.uncitedReadablePageDetails=documents.flatMap(doc=>Array.isArray(doc.pages)?doc.pages.flatMap((p,i)=>typeof p?.text==='string'&&p.text.trim()&&!citedPageKeys.has(JSON.stringify([doc.name,i+1]))?[{document:doc.name,page:i+1}]:[]):[]);
  if(report.diagnostics.uncitedDocuments.length)report.notices.push('제출 문서 중 원문 일치가 검증된 인용이 없는 파일이 있습니다. 미인용 또는 출처 불일치로 인한 주요 쟁점 누락 여부를 확인하세요.');
  // No findings or missing citation checks must never produce a verified report.
