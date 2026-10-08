@@ -56,5 +56,9 @@ export async function analyzeComparisonWithModel(documents,lead,{
   let parsed;
   try{parsed=JSON.parse(raw);}catch{throw Error('COMPARISON_MODEL_NOT_JSON');}
   return validateComparisonResponse(documents,lead,parsed);
+ }catch(error){
+  // Abort may occur while reading response.json(), after fetch has resolved.
+  if(controller.signal.aborted)throw Error('MODEL_REQUEST_TIMEOUT');
+  throw error;
  }finally{clearTimeout(timer);}
 }
