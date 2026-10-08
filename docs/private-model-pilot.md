@@ -26,3 +26,7 @@ Do **not** upload API keys, customer PDFs, or the result JSON to GitHub. The scr
 The model produces candidate observations with exact PDF/page/quote citations. Local verification checks each quotation against extracted source text. Incomplete model responses, malformed JSON, more than 12 findings, and oversized model outputs fail closed. Findings with unmatched or missing citations are omitted from the output; aggregate verification counts remain. Even matched quotations **do not prove the underlying assertion is true**. There is no independent legal conclusion, citation authenticity proof, or OCR for scanned PDFs.
 
 The API call incurs provider charges. The model can be set via `SQUIDLAW_MODEL` (default `gpt-4.1-mini`). This script is not a substitute for end-to-end security, cost budgeting, adversarial tests, real PDF trials, or production authorization.
+
+## Source fingerprint
+
+The pilot output includes `sourceDigest`, a SHA-256 fingerprint of the extracted document names, page order, and full extracted page text. The customer page recomputes this fingerprint and refuses to import results if the source text has changed. Re-run the private pilot for older outputs that lack `sourceDigest`. This is a source consistency check, not PDF signature verification or a guarantee that source statements are true.
