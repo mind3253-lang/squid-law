@@ -6,6 +6,7 @@ export function assembleCaseAnalysis(analysis,comparison){
  if(!comparison||comparison.schema!=='squidlaw-private-comparisons-v1'||!Array.isArray(comparison.comparisons)||!comparison.diagnostics)throw Error('INVALID_COMPARISON_RESULT');
  const findings=analysis.findings.map(f=>({
   title:f.title,
+  ...(typeof f.analysis==='string'?{analysis:f.analysis}:{}),
   citations:f.citations,
   citationChecks:f.citationChecks
  }));
