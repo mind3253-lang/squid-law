@@ -6,7 +6,7 @@ import {runPrivateAnalysis} from './analysis-private-runner.js';
 
 export async function runAuthorizedAnalysis(documents,{
  session,authenticate,entitlementId,jobId,ledger,
- apiKey,model,fetchImpl,timeoutMs,input,batches,maxBatches=15
+ apiKey,model,fetchImpl,timeoutMs,input,batches,maxBatches=15,maxTotalChars=120000
 }={}){
  if(typeof authenticate!=='function')throw Error('SERVER_AUTH_REQUIRED');
  if(typeof apiKey!=='string'||!apiKey.trim())throw Error('MISSING_SERVER_API_KEY');
@@ -17,9 +17,12 @@ export async function runAuthorizedAnalysis(documents,{
  const job=createAnalysisJob(documents,{input,batches});
  if(!Number.isInteger(maxBatches)||maxBatches<1||maxBatches>30)throw Error('INVALID_BATCH_LIMIT');
  if(job.plan.batches.length>maxBatches)throw Error('TOO_MANY_BATCHES');
+ // Reject jobs the private worker cannot run BEFORE reserving paid usage.
+ if(!Number.isInteger(maxTotalChars)||maxTotalChars<1||maxTotalChars>450000)throw Error('INVALID_JOB_CHAR_LIMIT');
+ if(job.input.diagnostics.totalChars>maxTotalChars)throw Error('JOB_TEXT_BUDGET_EXCEEDED');
  const actualPages=job.input.documents.reduce((n,d)=>n+d.pageCount,0);
  await authorizeAnalysisJob({entitlementId,accountId:identity.accountId,jobId,actualPages,ledger});
  // Entitlement is reserved before any external model request. Production ledger
  // must also handle failed-job retry/refund transitions atomically.
- return runPrivateAnalysis(documents,{enabled:true,apiKey,model,fetchImpl,timeoutMs,input,batches,maxBatches});
+ return runPrivateAnalysis(documents,{enabled:true,apiKey,model,fetchImpl,timeoutMs,input,batches,maxBatches,maxTotalChars});
 }
