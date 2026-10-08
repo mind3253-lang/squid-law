@@ -47,8 +47,9 @@ async function main(){
  if(!response.ok)throw Error('MODEL_HTTP_'+response.status);
  const raw=await response.json();
  if(raw.status!=='completed'||raw.error||raw.incomplete_details)throw Error('MODEL_RESPONSE_INCOMPLETE');
- const output=(raw.output||[]).filter(x=>x.type==='message').flatMap(x=>x.content||[]).filter(x=>x.type==='output_text').map(x=>x.text).join('');
- if(!output)throw Error('EMPTY_MODEL_RESPONSE');
+ if(!Array.isArray(raw.output))throw Error('INVALID_MODEL_OUTPUT');
+ const output=raw.output.filter(x=>x.type==='message').flatMap(x=>x.content||[]).filter(x=>x.type==='output_text').map(x=>x.text).join('');
+ if(!output||output.length>50000)throw Error('EMPTY_OR_OVERSIZED_MODEL_RESPONSE');
  let parsed;
  try{parsed=JSON.parse(output)}catch{throw Error('INVALID_MODEL_JSON')}
  const validated=validateFindingsPayload(parsed);
