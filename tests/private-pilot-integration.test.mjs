@@ -141,3 +141,12 @@ test('failed same-name PDF does not reserve the filename',()=>{
  assert.ok(duplicate>0&&parsing>duplicate&&committed>parsing);
  assert.match(page,/documents\.push\(d\);pdfInstances\.push\(pdf\);seenNames\.add\(f\.name\);committed=true/);
 });
+
+test('new PDF immediately clears old citation and page controls',()=>{
+ assert.match(page,/docSelect\.replaceChildren\(\);pageSelect\.replaceChildren\(\)/);
+ assert.match(page,/document\.getElementById\('citation-doc'\)\.replaceChildren\(\)/);
+ assert.match(page,/document\.getElementById\('citation-result'\)\.textContent='PDF 처리 중…'/);
+});
+test('new PDF clears old file and extraction status',()=>{
+ assert.match(page,/fileState\.textContent='새 PDF 처리 중…';status\.textContent='새 PDF 처리 중…'/);
+});
