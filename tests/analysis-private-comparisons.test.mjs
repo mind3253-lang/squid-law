@@ -31,7 +31,7 @@ await assert.rejects(runPrivateComparisons(documents,{...credentials,enabled:tru
 await assert.rejects(runPrivateComparisons(documents,{...credentials,enabled:true,compare:async()=>({sourceReady:false})}),/COMPARISON_RESULT_NOT_READY/);
 const empty=await runPrivateComparisons([{name:'a.pdf',pages:[{text:'문서 A만의 표현'}]},{name:'b.pdf',pages:[{text:'다른 문서의 표현'}]}],{...credentials,enabled:true,compare});
 assert.equal(empty.comparisons.length,0);
-assert.equal(empty.sourceReady,false);
+assert.equal(empty.sourceReady,true,'No comparison candidates is not a failed citation verification');
 assert.equal(empty.diagnostics.reason,'NO_SHARED_REFERENCE_LEADS');
 assert.equal(calls,1,'Empty comparison should not call AI');
 console.log('PASS: comparison orchestrator enforces opt-in, source checks and request budget before AI calls');
