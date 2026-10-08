@@ -6,14 +6,16 @@ import {analyzeBatchWithModel} from './analysis-model-worker.js';
 
 export async function runPrivateAnalysis(documents,{
  enabled=false,apiKey,model,fetchImpl,timeoutMs,
- input,batches,maxBatches=15
+ input,batches,maxBatches=15,maxTotalChars=120000
 }={}){
  if(!enabled)throw Error('AI_WORKER_DISABLED');
  if(typeof apiKey!=='string'||!apiKey.trim())throw Error('MISSING_SERVER_API_KEY');
  if(typeof model!=='string'||!/^gpt-[a-zA-Z0-9.-]+$/.test(model))throw Error('INVALID_MODEL');
  if(!Number.isInteger(maxBatches)||maxBatches<1||maxBatches>30)throw Error('INVALID_BATCH_LIMIT');
+ if(!Number.isInteger(maxTotalChars)||maxTotalChars<1||maxTotalChars>450000)throw Error('INVALID_JOB_CHAR_LIMIT');
  const job=createAnalysisJob(documents,{input,batches});
  if(job.plan.batches.length>maxBatches)throw Error('TOO_MANY_BATCHES');
+ if(job.input.diagnostics.totalChars>maxTotalChars)throw Error('JOB_TEXT_BUDGET_EXCEEDED');
  const responses=[];
  // Sequential requests prevent accidental concurrency spikes.
  // Stop on error rather than claiming a complete analysis.
