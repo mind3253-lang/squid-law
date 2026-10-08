@@ -5,7 +5,7 @@ const relations={
  insufficient_information:'자료 부족'
 };
 const status=x=>x==='matched'?'원문 일치':'출처 확인 필요';
-const validCitation=c=>!!c&&typeof c.document==='string'&&c.document.trim().length>0&&Number.isInteger(c.page)&&c.page>0&&typeof c.quote==='string'&&c.quote.trim().length>=8;
+const validCitation=c=>!!c&&typeof c.document==='string'&&c.document.trim().length>0&&Number.isInteger(c.page)&&c.page>0&&typeof c.quote==='string'&&c.quote.normalize('NFKC').replace(/\s+/g,' ').trim().length>=8;
 export function formatCaseReportText(report){
  if(!report||report.schema!=='squidlaw-case-analysis-v1'||!Array.isArray(report.findings)||!Array.isArray(report.comparisons))throw Error('INVALID_CASE_REPORT');
  if(report.findings.some(f=>!f||typeof f!=='object'||(Array.isArray(f.citations)&&f.citations.some(c=>!c||typeof c!=='object')))||report.comparisons.some(c=>!c||typeof c!=='object'||(Array.isArray(c.citations)&&c.citations.some(x=>!x||typeof x!=='object'))))throw Error('INVALID_CASE_REPORT_ENTRY');
