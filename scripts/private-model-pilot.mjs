@@ -5,6 +5,7 @@ import {validateFindingsPayload} from '../findings-schema.js';
 import {verifyFindings} from '../source-verification.js';
 import {summarizeCitationChecks} from '../analysis-quality.js';
 import {validatePilotInput} from '../private-pilot-input.js';
+import {digestPilotDocuments} from '../private-pilot-digest.js';
 
 const fail=(code,message)=>{console.error(message);process.exitCode=code;};
 async function main(){
@@ -15,6 +16,7 @@ async function main(){
  if(!filename)throw Error('USAGE: node scripts/private-model-pilot.mjs extracted-pages.json');
  const input=JSON.parse(await readFile(filename,'utf8'));
  validatePilotInput(input);
+ const sourceDigest=await digestPilotDocuments(input);
  const extracted=input.flatMap(d=>d.pages.map((p,i)=>({document:d.name,page:i+1,text:p.text})).filter(p=>p.text.trim()));
  if(!extracted.length)throw Error('NO_READABLE_PAGES');
  const model=process.env.SQUIDLAW_MODEL||'gpt-4.1-mini';
@@ -54,6 +56,7 @@ async function main(){
  const matched=checked.filter(f=>f.citationChecks.length&&f.citationChecks.every(c=>c.verification.status==='matched'));
  process.stdout.write(JSON.stringify({
   schema:'squidlaw-private-pilot-v1',kind:'source-matched-review-candidates-not-legal-conclusions',
+  sourceDigest,
   documents:input.map(d=>({name:d.name,pages:d.pages.length,unreadable:d.pages.filter(p=>!p.text.trim()).length})),
   sourceChecks:summary,findings:matched,
   warning:'인용문이 원문과 일치한다는 뜻이며, 진술의 진실성·법적 판단은 검증하지 않았습니다.'
