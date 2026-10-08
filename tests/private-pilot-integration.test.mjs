@@ -52,3 +52,15 @@ test('stale PDF extraction cannot append to a newer selection',()=>{
 test('stale extraction cannot refresh analysis controls',()=>{
  assert.match(page,/if\(extractionRevision!==sourceRevision\)return;\s*refreshPilotExport\(\)/);
 });
+
+test('PDF page counters commit only after complete extraction',()=>{
+ assert.match(page,/let documentEmpty=0/);
+ assert.match(page,/pages\+=d\.pages\.length;empty\+=documentEmpty/);
+ assert.doesNotMatch(page,/d\.pages\.push\(\{text:extracted\}\);pages\+\+/);
+});
+test('failed PDF extraction releases document resources',()=>{
+ assert.match(page,/finally\{if\(pdf&&!committed\)\{try\{await pdf\.destroy\(\)\}catch\{\}\}\}/);
+});
+test('only complete PDFs are added to the visible document list',()=>{
+ assert.match(page,/documents\.push\(d\);pdfInstances\.push\(pdf\);committed=true/);
+});
