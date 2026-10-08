@@ -4,6 +4,7 @@ import {verifyCitation} from './source-verification.js';
 export function assembleCaseAnalysis(analysis,comparison){
  if(!analysis||analysis.schema!=='squidlaw-merged-analysis-v1'||!Array.isArray(analysis.findings)||!analysis.diagnostics)throw Error('INVALID_ANALYSIS_RESULT');
  if(!comparison||comparison.schema!=='squidlaw-private-comparisons-v1'||!Array.isArray(comparison.comparisons)||!comparison.diagnostics)throw Error('INVALID_COMPARISON_RESULT');
+ if(analysis.findings.some(f=>!f||typeof f!=='object')||comparison.comparisons.some(c=>!c||typeof c!=='object'))throw Error('INVALID_REPORT_ENTRY');
  const findings=analysis.findings.map(f=>({
   title:f.title,
   ...(typeof f.analysis==='string'?{analysis:f.analysis}:{}),
@@ -18,8 +19,8 @@ export function assembleCaseAnalysis(analysis,comparison){
   citations:c.citations,
   sourceReady:c.sourceReady===true
  }));
- const analysisReady=analysis.sourceReady===true&&(!Array.isArray(analysis.diagnostics.missingBatches)||analysis.diagnostics.missingBatches.length===0)&&findings.length>0&&findings.every(f=>Array.isArray(f.citations)&&f.citations.length>0&&Array.isArray(f.citationChecks)&&f.citationChecks.length===f.citations.length&&f.citationChecks.every(c=>c.verification?.status==='matched'));
- const comparisonReady=comparison.sourceReady===true&&comparisons.every(c=>c.sourceReady===true&&Array.isArray(c.citations)&&c.citations.length===2&&c.citations.every(x=>x.verification?.status==='matched'));
+ const analysisReady=analysis.sourceReady===true&&(!Array.isArray(analysis.diagnostics.missingBatches)||analysis.diagnostics.missingBatches.length===0)&&findings.length>0&&findings.every(f=>Array.isArray(f.citations)&&f.citations.length>0&&Array.isArray(f.citationChecks)&&f.citationChecks.length===f.citations.length&&f.citationChecks.every(c=>c?.verification?.status==='matched'));
+ const comparisonReady=comparison.sourceReady===true&&comparisons.every(c=>c.sourceReady===true&&Array.isArray(c.citations)&&c.citations.length===2&&c.citations.every(x=>x?.verification?.status==='matched'));
  return {
   schema:'squidlaw-case-analysis-v1',
   status:analysisReady&&comparisonReady?'source_checked':'needs_source_review',
@@ -56,6 +57,7 @@ export function assembleVerifiedCaseAnalysis(documents,analysis,comparison){
    (typeof page?.text!=='string'||!page.text.trim())?
     [{document:doc.name,page:index+1,totalPages:doc.pages.length}]:[]):[]
  );
+ if(analysis.findings.some(f=>!f||typeof f!=='object')||comparison.comparisons.some(c=>!c||typeof c!=='object'))throw Error('INVALID_REPORT_ENTRY');
  const checkedAnalysis={...analysis,diagnostics:{...analysis.diagnostics,unreadableDetails},findings:analysis.findings.map(f=>{
   const citations=Array.isArray(f.citations)?f.citations:[];
   return {...f,citations,citationChecks:citations.map(c=>({verification:verifyCitation(documents,c)}))};
