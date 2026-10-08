@@ -29,6 +29,8 @@ on:
       - 'analysis-case-report-text.js'
       - 'customer.html'
       - 'tests/customer-comparison-ui.test.mjs'
+      - 'export-verified-case-cli.js'
+      - 'tests/export-verified-case-cli.test.mjs'
       - 'export-case-report-cli.js'
       - 'tests/export-case-report-cli.test.mjs'
       - 'tests/analysis-case-report-text.test.mjs'
@@ -135,6 +137,7 @@ jobs:
           node tests/analysis-case-report-source-gate.test.mjs
           node tests/analysis-case-report-text.test.mjs
           node tests/export-case-report-cli.test.mjs
+          node tests/export-verified-case-cli.test.mjs
           node tests/customer-comparison-ui.test.mjs
           node tests/evaluate-pilot-cli.test.mjs
           node tests/analysis-ai-quality-integration.test.mjs
