@@ -46,3 +46,5 @@ console.log('PASS: private comparison worker rejects unapproved requests and ver
 const configForBodyTimeout=config;
 // Regression: a timeout while parsing the HTTP body is still a model timeout.
 await assert.rejects(analyzeComparisonWithModel(documents,lead,{...configForBodyTimeout,fetchImpl:async(_url,{signal})=>({ok:true,json:async()=>{await new Promise(resolve=>signal.addEventListener('abort',resolve,{once:true}));throw Error('body aborted');}}),timeoutMs:1000}),/MODEL_REQUEST_TIMEOUT/);
+
+await assert.rejects(analyzeComparisonWithModel(documents,lead,{...config,fetchImpl:async()=>({ok:true,json:async()=>({status:'',output:[]})})}),/COMPARISON_MODEL_NOT_COMPLETED/);
