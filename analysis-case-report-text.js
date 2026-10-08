@@ -120,6 +120,11 @@ export function formatCaseReportText(report){
   const totalPages=Number.isInteger(report.diagnostics?.totalPages)?report.diagnostics.totalPages:submitted.reduce((sum,item)=>sum+(Number.isInteger(item.pageCount)?item.pageCount:0),0);
   lines.push('- 제출 문서 전체 페이지: '+totalPages+'쪽');
   lines.push('- 텍스트 식별 가능 페이지: '+(Number.isInteger(report.diagnostics?.readablePages)?report.diagnostics.readablePages:Math.max(0,totalPages-skipped.length))+'쪽');
+  if(Number.isInteger(report.diagnostics?.citedReadablePages)&&Number.isInteger(report.diagnostics?.uncitedReadablePages)){
+   lines.push('- 원문 인용이 있는 식별 가능 페이지: '+report.diagnostics.citedReadablePages+'쪽');
+   lines.push('- 원문 인용이 없는 식별 가능 페이지: '+report.diagnostics.uncitedReadablePages+'쪽');
+   lines.push('- 인용 없는 페이지는 분석 누락을 확정하지 않지만 주요 쟁점의 미반영 가능성을 점검해야 합니다.');
+  }
   const uncited=Array.isArray(report.diagnostics?.uncitedDocuments)?submitted.filter(item=>report.diagnostics.uncitedDocuments.includes(item.name)):submitted.filter(item=>!documents.has(item.name));
   lines.push('- 분석 인용에 등장하지 않은 제출 문서: '+uncited.length+'개');
   if(uncited.length){
