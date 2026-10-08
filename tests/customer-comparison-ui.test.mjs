@@ -47,4 +47,9 @@ assert.match(formatCaseReportText({schema:'squidlaw-case-analysis-v1',status:'so
 for(const term of ['입증책임','반박의 가능성','불리한 내용','청구취지 변경','증거번호'])assert.ok(ANALYSIS_SYSTEM_PROMPT.includes(term),'Missing reasoning safeguard: '+term);
 assert.match(report,/쟁점별 설명 누락: 1건/);
 assert.match(formatCaseReportText({schema:'squidlaw-case-analysis-v1',status:'needs_source_review',findings:[{title:'검토',citations:[{document:'가.pdf',page:1,quote:'원문 문장입니다.'},{document:'나.pdf',page:2,quote:'상대방 주장입니다.'}]}],comparisons:[],diagnostics:{},notices:[]}),/복수 출처: 2건/);
+const structured=validateFindingsPayload({schema:'squidlaw-findings-v1',findings:[{title:'계약기간',claim:'원고 5년 주장',evidence:'계약서 5년 문구',rebuttal:'피고 2년 주장',proofGap:'변경합의 확인 필요',citations:[]}]});
+assert.equal(structured.findings[0].proofGap,'변경합의 확인 필요');
+assert.throws(()=>validateFindingsPayload({schema:'squidlaw-findings-v1',findings:[{title:'초과',claim:'x'.repeat(901),citations:[]}]}),/INVALID_FINDING_SECTION/);
+const structuredText=formatCaseReportText({schema:'squidlaw-case-analysis-v1',status:'needs_source_review',findings:structured.findings,comparisons:[],diagnostics:{},notices:[]});
+for(const term of ['주장: 원고 5년 주장','근거: 계약서 5년 문구','반박·반증: 피고 2년 주장','추가 입증사항: 변경합의 확인 필요'])assert.ok(structuredText.includes(term));
 console.log('PASS: customer module syntax and comparison preview wiring are valid');
