@@ -32,6 +32,8 @@ export function formatCaseReportText(report){
  for(const [i,f] of report.findings.entries()){
   lines.push('',(i+1)+'. '+String(f.title||'제목 없음'));
   if(typeof f.analysis==='string'&&f.analysis.trim())lines.push('   쟁점 검토: '+f.analysis);
+  else lines.push('   쟁점 검토: 별도 설명 없음 · 원문 인용만 제공');
+  if(f.citations?.length>1)lines.push('   복수 출처: '+f.citations.length+'건 · 각 출처의 주장 주체와 의미를 대조하세요.');
   const citations=Array.isArray(f.citations)?f.citations:[];
   if(!citations.length)lines.push('   출처 없음 · 확인 필요');
   citations.forEach((c,j)=>{
@@ -71,6 +73,10 @@ export function formatCaseReportText(report){
  const missing=Array.isArray(report.diagnostics?.missingBatches)?report.diagnostics.missingBatches:[];
  if(missing.length)lines.push('- 결과가 누락된 분석 묶음: '+missing.join(', '));
  lines.push('- AI 분석 항목: '+report.findings.length+'건');
+ const explained=report.findings.filter(f=>typeof f.analysis==='string'&&f.analysis.trim()).length;
+ lines.push('- 쟁점별 설명 포함: '+explained+'건');
+ lines.push('- 쟁점별 설명 누락: '+(report.findings.length-explained)+'건');
+ if(explained<report.findings.length)lines.push('- 설명이 누락된 항목은 제목과 원문 인용만 제공됩니다.');
  lines.push('- 출처 인용 총수: '+citationCount+'건');
  lines.push('- 원문 일치 인용: '+matchedCount+'건');
  lines.push('- 원문 확인 필요 인용: '+unmatchedCount+'건');
