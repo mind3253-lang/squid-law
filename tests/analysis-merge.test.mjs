@@ -21,3 +21,8 @@ assert.equal(mergeCheckedBatches(expected,[result(1),result(2,false)]).sourceRea
 assert.throws(()=>mergeCheckedBatches(expected,[result(1),result(1)]),/DUPLICATE_BATCH_RESULT/);
 assert.throws(()=>mergeCheckedBatches(expected,[result(3)]),/UNEXPECTED_BATCH_RESULT/);
 console.log('PASS: checked batch merge preserves order and blocks missing, unsupported or duplicate batches');
+
+const falselyReadyEmpty=mergeCheckedBatches(expected,[result(1),{...result(2),findings:[]}]);
+assert.equal(falselyReadyEmpty.sourceReady,false,'An empty batch cannot be marked source-checked');
+const falselyReadyUnchecked=mergeCheckedBatches(expected,[result(1),{...result(2),findings:[{title:'unsupported',citations:[],citationChecks:[]}]}]);
+assert.equal(falselyReadyUnchecked.sourceReady,false,'A claimed sourceReady flag cannot bypass citation requirements');
