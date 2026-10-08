@@ -133,3 +133,11 @@ test('search navigation rejects results from an older PDF revision',()=>{
  assert.match(page,/const searchRevision=sourceRevision/);
  assert.match(page,/if\(searchRevision!==sourceRevision\|\|!documents\[item\.documentIndex\]/);
 });
+
+test('failed same-name PDF does not reserve the filename',()=>{
+ const duplicate=page.indexOf('seenNames.has(f.name)');
+ const parsing=page.indexOf('pdfjsLib.getDocument({data:new Uint8Array(await f.arrayBuffer())})');
+ const committed=page.indexOf('seenNames.add(f.name)');
+ assert.ok(duplicate>0&&parsing>duplicate&&committed>parsing);
+ assert.match(page,/documents\.push\(d\);pdfInstances\.push\(pdf\);seenNames\.add\(f\.name\);committed=true/);
+});
