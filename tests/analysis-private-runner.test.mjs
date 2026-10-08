@@ -23,6 +23,11 @@ await assert.rejects(runPrivateAnalysis(documents,{...config,maxBatches:1}),/TOO
 assert.equal(requests,2);
 await assert.rejects(runPrivateAnalysis(documents,{...config,maxTotalChars:10}),/JOB_TEXT_BUDGET_EXCEEDED/);
 assert.equal(requests,2,'Budget rejection must happen before network calls');
+await assert.rejects(runPrivateAnalysis(documents,{...config,input:{schema:'squidlaw-analysis-input-v1',pages:[],diagnostics:{}}}),/INVALID_INPUT_LIMITS/);
+assert.equal(requests,2,'Malformed input limits must be rejected before model calls');
+await assert.rejects(runPrivateAnalysis(documents,{...config,input:{maxPages:1,maxChars:60000}}),/PAGE_LIMIT_EXCEEDED/);
+assert.equal(requests,2,'PDF page budget must be enforced before model calls');
+
 await assert.rejects(runPrivateAnalysis(documents,{...config,maxTotalChars:0}),/INVALID_JOB_CHAR_LIMIT/);
 assert.equal(requests,2);
 let failedCalls=0;
