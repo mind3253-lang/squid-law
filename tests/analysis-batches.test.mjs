@@ -23,3 +23,7 @@ assert.throws(()=>batchAnalysisInput(input,{maxBatchChars:5}),/SOURCE_PAGE_TOO_L
 assert.throws(()=>batchAnalysisInput(input,{maxBatchPages:0}),/INVALID_BATCH_LIMITS/);
 assert.throws(()=>batchAnalysisInput({schema:'wrong',pages:[]}),/INVALID_ANALYSIS_INPUT/);
 console.log('PASS: source page batches preserve document/page references, skip blank pages, enforce limits');
+
+assert.throws(()=>batchAnalysisInput({...input,pages:[input.pages[0],input.pages[0]]}),/DUPLICATE_SOURCE_PAGE/);
+assert.throws(()=>batchAnalysisInput({...input,pages:[{document:'',page:1,text:'내용'}]}),/INVALID_SOURCE_PAGE/);
+assert.throws(()=>batchAnalysisInput({...input,pages:[{document:'원고.pdf',page:1,text:'    '}]}),/INVALID_SOURCE_PAGE/);
