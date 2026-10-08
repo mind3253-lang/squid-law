@@ -347,23 +347,29 @@ fileInput.addEventListener('change',async e=>{
   if(extractionRevision!==sourceRevision)return;
   if(!/\.pdf$/i.test(f.name)&&f.type!=='application/pdf'){failed++;continue;}if(f.size>MAX_FILE_BYTES){skipped++;status.textContent=f.name+' : 30MB 초과로 제외';continue;}
   status.textContent=f.name+' 처리 중…';
+  let pdf=null,committed=false;
   try{
-   const pdf=await pdfjsLib.getDocument({data:new Uint8Array(await f.arrayBuffer())}).promise;
-   if(extractionRevision!==sourceRevision){await pdf.destroy();return;}
-   if(pages+pdf.numPages>MAX_TOTAL_PAGES){skipped++;status.textContent=f.name+' : 전체 300페이지 제한으로 제외';await pdf.destroy();continue;}
+   pdf=await pdfjsLib.getDocument({data:new Uint8Array(await f.arrayBuffer())}).promise;
+   if(extractionRevision!==sourceRevision)return;
+   if(pages+pdf.numPages>MAX_TOTAL_PAGES){skipped++;status.textContent=f.name+' : 전체 300페이지 제한으로 제외';continue;}
    const d={name:f.name,pages:[]};
+   let documentEmpty=0;
    for(let n=1;n<=pdf.numPages;n++){
+    if(extractionRevision!==sourceRevision)return;
     status.textContent=f.name+' · '+n+'/'+pdf.numPages+'쪽 텍스트 추출 중…';
     const page=await pdf.getPage(n);const tc=await page.getTextContent();
-    if(extractionRevision!==sourceRevision){await pdf.destroy();return;}
+    if(extractionRevision!==sourceRevision)return;
     const lines=[];let lastY=null,line='';
     for(const item of tc.items){if(typeof item.str!=='string')continue;const y=item.transform?.[5];if(lastY!==null&&typeof y==='number'&&Math.abs(y-lastY)>3){if(line.trim())lines.push(line.trim());line='';}line+=item.str+(item.hasEOL?'\n':' ');if(item.hasEOL){if(line.trim())lines.push(line.trim());line='';lastY=null;}else if(typeof y==='number')lastY=y;}
     if(line.trim())lines.push(line.trim());
-    const extracted=lines.join('\n').trim();if(!extracted)empty++;
-    d.pages.push({text:extracted});pages++;
+    const extracted=lines.join('\n').trim();if(!extracted)documentEmpty++;
+    d.pages.push({text:extracted});
    }
-   documents.push(d);pdfInstances.push(pdf);
+   if(extractionRevision!==sourceRevision)return;
+   documents.push(d);pdfInstances.push(pdf);committed=true;
+   pages+=d.pages.length;empty+=documentEmpty;
   }catch{if(extractionRevision!==sourceRevision)return;failed++;}
+  finally{if(pdf&&!committed){try{await pdf.destroy()}catch{}}}
  }
  if(extractionRevision!==sourceRevision)return;
  refreshPilotExport();
