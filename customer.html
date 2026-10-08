@@ -98,6 +98,7 @@ document.getElementById('render-pdf').addEventListener('click',showPdfPage);
 document.getElementById('pdf-visual').addEventListener('toggle',e=>{if(e.target.open)showPdfPage()});
 
 let reviewRecords=[],selectedReview=null;
+let reviewImportRevision=0;
 const reviewEditor=document.getElementById('review-editor');
 const reviewRecordsBox=document.getElementById('review-records');
 function chooseReview(item){
@@ -139,10 +140,13 @@ document.getElementById('review-export').addEventListener('click',()=>saveLocal(
 
 document.getElementById('review-import').addEventListener('change',async event=>{
  const f=event.target.files?.[0];if(!f)return;
+ const requestSourceRevision=sourceRevision;
+ const requestReviewRevision=++reviewImportRevision;
  const info=document.getElementById('review-import-status');
  if(f.size>5*1024*1024){info.textContent='검토 기록 파일은 5MB 이하만 불러올 수 있습니다.';return;}
  try{
   const parsed=JSON.parse(await f.text());
+  if(sourceRevision!==requestSourceRevision||reviewImportRevision!==requestReviewRevision)return;
   if(parsed?.schema!=='squidlaw-review-v1'||!Array.isArray(parsed.records)||parsed.records.length>10000)throw Error('형식 불일치');
   const allowed=new Set(['미검토','원문 확인','당사자 주장','추가 확인 필요']);
   const checked=parsed.records.map(x=>{
@@ -151,7 +155,7 @@ document.getElementById('review-import').addEventListener('change',async event=>
   });
   reviewRecords=checked;renderReviews();
   info.textContent=checked.length+'건을 불러왔습니다. 원본 PDF와 일치하는지는 직접 확인해야 합니다.';
- }catch(e){info.textContent='불러오기 실패: SQUID LAW 검토 기록 JSON 파일인지 확인하세요.';}
+ }catch(e){if(sourceRevision===requestSourceRevision&&reviewImportRevision===requestReviewRevision)info.textContent='불러오기 실패: SQUID LAW 검토 기록 JSON 파일인지 확인하세요.';}
  event.target.value='';
 });
 const indexRoot=document.getElementById('local-index');
@@ -344,7 +348,7 @@ document.getElementById('private-pilot-result-file').addEventListener('change',a
  event.target.value='';
 });
 fileInput.addEventListener('change',async e=>{
- sourceRevision++;pilotImportRevision++;resultImportRevision++;
+ sourceRevision++;pilotImportRevision++;resultImportRevision++;reviewImportRevision++;
  const extractionRevision=sourceRevision;
  const selectedFiles=[...e.target.files];
  document.getElementById('private-pilot-result-status').textContent='PDF가 변경되었습니다. AI 시험 결과를 다시 선택하세요.';
