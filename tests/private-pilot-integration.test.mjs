@@ -59,7 +59,7 @@ test('PDF page counters commit only after complete extraction',()=>{
  assert.doesNotMatch(page,/d\.pages\.push\(\{text:extracted\}\);pages\+\+/);
 });
 test('failed PDF extraction releases document resources',()=>{
- assert.ok(page.includes("finally{if(event.target.files?.[0]===f)event.target.value='';}"));
+ assert.match(page,/finally\{if\(pdf&&!committed\)\{try\{await pdf\.destroy\(\)\}catch\{\}\}\}/);
 });
 test('only complete PDFs are added to the visible document list',()=>{
  assert.match(page,/documents\.push\(d\);pdfInstances\.push\(pdf\);seenNames\.add\(f\.name\);committed=true/);
@@ -156,5 +156,5 @@ test('saved review notes pass the same schema as imported notes',()=>{
  assert.match(page,/reviewRecords\.push\(candidate\)/);
 });
 test('stale review imports release only their original selected file',()=>{
- assert.match(page,/finally\{if\(event\.target\.files\?\.\[0\]===f\)event\.target\.value=''\}/);
+ assert.ok(page.includes("finally{if(event.target.files?.[0]===f)event.target.value='';}"));
 });
