@@ -1,0 +1,15 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+const read=p=>readFileSync(new URL('../'+p,import.meta.url),'utf8');
+const uri=s=>'data:text/javascript;charset=utf-8,'+encodeURIComponent(s);
+const schemaUri=uri(read('findings-schema.js'));
+const source=read('analysis-model-response.js').replace("'./findings-schema.js'","'"+schemaUri+"'");
+const {parseModelFindings}=await import(uri(source));
+const valid=JSON.stringify({schema:'squidlaw-findings-v1',findings:[{title:'계약기간 주장',citations:[{document:'원고.pdf',page:1,quote:'계약기간은 5년이다'}]}]});
+assert.equal(parseModelFindings(valid).findings.length,1);
+assert.throws(()=>parseModelFindings(''),/EMPTY_MODEL_RESPONSE/);
+assert.throws(()=>parseModelFindings('설명: '+valid),/MODEL_RESPONSE_NOT_JSON/);
+assert.throws(()=>parseModelFindings('\\x00'),/MODEL_RESPONSE_NOT_JSON/);
+assert.throws(()=>parseModelFindings(valid,{maxResponseChars:10}),/MODEL_RESPONSE_TOO_LARGE/);
+assert.throws(()=>parseModelFindings(JSON.stringify({schema:'wrong',findings:[]})),/INVALID_FINDINGS_SCHEMA/);
+console.log('PASS: strict AI response JSON parsing and schema validation');
