@@ -71,3 +71,15 @@ test('invalid comparison inputs fail explicitly',()=>{
  assert.throws(()=>buildVerifiedComparisonReport(null),/INVALID_COMPARISON_INPUT/);
  assert.throws(()=>buildVerifiedComparisonReport(docs,{maxLeads:0}),/INVALID_COMPARISON_INPUT/);
 });
+
+test('cross-document repeated snippets are deduplicated by normalized text',()=>{
+ const phrase='원고는 계약서에 기재된 지급기한을 다투고 있습니다.';
+ const result=buildLocalIndex([
+  {name:'one.pdf',pages:[{text:phrase}]},
+  {name:'two.pdf',pages:[{text:phrase}]},
+  {name:'three.pdf',pages:[{text:phrase}]}
+ ]);
+ assert.equal(result.repeated.length,1);
+ assert.equal(result.repeated[0].first.document,'one.pdf');
+ assert.equal(result.repeated[0].second.document,'two.pdf');
+});
