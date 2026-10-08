@@ -9,6 +9,8 @@ export async function runAuthorizedAnalysis(documents,{
  apiKey,model,fetchImpl,timeoutMs,input,batches,maxBatches=15
 }={}){
  if(typeof authenticate!=='function')throw Error('SERVER_AUTH_REQUIRED');
+ if(typeof apiKey!=='string'||!apiKey.trim())throw Error('MISSING_SERVER_API_KEY');
+ if(typeof model!=='string'||!/^gpt-[a-zA-Z0-9.-]+$/.test(model))throw Error('INVALID_MODEL');
  const identity=await authenticate(session);
  if(!identity||typeof identity.accountId!=='string'||!identity.accountId.trim())throw Error('UNAUTHENTICATED');
  // Validate all PDF input and batch limits before consuming a paid entitlement.
