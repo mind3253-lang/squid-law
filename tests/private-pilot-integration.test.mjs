@@ -71,3 +71,13 @@ test('PDF.js has one module loader',()=>{
 test('local findings invalidate pending imported results',()=>{
  assert.match(page,/if\(!documents\.length\)return;\s*resultImportRevision\+\+;pilotImportRevision\+\+;/);
 });
+
+test('PDF preview checks the selected page is in range',()=>{
+ assert.match(page,/p>pdf\.numPages/);
+});
+test('PDF preview scales down for narrow screens',()=>{
+ assert.match(page,/Math\.max\(160,canvas\.parentElement\.clientWidth-20\)/);
+});
+test('PDF preview handles unavailable canvas context',()=>{
+ assert.match(page,/if\(!context\)throw Error\('CANVAS_CONTEXT_UNAVAILABLE'\)/);
+});
