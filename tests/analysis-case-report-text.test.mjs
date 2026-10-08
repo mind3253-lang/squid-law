@@ -38,3 +38,7 @@ assert.match(comparisonText,/원고.pdf · 2쪽 · 출처 확인 필요/);
 const spoofedReport={...forged,status:'source_checked',diagnostics:{...forged.diagnostics,analysisSourceReady:true,comparisonSourceReady:true}};
 assert.match(formatCaseReportText(spoofedReport),/출처 검산: 확인 필요/);
 assert.match(formatCaseReportText(spoofedReport),/출처 검산 상태: 추가 확인 필요/);
+
+const malformedSubmitted={...assembleCaseAnalysis(analysis,comparison),diagnostics:{...assembleCaseAnalysis(analysis,comparison).diagnostics,submittedDocuments:[null,{name:'원고.pdf',pageCount:2}],uncitedDocuments:['원고.pdf']}};
+assert.match(formatCaseReportText(malformedSubmitted),/문서 미상/);
+assert.match(formatCaseReportText(malformedSubmitted),/원문 일치 인용이 없는 제출 문서: 2개/);
