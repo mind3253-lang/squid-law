@@ -4,6 +4,7 @@ const citationReady=f=>!!f&&Array.isArray(f.citations)&&f.citations.length>0&&Ar
 export function mergeCheckedBatches(expectedBatches,results){
  if(!expectedBatches||expectedBatches.schema!=='squidlaw-analysis-batches-v1'||!Array.isArray(expectedBatches.batches))throw Error('INVALID_EXPECTED_BATCHES');
  if(!Array.isArray(results))throw Error('INVALID_BATCH_RESULTS');
+ if(expectedBatches.batches.some(b=>!b||typeof b!=='object'||!Number.isInteger(b.batch)||b.batch<1))throw Error('INVALID_EXPECTED_BATCHES');
  const expected=new Set(expectedBatches.batches.map(b=>b.batch));
  if(expected.size!==expectedBatches.batches.length)throw Error('DUPLICATE_EXPECTED_BATCH');
  const received=new Map();
