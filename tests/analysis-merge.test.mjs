@@ -4,9 +4,12 @@ const source=readFileSync(new URL('../analysis-merge.js',import.meta.url),'utf8'
 const {mergeCheckedBatches}=await import('data:text/javascript;charset=utf-8,'+encodeURIComponent(source));
 const expected={schema:'squidlaw-analysis-batches-v1',batches:[{batch:1},{batch:2}]};
 const citation={verification:{status:'matched'}};
-const result=(batch,sourceReady=true,checks=[citation])=>({schema:'squidlaw-checked-batch-v1',batch,sourceReady,quality:{matched:1},findings:[{title:'분석 후보 '+batch,citationChecks:checks}]});
+const result=(batch,sourceReady=true,checks=[citation])=>({schema:'squidlaw-checked-batch-v1',batch,sourceReady,quality:{matched:1},findings:[{title:'분석 후보 '+batch,citations:[{document:'test.pdf',page:1,quote:'원문 인용 8자 이상'}],citationChecks:checks}]});
 const complete=mergeCheckedBatches(expected,[result(2),result(1)]);
 assert.equal(complete.sourceReady,true);
+const incompleteChecks=mergeCheckedBatches(expected,[result(1),{...result(2),findings:[{...result(2).findings[0],citations:[{document:'test.pdf',page:1,quote:'원문 인용 8자 이상'},{document:'test.pdf',page:2,quote:'추가 원문 인용문'}]}]}]);
+assert.equal(incompleteChecks.sourceReady,false);
+assert.equal(incompleteChecks.diagnostics.needsReview,1);
 assert.deepEqual(complete.findings.map(f=>f.sourceBatch),[1,2]);
 const partial=mergeCheckedBatches(expected,[result(1)]);
 assert.equal(partial.sourceReady,false);
