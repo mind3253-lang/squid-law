@@ -44,3 +44,5 @@ assert.equal(shortQuote.sourceReady,false);
 
 const paddedQuote=mergeCheckedBatches(expected,[result(1),{...result(2),findings:[{...result(2).findings[0],citations:[{document:'test.pdf',page:1,quote:'가          나'}]}]}]);
 assert.equal(paddedQuote.sourceReady,false);
+
+for(const bad of [null,{}, {batch:0},{batch:'1'}])assert.throws(()=>mergeCheckedBatches({...expected,batches:[bad]},[]),/INVALID_EXPECTED_BATCHES/);
