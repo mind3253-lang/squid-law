@@ -39,3 +39,22 @@ test('evidence label with 소 prefix is recognized',()=>{
  const index=buildLocalIndex([{name:'old.pdf',pages:[{text:'소갑 제3호증의 1 계약서가 제출되었습니다.'}]}]);
  assert.ok(index.references[0].refs.includes('소갑 제3호증의 1'));
 });
+
+test('소갑 and 갑 labels match across documents, but 갑 and 을 remain distinct',()=>{
+ const source=[
+  {name:'one.pdf',pages:[{text:'소갑 제7호증의 1 계약서를 원고가 제출하였습니다.'}]},
+  {name:'two.pdf',pages:[{text:'갑제7호증의1 계약서는 다른 내용을 담고 있습니다.'}]},
+  {name:'three.pdf',pages:[{text:'을 제7호증의 1 문서는 별도로 제출되었습니다.'}]}
+ ];
+ const evidence=buildEvidenceMap(buildLocalIndex(source));
+ assert.equal(evidence.find(x=>x.reference==='소갑 제7호증의 1').documentCount,2);
+ assert.equal(evidence.find(x=>x.reference==='을 제7호증의 1').documentCount,1);
+ const report=buildVerifiedComparisonReport(source);
+ assert.equal(report.diagnostics.sourceMatched,1);
+ assert.equal(report.leads[0].sources.length,2);
+});
+
+test('a repeated reference in a single PDF is not a cross-document lead',()=>{
+ const source=[{name:'single.pdf',pages:[{text:'갑 제9호증 계약서에 관한 주장입니다.'},{text:'갑 제9호증 문서를 다시 제출하였습니다.'}]}];
+ assert.equal(buildVerifiedComparisonReport(source).leads.length,0);
+});
