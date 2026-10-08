@@ -17,6 +17,10 @@ await assert.rejects(runAuthorizedAnalysis(docs,{...base,authenticate,fetchImpl}
 assert.equal(charges,0);assert.equal(calls,0);
 await assert.rejects(runAuthorizedAnalysis(docs,{...base,authenticate,ledger,fetchImpl,apiKey:''}),/MISSING_SERVER_API_KEY/);
 assert.equal(charges,0);assert.equal(calls,0);
+await assert.rejects(runAuthorizedAnalysis(docs,{...base,authenticate,ledger,fetchImpl,maxTotalChars:5}),/JOB_TEXT_BUDGET_EXCEEDED/);
+assert.equal(charges,0);assert.equal(calls,0);
+await assert.rejects(runAuthorizedAnalysis(docs,{...base,authenticate,ledger,fetchImpl,maxTotalChars:0}),/INVALID_JOB_CHAR_LIMIT/);
+assert.equal(charges,0);assert.equal(calls,0);
 const result=await runAuthorizedAnalysis(docs,{...base,authenticate,ledger,fetchImpl});
 assert.equal(result.sourceReady,true);assert.equal(charges,1);assert.equal(calls,1);
 console.log('PASS: authenticated paid runner blocks unauthorized model calls and verifies cited output');
