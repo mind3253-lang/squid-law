@@ -7,6 +7,7 @@ export function prepareAnalysisInput(documents,{maxPages=300,maxChars=450000}={}
  for(const doc of documents){
   if(!doc||typeof doc.name!=='string'||!doc.name.trim()||!Array.isArray(doc.pages))throw Error('INVALID_DOCUMENT');
   if(names.has(doc.name))throw Error('DUPLICATE_DOCUMENT_NAME');
+  if(doc.pages.length===0)throw Error('EMPTY_DOCUMENT_PAGES');
   names.add(doc.name);
   for(let i=0;i<doc.pages.length;i++){
    if(++totalPages>maxPages)throw Error('PAGE_LIMIT_EXCEEDED');
