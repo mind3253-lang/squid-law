@@ -4,6 +4,7 @@ import {prepareAnalysisInput} from '../analysis-input.js';
 import {createAnalysisJob} from '../analysis-pipeline.js';
 import {createBatchModelRequest} from '../analysis-model-prompt.js';
 import {buildVerifiedComparisonReport} from '../analysis-comparison-report.js';
+import {createComparisonModelRequest} from '../analysis-comparison-prompt.js';
 
 // Operator-only trial. Never publish the token or API key in frontend code.
 function equals(a,b){
@@ -39,6 +40,7 @@ export default async function handler(req,res){
   const comparisonPreflight=buildVerifiedComparisonReport(documents,{maxLeads:6});
   if(comparisonPreflight.diagnostics.truncated||comparisonPreflight.leads.length>5)return res.status(422).json({error:'COMPARISON_BUDGET_EXCEEDED'});
   if(comparisonPreflight.diagnostics.needsReview)return res.status(422).json({error:'COMPARISON_SOURCE_NOT_READY'});
+  for(const lead of comparisonPreflight.leads)createComparisonModelRequest(lead);
   const result=await runPrivateCaseReport(documents,{
    enabled:true,apiKey:process.env.OPENAI_API_KEY,
    model:process.env.SQUIDLAW_AI_MODEL||'gpt-4.1-mini',
