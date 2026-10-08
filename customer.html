@@ -336,21 +336,26 @@ document.getElementById('private-pilot-result-file').addEventListener('change',a
 });
 fileInput.addEventListener('change',async e=>{
  sourceRevision++;pilotImportRevision++;
+ const extractionRevision=sourceRevision;
+ const selectedFiles=[...e.target.files];
  document.getElementById('private-pilot-result-status').textContent='PDF가 변경되었습니다. AI 시험 결과를 다시 선택하세요.';
  verifiedReportText='';document.getElementById('findings-results').replaceChildren();document.getElementById('copy-verified-report').disabled=true;document.getElementById('save-verified-report').disabled=true;
  comparisonText='';comparisonResults.replaceChildren();compareBtn.disabled=true;copyComparison.disabled=true;saveComparison.disabled=true;comparisonStatus.textContent='PDF를 먼저 등록하세요.';
  documents=[];pilotExportBtn.disabled=true;pilotExportStatus.textContent='PDF 처리 중…';visualToken++;if(pdfRenderTask){pdfRenderTask.cancel();pdfRenderTask=null;}for(const oldPdf of pdfInstances){oldPdf.destroy().catch(()=>{});}pdfInstances.length=0;document.getElementById('pdf-visual').open=false;document.getElementById('render-pdf-status').textContent='';reviewRecords=[];selectedReview=null;renderReviews();reviewEditor.hidden=true;document.getElementById('review-empty').hidden=false;controls.hidden=true;searchBox.hidden=true;searchResults.replaceChildren();docSelect.replaceChildren();textView.textContent='';
  let pages=0,failed=0,empty=0,skipped=0;const MAX_FILE_BYTES=30*1024*1024,MAX_TOTAL_PAGES=300;
- for(const f of e.target.files){
+ for(const f of selectedFiles){
+  if(extractionRevision!==sourceRevision)return;
   if(!/\.pdf$/i.test(f.name)&&f.type!=='application/pdf'){failed++;continue;}if(f.size>MAX_FILE_BYTES){skipped++;status.textContent=f.name+' : 30MB 초과로 제외';continue;}
   status.textContent=f.name+' 처리 중…';
   try{
    const pdf=await pdfjsLib.getDocument({data:new Uint8Array(await f.arrayBuffer())}).promise;
+   if(extractionRevision!==sourceRevision){await pdf.destroy();return;}
    if(pages+pdf.numPages>MAX_TOTAL_PAGES){skipped++;status.textContent=f.name+' : 전체 300페이지 제한으로 제외';await pdf.destroy();continue;}
    const d={name:f.name,pages:[]};
    for(let n=1;n<=pdf.numPages;n++){
     status.textContent=f.name+' · '+n+'/'+pdf.numPages+'쪽 텍스트 추출 중…';
     const page=await pdf.getPage(n);const tc=await page.getTextContent();
+    if(extractionRevision!==sourceRevision){await pdf.destroy();return;}
     const lines=[];let lastY=null,line='';
     for(const item of tc.items){if(typeof item.str!=='string')continue;const y=item.transform?.[5];if(lastY!==null&&typeof y==='number'&&Math.abs(y-lastY)>3){if(line.trim())lines.push(line.trim());line='';}line+=item.str+(item.hasEOL?'\n':' ');if(item.hasEOL){if(line.trim())lines.push(line.trim());line='';lastY=null;}else if(typeof y==='number')lastY=y;}
     if(line.trim())lines.push(line.trim());
@@ -358,8 +363,9 @@ fileInput.addEventListener('change',async e=>{
     d.pages.push({text:extracted});pages++;
    }
    documents.push(d);pdfInstances.push(pdf);
-  }catch{failed++;}
+  }catch{if(extractionRevision!==sourceRevision)return;failed++;}
  }
+ if(extractionRevision!==sourceRevision)return;
  refreshPilotExport();
  const nameCounts=new Map();for(const d of documents)nameCounts.set(d.name,(nameCounts.get(d.name)||0)+1);
  const duplicateNames=[...nameCounts].filter(([,count])=>count>1).map(([name])=>name);
