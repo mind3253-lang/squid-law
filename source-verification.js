@@ -20,5 +20,8 @@ export function verifyCitation(documents,citation){
 }
 export function verifyFindings(documents,findings){
  if(!Array.isArray(findings))return [];
- return findings.map(f=>({...f,citationChecks:(Array.isArray(f.citations)?f.citations:[]).map(c=>({...c,verification:verifyCitation(documents,c)}))}));
+ return findings.map(f=>{
+  if(!f||typeof f!=='object'||!Array.isArray(f.citations))throw Error('INVALID_FINDING');
+  return {...f,citationChecks:f.citations.map(c=>({...(c&&typeof c==='object'?c:{}),verification:verifyCitation(documents,c)}))};
+ });
 }
