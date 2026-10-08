@@ -118,11 +118,11 @@ function renderReviews(){
  reviewRecordsBox.replaceChildren();
  reviewRecords.forEach((record,i)=>{
   const row=document.createElement('div');row.style.cssText='border-top:1px solid #e2e8f0;padding:12px 0';
-  const head=document.createElement('strong');head.textContent=(i+1)+'. ['+record.status+'] '+record.document+' · '+record.page+'쪽';
+  const head=document.createElement('strong');head.textContent=(i+1)+'. [사용자 분류: '+record.status+'] '+record.document+' · '+record.page+'쪽';
   const quote=document.createElement('p');quote.textContent=record.text;
   const check=verifyCitation(documents,{document:record.document,page:record.page,quote:record.text});
   const checkLabel=document.createElement('p');
-  checkLabel.textContent='원문 대조: '+(check.status==='matched'?'인용 문구 일치':check.reason);
+  checkLabel.textContent='원문 대조: '+(check.status==='matched'?'인용 문구 일치 (사실관계 확정 아님)':check.reason);
   checkLabel.style.color=check.status==='matched'?'#166534':'#9a3412';
   const note=document.createElement('p');note.textContent='메모: '+(record.note||'없음');
   const del=document.createElement('button');del.type='button';del.textContent='이 기록 삭제';del.addEventListener('click',()=>{reviewImportRevision++;reviewRecords.splice(i,1);renderReviews()});
