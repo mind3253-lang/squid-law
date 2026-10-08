@@ -28,3 +28,9 @@ const forgedText=formatCaseReportText(forged);
 assert.match(forgedText,/출처 검산: 확인 필요/);
 assert.match(forgedText,/원문 대조 필요/);
 assert.match(forgedText,/원문 확인 필요 인용: 1건/);
+
+assert.match(forgedText,/원고.pdf · 2쪽 · 출처 확인 필요/);
+const forgedComparison=assembleCaseAnalysis(analysis,{...comparison,comparisons:[{...comparison.comparisons[0],citations:[{...comparison.comparisons[0].citations[0],quote:'짧음'},comparison.comparisons[0].citations[1]]}]});
+const comparisonText=formatCaseReportText(forgedComparison);
+assert.match(comparisonText,/출처 확인이 필요한 비교 후보: 1건/);
+assert.match(comparisonText,/원고.pdf · 2쪽 · 출처 확인 필요/);
