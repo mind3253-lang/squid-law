@@ -13,5 +13,7 @@ for(const id of ['comparison-preview','compare-documents','copy-comparison','sav
 assert.match(moduleScript[2],/comparisonResults\.addEventListener\('click'/);
 assert.match(moduleScript[2],/buildVerifiedComparisonReport\(documents/);
 assert.match(moduleScript[2],/comparisonText='';comparisonResults\.replaceChildren\(\)/);
-assert.match(html,/AI 사건 분석은 아직 연결되지 않았습니다/);
+assert.match(html,/AI 통합 분석 실행/);
+assert.match(html,/\/api\/analyze/);
+assert.match(html,/원문 기반/);
 console.log('PASS: customer module syntax and comparison preview wiring are valid');
