@@ -5,7 +5,7 @@ export function summarizeCitationChecks(checked){
  for(const f of checked||[]){
   summary.findings++;
   const checks=Array.isArray(f?.citationChecks)?f.citationChecks:[];
-  const countMismatch=Array.isArray(f?.citations)&&f.citations.length!==checks.length;
+  const countMismatch=!Array.isArray(f?.citations)||f.citations.length!==checks.length;
   if(!checks.length){summary.missingCitations++;summary.needsReviewFindings++;continue;}
   let allMatched=!countMismatch;
   for(const c of checks){
