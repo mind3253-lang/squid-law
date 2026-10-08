@@ -8,7 +8,7 @@ let calls=0;
 const compare=async(_documents,lead,opts)=>{
  calls++;
  assert.equal(opts.enabled,true);
- return {sourceReady:true,reference:lead.reference,relation:'different_positions',citations:lead.sources};
+ return {sourceReady:true,reference:lead.reference,relation:'different_positions',explanation:'두 서면의 주장이 다르다.',citations:lead.sources};
 };
 await assert.rejects(runPrivateComparisons(documents,{compare}),/AI_COMPARISON_DISABLED/);
 assert.equal(calls,0);
@@ -24,5 +24,6 @@ const many=[
 ];
 await assert.rejects(runPrivateComparisons(many,{enabled:true,maxComparisons:1,compare}),/COMPARISON_BUDGET_EXCEEDED/);
 assert.equal(calls,1,'Budget must reject before model calls');
+await assert.rejects(runPrivateComparisons(documents,{enabled:true,compare:async(_docs,lead)=>({sourceReady:true,relation:'different_positions',explanation:'문서 비교',citations:[{...lead.sources[0],quote:'위조된 인용'},lead.sources[1]]})}),/COMPARISON_CITATION_CHANGED/);
 await assert.rejects(runPrivateComparisons(documents,{enabled:true,compare:async()=>({sourceReady:false})}),/COMPARISON_RESULT_NOT_READY/);
 console.log('PASS: comparison orchestrator enforces opt-in, source checks and request budget before AI calls');
