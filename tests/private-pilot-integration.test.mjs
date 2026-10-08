@@ -38,7 +38,7 @@ test('newer AI result selection invalidates earlier import',()=>{
  assert.match(page,/pilotImportRevision!==requestImportRevision/);
 });
 test('stale failed import cannot overwrite current status',()=>{
- assert.match(page,/if\(sourceRevision===requestSourceRevision&&pilotImportRevision===requestImportRevision\)status\.textContent/);
+ assert.match(page,/if\(sourceRevision===requestSourceRevision&&pilotImportRevision===requestImportRevision&&resultImportRevision===requestResultRevision\)status\.textContent/);
 });
 
 test('new PDF selection snapshots input files',()=>{
