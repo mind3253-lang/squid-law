@@ -81,3 +81,11 @@ test('PDF preview scales down for narrow screens',()=>{
 test('PDF preview handles unavailable canvas context',()=>{
  assert.match(page,/if\(!context\)throw Error\('CANVAS_CONTEXT_UNAVAILABLE'\)/);
 });
+
+test('review JSON imports cancel after PDF replacement',()=>{
+ assert.match(page,/sourceRevision!==requestSourceRevision\|\|reviewImportRevision!==requestReviewRevision/);
+});
+test('review edits invalidate a pending import',()=>{
+ assert.match(page,/reviewImportRevision\+\+;reviewRecords\.splice/);
+ assert.match(page,/reviewImportRevision\+\+;\s*renderReviews\(\)/);
+});
