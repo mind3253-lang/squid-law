@@ -3,7 +3,7 @@
 // it does NOT verify that the quoted factual assertion is true.
 const normalize=s=>String(s||'').normalize('NFKC').replace(/\s+/g,' ').trim();
 export function verifyCitation(documents,citation){
- if(!citation||typeof citation!=='object')return {status:'invalid',reason:'출처 형식 오류'};
+ if(!citation||typeof citation!=='object'||Array.isArray(citation)||typeof citation.document!=='string'||!citation.document.trim()||typeof citation.quote!=='string')return {status:'invalid',reason:'출처 형식 오류'};
  if(!Array.isArray(documents))return {status:'invalid',reason:'원본 문서 목록 오류'};
  const matches=documents.filter(d=>d&&typeof d==='object'&&d.name===citation.document);
  if(!matches.length)return {status:'missing_document',reason:'해당 PDF가 없음'};
