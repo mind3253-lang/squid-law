@@ -183,7 +183,7 @@ function searchOriginal(offset=0){
  for(const item of found.results){
   const li=document.createElement('li');li.style.margin='10px 0';
   const btn=document.createElement('button');btn.type='button';btn.textContent=item.name+' · '+(item.pageIndex+1)+'쪽';
-  btn.addEventListener('click',()=>{if(searchRevision!==sourceRevision||!documents[item.documentIndex]||documents[item.documentIndex].name!==item.name||!documents[item.documentIndex].pages[item.pageIndex])return;docSelect.value=String(item.documentIndex);renderDocument();pageSelect.value=String(item.pageIndex);renderPage();document.getElementById('local-review').scrollIntoView({behavior:'smooth'});});
+  btn.addEventListener('click',()=>{if(searchRevision!==sourceRevision||searchInput.value.trim()!==query||!documents[item.documentIndex]||documents[item.documentIndex].name!==item.name||!documents[item.documentIndex].pages[item.pageIndex])return;docSelect.value=String(item.documentIndex);renderDocument();pageSelect.value=String(item.pageIndex);renderPage();document.getElementById('local-review').scrollIntoView({behavior:'smooth'});});
   const snippet=document.createElement('p');snippet.textContent=item.snippet;snippet.style.margin='4px 0';
   li.append(btn,snippet);list.append(li);
  }
