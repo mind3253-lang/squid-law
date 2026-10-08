@@ -4,7 +4,9 @@ import {verifyFindings} from './source-verification.js';
 import {validateFindingsPayload} from './findings-schema.js';
 import {summarizeCitationChecks} from './analysis-quality.js';
 export function validateBatchFindings(batch,payload){
- if(!batch||batch.schema!=='squidlaw-analysis-batch-v1'||!Array.isArray(batch.pages))throw Error('INVALID_BATCH');
+ if(!batch||batch.schema!=='squidlaw-analysis-batch-v1'||!Number.isInteger(batch.batch)||batch.batch<1||!Array.isArray(batch.pages)||!batch.pages.length||batch.pages.some(p=>!p||typeof p!=='object'||typeof p.document!=='string'||!p.document.trim()||!Number.isInteger(p.page)||p.page<1||typeof p.text!=='string'||!p.text.trim()))throw Error('INVALID_BATCH');
+ const pageKeys=batch.pages.map(p=>JSON.stringify([p.document,p.page]));
+ if(new Set(pageKeys).size!==pageKeys.length)throw Error('DUPLICATE_BATCH_PAGE');
  const validated=validateFindingsPayload(payload);
  const allowed=new Set(batch.pages.map(p=>JSON.stringify([p.document,p.page])));
  const docs=new Map();
