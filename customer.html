@@ -79,13 +79,15 @@ async function showPdfPage(){
  try{
   const page=await pdf.getPage(p);if(token!==visualToken)return;
   const canvas=document.getElementById('pdf-canvas');
-  const available=Math.min(1100,Math.max(320,canvas.parentElement.clientWidth-20));
+  const available=Math.min(1100,Math.max(160,canvas.parentElement.clientWidth-20));
   const base=page.getViewport({scale:1});
   const viewport=page.getViewport({scale:Math.min(2,available/base.width)});
   const pixelRatio=Math.min(window.devicePixelRatio||1,2);
   canvas.width=Math.ceil(viewport.width*pixelRatio);canvas.height=Math.ceil(viewport.height*pixelRatio);
   canvas.style.width=Math.ceil(viewport.width)+'px';canvas.style.height=Math.ceil(viewport.height)+'px';
   const context=canvas.getContext('2d');
+  if(!context)throw Error('CANVAS_CONTEXT_UNAVAILABLE');
+  if(token!==visualToken)return;
   const task=page.render({canvasContext:context,viewport,transform:pixelRatio===1?undefined:[pixelRatio,0,0,pixelRatio,0,0]});
   pdfRenderTask=task;
   try{await task.promise}finally{if(pdfRenderTask===task)pdfRenderTask=null;}
