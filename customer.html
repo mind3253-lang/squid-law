@@ -124,7 +124,7 @@ function renderReviews(){
   checkLabel.textContent='원문 대조: '+(check.status==='matched'?'인용 문구 일치':check.reason);
   checkLabel.style.color=check.status==='matched'?'#166534':'#9a3412';
   const note=document.createElement('p');note.textContent='메모: '+(record.note||'없음');
-  const del=document.createElement('button');del.type='button';del.textContent='이 기록 삭제';del.addEventListener('click',()=>{reviewRecords.splice(i,1);renderReviews()});
+  const del=document.createElement('button');del.type='button';del.textContent='이 기록 삭제';del.addEventListener('click',()=>{reviewImportRevision++;reviewRecords.splice(i,1);renderReviews()});
   row.append(head,quote,checkLabel,note,del);reviewRecordsBox.append(row);
  });
  document.getElementById('review-export').disabled=!reviewRecords.length;
