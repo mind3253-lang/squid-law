@@ -39,3 +39,5 @@ assert.equal(isSourceReadyForReview([{citations:[null],citationChecks:[matched]}
 assert.equal(isSourceReadyForReview([{citations:[{document:'a.pdf',page:'1',quote:'원문 인용'}],citationChecks:[matched]}]),false);
 
 assert.equal(isSourceReadyForReview([{citations:[{document:'a.pdf',page:1,quote:'짧은말'}],citationChecks:[matched]}]),false);
+
+assert.equal(isSourceReadyForReview([{citations:[{document:'a.pdf',page:1,quote:'가          나'}],citationChecks:[matched]}]),false);
