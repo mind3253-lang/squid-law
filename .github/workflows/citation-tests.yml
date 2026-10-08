@@ -25,6 +25,8 @@ on:
       - 'analysis-comparison-worker.js'
       - 'analysis-private-comparisons.js'
       - 'analysis-case-report.js'
+      - 'analysis-case-report-text.js'
+      - 'tests/analysis-case-report-text.test.mjs'
       - 'tests/analysis-case-report.test.mjs'
       - 'tests/analysis-private-comparisons.test.mjs'
       - 'tests/analysis-comparison-worker.test.mjs'
@@ -125,6 +127,7 @@ jobs:
           node tests/analysis-comparison-worker.test.mjs
           node tests/analysis-private-comparisons.test.mjs
           node tests/analysis-case-report.test.mjs
+          node tests/analysis-case-report-text.test.mjs
           node tests/evaluate-pilot-cli.test.mjs
           node tests/analysis-ai-quality-integration.test.mjs
           node --experimental-default-type=module tests/analysis-private-runner.test.mjs
