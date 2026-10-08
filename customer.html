@@ -137,8 +137,10 @@ document.getElementById('review-save').addEventListener('click',()=>{
  const note=document.getElementById('review-note').value.trim();
  if(reviewRecords.length>=REVIEW_RECORD_LIMIT){document.getElementById('review-import-status').textContent='검토 기록은 최대 '+REVIEW_RECORD_LIMIT+'건까지 저장할 수 있습니다.';return;}
  if(note.length>REVIEW_NOTE_LIMIT){document.getElementById('review-import-status').textContent='검토 메모는 '+REVIEW_NOTE_LIMIT+'자 이하로 작성하세요.';return;}
+ const candidate={...selectedReview,status,note};
+ try{validateReviewRecords({schema:'squidlaw-review-v1',records:[candidate]});}catch{document.getElementById('review-import-status').textContent='검토 기록에 유효하지 않은 원문·페이지·상태가 있습니다.';return;}
  reviewImportRevision++;
- reviewRecords.push({...selectedReview,status,note});
+ reviewRecords.push(candidate);
  renderReviews();
 });
 document.getElementById('review-export').addEventListener('click',()=>saveLocal('SQUIDLAW_검산기록.json',JSON.stringify({schema:'squidlaw-review-v1',records:reviewRecords},null,2),'application/json;charset=utf-8'));
