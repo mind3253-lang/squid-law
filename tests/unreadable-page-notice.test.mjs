@@ -1,0 +1,17 @@
+import assert from 'node:assert/strict';
+import {prepareAnalysisInput} from '../analysis-input.js';
+import {assembleVerifiedCaseAnalysis} from '../analysis-case-report.js';
+import {formatCaseReportText} from '../analysis-case-report-text.js';
+const docs=[{name:'계약서.pdf',pages:[{text:'계약기간은 5년이다.'},{text:''},{text:'기간 변경 합의는 없었다.'}]}];
+const input=prepareAnalysisInput(docs);
+assert.deepEqual(input.diagnostics.unreadableDetails,[{document:'계약서.pdf',page:2,totalPages:3}]);
+const quote={document:'계약서.pdf',page:1,quote:'계약기간은 5년이다.'};
+const analysis={schema:'squidlaw-merged-analysis-v1',sourceReady:true,diagnostics:{unreadableDetails:input.diagnostics.unreadableDetails},findings:[{title:'기간',citations:[quote]}]};
+const comparison={schema:'squidlaw-private-comparisons-v1',sourceReady:false,diagnostics:{},comparisons:[]};
+const report=assembleVerifiedCaseAnalysis(docs,analysis,comparison);
+const txt=formatCaseReportText(report);
+assert.match(txt,/「계약서.pdf」 총 3페이지 중 2페이지는 내용을 식별할 수 없어/);
+assert.match(txt,/해상도가 높은 파일로 다시 제출/);
+assert.match(txt,/계약서.pdf · 1쪽 · 원문 일치/);
+assert.throws(()=>prepareAnalysisInput([{name:'전체스캔.pdf',pages:[{text:''}]}]),/NO_READABLE_TEXT/);
+console.log('PASS: partially unreadable PDFs produce exact, friendly omission notice while readable pages are analyzed');
