@@ -72,6 +72,9 @@ export function assembleVerifiedCaseAnalysis(documents,analysis,comparison){
  report.diagnostics.uncitedDocuments=report.diagnostics.submittedDocuments.filter(doc=>!citedNames.has(doc.name)).map(doc=>doc.name);
  // No findings or missing citation checks must never produce a verified report.
  if(report.findings.length===0)return {...report,status:'needs_source_review',diagnostics:{...report.diagnostics,analysisSourceReady:false}};
- if(unreadableDetails.length&&report.status==='source_checked')return {...report,status:'source_checked_partial'};
+ if(unreadableDetails.length&&report.status==='source_checked'){
+  report.notices.push('제출 문서 중 텍스트가 식별되지 않은 페이지가 있어 분석 범위가 일부 제한됩니다.');
+  return {...report,status:'source_checked_partial'};
+ }
  return report;
 }
