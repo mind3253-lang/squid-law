@@ -40,3 +40,15 @@ test('newer AI result selection invalidates earlier import',()=>{
 test('stale failed import cannot overwrite current status',()=>{
  assert.match(page,/if\(sourceRevision===requestSourceRevision&&pilotImportRevision===requestImportRevision\)status\.textContent/);
 });
+
+test('new PDF selection snapshots input files',()=>{
+ assert.match(page,/const selectedFiles=\[\.\.\.e\.target\.files\]/);
+ assert.match(page,/for\(const f of selectedFiles\)/);
+});
+test('stale PDF extraction cannot append to a newer selection',()=>{
+ assert.match(page,/const extractionRevision=sourceRevision/);
+ assert.match(page,/if\(extractionRevision!==sourceRevision\)\{await pdf\.destroy\(\);return;\}/);
+});
+test('stale extraction cannot refresh analysis controls',()=>{
+ assert.match(page,/if\(extractionRevision!==sourceRevision\)return;\s*refreshPilotExport\(\)/);
+});
