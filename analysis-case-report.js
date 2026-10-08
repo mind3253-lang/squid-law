@@ -75,6 +75,11 @@ export function assembleVerifiedCaseAnalysis(documents,analysis,comparison){
   ...report.comparisons.flatMap(c=>(c.citations||[]).filter(source=>source.verification?.status==='matched'))
  ];
  const citedNames=new Set(verifiedCitations.map(c=>c.document));
+ const submittedNames=new Set(documents.map(doc=>doc.name));
+ report.diagnostics.unknownCitationDocuments=[...new Set([
+  ...report.findings.flatMap(f=>f.citations||[]),
+  ...report.comparisons.flatMap(c=>c.citations||[])
+ ].map(c=>c.document).filter(name=>typeof name==='string'&&!submittedNames.has(name)))];
  report.diagnostics.verifiedCitationCount=verifiedCitations.length;
  report.diagnostics.unverifiedCitationCount=report.findings.reduce((sum,f)=>sum+(f.citations||[]).length,0)+report.comparisons.reduce((sum,c)=>sum+(c.citations||[]).length,0)-verifiedCitations.length;
  report.diagnostics.uncitedDocuments=report.diagnostics.submittedDocuments.filter(doc=>!citedNames.has(doc.name)).map(doc=>doc.name);
