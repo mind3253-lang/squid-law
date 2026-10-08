@@ -18,7 +18,7 @@ export function assembleCaseAnalysis(analysis,comparison){
   citations:c.citations,
   sourceReady:c.sourceReady===true
  }));
- const analysisReady=analysis.sourceReady===true&&findings.length>0&&findings.every(f=>Array.isArray(f.citations)&&f.citations.length>0&&Array.isArray(f.citationChecks)&&f.citationChecks.length===f.citations.length&&f.citationChecks.every(c=>c.verification?.status==='matched'));
+ const analysisReady=analysis.sourceReady===true&&(!Array.isArray(analysis.diagnostics.missingBatches)||analysis.diagnostics.missingBatches.length===0)&&findings.length>0&&findings.every(f=>Array.isArray(f.citations)&&f.citations.length>0&&Array.isArray(f.citationChecks)&&f.citationChecks.length===f.citations.length&&f.citationChecks.every(c=>c.verification?.status==='matched'));
  const comparisonReady=comparison.sourceReady===true&&comparisons.every(c=>c.sourceReady===true&&Array.isArray(c.citations)&&c.citations.length===2&&c.citations.every(x=>x.verification?.status==='matched'));
  return {
   schema:'squidlaw-case-analysis-v1',
