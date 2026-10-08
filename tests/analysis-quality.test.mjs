@@ -26,3 +26,8 @@ assert.equal(summarizeCitationChecks(mismatched).verifiedFindings,0);
 assert.equal(summarizeCitationChecks(mismatched).needsReviewFindings,1);
 assert.equal(isSourceReadyForReview(mismatched),false);
 assert.equal(isSourceReadyForReview([null]),false);
+
+const excessChecks=[{citations:[{document:'a.pdf',page:1,quote:'원문 인용'}],citationChecks:[matched,matched]}];
+assert.equal(isSourceReadyForReview(excessChecks),false);
+const noCitationDespiteCheck=[{citations:[],citationChecks:[matched]}];
+assert.equal(isSourceReadyForReview(noCitationDespiteCheck),false);
