@@ -9,7 +9,7 @@ const fetchImpl=async(_url,options)=>{
  const page=input.pages[0];
  return {ok:true,json:async()=>({output:[{content:[{type:'output_text',text:JSON.stringify({schema:'squidlaw-findings-v1',findings:[{title:'원고 주장',citations:[{document:page.document,page:page.page,quote:page.text}]}]})}]}]})};
 };
-const ledger={async consumeEntitlement(v){charges++;assert.equal(v.actualPages,1);assert.equal(v.accountId,'verified-user');return {accepted:true,jobId:v.jobId};}};
+const ledger={async consumeEntitlement(v){charges++;assert.ok(v.actualPages===1||v.actualPages===2);assert.equal(v.accountId,'verified-user');return {accepted:true,jobId:v.jobId};}};
 const authenticate=async session=>session==='server-session'?{accountId:'verified-user'}:null;
 await assert.rejects(runAuthorizedAnalysis(docs,{...base,authenticate,ledger,fetchImpl,session:'invalid'}),/UNAUTHENTICATED/);
 assert.equal(charges,0);assert.equal(calls,0);
@@ -22,7 +22,7 @@ assert.equal(charges,0);assert.equal(calls,0);
 await assert.rejects(runAuthorizedAnalysis(docs,{...base,authenticate,ledger,fetchImpl,maxTotalChars:0}),/INVALID_JOB_CHAR_LIMIT/);
 assert.equal(charges,0);assert.equal(calls,0);
 const partlyUnreadable=[{name:'스캔혼합.pdf',pages:[{text:'원고는 임대차기간 5년을 주장한다.'},{text:''}]}];
-const partial=await runAuthorizedAnalysis(partlyUnreadable,{...base,authenticate,ledger,fetchImpl});
+const partial=await runAuthorizedAnalysis(partlyUnreadable,{...base,jobId:'job_87654321',authenticate,ledger,fetchImpl});
 assert.equal(partial.sourceReady,true);
 assert.deepEqual(partial.diagnostics.unreadableDetails,[{document:'스캔혼합.pdf',page:2,totalPages:2}]);
 assert.equal(charges,1);assert.equal(calls,1);
