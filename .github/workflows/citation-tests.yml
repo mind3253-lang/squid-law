@@ -22,6 +22,8 @@ on:
       - 'analysis-comparison-report.js'
       - 'analysis-comparison-prompt.js'
       - 'analysis-comparison-response.js'
+      - 'analysis-comparison-worker.js'
+      - 'tests/analysis-comparison-worker.test.mjs'
       - 'tests/analysis-comparison-semantic.test.mjs'
       - 'tests/analysis-comparison-report.test.mjs'
       - 'tests/analysis-cross-document.test.mjs'
@@ -116,6 +118,7 @@ jobs:
           node tests/analysis-cross-document.test.mjs
           node tests/analysis-comparison-report.test.mjs
           node tests/analysis-comparison-semantic.test.mjs
+          node tests/analysis-comparison-worker.test.mjs
           node tests/evaluate-pilot-cli.test.mjs
           node tests/analysis-ai-quality-integration.test.mjs
           node --experimental-default-type=module tests/analysis-private-runner.test.mjs
