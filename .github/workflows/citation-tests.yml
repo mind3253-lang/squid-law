@@ -19,6 +19,8 @@ on:
       - 'dry-run-analysis-cli.js'
       - 'analysis-evaluation.js'
       - 'analysis-cross-document.js'
+      - 'analysis-comparison-report.js'
+      - 'tests/analysis-comparison-report.test.mjs'
       - 'tests/analysis-cross-document.test.mjs'
       - 'evaluate-pilot-cli.js'
       - 'fixtures/synthetic-lease-evaluation.json'
@@ -109,6 +111,7 @@ jobs:
           node tests/dry-run-analysis-cli.test.mjs
           node tests/analysis-evaluation.test.mjs
           node tests/analysis-cross-document.test.mjs
+          node tests/analysis-comparison-report.test.mjs
           node tests/evaluate-pilot-cli.test.mjs
           node tests/analysis-ai-quality-integration.test.mjs
           node --experimental-default-type=module tests/analysis-private-runner.test.mjs
