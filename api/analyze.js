@@ -1,6 +1,5 @@
 import {timingSafeEqual} from 'node:crypto';
 import {runPrivateCaseReport} from '../analysis-private-case-runner.js';
-import {prepareAnalysisInput} from '../analysis-input.js';
 import {createAnalysisJob} from '../analysis-pipeline.js';
 import {createBatchModelRequest} from '../analysis-model-prompt.js';
 import {buildVerifiedComparisonReport} from '../analysis-comparison-report.js';
@@ -32,7 +31,6 @@ export default async function handler(req,res){
  try{
   const documents=req.body?.documents;
   if(!Array.isArray(documents)||documents.length<1||documents.length>5)return res.status(422).json({error:'INVALID_DOCUMENT_COUNT'});
-  const input=prepareAnalysisInput(documents,{maxPages:30,maxChars:60000});
   // Reject jobs that cannot fit model batch constraints before any paid request.
   const job=createAnalysisJob(documents,{input:{maxPages:30,maxChars:60000}});
   if(job.plan.batches.length>8)return res.status(422).json({error:'TOO_MANY_BATCHES'});
@@ -45,7 +43,7 @@ export default async function handler(req,res){
   const result=await runPrivateCaseReport(documents,{
    enabled:true,apiKey:process.env.OPENAI_API_KEY,
    model:process.env.SQUIDLAW_AI_MODEL||'gpt-4.1-mini',
-   analysisOptions:{input,maxBatches:8,maxTotalChars:60000},
+   analysisOptions:{input:{maxPages:30,maxChars:60000},maxBatches:8,maxTotalChars:60000},
    comparisonOptions:{maxComparisons:5}
   });
   return res.status(200).json(result);
