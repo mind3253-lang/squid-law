@@ -1,0 +1,11 @@
+import assert from 'node:assert/strict';
+import {spawnSync} from 'node:child_process';
+const script=new URL('../pilot-analysis-cli.js',import.meta.url).pathname;
+const run=(args,env={})=>spawnSync(process.execPath,['--experimental-default-type=module',script,...args],{encoding:'utf8',env:{...process.env,OPENAI_API_KEY:'',SQUIDLAW_AI_MODEL:'',...env}});
+const noFlag=run(['not-found.json','out.json']);
+assert.equal(noFlag.status,2);
+assert.match(noFlag.stderr,/Usage:/);
+const noKey=run(['not-found.json','out.json','--allow-ai-upload']);
+assert.equal(noKey.status,2);
+assert.match(noKey.stderr,/Missing OPENAI_API_KEY/);
+console.log('PASS: private pilot requires explicit upload flag and server-side credentials');
