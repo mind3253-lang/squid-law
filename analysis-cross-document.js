@@ -16,6 +16,7 @@ export function buildCrossDocumentLeads(documents,{maxLeads=80,maxPerReference=4
     const a=occurrences[i],b=occurrences[j];
     if(a.document===b.document)continue;
     if(a.text===b.text)continue;
+    if(leads.length>=maxLeads)return {schema:'squidlaw-cross-document-leads-v1',leads,truncated:true};
     leads.push({
      type:'shared-reference-review',
      reference:entry.reference,
@@ -27,7 +28,6 @@ export function buildCrossDocumentLeads(documents,{maxLeads=80,maxPerReference=4
      limitation:'동일 번호의 언급만 확인했습니다. 모순·사실관계·증거 동일성은 확인하지 않았습니다.'
     });
     count++;
-    if(leads.length>=maxLeads)return {schema:'squidlaw-cross-document-leads-v1',leads,truncated:true};
    }
   }
  }
