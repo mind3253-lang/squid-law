@@ -26,3 +26,7 @@ const falselyReadyEmpty=mergeCheckedBatches(expected,[result(1),{...result(2),fi
 assert.equal(falselyReadyEmpty.sourceReady,false,'An empty batch cannot be marked source-checked');
 const falselyReadyUnchecked=mergeCheckedBatches(expected,[result(1),{...result(2),findings:[{title:'unsupported',citations:[],citationChecks:[]}]}]);
 assert.equal(falselyReadyUnchecked.sourceReady,false,'A claimed sourceReady flag cannot bypass citation requirements');
+
+const invalidEntry=mergeCheckedBatches(expected,[result(1),{...result(2),findings:[null]}]);
+assert.equal(invalidEntry.sourceReady,false);
+assert.equal(invalidEntry.diagnostics.needsReview,1);
