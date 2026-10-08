@@ -175,3 +175,10 @@ test('review save avoids accidental identical duplicate notes',()=>{
  assert.match(page,/reviewRecords\.some\(r=>r\.document===candidate\.document&&r\.page===candidate\.page/);
  assert.match(page,/동일한 검토 기록이 이미 저장되어 있습니다/);
 });
+
+test('PDF search paginates results and guards against changed source',()=>{
+ assert.match(page,/searchDocumentPages\(documents,query,\{offset\}\)/);
+ assert.match(page,/이전 100개/);
+ assert.match(page,/다음 100개/);
+ assert.match(page,/searchRevision===sourceRevision&&searchInput\.value\.trim\(\)===query/);
+});
