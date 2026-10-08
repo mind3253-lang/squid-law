@@ -28,3 +28,15 @@ test('private CLI includes source digest in output',()=>{
  assert.match(cli,/const sourceDigest=await digestPilotDocuments\(input\)/);
  assert.match(cli,/sourceDigest,\s*documents:input\.map/);
 });
+
+test('PDF replacement invalidates pending AI imports',()=>{
+ assert.match(page,/sourceRevision\+\+;pilotImportRevision\+\+;/);
+ assert.match(page,/sourceRevision!==requestSourceRevision/);
+});
+test('newer AI result selection invalidates earlier import',()=>{
+ assert.match(page,/requestImportRevision=\+\+pilotImportRevision/);
+ assert.match(page,/pilotImportRevision!==requestImportRevision/);
+});
+test('stale failed import cannot overwrite current status',()=>{
+ assert.match(page,/if\(sourceRevision===requestSourceRevision&&pilotImportRevision===requestImportRevision\)status\.textContent/);
+});
