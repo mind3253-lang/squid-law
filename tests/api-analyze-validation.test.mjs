@@ -142,3 +142,35 @@ test('API remains disabled by default even when a caller supplies the operator t
   }
  }
 });
+
+test('API rejects malformed PDF page text before any paid model request',async()=>{
+ const saved={enabled:process.env.SQUIDLAW_AI_TEST_ENABLED,token:process.env.SQUIDLAW_AI_TEST_TOKEN,key:process.env.OPENAI_API_KEY};
+ try{
+  process.env.SQUIDLAW_AI_TEST_ENABLED='true';
+  process.env.SQUIDLAW_AI_TEST_TOKEN='a'.repeat(32);
+  process.env.OPENAI_API_KEY='unit-test-placeholder';
+  const result=await invoke({consent:true,documents:[{name:'bad.pdf',pages:[{text:42}]}]});
+  assert.equal(result.status,422);
+  assert.equal(result.payload.error,'INVALID_PAGE_TEXT');
+ }finally{
+  for(const [key,val] of Object.entries({SQUIDLAW_AI_TEST_ENABLED:saved.enabled,SQUIDLAW_AI_TEST_TOKEN:saved.token,OPENAI_API_KEY:saved.key})){
+   if(val===undefined)delete process.env[key];else process.env[key]=val;
+  }
+ }
+});
+
+test('API rejects PDF uploads without any readable text',async()=>{
+ const saved={enabled:process.env.SQUIDLAW_AI_TEST_ENABLED,token:process.env.SQUIDLAW_AI_TEST_TOKEN,key:process.env.OPENAI_API_KEY};
+ try{
+  process.env.SQUIDLAW_AI_TEST_ENABLED='true';
+  process.env.SQUIDLAW_AI_TEST_TOKEN='a'.repeat(32);
+  process.env.OPENAI_API_KEY='unit-test-placeholder';
+  const result=await invoke({consent:true,documents:[{name:'scan.pdf',pages:[{text:'   '}]}]});
+  assert.equal(result.status,422);
+  assert.equal(result.payload.error,'NO_READABLE_TEXT');
+ }finally{
+  for(const [key,val] of Object.entries({SQUIDLAW_AI_TEST_ENABLED:saved.enabled,SQUIDLAW_AI_TEST_TOKEN:saved.token,OPENAI_API_KEY:saved.key})){
+   if(val===undefined)delete process.env[key];else process.env[key]=val;
+  }
+ }
+});
