@@ -46,14 +46,17 @@ async function main(){
  }finally{clearTimeout(timeout);}
  if(!response.ok)throw Error('MODEL_HTTP_'+response.status);
  const raw=await response.json();
+ if(raw.status!=='completed'||raw.error||raw.incomplete_details)throw Error('MODEL_RESPONSE_INCOMPLETE');
  const output=(raw.output||[]).filter(x=>x.type==='message').flatMap(x=>x.content||[]).filter(x=>x.type==='output_text').map(x=>x.text).join('');
  if(!output)throw Error('EMPTY_MODEL_RESPONSE');
  let parsed;
  try{parsed=JSON.parse(output)}catch{throw Error('INVALID_MODEL_JSON')}
  const validated=validateFindingsPayload(parsed);
+ if(validated.findings.length>12)throw Error('TOO_MANY_MODEL_FINDINGS');
  if(validated.findings.some(f=>f.citations.length===0))throw Error('MISSING_FINDING_CITATIONS');
  const checked=verifyFindings(input,validated.findings);
  const summary=summarizeCitationChecks(checked);
+ // A matching citation proves only that the excerpt exists, not that the model's interpretation is sound.
  // Fail closed: only source-matched candidates are displayed; other results are counted, not output.
  const matched=checked.filter(f=>f.citationChecks.length&&f.citationChecks.every(c=>c.verification.status==='matched'));
  process.stdout.write(JSON.stringify({
