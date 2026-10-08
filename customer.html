@@ -21,13 +21,16 @@ operatorAiBtn.addEventListener('click',async()=>{
  if(!token||!document.getElementById('operator-consent').checked){operatorAiStatus.textContent='관리자 토큰과 외부 AI 전송 동의를 확인하세요.';return;}
  if(!documents.length){operatorAiStatus.textContent='PDF를 먼저 등록하세요.';return;}
  const revision=sourceRevision;
+ const pageCount=documents.reduce((sum,doc)=>sum+doc.pages.length,0);
+ const charCount=documents.reduce((sum,doc)=>sum+doc.pages.reduce((n,page)=>n+page.text.length,0),0);
+ if(documents.length>5||pageCount>30||charCount>60000){operatorAiStatus.textContent='AI 시험 한도: 문서 5개, 30페이지, 추출 텍스트 60,000자. 파일을 줄여 다시 등록하세요.';return;}
  operatorAiBtn.disabled=true;aiReport.replaceChildren();
  operatorAiStatus.textContent='AI 통합 분석 중입니다. 완료될 때까지 기다려 주세요.';
  try{
   const response=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json','x-squidlaw-test-token':token},body:JSON.stringify({consent:true,documents})});
   const payload=await response.json();
   if(revision!==sourceRevision)return;
-  if(!response.ok)throw Error(payload.error||'AI_REQUEST_FAILED');
+  if(!response.ok){const messages={AI_TEST_DISABLED:'서버 AI 시험 기능이 아직 켜지지 않았습니다.',TEST_TOKEN_NOT_CONFIGURED:'서버 관리자 토큰이 설정되지 않았습니다.',UNAUTHORIZED:'관리자 시험 토큰이 일치하지 않습니다.',MODEL_KEY_NOT_CONFIGURED:'서버 AI API 키가 설정되지 않았습니다.',EXTERNAL_AI_CONSENT_REQUIRED:'외부 AI 전송 동의가 필요합니다.',REQUEST_TOO_LARGE:'AI 전송 크기 한도를 초과했습니다.',AI_ANALYSIS_FAILED:'AI 서버 분석을 완료하지 못했습니다.'};throw Error(messages[payload.error]||payload.error||'AI_REQUEST_FAILED');}
   if(payload.schema!=='squidlaw-private-case-job-v1'||typeof payload.text!=='string')throw Error('INVALID_AI_REPORT');
   const title=document.createElement('h3');title.textContent='AI 통합 분석보고서';
   const report=document.createElement('pre');report.textContent=payload.text;report.style.cssText='white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.7;background:#f6f8fb;padding:16px;border-radius:8px';
