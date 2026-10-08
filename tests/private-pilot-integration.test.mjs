@@ -109,3 +109,8 @@ test('index export actions are bound to current PDF revision',()=>{
  assert.match(page,/json\.onclick=\(\)=>\{if\(extractionRevision===sourceRevision\)/);
  assert.match(page,/candidateBtn\.onclick=\(\)=>\{if\(extractionRevision===sourceRevision\)/);
 });
+
+test('review import reports source matched and unverified counts',()=>{
+ assert.match(page,/const matched=checked\.filter\(record=>verifyCitation\(documents,/);
+ assert.match(page,/원문 문구 일치 '\+matched\+'건 · 확인 필요 '/);
+});
