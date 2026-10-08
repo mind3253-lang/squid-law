@@ -2,8 +2,8 @@ import {verifyCitation} from './source-verification.js';
 // Assemble a private case-analysis result without conflating source matches with truth.
 // Neither analysis nor comparison may be represented as complete if any source check fails.
 export function assembleCaseAnalysis(analysis,comparison){
- if(!analysis||analysis.schema!=='squidlaw-merged-analysis-v1'||!Array.isArray(analysis.findings)||!analysis.diagnostics)throw Error('INVALID_ANALYSIS_RESULT');
- if(!comparison||comparison.schema!=='squidlaw-private-comparisons-v1'||!Array.isArray(comparison.comparisons)||!comparison.diagnostics)throw Error('INVALID_COMPARISON_RESULT');
+ if(!analysis||analysis.schema!=='squidlaw-merged-analysis-v1'||!Array.isArray(analysis.findings)||!analysis.diagnostics||typeof analysis.diagnostics!=='object')throw Error('INVALID_ANALYSIS_RESULT');
+ if(!comparison||comparison.schema!=='squidlaw-private-comparisons-v1'||!Array.isArray(comparison.comparisons)||!comparison.diagnostics||typeof comparison.diagnostics!=='object')throw Error('INVALID_COMPARISON_RESULT');
  if(analysis.findings.some(f=>!f||typeof f!=='object')||comparison.comparisons.some(c=>!c||typeof c!=='object'))throw Error('INVALID_REPORT_ENTRY');
  const findings=analysis.findings.map(f=>({
   title:f.title,
