@@ -13,6 +13,13 @@ for(const id of ['comparison-preview','compare-documents','copy-comparison','sav
 assert.match(moduleScript[2],/comparisonResults\.addEventListener\('click'/);
 assert.match(moduleScript[2],/buildVerifiedComparisonReport\(documents/);
 assert.match(moduleScript[2],/comparisonText='';comparisonResults\.replaceChildren\(\)/);
+for(const id of ['run-operator-ai','copy-ai-report','save-ai-report','ai-integrated-report']){
+ assert.ok(html.includes('id="'+id+'"'),'Missing AI report UI element: '+id);
+}
+assert.match(moduleScript[2],/aiReportText=payload\.text/);
+assert.match(moduleScript[2],/navigator\.clipboard\.writeText\(aiReportText\)/);
+assert.match(moduleScript[2],/link\.download='SQUIDLAW_AI_통합보고서\.txt'/);
+assert.match(moduleScript[2],/aiReportText='';copyAiReport\.disabled=true;saveAiReport\.disabled=true/);
 assert.match(html,/AI 통합 분석 실행/);
 assert.match(html,/\/api\/analyze/);
 assert.match(html,/원문 기반/);
