@@ -41,3 +41,6 @@ assert.equal(invalidPage.diagnostics.needsReview,1);
 
 const shortQuote=mergeCheckedBatches(expected,[result(1),{...result(2),findings:[{...result(2).findings[0],citations:[{document:'test.pdf',page:1,quote:'짧음'}]}]}]);
 assert.equal(shortQuote.sourceReady,false);
+
+const paddedQuote=mergeCheckedBatches(expected,[result(1),{...result(2),findings:[{...result(2).findings[0],citations:[{document:'test.pdf',page:1,quote:'가          나'}]}]}]);
+assert.equal(paddedQuote.sourceReady,false);
