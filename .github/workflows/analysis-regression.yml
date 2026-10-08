@@ -8,6 +8,8 @@ on:
       - 'analysis-comparison-report.js'
       - 'source-verification.js'
       - 'private-pilot-validation.js'
+      - 'private-pilot-input.js'
+      - 'scripts/private-model-pilot.mjs'
       - 'findings-schema.js'
       - 'analysis-quality.js'
       - 'tests/**'
@@ -15,6 +17,8 @@ on:
   pull_request:
     paths:
       - 'private-pilot-validation.js'
+      - 'private-pilot-input.js'
+      - 'scripts/private-model-pilot.mjs'
       - 'findings-schema.js'
       - 'analysis-quality.js'
       - 'analysis-local.js'
