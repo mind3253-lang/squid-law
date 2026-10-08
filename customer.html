@@ -342,7 +342,7 @@ fileInput.addEventListener('change',async e=>{
   if(!skipped.length)continue;
   const notice=document.createElement('p');
   notice.className='notice';
-  notice.textContent='귀하가 제출한 「'+documentItem.name+'」 총 '+documentItem.pages.length+'페이지 중 '+skipped.join(', ')+'페이지는 내용을 식별할 수 없어 해당 페이지를 제외하고 분석하였습니다. 중요한 내용이 포함된 페이지라면 해상도가 높은 파일로 다시 제출해 주시기 바랍니다.';
+  notice.textContent='귀하가 제출한 「'+documentItem.name+'」 총 '+documentItem.pages.length+'페이지 중 '+skipped.join(', ')+'페이지는 내용을 식별할 수 없어 해당 페이지는 분석 대상에서 제외됩니다. 중요한 내용이 포함된 페이지라면 해상도가 높은 파일로 다시 제출해 주시기 바랍니다.';
   overview.append(notice);
  }
  if(duplicateNames.length){const duplicateWarning=document.createElement('p');duplicateWarning.className='notice';duplicateWarning.style.color='#9a3412';duplicateWarning.textContent='중복된 PDF 파일명: '+duplicateNames.join(', ')+'. 원문 출처가 모호하므로 파일명을 변경해 다시 등록하세요.';overview.append(duplicateWarning);}
