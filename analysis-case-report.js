@@ -70,6 +70,7 @@ export function assembleVerifiedCaseAnalysis(documents,analysis,comparison){
  report.diagnostics.totalPages=report.diagnostics.readablePages+unreadableDetails.length;
  const citedNames=new Set([...report.findings.flatMap(f=>f.citations||[]),...report.comparisons.flatMap(c=>c.citations||[])].map(c=>c.document));
  report.diagnostics.uncitedDocuments=report.diagnostics.submittedDocuments.filter(doc=>!citedNames.has(doc.name)).map(doc=>doc.name);
+ if(report.diagnostics.uncitedDocuments.length)report.notices.push('제출 문서 중 최종 보고서에 인용되지 않은 파일이 있습니다. 해당 자료의 주요 쟁점 누락 여부를 확인하세요.');
  // No findings or missing citation checks must never produce a verified report.
  if(report.findings.length===0)return {...report,status:'needs_source_review',diagnostics:{...report.diagnostics,analysisSourceReady:false}};
  if(unreadableDetails.length&&report.status==='source_checked'){
