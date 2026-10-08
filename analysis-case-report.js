@@ -68,7 +68,8 @@ export function assembleVerifiedCaseAnalysis(documents,analysis,comparison){
  report.diagnostics.readablePages=documents.reduce((sum,doc)=>sum+(Array.isArray(doc.pages)?doc.pages.filter(p=>typeof p?.text==='string'&&p.text.trim()).length:0),0);
  report.diagnostics.unreadablePages=unreadableDetails.length;
  report.diagnostics.totalPages=report.diagnostics.readablePages+unreadableDetails.length;
- report.diagnostics.uncitedDocuments=report.diagnostics.submittedDocuments.filter(doc=>!new Set([...report.findings.flatMap(f=>f.citations||[]),...report.comparisons.flatMap(c=>c.citations||[])].map(c=>c.document)).has(doc.name)).map(doc=>doc.name);
+ const citedNames=new Set([...report.findings.flatMap(f=>f.citations||[]),...report.comparisons.flatMap(c=>c.citations||[])].map(c=>c.document));
+ report.diagnostics.uncitedDocuments=report.diagnostics.submittedDocuments.filter(doc=>!citedNames.has(doc.name)).map(doc=>doc.name);
  // No findings or missing citation checks must never produce a verified report.
  if(report.findings.length===0)return {...report,status:'needs_source_review',diagnostics:{...report.diagnostics,analysisSourceReady:false}};
  if(unreadableDetails.length&&report.status==='source_checked')return {...report,status:'source_checked_partial'};
