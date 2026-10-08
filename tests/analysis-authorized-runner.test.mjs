@@ -21,6 +21,9 @@ await assert.rejects(runAuthorizedAnalysis(docs,{...base,authenticate,ledger,fet
 assert.equal(charges,0);assert.equal(calls,0);
 await assert.rejects(runAuthorizedAnalysis(docs,{...base,authenticate,ledger,fetchImpl,maxTotalChars:0}),/INVALID_JOB_CHAR_LIMIT/);
 assert.equal(charges,0);assert.equal(calls,0);
+const partlyUnreadable=[{name:'스캔혼합.pdf',pages:[{text:'원고는 임대차기간 5년을 주장한다.'},{text:''}]}];
+await assert.rejects(runAuthorizedAnalysis(partlyUnreadable,{...base,authenticate,ledger,fetchImpl}),/UNREADABLE_PAGES_REQUIRE_OCR/);
+assert.equal(charges,0);assert.equal(calls,0);
 const result=await runAuthorizedAnalysis(docs,{...base,authenticate,ledger,fetchImpl});
 assert.equal(result.sourceReady,true);assert.equal(charges,1);assert.equal(calls,1);
 console.log('PASS: authenticated paid runner blocks unauthorized model calls and verifies cited output');
