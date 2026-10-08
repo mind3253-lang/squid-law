@@ -42,7 +42,14 @@ export function formatCaseReportText(report){
   }
   for(const item of grouped.values())lines.push('귀하가 제출한 「'+item.document+'」 총 '+item.totalPages+'페이지 중 '+item.pages.join(', ')+'페이지는 내용을 식별할 수 없어 해당 페이지를 제외하고 분석하였습니다. 중요한 내용이 포함된 페이지라면 해상도가 높은 파일로 다시 제출해 주시기 바랍니다.');
  }
- lines.push('','4. 검토 안내');
+ lines.push('','4. 통합 검토 요약');
+ lines.push('- AI 분석 항목: '+report.findings.length+'건');
+ lines.push('- 서면 간 비교 후보: '+report.comparisons.length+'건');
+ lines.push('- 식별되지 않은 페이지: '+skipped.length+'쪽');
+ lines.push('- 출처 검산 상태: '+(report.status==='source_checked'?'전체 일치':report.status==='source_checked_partial'?'확인된 인용은 일치하나 일부 페이지 미식별':'추가 확인 필요'));
+ if(!report.comparisons.length)lines.push('- 비교 후보가 없다는 사실은 서면 사이에 모순이 없다는 뜻이 아닙니다.');
+ lines.push('- 이 보고서에서 확인하지 못한 법률 쟁점, 반박 논리 및 유불리 판단을 임의로 생성하지 않았습니다.');
+ lines.push('','5. 검토 안내');
  for(const notice of Array.isArray(report.notices)?report.notices:[])lines.push('- '+String(notice));
  lines.push('- 원문 인용 확인은 사실관계 및 법적 판단의 정확성을 보증하지 않습니다.');
  return lines.join('\n')+'\n';
