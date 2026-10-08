@@ -51,8 +51,8 @@ export function assembleCaseAnalysis(analysis,comparison){
 export function assembleVerifiedCaseAnalysis(documents,analysis,comparison){
  if(!Array.isArray(documents)||documents.some(doc=>!doc||typeof doc!=='object'||typeof doc.name!=='string'||!doc.name.trim()||!Array.isArray(doc.pages)||doc.pages.some(page=>!page||typeof page!=='object'||typeof page.text!=='string')))throw Error('INVALID_DOCUMENTS');
  if(new Set(documents.map(doc=>doc.name)).size!==documents.length)throw Error('DUPLICATE_DOCUMENT_NAME');
- if(!analysis||!Array.isArray(analysis.findings))throw Error('INVALID_ANALYSIS_RESULT');
- if(!comparison||!Array.isArray(comparison.comparisons))throw Error('INVALID_COMPARISON_RESULT');
+ if(!analysis||analysis.schema!=='squidlaw-merged-analysis-v1'||!Array.isArray(analysis.findings)||!analysis.diagnostics||typeof analysis.diagnostics!=='object')throw Error('INVALID_ANALYSIS_RESULT');
+ if(!comparison||comparison.schema!=='squidlaw-private-comparisons-v1'||!Array.isArray(comparison.comparisons)||!comparison.diagnostics||typeof comparison.diagnostics!=='object')throw Error('INVALID_COMPARISON_RESULT');
  // Derive omissions from the original uploaded pages, not AI-supplied diagnostics.
  const unreadableDetails=documents.flatMap(doc=>
   Array.isArray(doc?.pages)?doc.pages.flatMap((page,index)=>
