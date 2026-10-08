@@ -45,6 +45,12 @@ assert.deepEqual(partial.diagnostics.uncitedReadablePageDetails,[{document:'미�
 assert.deepEqual(partial.diagnostics.uncitedDocuments,['미인용.pdf']);
 assert.ok(partial.notices.some(x=>x.includes('식별되지 않은 페이지')));
 assert.ok(partial.notices.some(x=>x.includes('인용되지 않은 파일')));
+const missingText=assembleVerifiedCaseAnalysis([{name:'계약서.pdf',pages:[{text:source},{},null,{text:42}]}],analysis,comparison);
+assert.equal(missingText.diagnostics.totalPages,4);
+assert.equal(missingText.diagnostics.readablePages,1);
+assert.equal(missingText.diagnostics.unreadablePages,3);
+assert.equal(missingText.status,'source_checked_partial');
+assert.deepEqual(missingText.diagnostics.unreadableDetails.map(p=>p.page),[2,3,4]);
 const partialText=formatCaseReportText(partial);
 assert.match(partialText,/제출 문서 전체 페이지: 3쪽/);
 assert.match(partialText,/텍스트 식별 가능 페이지: 2쪽/);
