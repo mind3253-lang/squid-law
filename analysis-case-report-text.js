@@ -121,12 +121,12 @@ export function formatCaseReportText(report){
   lines.push('- 제출 문서 전체 페이지: '+totalPages+'쪽');
   lines.push('- 텍스트 식별 가능 페이지: '+(Number.isInteger(report.diagnostics?.readablePages)?report.diagnostics.readablePages:Math.max(0,totalPages-skipped.length))+'쪽');
   if(Number.isInteger(report.diagnostics?.citedReadablePages)&&Number.isInteger(report.diagnostics?.uncitedReadablePages)){
-   lines.push('- 원문 인용이 있는 식별 가능 페이지: '+report.diagnostics.citedReadablePages+'쪽');
-   lines.push('- 원문 인용이 없는 식별 가능 페이지: '+report.diagnostics.uncitedReadablePages+'쪽');
+   lines.push('- 원문 일치가 검증된 식별 가능 페이지: '+report.diagnostics.citedReadablePages+'쪽');
+   lines.push('- 원문 일치가 검증된 인용이 없는 식별 가능 페이지: '+report.diagnostics.uncitedReadablePages+'쪽');
    lines.push('- 인용 없는 페이지는 분석 누락을 확정하지 않지만 주요 쟁점의 미반영 가능성을 점검해야 합니다.');
    const details=Array.isArray(report.diagnostics?.uncitedReadablePageDetails)?report.diagnostics.uncitedReadablePageDetails:[];
    if(details.length){
-    lines.push('원문 인용이 없는 페이지 목록:');
+    lines.push('원문 일치가 검증된 인용이 없는 페이지 목록:');
     const grouped=new Map();
     for(const item of details){
      if(typeof item?.document!=='string'||!Number.isInteger(item.page))continue;
@@ -137,12 +137,12 @@ export function formatCaseReportText(report){
    }
   }
   const uncited=Array.isArray(report.diagnostics?.uncitedDocuments)?submitted.filter(item=>report.diagnostics.uncitedDocuments.includes(item.name)):submitted.filter(item=>!documents.has(item.name));
-  lines.push('- 분석 인용에 등장하지 않은 제출 문서: '+uncited.length+'개');
+  lines.push('- 원문 일치 인용이 없는 제출 문서: '+uncited.length+'개');
   if(uncited.length){
-   lines.push('인용되지 않은 제출 문서:');
+   lines.push('원문 일치 인용이 없는 제출 문서 목록:');
    for(const item of uncited)lines.push('  · '+item.name);
   }
-  if(uncited.length)lines.push('- 인용되지 않은 문서는 분석되지 않았다는 뜻이 아니며, 해당 문서의 쟁점 누락 여부는 별도로 확인해야 합니다.');
+  if(uncited.length)lines.push('- 원문 일치 인용이 없는 문서는 분석되지 않았다는 뜻이 아니며, 해당 문서의 쟁점 누락 여부는 별도로 확인해야 합니다.');
  }
  lines.push('- 출처 검산 상태: '+(report.status==='source_checked'?'전체 일치':report.status==='source_checked_partial'?'확인된 인용은 일치하나 일부 페이지 미식별':'추가 확인 필요'));
  if(!report.comparisons.length)lines.push('- 공통 증거번호 기반 비교는 수행되지 않았습니다. 비교 후보가 없다는 것은 서면 사이에 모순이 없다는 뜻이 아닙니다.');
