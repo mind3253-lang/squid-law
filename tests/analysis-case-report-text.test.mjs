@@ -22,3 +22,9 @@ const missingCheckReport=assembleCaseAnalysis({...analysis,findings:[{...analysi
 assert.match(formatCaseReportText(missingCheckReport),/원문 대조 필요/);
 assert.throws(()=>formatCaseReportText({...missingCheckReport,findings:[null]}),/INVALID_CASE_REPORT_ENTRY/);
 assert.throws(()=>formatCaseReportText({...missingCheckReport,comparisons:[{...comparison.comparisons[0],citations:[null]}]}),/INVALID_CASE_REPORT_ENTRY/);
+
+const forged=assembleCaseAnalysis({...analysis,findings:[{...analysis.findings[0],citations:[{document:'원고.pdf',page:2,quote:'짧음'}]}]},comparison);
+const forgedText=formatCaseReportText(forged);
+assert.match(forgedText,/출처 검산: 확인 필요/);
+assert.match(forgedText,/원문 대조 필요/);
+assert.match(forgedText,/원문 확인 필요 인용: 1건/);
