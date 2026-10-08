@@ -30,7 +30,19 @@ export function formatCaseReportText(report){
    lines.push('   인용: '+String(source.quote||''));
   }
  }
- lines.push('','3. 검토 안내');
+ const skipped=Array.isArray(report.diagnostics?.unreadableDetails)?report.diagnostics.unreadableDetails:[];
+ if(skipped.length){
+  lines.push('','3. 식별되지 않은 페이지 안내');
+  const grouped=new Map();
+  for(const item of skipped){
+   if(!item||typeof item.document!=='string'||!Number.isInteger(item.page))continue;
+   const key=item.document+'\\u0000'+item.totalPages;
+   if(!grouped.has(key))grouped.set(key,{document:item.document,totalPages:item.totalPages,pages:[]});
+   grouped.get(key).pages.push(item.page);
+  }
+  for(const item of grouped.values())lines.push('귀하가 제출한 「'+item.document+'」 총 '+item.totalPages+'페이지 중 '+item.pages.join(', ')+'페이지는 내용을 식별할 수 없어 해당 페이지를 제외하고 분석하였습니다. 중요한 내용이 포함된 페이지라면 해상도가 높은 파일로 다시 제출해 주시기 바랍니다.');
+ }
+ lines.push('','4. 검토 안내');
  for(const notice of Array.isArray(report.notices)?report.notices:[])lines.push('- '+String(notice));
  lines.push('- 원문 인용 확인은 사실관계 및 법적 판단의 정확성을 보증하지 않습니다.');
  return lines.join('\n')+'\n';
