@@ -16,7 +16,7 @@ function snippets(text){
 }
 function source(d,p,s){return {document:d.name,page:p+1,text:s}}
 export function buildLocalIndex(documents){
- const timeline=[],claims=[],references=[],seen=new Map(),repeated=[];
+ const timeline=[],claims=[],references=[],seen=new Map(),repeated=[],repeatedKeys=new Set();
  for(const d of documents)for(let i=0;i<d.pages.length;i++){
   const text=d.pages[i].text||'';
   for(const s of snippets(text)){
@@ -26,7 +26,7 @@ export function buildLocalIndex(documents){
    if(signal.test(s))claims.push(source(d,i,s));
    if(refs.length)references.push({...source(d,i,s),refs:[...new Set(refs)]});
    const key=s.replace(/\s+/g,'').replace(/[“”"'‘’]/g,'');
-   if(key.length>=28){const old=seen.get(key);if(old&&old.document!==d.name){if(!repeated.some(x=>x.text===s))repeated.push({text:s,first:old,second:source(d,i,s)})}else if(!old)seen.set(key,source(d,i,s));}
+   if(key.length>=28){const old=seen.get(key);if(old&&old.document!==d.name){if(!repeatedKeys.has(key)){repeatedKeys.add(key);repeated.push({text:s,first:old,second:source(d,i,s)})}}else if(!old)seen.set(key,source(d,i,s));}
   }
  }
  return {documents:documents.map(d=>({name:d.name,pages:d.pages.length,empty:d.pages.filter(p=>!p.text).length})),timeline,claims,references,repeated,generatedAt:new Date().toISOString(),limitations:'문자열 기반 예비 색인입니다. 날짜가 사건 발생일인지 제출일인지, 문장이 당사자의 주장인지 인용인지 자동 확정하지 않습니다. 반복 문구는 모순을 뜻하지 않습니다. AI 판단 및 원본 진위 검증은 수행하지 않습니다.'};
