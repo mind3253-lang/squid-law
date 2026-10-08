@@ -2,6 +2,7 @@
 // Only exact source matching is checked. No legal or factual truth is inferred.
 export function summarizeCitationChecks(checked){
  const summary={findings:0,verifiedFindings:0,needsReviewFindings:0,citations:0,matched:0,unmatched:0,missingCitations:0,byStatus:{}};
+ if(checked!=null&&!Array.isArray(checked))throw Error('INVALID_CHECKED_FINDINGS');
  for(const f of checked||[]){
   summary.findings++;
   const checks=Array.isArray(f?.citationChecks)?f.citationChecks:[];
