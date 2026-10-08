@@ -64,3 +64,10 @@ test('failed PDF extraction releases document resources',()=>{
 test('only complete PDFs are added to the visible document list',()=>{
  assert.match(page,/documents\.push\(d\);pdfInstances\.push\(pdf\);committed=true/);
 });
+
+test('PDF.js has one module loader',()=>{
+ assert.equal((page.match(/pdf\.min\.mjs/g)||[]).length,1);
+});
+test('local findings invalidate pending imported results',()=>{
+ assert.match(page,/if\(!documents\.length\)return;\s*resultImportRevision\+\+;pilotImportRevision\+\+;/);
+});
