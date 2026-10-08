@@ -288,10 +288,24 @@ document.getElementById('findings-file').addEventListener('change',async event=>
  }catch{status.textContent='불러오기 실패: squidlaw-findings-v1 형식의 JSON인지 확인하세요.';}
  event.target.value='';
 });
+const pilotExportBtn=document.getElementById('export-private-pilot');
+const pilotExportStatus=document.getElementById('private-pilot-status');
+function refreshPilotExport(){
+ const total=documents.reduce((n,d)=>n+d.pages.length,0);
+ const chars=documents.reduce((n,d)=>n+d.pages.reduce((m,p)=>m+p.text.length,0),0);
+ const unique=new Set(documents.map(d=>d.name)).size===documents.length;
+ pilotExportBtn.disabled=!documents.length||documents.length>12||total>50||chars>60000||!unique||chars===0||documents.some(d=>d.pages.some(p=>p.text.length>12000));
+ pilotExportStatus.textContent=pilotExportBtn.disabled?'AI 시험 입력 저장 불가: 파일명 중복·문서 12개·50페이지·6만 자 제한 또는 텍스트 추출 상태를 확인하세요.':'시험 입력 준비 완료 · '+documents.length+'개 문서 · '+total+'쪽 · '+chars.toLocaleString()+'자. 외부 전송 없음.';
+}
+pilotExportBtn.addEventListener('click',()=>{
+ refreshPilotExport();
+ if(pilotExportBtn.disabled)return;
+ saveLocal('SQUIDLAW_AI_비공개시험_입력.json',JSON.stringify(documents,null,2),'application/json;charset=utf-8');
+});
 fileInput.addEventListener('change',async e=>{
  verifiedReportText='';document.getElementById('findings-results').replaceChildren();document.getElementById('copy-verified-report').disabled=true;document.getElementById('save-verified-report').disabled=true;
  comparisonText='';comparisonResults.replaceChildren();compareBtn.disabled=true;copyComparison.disabled=true;saveComparison.disabled=true;comparisonStatus.textContent='PDF를 먼저 등록하세요.';
- documents=[];visualToken++;if(pdfRenderTask){pdfRenderTask.cancel();pdfRenderTask=null;}for(const oldPdf of pdfInstances){oldPdf.destroy().catch(()=>{});}pdfInstances.length=0;document.getElementById('pdf-visual').open=false;document.getElementById('render-pdf-status').textContent='';reviewRecords=[];selectedReview=null;renderReviews();reviewEditor.hidden=true;document.getElementById('review-empty').hidden=false;controls.hidden=true;searchBox.hidden=true;searchResults.replaceChildren();docSelect.replaceChildren();textView.textContent='';
+ documents=[];pilotExportBtn.disabled=true;pilotExportStatus.textContent='PDF 처리 중…';visualToken++;if(pdfRenderTask){pdfRenderTask.cancel();pdfRenderTask=null;}for(const oldPdf of pdfInstances){oldPdf.destroy().catch(()=>{});}pdfInstances.length=0;document.getElementById('pdf-visual').open=false;document.getElementById('render-pdf-status').textContent='';reviewRecords=[];selectedReview=null;renderReviews();reviewEditor.hidden=true;document.getElementById('review-empty').hidden=false;controls.hidden=true;searchBox.hidden=true;searchResults.replaceChildren();docSelect.replaceChildren();textView.textContent='';
  let pages=0,failed=0,empty=0,skipped=0;const MAX_FILE_BYTES=30*1024*1024,MAX_TOTAL_PAGES=300;
  for(const f of e.target.files){
   if(!/\.pdf$/i.test(f.name)&&f.type!=='application/pdf'){failed++;continue;}if(f.size>MAX_FILE_BYTES){skipped++;status.textContent=f.name+' : 30MB 초과로 제외';continue;}
@@ -312,6 +326,7 @@ fileInput.addEventListener('change',async e=>{
    documents.push(d);pdfInstances.push(pdf);
   }catch{failed++;}
  }
+ refreshPilotExport();
  const nameCounts=new Map();for(const d of documents)nameCounts.set(d.name,(nameCounts.get(d.name)||0)+1);
  const duplicateNames=[...nameCounts].filter(([,count])=>count>1).map(([name])=>name);
 
