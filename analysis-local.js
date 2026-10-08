@@ -40,8 +40,14 @@ export function buildEvidenceMap(data){
  const map=new Map();
  for(const row of data.references)for(const ref of row.refs){
   const key=normalizedRef(ref);
-  if(!map.has(key))map.set(key,{reference:ref,occurrences:[],documents:new Set()});
-  const entry=map.get(key);entry.occurrences.push({document:row.document,page:row.page,text:row.text});entry.documents.add(row.document);
+  if(!map.has(key))map.set(key,{reference:ref,occurrences:[],documents:new Set(),seenOccurrences:new Set()});
+  const entry=map.get(key);
+  const occurrenceKey=JSON.stringify([row.document,row.page,row.text]);
+  if(!entry.seenOccurrences.has(occurrenceKey)){
+   entry.seenOccurrences.add(occurrenceKey);
+   entry.occurrences.push({document:row.document,page:row.page,text:row.text});
+  }
+  entry.documents.add(row.document);
  }
  return [...map.values()].map(e=>({reference:e.reference,occurrences:e.occurrences,documentCount:e.documents.size})).sort((a,b)=>b.documentCount-a.documentCount||b.occurrences.length-a.occurrences.length);
 }
