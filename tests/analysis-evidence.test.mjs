@@ -58,3 +58,16 @@ test('a repeated reference in a single PDF is not a cross-document lead',()=>{
  const source=[{name:'single.pdf',pages:[{text:'갑 제9호증 계약서에 관한 주장입니다.'},{text:'갑 제9호증 문서를 다시 제출하였습니다.'}]}];
  assert.equal(buildVerifiedComparisonReport(source).leads.length,0);
 });
+
+test('duplicate filenames cannot produce a seemingly verified comparison',()=>{
+ const source=[
+  {name:'duplicate.pdf',pages:[{text:'갑 제12호증의 1 계약서를 원고가 제출하였습니다.'}]},
+  {name:'duplicate.pdf',pages:[{text:'갑 제12호증의 1 계약서를 피고가 다투었습니다.'}]}
+ ];
+ assert.throws(()=>buildVerifiedComparisonReport(source),/AMBIGUOUS_COMPARISON_DOCUMENTS/);
+});
+
+test('invalid comparison inputs fail explicitly',()=>{
+ assert.throws(()=>buildVerifiedComparisonReport(null),/INVALID_COMPARISON_INPUT/);
+ assert.throws(()=>buildVerifiedComparisonReport(docs,{maxLeads:0}),/INVALID_COMPARISON_INPUT/);
+});
