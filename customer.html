@@ -37,6 +37,15 @@ compareBtn.addEventListener('click',()=>{
   copyComparison.disabled=!report.leads.length;saveComparison.disabled=!report.leads.length;
  }catch{comparisonStatus.textContent='비교 후보 생성에 실패했습니다. PDF 원문을 확인하세요.';}
 });
+comparisonResults.addEventListener('click',event=>{
+ const button=event.target.closest('button[data-source-document][data-source-page]');
+ if(!button)return;
+ const i=documents.findIndex(d=>d.name===button.dataset.sourceDocument);
+ const p=Number(button.dataset.sourcePage)-1;
+ if(i<0||p<0||p>=documents[i].pages.length)return;
+ docSelect.value=String(i);renderDocument();pageSelect.value=String(p);renderPage();
+ document.getElementById('local-review').scrollIntoView({behavior:'smooth',block:'start'});
+});
 copyComparison.addEventListener('click',async()=>{
  try{await navigator.clipboard.writeText(comparisonText);copyComparison.textContent='복사 완료';}catch{copyComparison.textContent='복사 실패';}
 });
