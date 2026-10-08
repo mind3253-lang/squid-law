@@ -75,5 +75,9 @@ export async function analyzeBatchWithModel(batch,{
    .map(item=>item.text).join('');
   if(!raw.trim())throw Error('INVALID_MODEL_OUTPUT');
   return parseModelFindings(raw);
+ }catch(error){
+  // Abort may occur while reading response.json(), after fetch has resolved.
+  if(controller.signal.aborted)throw Error('MODEL_REQUEST_TIMEOUT');
+  throw error;
  }finally{clearTimeout(timer);}
 }
