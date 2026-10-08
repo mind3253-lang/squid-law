@@ -19,7 +19,10 @@ export default async function handler(req,res){
  if(!process.env.OPENAI_API_KEY)return res.status(503).json({error:'MODEL_KEY_NOT_CONFIGURED'});
  const declaredLength=Number(req.headers['content-length']||0);
  if(!Number.isFinite(declaredLength)||declaredLength>160000)return res.status(413).json({error:'REQUEST_TOO_LARGE'});
- if(req.body&&Buffer.byteLength(JSON.stringify(req.body),'utf8')>160000)return res.status(413).json({error:'REQUEST_TOO_LARGE'});
+ let bodySize;
+ try{bodySize=Buffer.byteLength(JSON.stringify(req.body??null),'utf8');}
+ catch{return res.status(400).json({error:'INVALID_REQUEST_BODY'});}
+ if(bodySize>160000)return res.status(413).json({error:'REQUEST_TOO_LARGE'});
  if(req.body?.consent!==true)return res.status(400).json({error:'EXTERNAL_AI_CONSENT_REQUIRED'});
  try{
   const documents=req.body?.documents;
