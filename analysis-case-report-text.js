@@ -123,7 +123,7 @@ export function formatCaseReportText(report){
   if(Number.isInteger(report.diagnostics?.citedReadablePages)&&Number.isInteger(report.diagnostics?.uncitedReadablePages)){
    lines.push('- 원문 일치가 검증된 식별 가능 페이지: '+report.diagnostics.citedReadablePages+'쪽');
    lines.push('- 원문 일치가 검증된 인용이 없는 식별 가능 페이지: '+report.diagnostics.uncitedReadablePages+'쪽');
-   lines.push('- 인용 없는 페이지는 분석 누락을 확정하지 않지만 주요 쟁점의 미반영 가능성을 점검해야 합니다.');
+   lines.push('- 검증된 인용이 없는 페이지는 분석 누락을 확정하지 않지만 주요 쟁점의 미반영 가능성을 점검해야 합니다.');
    const details=Array.isArray(report.diagnostics?.uncitedReadablePageDetails)?report.diagnostics.uncitedReadablePageDetails:[];
    if(details.length){
     lines.push('원문 일치가 검증된 인용이 없는 페이지 목록:');
@@ -149,13 +149,13 @@ export function formatCaseReportText(report){
  if(report.diagnostics?.comparisonSourceReady!==true)lines.push('- 서면 비교 출처 검산이 완료되지 않았으므로 통합보고서 전체를 검증 완료로 표시하지 않습니다.');
  if(report.diagnostics?.analysisSourceReady!==true)lines.push('- 분석 인용의 출처 검산이 완료되지 않았습니다.');
  lines.push('- 이 보고서에서 확인하지 못한 법률 쟁점, 반박 논리 및 유불리 판단을 임의로 생성하지 않았습니다.');
- lines.push('- 본 보고서의 문서 수는 인용된 문서 수이며, 제출된 전체 PDF 수를 뜻하지 않습니다.');
+ lines.push('- 본 보고서의 원문 일치 문서 수는 인용이 검증된 문서 수이며, 제출된 전체 PDF 수를 뜻하지 않습니다.');
  lines.push('- AI 분석 항목은 출처가 확인된 주장 및 쟁점의 목록이며, 모든 법률 쟁점의 누락 없는 검토를 뜻하지 않습니다.');
  if(skipped.length)lines.push('- 읽지 못한 페이지는 분석 대상에서 제외되었으므로 중요한 주장·반증이 누락되었을 수 있습니다.');
  if(unmatchedCount)lines.push('- 원문 확인이 필요한 인용은 보고서에 기재된 원본 PDF 페이지와 직접 대조하세요.');
  if(missing.length)lines.push('- 누락된 분석 묶음이 있으므로 일부 사건기록은 분석 결과에 반영되지 않았을 수 있습니다.');
  if(!report.findings.length)lines.push('- 확인 가능한 분석 항목이 없습니다. 자료 부족 또는 AI 출력 누락 여부를 점검하세요.');
- if(!documents.size)lines.push('- 인용된 문서가 없으므로 제출 문서의 분석 범위를 확인할 수 없습니다.');
+ if(!documents.size)lines.push('- 원문 일치가 검증된 인용 문서가 없으므로 제출 문서의 분석 범위를 확인할 수 없습니다.');
  if(relationCounts.conflict_candidate)lines.push('- 충돌 가능성은 주장 간 비교 후보이며 허위 진술 또는 증거 조작을 의미하지 않습니다.');
  lines.push('','5. 검토 안내');
  for(const notice of Array.isArray(report.notices)?report.notices:[])lines.push('- '+String(notice));
