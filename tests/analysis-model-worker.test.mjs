@@ -21,7 +21,7 @@ const mock=async(url,options)=>{
  assert.deepEqual(body.text.format.schema.required,['schema','findings']);
  assert.equal(body.text.format.schema.additionalProperties,false);
  assert.equal(body.text.format.schema.properties.findings.items.properties.citations.items.additionalProperties,false);
- return {ok:true,json:async()=>({output:[{content:[{type:'output_text',text:JSON.stringify({schema:'squidlaw-findings-v1',findings:[{title:'계약기간 주장',citations:[{document:'원고.pdf',page:1,quote:'계약기간은 5년이라고 주장하였다.'}]}]})}]}]})};
+ return {ok:true,json:async()=>({status:'completed',output:[{content:[{type:'output_text',text:JSON.stringify({schema:'squidlaw-findings-v1',findings:[{title:'계약기간 주장',analysis:'계약기간 주장을 원문에서 확인',claim:'계약기간 주장',evidence:'원문 확인',rebuttal:'',proofGap:'',citations:[{document:'원고.pdf',page:1,quote:'계약기간은 5년이라고 주장하였다.'}]}]})}]}]})};
 };
 await assert.rejects(analyzeBatchWithModel(batch,{apiKey:'test-secret',model:'gpt-test',fetchImpl:mock}),/AI_WORKER_DISABLED/);
 assert.equal(calls,0);
