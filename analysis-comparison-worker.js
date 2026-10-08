@@ -15,7 +15,8 @@ export async function analyzeComparisonWithModel(documents,lead,{
  const controller=new AbortController();
  const timer=setTimeout(()=>controller.abort(),timeoutMs);
  try{
-  const response=await fetchImpl('https://api.openai.com/v1/responses',{
+  let response;
+  try{response=await fetchImpl('https://api.openai.com/v1/responses',{
    method:'POST',
    headers:{'Content-Type':'application/json',Authorization:'Bearer '+apiKey},
    body:JSON.stringify({
@@ -35,7 +36,7 @@ export async function analyzeComparisonWithModel(documents,lead,{
     max_output_tokens:1200,store:false
    }),
    signal:controller.signal
-  });
+  });}catch(error){if(controller.signal.aborted)throw Error('MODEL_REQUEST_TIMEOUT');throw error;}
   if(!response?.ok)throw Error('COMPARISON_MODEL_REQUEST_FAILED');
   if(typeof response.json!=='function')throw Error('COMPARISON_MODEL_RESPONSE_INVALID');
   let data;
