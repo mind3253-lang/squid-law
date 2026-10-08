@@ -177,6 +177,7 @@ function searchOriginal(offset=0){
  searchResults.replaceChildren();
  let found;
  try{found=searchDocumentPages(documents,query,{offset});}catch{searchResults.textContent='검색어는 2~200자로 입력하세요.';return;}
+ if(found.offsetOutOfRange){searchOriginal(found.suggestedOffset);return;}
  const searchRevision=sourceRevision;
  const list=document.createElement('ol');list.style.paddingLeft='22px';
  for(const item of found.results){
