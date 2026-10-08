@@ -152,8 +152,9 @@ document.getElementById('review-import').addEventListener('change',async event=>
   const parsed=JSON.parse(await f.text());
   if(sourceRevision!==requestSourceRevision||reviewImportRevision!==requestReviewRevision)return;
   const checked=validateReviewRecords(parsed);
+  const matched=checked.filter(record=>verifyCitation(documents,{document:record.document,page:record.page,quote:record.text}).status==='matched').length;
   reviewRecords=checked;reviewImportRevision++;renderReviews();
-  info.textContent=checked.length+'건을 불러왔습니다. 원본 PDF와 일치하는지는 직접 확인해야 합니다.';
+  info.textContent=checked.length+'건 불러옴 · 원문 문구 일치 '+matched+'건 · 확인 필요 '+(checked.length-matched)+'건. 일치는 내용의 진실성을 뜻하지 않습니다.';
  }catch(e){if(sourceRevision===requestSourceRevision&&reviewImportRevision===requestReviewRevision)info.textContent='불러오기 실패: SQUID LAW 검토 기록 JSON 파일인지 확인하세요.';}
  event.target.value='';
 });
