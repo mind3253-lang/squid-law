@@ -72,6 +72,7 @@ export async function analyzeBatchWithModel(batch,{
    .flatMap(item=>Array.isArray(item.content)?item.content:[])
    .filter(item=>item.type==='output_text'&&typeof item.text==='string')
    .map(item=>item.text).join('');
+  if(!raw.trim())throw Error('INVALID_MODEL_OUTPUT');
   return parseModelFindings(raw);
  }finally{clearTimeout(timer);}
 }
