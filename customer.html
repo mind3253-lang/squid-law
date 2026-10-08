@@ -74,7 +74,7 @@ async function showPdfPage(){
  const d=Number(docSelect.value),p=Number(pageSelect.value)+1;
  const status=document.getElementById('render-pdf-status');
  const pdf=pdfInstances[d];
- if(!pdf||!Number.isInteger(p)||p<1){status.textContent='선택한 PDF가 없습니다.';return;}
+ if(!pdf||!Number.isInteger(p)||p<1||p>pdf.numPages){status.textContent='선택한 PDF 페이지가 없습니다.';return;}
  status.textContent='원본 페이지 표시 중…';
  try{
   const page=await pdf.getPage(p);if(token!==visualToken)return;
