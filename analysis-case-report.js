@@ -57,7 +57,7 @@ export function assembleVerifiedCaseAnalysis(documents,analysis,comparison){
    (typeof page?.text!=='string'||!page.text.trim())?
     [{document:doc.name,page:index+1,totalPages:doc.pages.length}]:[]):[]
  );
- if(analysis.findings.some(f=>!f||typeof f!=='object')||comparison.comparisons.some(c=>!c||typeof c!=='object'))throw Error('INVALID_REPORT_ENTRY');
+ if(analysis.findings.some(f=>!f||typeof f!=='object'||!Array.isArray(f.citations)||f.citations.some(c=>!c||typeof c!=='object'))||comparison.comparisons.some(c=>!c||typeof c!=='object'||!Array.isArray(c.citations)||c.citations.some(source=>!source||typeof source!=='object')))throw Error('INVALID_REPORT_ENTRY');
  const checkedAnalysis={...analysis,diagnostics:{...analysis.diagnostics,unreadableDetails},findings:analysis.findings.map(f=>{
   const citations=Array.isArray(f.citations)?f.citations:[];
   return {...f,citations,citationChecks:citations.map(c=>({verification:verifyCitation(documents,c)}))};
