@@ -110,6 +110,11 @@ export function formatCaseReportText(report){
  if(Number.isInteger(report.diagnostics?.verifiedCitationCount))lines.push('- 최종 원문 재검증 일치 인용: '+report.diagnostics.verifiedCitationCount+'건');
  if(Number.isInteger(report.diagnostics?.unverifiedCitationCount))lines.push('- 최종 원문 재검증 확인 필요 인용: '+report.diagnostics.unverifiedCitationCount+'건');
  lines.push('- 원문 확인 필요 인용: '+unmatchedCount+'건');
+ const unknownNames=Array.isArray(report.diagnostics?.unknownCitationDocuments)?report.diagnostics.unknownCitationDocuments:[];
+ if(unknownNames.length){
+  lines.push('- 제출되지 않은 문서명을 인용한 항목: '+unknownNames.length+'개');
+  for(const name of unknownNames)lines.push('  · 제출 문서 목록에 없음: '+name);
+ }
  const unverifiedFindings=report.findings.filter(f=>!Array.isArray(f.citations)||f.citations.length===0||!Array.isArray(f.citationChecks)||f.citationChecks.length!==f.citations.length||f.citationChecks.some(c=>c.verification?.status!=='matched')).length;
  lines.push('- 인용 확인이 필요한 분석 항목: '+unverifiedFindings+'건');
  const unverifiedComparisons=report.comparisons.filter(c=>c.sourceReady!==true).length;
