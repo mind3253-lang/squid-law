@@ -5,7 +5,7 @@ export function summarizeCitationChecks(checked){
  for(const f of checked||[]){
   summary.findings++;
   const checks=Array.isArray(f?.citationChecks)?f.citationChecks:[];
-  const countMismatch=!Array.isArray(f?.citations)||f.citations.length!==checks.length||f.citations.some(c=>!c||typeof c!=='object'||typeof c.document!=='string'||!c.document.trim()||!Number.isInteger(c.page)||c.page<1||typeof c.quote!=='string'||c.quote.trim().length<8);
+  const countMismatch=!Array.isArray(f?.citations)||f.citations.length!==checks.length||f.citations.some(c=>!c||typeof c!=='object'||typeof c.document!=='string'||!c.document.trim()||!Number.isInteger(c.page)||c.page<1||typeof c.quote!=='string'||c.quote.normalize('NFKC').replace(/\s+/g,' ').trim().length<8);
   if(!checks.length){summary.missingCitations++;summary.needsReviewFindings++;continue;}
   let allMatched=!countMismatch;
   for(const c of checks){
