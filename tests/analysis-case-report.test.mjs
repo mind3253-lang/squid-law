@@ -54,3 +54,5 @@ assert.throws(()=>assembleVerifiedCaseAnalysis(reportDocuments,analysis,{...comp
 const malformedCitation={document:'원고.pdf',page:'1',quote:'계약기간 5년을 주장한다'};
 assert.equal(assembleCaseAnalysis({...analysis,findings:[{...analysis.findings[0],citations:[malformedCitation]}]},comparison).status,'needs_source_review');
 assert.equal(assembleCaseAnalysis(analysis,{...comparison,comparisons:[{...comparison.comparisons[0],citations:[{...comparison.comparisons[0].citations[0],quote:''},comparison.comparisons[0].citations[1]]}]}).status,'needs_source_review');
+
+assert.equal(assembleCaseAnalysis({...analysis,findings:[{...analysis.findings[0],citations:[{document:'원고.pdf',page:1,quote:'짧음'}]}]},comparison).status,'needs_source_review');
