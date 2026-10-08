@@ -23,6 +23,11 @@ export function formatCaseReportText(report){
   sourcePages.add(JSON.stringify([source.document,source.page]));
   if(source.verification?.status==='matched')matchedCount++;else unmatchedCount++;
  }
+ const submitted=Array.isArray(report.diagnostics?.submittedDocuments)?report.diagnostics.submittedDocuments:[];
+ if(submitted.length){
+  lines.push('제출된 문서: '+submitted.length+'개');
+  for(const item of submitted)lines.push('  · '+String(item.name||'문서 미상')+' · 총 '+String(item.pageCount??'?')+'쪽');
+ }
  lines.push('분석에서 인용된 문서: '+documents.size+'개');
  lines.push('분석에서 인용된 서로 다른 원문 페이지: '+sourcePages.size+'쪽');
  if(documents.size)for(const name of documents)lines.push('  · '+name);
