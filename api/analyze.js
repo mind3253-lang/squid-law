@@ -3,6 +3,7 @@ import {runPrivateCaseReport} from '../analysis-private-case-runner.js';
 import {prepareAnalysisInput} from '../analysis-input.js';
 import {createAnalysisJob} from '../analysis-pipeline.js';
 import {createBatchModelRequest} from '../analysis-model-prompt.js';
+import {buildVerifiedComparisonReport} from '../analysis-comparison-report.js';
 
 // Operator-only trial. Never publish the token or API key in frontend code.
 function equals(a,b){
@@ -34,6 +35,10 @@ export default async function handler(req,res){
   const job=createAnalysisJob(documents,{input:{maxPages:30,maxChars:60000}});
   if(job.plan.batches.length>8)return res.status(422).json({error:'TOO_MANY_BATCHES'});
   for(const batch of job.plan.batches)createBatchModelRequest(batch);
+  // Preflight comparison volume and source matches before spending on any AI batch.
+  const comparisonPreflight=buildVerifiedComparisonReport(documents,{maxLeads:6});
+  if(comparisonPreflight.diagnostics.truncated||comparisonPreflight.leads.length>5)return res.status(422).json({error:'COMPARISON_BUDGET_EXCEEDED'});
+  if(comparisonPreflight.diagnostics.needsReview)return res.status(422).json({error:'COMPARISON_SOURCE_NOT_READY'});
   const result=await runPrivateCaseReport(documents,{
    enabled:true,apiKey:process.env.OPENAI_API_KEY,
    model:process.env.SQUIDLAW_AI_MODEL||'gpt-4.1-mini',
