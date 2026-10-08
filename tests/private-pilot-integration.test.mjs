@@ -194,3 +194,7 @@ test('search result buttons reject stale query text before opening a PDF page',(
 test('PDF upload clears file input after snapshot so the same file can be retried',()=>{
  assert.match(page,/const selectedFiles=\[\.\.\.e\.target\.files\];\s*e\.target\.value='';/);
 });
+
+test('PDF replacement clears stale citation page and quote',()=>{
+ assert.match(page,/document\.getElementById\('citation-page'\)\.value='1';document\.getElementById\('citation-quote'\)\.value='';/);
+});
