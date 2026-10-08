@@ -7,7 +7,7 @@ const fetchImpl=async(_url,options)=>{
  calls++;
  const input=JSON.parse(JSON.parse(options.body).input.slice(JSON.parse(options.body).input.indexOf('{')));
  const page=input.pages[0];
- return {ok:true,json:async()=>({output:[{content:[{type:'output_text',text:JSON.stringify({schema:'squidlaw-findings-v1',findings:[{title:'원고 주장',citations:[{document:page.document,page:page.page,quote:page.text}]}]})}]}]})};
+ return {ok:true,json:async()=>({status:'completed',output:[{content:[{type:'output_text',text:JSON.stringify({schema:'squidlaw-findings-v1',findings:[{title:'원고 주장',analysis:'원고 주장의 근거를 확인함',claim:'원고 주장',evidence:'원문',rebuttal:'',proofGap:'',citations:[{document:page.document,page:page.page,quote:page.text}]}]})}]}]})};
 };
 const ledger={async consumeEntitlement(v){charges++;assert.ok(v.actualPages===1||v.actualPages===2);assert.equal(v.accountId,'verified-user');return {accepted:true,jobId:v.jobId};}};
 const authenticate=async session=>session==='server-session'?{accountId:'verified-user'}:null;
