@@ -182,3 +182,7 @@ test('PDF search paginates results and guards against changed source',()=>{
  assert.match(page,/다음 100개/);
  assert.match(page,/searchRevision===sourceRevision&&searchInput\.value\.trim\(\)===query/);
 });
+
+test('PDF search recovers from out-of-range pages',()=>{
+ assert.match(page,/if\(found\.offsetOutOfRange\)\{searchOriginal\(found\.suggestedOffset\);return;\}/);
+});
