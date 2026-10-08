@@ -37,7 +37,7 @@ const report=formatCaseReportText({schema:'squidlaw-case-analysis-v1',status:'so
  comparisons:[{reference:'갑 제1호증',relation:'conflict_candidate',explanation:'서로 다른 기간',citations:[]}],
  diagnostics:{unreadableDetails:[{document:'계약서.pdf',page:2,totalPages:2}],missingBatches:[3],comparisonSourceReady:false,analysisSourceReady:true},notices:[]});
 for(const term of ['일부 페이지 미식별','원문 일치가 확인된 인용 문서: 1개','충돌 가능성 검토: 1건','결과가 누락된 분석 묶음: 3','읽지 못한 페이지'])assert.ok(report.includes(term),'Missing report detail: '+term);
-for(const term of ['서로 다른 원문 페이지','출처 인용 총수','원문 일치 인용','원문 확인 필요 인용','인용 확인이 필요한 분석 항목','출처 확인이 필요한 비교 후보'])assert.ok(report.includes(term),'Missing audit field: '+term);
+for(const term of ['원문 일치가 확인된 서로 다른 페이지','출처 인용 총수','원문 일치 인용','원문 확인 필요 인용','인용 확인이 필요한 분석 항목','출처 확인이 필요한 비교 후보'])assert.ok(report.includes(term),'Missing audit field: '+term);
 for(const term of ['계약서 원문','공탁','인도일','관리비','일부만 부인'])assert.ok(COMPARISON_SYSTEM_PROMPT.includes(term),'Missing comparison safeguard: '+term);
 const {validateFindingsPayload}=await import('../findings-schema.js');
 const enriched=validateFindingsPayload({schema:'squidlaw-findings-v1',findings:[{title:'계약기간',analysis:'원고가 계약기간 5년을 주장하지만 별도 자료 검토가 필요합니다.',citations:[{document:'계약서.pdf',page:1,quote:'계약기간은 5년입니다'}]}]});
