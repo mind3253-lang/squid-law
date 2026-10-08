@@ -44,7 +44,7 @@ export async function analyzeComparisonWithModel(documents,lead,{
   if(!data||typeof data!=='object'||Array.isArray(data))throw Error('COMPARISON_MODEL_RESPONSE_INVALID');
   if(data.status==='incomplete'||data.incomplete_details)throw Error('COMPARISON_MODEL_INCOMPLETE');
   if(typeof data.status!=='string')throw Error('COMPARISON_MODEL_NOT_COMPLETED');
-  if(data.status&&data.status!=='completed')throw Error('COMPARISON_MODEL_NOT_COMPLETED');
+  if(data.status!=='completed')throw Error('COMPARISON_MODEL_NOT_COMPLETED');
   if(data.error)throw Error('COMPARISON_MODEL_ERROR');
   if(!Array.isArray(data.output)||data.output.length===0)throw Error('COMPARISON_MODEL_OUTPUT_INVALID');
   const output=data.output;
