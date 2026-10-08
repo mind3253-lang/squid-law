@@ -55,6 +55,6 @@ for(const term of ['주장: 원고 5년 주장','근거: 계약서 5년 문구',
 for(const term of ['반박·반증 기재 항목: 1건','추가 입증사항 기재 항목: 1건','반박·반증이 확인된 쟁점','추가 입증 검토가 필요한 쟁점','원문 인용 검산: 원문 대조 필요'])assert.ok(structuredText.includes(term),'Missing structured report summary: '+term);
 assert.match(report,/원문 인용 검산: 인용 일치/);
 const inventoried=formatCaseReportText({schema:'squidlaw-case-analysis-v1',status:'needs_source_review',findings:[{title:'검토',citations:[{document:'가.pdf',page:1,quote:'계약기간은 5년입니다'}],citationChecks:[{verification:{status:'matched'}}]}],comparisons:[],diagnostics:{submittedDocuments:[{name:'가.pdf',pageCount:3},{name:'나.pdf',pageCount:2}],unreadableDetails:[{document:'나.pdf',page:2,totalPages:2}]},notices:[]});
-for(const term of ['제출된 문서: 2개','제출 문서 전체 페이지: 5쪽','텍스트 식별 가능 페이지: 4쪽','분석 인용에 등장하지 않은 제출 문서: 1개','인용되지 않은 제출 문서:','  · 나.pdf'])assert.ok(inventoried.includes(term),'Missing document coverage: '+term);
+for(const term of ['제출된 문서: 2개','제출 문서 전체 페이지: 5쪽','텍스트 식별 가능 페이지: 4쪽','원문 일치 인용이 없는 제출 문서: 1개','원문 일치 인용이 없는 제출 문서 목록:','  · 나.pdf'])assert.ok(inventoried.includes(term),'Missing document coverage: '+term);
 assert.match(formatCaseReportText({schema:'squidlaw-case-analysis-v1',status:'needs_source_review',findings:[{title:'출처 누락',citations:[],citationChecks:[]}],comparisons:[],diagnostics:{},notices:[]}),/인용 확인이 필요한 분석 항목: 1건/);
 console.log('PASS: customer module syntax and comparison preview wiring are valid');
