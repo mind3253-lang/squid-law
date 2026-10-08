@@ -17,6 +17,8 @@ on:
       - 'analysis-model-worker.js'
       - 'analysis-private-runner.js'
       - 'analysis-entitlement.js'
+      - 'analysis-authorized-runner.js'
+      - 'tests/analysis-authorized-runner.test.mjs'
       - 'tests/analysis-entitlement.test.mjs'
       - 'tests/analysis-private-runner.test.mjs'
       - 'tests/analysis-model-worker.test.mjs'
@@ -48,6 +50,8 @@ on:
       - 'analysis-model-worker.js'
       - 'analysis-private-runner.js'
       - 'analysis-entitlement.js'
+      - 'analysis-authorized-runner.js'
+      - 'tests/analysis-authorized-runner.test.mjs'
       - 'tests/analysis-entitlement.test.mjs'
       - 'tests/analysis-private-runner.test.mjs'
       - 'tests/analysis-model-worker.test.mjs'
@@ -89,3 +93,4 @@ jobs:
           node tests/analysis-model-worker.test.mjs
           node --experimental-default-type=module tests/analysis-private-runner.test.mjs
           node tests/analysis-entitlement.test.mjs
+          node --experimental-default-type=module tests/analysis-authorized-runner.test.mjs
