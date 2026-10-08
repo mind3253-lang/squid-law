@@ -198,3 +198,10 @@ test('PDF upload clears file input after snapshot so the same file can be retrie
 test('PDF replacement clears stale citation page and quote',()=>{
  assert.match(page,/document\.getElementById\('citation-page'\)\.value='1';document\.getElementById\('citation-quote'\)\.value='';/);
 });
+
+test('PDF search highlights matched text using safe DOM text nodes',()=>{
+ assert.match(page,/document\.createElement\('mark'\)/);
+ assert.match(page,/mark\.textContent=item\.snippet\.slice\(at,/);
+ assert.match(page,/document\.createTextNode\(item\.snippet\.slice\(0,at\)\)/);
+ assert.doesNotMatch(page,/snippet\.innerHTML=/);
+});
