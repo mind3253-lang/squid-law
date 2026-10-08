@@ -56,4 +56,5 @@ for(const term of ['반박·반증 기재 항목: 1건','추가 입증사항 기
 assert.match(report,/원문 인용 검산: 인용 일치/);
 const inventoried=formatCaseReportText({schema:'squidlaw-case-analysis-v1',status:'needs_source_review',findings:[{title:'검토',citations:[{document:'가.pdf',page:1,quote:'계약기간은 5년입니다'}]}],comparisons:[],diagnostics:{submittedDocuments:[{name:'가.pdf',pageCount:3},{name:'나.pdf',pageCount:2}],unreadableDetails:[{document:'나.pdf',page:2,totalPages:2}]},notices:[]});
 for(const term of ['제출된 문서: 2개','제출 문서 전체 페이지: 5쪽','텍스트 식별 가능 페이지: 4쪽','분석 인용에 등장하지 않은 제출 문서: 1개','인용되지 않은 제출 문서:','  · 나.pdf'])assert.ok(inventoried.includes(term),'Missing document coverage: '+term);
+assert.match(formatCaseReportText({schema:'squidlaw-case-analysis-v1',status:'needs_source_review',findings:[{title:'출처 누락',citations:[],citationChecks:[]}],comparisons:[],diagnostics:{},notices:[]}),/인용 확인이 필요한 분석 항목: 1건/);
 console.log('PASS: customer module syntax and comparison preview wiring are valid');
