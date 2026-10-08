@@ -9,7 +9,10 @@ const validCitation=c=>!!c&&typeof c.document==='string'&&c.document.trim().leng
 export function formatCaseReportText(report){
  if(!report||report.schema!=='squidlaw-case-analysis-v1'||!Array.isArray(report.findings)||!Array.isArray(report.comparisons))throw Error('INVALID_CASE_REPORT');
  if(report.findings.some(f=>!f||typeof f!=='object'||(Array.isArray(f.citations)&&f.citations.some(c=>!c||typeof c!=='object')))||report.comparisons.some(c=>!c||typeof c!=='object'||(Array.isArray(c.citations)&&c.citations.some(x=>!x||typeof x!=='object'))))throw Error('INVALID_CASE_REPORT_ENTRY');
- const lines=['SQUID LAW · 사건자료 분석 보고서','',report.status==='source_checked'?'출처 검산: 원문 일치':report.status==='source_checked_partial'?'출처 검산: 일부 페이지 미식별':'출처 검산: 확인 필요',''];
+ const allFindingsReady=report.findings.length>0&&report.findings.every(f=>Array.isArray(f.citations)&&f.citations.length>0&&Array.isArray(f.citationChecks)&&f.citationChecks.length===f.citations.length&&f.citations.every(validCitation)&&f.citationChecks.every(c=>c?.verification?.status==='matched'));
+ const allComparisonsReady=report.comparisons.every(c=>c.sourceReady===true&&Array.isArray(c.citations)&&c.citations.length===2&&c.citations.every(source=>validCitation(source)&&source.verification?.status==='matched'));
+ const displayStatus=allFindingsReady&&allComparisonsReady&&report.diagnostics?.analysisSourceReady===true&&report.diagnostics?.comparisonSourceReady===true?report.status:'needs_source_review';
+ const lines=['SQUID LAW · 사건자료 분석 보고서','',displayStatus==='source_checked'?'출처 검산: 원문 일치':displayStatus==='source_checked_partial'?'출처 검산: 일부 페이지 미식별':'출처 검산: 확인 필요',''];
  const documents=new Set();
  for(const f of report.findings)for(const [i,c] of (Array.isArray(f.citations)?f.citations:[]).entries())if(validCitation(c)&&f.citationChecks?.[i]?.verification?.status==='matched')documents.add(c.document);
  for(const c of report.comparisons)for(const source of Array.isArray(c.citations)?c.citations:[])if(validCitation(source)&&source.verification?.status==='matched')documents.add(source.document);
@@ -153,7 +156,7 @@ export function formatCaseReportText(report){
   }
   if(uncited.length)lines.push('- 원문 일치 인용이 없는 문서는 분석되지 않았다는 뜻이 아니며, 해당 문서의 쟁점 누락 여부는 별도로 확인해야 합니다.');
  }
- lines.push('- 출처 검산 상태: '+(report.status==='source_checked'?'전체 일치':report.status==='source_checked_partial'?'확인된 인용은 일치하나 일부 페이지 미식별':'추가 확인 필요'));
+ lines.push('- 출처 검산 상태: '+(displayStatus==='source_checked'?'전체 일치':displayStatus==='source_checked_partial'?'확인된 인용은 일치하나 일부 페이지 미식별':'추가 확인 필요'));
  if(!report.comparisons.length)lines.push('- 공통 증거번호 기반 비교는 수행되지 않았습니다. 비교 후보가 없다는 것은 서면 사이에 모순이 없다는 뜻이 아닙니다.');
  if(report.diagnostics?.comparisonSourceReady!==true)lines.push('- 서면 비교 출처 검산이 완료되지 않았으므로 통합보고서 전체를 검증 완료로 표시하지 않습니다.');
  if(report.diagnostics?.analysisSourceReady!==true)lines.push('- 분석 인용의 출처 검산이 완료되지 않았습니다.');
