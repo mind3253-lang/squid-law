@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 const read=p=>readFileSync(new URL('../'+p,import.meta.url),'utf8');
-const uri=s=>'data:text/javascript;charset=utf-8,'+encodeURIComponent(s);
+const uri=s=>'data:text/javascript;charset=utf-8,'+encodeURIComponent(s).replace(/'/g,'%27');
 const schemaUri=uri(read('findings-schema.js'));
 const source=read('analysis-model-response.js').replace("'./findings-schema.js'","'"+schemaUri+"'");
 const {parseModelFindings}=await import(uri(source));
