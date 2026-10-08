@@ -27,4 +27,14 @@ assert.match(moduleScript[2],/서면 비교 '\+comparisonCount/);
 assert.match(html,/AI 통합 분석 실행/);
 assert.match(html,/\/api\/analyze/);
 assert.match(html,/원문 기반/);
+const {ANALYSIS_SYSTEM_PROMPT}=await import('../analysis-model-prompt.js');
+const {COMPARISON_SYSTEM_PROMPT}=await import('../analysis-comparison-prompt.js');
+const {formatCaseReportText}=await import('../analysis-case-report-text.js');
+for(const term of ['소송 절차','증거번호','계약의 성립','자료 범위'])assert.ok(ANALYSIS_SYSTEM_PROMPT.includes(term),'Missing analysis instruction: '+term);
+for(const term of ['조건문','계산 기준','작성자'])assert.ok(COMPARISON_SYSTEM_PROMPT.includes(term),'Missing comparison instruction: '+term);
+const report=formatCaseReportText({schema:'squidlaw-case-analysis-v1',status:'source_checked_partial',
+ findings:[{title:'원고 주장',citations:[{document:'계약서.pdf',page:1,quote:'계약기간 5년'}],citationChecks:[{verification:{status:'matched'}}]}],
+ comparisons:[{reference:'갑 제1호증',relation:'conflict_candidate',explanation:'서로 다른 기간',citations:[]}],
+ diagnostics:{unreadableDetails:[{document:'계약서.pdf',page:2,totalPages:2}],missingBatches:[3],comparisonSourceReady:false,analysisSourceReady:true},notices:[]});
+for(const term of ['일부 페이지 미식별','분석에서 인용된 문서: 1개','충돌 가능성 검토: 1건','결과가 누락된 분석 묶음: 3','읽지 못한 페이지'])assert.ok(report.includes(term),'Missing report detail: '+term);
 console.log('PASS: customer module syntax and comparison preview wiring are valid');
