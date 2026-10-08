@@ -20,9 +20,8 @@ export async function runAuthorizedAnalysis(documents,{
  // Reject jobs the private worker cannot run BEFORE reserving paid usage.
  if(!Number.isInteger(maxTotalChars)||maxTotalChars<1||maxTotalChars>450000)throw Error('INVALID_JOB_CHAR_LIMIT');
  if(job.input.diagnostics.totalChars>maxTotalChars)throw Error('JOB_TEXT_BUDGET_EXCEEDED');
- // A scanned or blank page cannot be analyzed from extracted text.
- // Reject the paid job rather than silently billing for incomplete coverage.
- if(job.input.diagnostics.unreadablePages>0)throw Error('UNREADABLE_PAGES_REQUIRE_OCR');
+ // Unreadable pages are omitted with a page-specific warning in the report.
+ // An entirely unreadable upload is already rejected by createAnalysisJob.
  const actualPages=job.input.documents.reduce((n,d)=>n+d.pageCount,0);
  await authorizeAnalysisJob({entitlementId,accountId:identity.accountId,jobId,actualPages,ledger});
  // Entitlement is reserved before any external model request. Production ledger
