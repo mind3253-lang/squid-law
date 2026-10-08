@@ -89,3 +89,13 @@ test('review edits invalidate a pending import',()=>{
  assert.match(page,/reviewImportRevision\+\+;reviewRecords\.splice/);
  assert.match(page,/reviewImportRevision\+\+;\s*renderReviews\(\)/);
 });
+
+test('new PDF upload clears old analysis overview and index',()=>{
+ assert.match(page,/analysis-overview-body'\)\.replaceChildren\(\);document\.getElementById\('local-index'\)\.replaceChildren\(\)/);
+});
+test('duplicate PDF filenames are rejected before PDF parsing',()=>{
+ const duplicate=page.indexOf('seenNames.has(f.name)');
+ const parsing=page.indexOf('pdfjsLib.getDocument({data:new Uint8Array(await f.arrayBuffer())})');
+ assert.ok(duplicate>0&&parsing>duplicate);
+ assert.match(page,/duplicateSkipped\+\+;continue/);
+});
