@@ -110,3 +110,35 @@ test('API rejects oversized declared payloads before parsing',async()=>{
   }
  }
 });
+
+test('API rejects wrong operator token before examining submitted PDF content',async()=>{
+ const saved={enabled:process.env.SQUIDLAW_AI_TEST_ENABLED,token:process.env.SQUIDLAW_AI_TEST_TOKEN,key:process.env.OPENAI_API_KEY};
+ try{
+  process.env.SQUIDLAW_AI_TEST_ENABLED='true';
+  process.env.SQUIDLAW_AI_TEST_TOKEN='a'.repeat(32);
+  process.env.OPENAI_API_KEY='unit-test-placeholder';
+  const result=await invoke({consent:true,documents:[]},{'x-squidlaw-test-token':'b'.repeat(32)});
+  assert.equal(result.status,401);
+  assert.equal(result.payload.error,'UNAUTHORIZED');
+ }finally{
+  for(const [key,val] of Object.entries({SQUIDLAW_AI_TEST_ENABLED:saved.enabled,SQUIDLAW_AI_TEST_TOKEN:saved.token,OPENAI_API_KEY:saved.key})){
+   if(val===undefined)delete process.env[key];else process.env[key]=val;
+  }
+ }
+});
+
+test('API remains disabled by default even when a caller supplies the operator token',async()=>{
+ const saved={enabled:process.env.SQUIDLAW_AI_TEST_ENABLED,token:process.env.SQUIDLAW_AI_TEST_TOKEN,key:process.env.OPENAI_API_KEY};
+ try{
+  delete process.env.SQUIDLAW_AI_TEST_ENABLED;
+  process.env.SQUIDLAW_AI_TEST_TOKEN='a'.repeat(32);
+  process.env.OPENAI_API_KEY='unit-test-placeholder';
+  const result=await invoke({consent:true,documents:[]});
+  assert.equal(result.status,503);
+  assert.equal(result.payload.error,'AI_TEST_DISABLED');
+ }finally{
+  for(const [key,val] of Object.entries({SQUIDLAW_AI_TEST_ENABLED:saved.enabled,SQUIDLAW_AI_TEST_TOKEN:saved.token,OPENAI_API_KEY:saved.key})){
+   if(val===undefined)delete process.env[key];else process.env[key]=val;
+  }
+ }
+});
