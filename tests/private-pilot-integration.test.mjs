@@ -190,3 +190,7 @@ test('PDF search recovers from out-of-range pages',()=>{
 test('search result buttons reject stale query text before opening a PDF page',()=>{
  assert.match(page,/searchRevision!==sourceRevision\|\|searchInput\.value\.trim\(\)!==query\|\|!documents\[item\.documentIndex\]/);
 });
+
+test('PDF upload clears file input after snapshot so the same file can be retried',()=>{
+ assert.match(page,/const selectedFiles=\[\.\.\.e\.target\.files\];\s*e\.target\.value='';/);
+});
