@@ -42,3 +42,6 @@ assert.match(formatCaseReportText(spoofedReport),/출처 검산 상태: 추가 �
 const malformedSubmitted={...assembleCaseAnalysis(analysis,comparison),diagnostics:{...assembleCaseAnalysis(analysis,comparison).diagnostics,submittedDocuments:[null,{name:'원고.pdf',pageCount:2}],uncitedDocuments:['원고.pdf']}};
 assert.match(formatCaseReportText(malformedSubmitted),/문서 미상/);
 assert.match(formatCaseReportText(malformedSubmitted),/원문 일치 인용이 없는 제출 문서: 2개/);
+
+const paddedReport=assembleCaseAnalysis({...analysis,findings:[{...analysis.findings[0],citations:[{document:'원고.pdf',page:1,quote:'가          나'}]}]},comparison);
+assert.match(formatCaseReportText(paddedReport),/원문 확인 필요 인용: 1건/);
