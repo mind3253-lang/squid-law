@@ -14,6 +14,8 @@ on:
       - 'analysis-pipeline.js'
       - 'analysis-model-prompt.js'
       - 'analysis-model-response.js'
+      - 'analysis-model-worker.js'
+      - 'tests/analysis-model-worker.test.mjs'
       - 'tests/analysis-model-response.test.mjs'
       - 'tests/analysis-model-prompt.test.mjs'
       - 'tests/analysis-pipeline-integration.test.mjs'
@@ -39,6 +41,8 @@ on:
       - 'analysis-pipeline.js'
       - 'analysis-model-prompt.js'
       - 'analysis-model-response.js'
+      - 'analysis-model-worker.js'
+      - 'tests/analysis-model-worker.test.mjs'
       - 'tests/analysis-model-response.test.mjs'
       - 'tests/analysis-model-prompt.test.mjs'
       - 'tests/analysis-pipeline-integration.test.mjs'
@@ -74,3 +78,4 @@ jobs:
           node tests/analysis-pipeline-integration.test.mjs
           node tests/analysis-model-prompt.test.mjs
           node tests/analysis-model-response.test.mjs
+          node tests/analysis-model-worker.test.mjs
