@@ -99,3 +99,13 @@ test('duplicate PDF filenames are rejected before PDF parsing',()=>{
  assert.ok(duplicate>0&&parsing>duplicate);
  assert.match(page,/duplicateSkipped\+\+;continue/);
 });
+
+test('replacing PDFs disables all previous index download controls',()=>{
+ assert.match(page,/\['copy-index','download-index','download-data','verify-local-candidates','download-findings'\]/);
+ assert.match(page,/button\.disabled=true;button\.onclick=null/);
+});
+test('index export actions are bound to current PDF revision',()=>{
+ assert.match(page,/txt\.onclick=\(\)=>\{if\(extractionRevision===sourceRevision\)/);
+ assert.match(page,/json\.onclick=\(\)=>\{if\(extractionRevision===sourceRevision\)/);
+ assert.match(page,/candidateBtn\.onclick=\(\)=>\{if\(extractionRevision===sourceRevision\)/);
+});
