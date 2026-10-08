@@ -16,6 +16,8 @@ on:
       - 'analysis-model-response.js'
       - 'analysis-model-worker.js'
       - 'pilot-analysis-cli.js'
+      - 'dry-run-analysis-cli.js'
+      - 'tests/dry-run-analysis-cli.test.mjs'
       - 'tests/pilot-analysis-cli.test.mjs'
       - 'analysis-private-runner.js'
       - 'analysis-entitlement.js'
@@ -96,6 +98,7 @@ jobs:
           node tests/analysis-model-response.test.mjs
           node tests/analysis-model-worker.test.mjs
           node tests/pilot-analysis-cli.test.mjs
+          node tests/dry-run-analysis-cli.test.mjs
           node --experimental-default-type=module tests/analysis-private-runner.test.mjs
           node tests/analysis-entitlement.test.mjs
           node --experimental-default-type=module tests/analysis-authorized-runner.test.mjs
