@@ -31,7 +31,8 @@ export function assembleCaseAnalysis(analysis,comparison){
    analysisFindingsPresent:findings.length>0,
    unreadableDetails:analysis.diagnostics.unreadableDetails??[],
    analysisSourceReady:analysisReady,
-   comparisonSourceReady:comparisonReady
+   comparisonSourceReady:comparisonReady,
+   comparisonNotPerformed:comparisons.length===0
   },
   notices:[
    '원문 일치는 인용 문구가 업로드된 텍스트에 있다는 뜻이며, 사실의 진위 또는 법적 결론을 증명하지 않습니다.',
