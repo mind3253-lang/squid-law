@@ -128,3 +128,8 @@ test('clipboard completion cannot overwrite status after PDF replacement',()=>{
  assert.match(page,/const revision=sourceRevision;const docIndex=Number\(docSelect\.value\)/);
  assert.match(page,/if\(revision===sourceRevision&&Number\(docSelect\.value\)===docIndex/);
 });
+
+test('search navigation rejects results from an older PDF revision',()=>{
+ assert.match(page,/const searchRevision=sourceRevision/);
+ assert.match(page,/if\(searchRevision!==sourceRevision\|\|!documents\[item\.documentIndex\]/);
+});
