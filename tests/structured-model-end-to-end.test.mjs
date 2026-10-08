@@ -73,7 +73,7 @@ assert.match(partialText,/제출된 전체 PDF 페이지 중 원문 인용 검�
 assert.match(partialText,/원문 일치가 검증된 인용이 없는 식별 가능 페이지: 1쪽/);
 assert.match(partialText,/미인용.pdf: 1쪽/);
 assert.ok(partialText.includes('원문 일치 인용이 없는 제출 문서 목록:')&&partialText.includes('  · 미인용.pdf'));
-assert.match(partialText,/총 2페이지 중 2페이지는 내용을 식별할 수 없어/);
+assert.match(partialText,/총 2페이지 중 2페이지는 텍스트를 추출하지 못하여/);
 await assert.rejects(()=>analyzeBatchWithModel(batch,{enabled:true,apiKey:'test-only',model:'gpt-4.1-mini',fetchImpl:async()=>({ok:true,json:async()=>({status:'incomplete',output:[]})})}),/MODEL_RESPONSE_INCOMPLETE/);
 await assert.rejects(()=>analyzeBatchWithModel(batch,{enabled:true,apiKey:'test-only',model:'gpt-4.1-mini',fetchImpl:async()=>({ok:true,json:async()=>({status:'completed',output:{}})})}),/INVALID_MODEL_OUTPUT/);
 for(const badResponse of [
