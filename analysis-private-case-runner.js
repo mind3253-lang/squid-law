@@ -27,7 +27,7 @@ export async function runPrivateCaseReport(documents,{
   schema:'squidlaw-private-case-job-v1',
   report,
   text:formatCaseReportText(report),
-  diagnostics:{analysisReady:report.diagnostics.analysisSourceReady,comparisonReady:report.diagnostics.comparisonSourceReady,comparisonPerformed:report.comparisons.length>0,missingBatches:report.diagnostics.missingBatches,unreadablePages:report.diagnostics.unreadablePages,uncitedDocuments:report.diagnostics.uncitedDocuments,unknownCitationDocuments:report.diagnostics.unknownCitationDocuments,verifiedCitationCount:report.diagnostics.verifiedCitationCount,unverifiedCitationCount:report.diagnostics.unverifiedCitationCount},
+  diagnostics:{analysisReady:report.diagnostics.analysisSourceReady,comparisonReady:report.diagnostics.comparisonSourceReady,comparisonPerformed:report.comparisons.length>0,missingBatches:report.diagnostics.missingBatches,unreadablePages:report.diagnostics.unreadablePages,uncitedDocuments:report.diagnostics.uncitedDocuments,unknownCitationDocuments:report.diagnostics.unknownCitationDocuments,verifiedPageCoveragePercent:report.diagnostics.verifiedPageCoveragePercent,verifiedCitationCount:report.diagnostics.verifiedCitationCount,unverifiedCitationCount:report.diagnostics.unverifiedCitationCount},
   sourceReady:report.status==='source_checked',
   comparisonPerformed:report.comparisons.length>0,
   limitation:'원문 인용 검증만 수행합니다. 사실의 진위, AI 비교 해석 및 법적 결론은 사람의 확인이 필요합니다.'
