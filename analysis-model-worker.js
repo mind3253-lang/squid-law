@@ -22,7 +22,30 @@ export async function analyzeBatchWithModel(batch,{
     model,
     instructions:prompt.system,
     input:prompt.user,
-    text:{format:{type:'json_object'}},
+    text:{format:{
+     type:'json_schema',
+     name:'squidlaw_findings',
+     strict:true,
+     schema:{
+      type:'object',
+      additionalProperties:false,
+      required:['schema','findings'],
+      properties:{
+       schema:{type:'string',enum:['squidlaw-findings-v1']},
+       findings:{type:'array',items:{
+        type:'object',additionalProperties:false,required:['title','citations'],
+        properties:{
+         title:{type:'string'},
+         citations:{type:'array',items:{
+          type:'object',additionalProperties:false,
+          required:['document','page','quote'],
+          properties:{document:{type:'string'},page:{type:'integer'},quote:{type:'string'}}
+         }}
+        }
+       }}
+      }
+     }
+    }},
     max_output_tokens:5000,
     store:false
    }),
