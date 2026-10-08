@@ -4,13 +4,17 @@ export function batchAnalysisInput(input,{maxBatchChars=30000,maxBatchPages=20}=
  if(!input||input.schema!=='squidlaw-analysis-input-v1'||!Array.isArray(input.pages))throw Error('INVALID_ANALYSIS_INPUT');
  if(!Number.isInteger(maxBatchChars)||maxBatchChars<1||!Number.isInteger(maxBatchPages)||maxBatchPages<1)throw Error('INVALID_BATCH_LIMITS');
  const batches=[];let current=[],chars=0;
+ const seenPages=new Set();
  const flush=()=>{
   if(!current.length)return;
   batches.push({schema:'squidlaw-analysis-batch-v1',batch:batches.length+1,pages:current,characterCount:chars});
   current=[];chars=0;
  };
  for(const p of input.pages){
-  if(!p||typeof p.document!=='string'||!Number.isInteger(p.page)||p.page<1||typeof p.text!=='string'||!p.text)throw Error('INVALID_SOURCE_PAGE');
+  if(!p||typeof p.document!=='string'||!p.document.trim()||!Number.isInteger(p.page)||p.page<1||typeof p.text!=='string'||!p.text.trim())throw Error('INVALID_SOURCE_PAGE');
+  const pageKey=JSON.stringify([p.document,p.page]);
+  if(seenPages.has(pageKey))throw Error('DUPLICATE_SOURCE_PAGE');
+  seenPages.add(pageKey);
   if(p.text.length>maxBatchChars)throw Error('SOURCE_PAGE_TOO_LARGE');
   if(current.length>=maxBatchPages||chars+p.text.length>maxBatchChars)flush();
   current.push({document:p.document,page:p.page,text:p.text});
