@@ -73,7 +73,7 @@ export function formatCaseReportText(report){
    if(!grouped.has(key))grouped.set(key,{document:item.document,totalPages:item.totalPages,pages:[]});
    grouped.get(key).pages.push(item.page);
   }
-  for(const item of grouped.values())lines.push('귀하가 제출한 「'+item.document+'」 총 '+item.totalPages+'페이지 중 '+item.pages.join(', ')+'페이지는 내용을 식별할 수 없어 해당 페이지를 제외하고 분석하였습니다. 중요한 내용이 포함된 페이지라면 해상도가 높은 파일로 다시 제출해 주시기 바랍니다.');
+  for(const item of grouped.values())lines.push('귀하가 제출한 「'+item.document+'」 총 '+item.totalPages+'페이지 중 '+item.pages.join(', ')+'페이지는 내용을 식별할 수 없어 해당 페이지를 제외하고 분석하였습니다. 원본의 글씨나 이미지도 흐릿하다면 재판부가 판독하기 어려워 원본 제출 또는 선명한 사본의 재제출을 요구할 수 있습니다. 원본을 확인하여 선명하게 다시 스캔한 후 업로드하시기를 권고드립니다. 단, 텍스트 추출 실패만으로 원본 자체가 판독 불가능하다고 단정할 수는 없습니다.');
  }
  lines.push('','4. 통합 검토 요약');
  const relationCounts={conflict_candidate:0,different_positions:0,insufficient_information:0};
