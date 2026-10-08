@@ -71,3 +71,10 @@ for(const diagnostics of ['invalid',1,true]){
 assert.throws(()=>assembleVerifiedCaseAnalysis(reportDocuments,{...analysis,schema:'wrong'},comparison),/INVALID_ANALYSIS_RESULT/);
 assert.throws(()=>assembleVerifiedCaseAnalysis(reportDocuments,analysis,{...comparison,schema:'wrong'}),/INVALID_COMPARISON_RESULT/);
 assert.throws(()=>assembleVerifiedCaseAnalysis(reportDocuments,{...analysis,diagnostics:null},comparison),/INVALID_ANALYSIS_RESULT/);
+
+for(const diagnostics of [[],{missingBatches:'none'},{missingBatches:1},{missingBatches:{}}]){
+ assert.throws(()=>assembleCaseAnalysis({...analysis,diagnostics},comparison),/INVALID_ANALYSIS_RESULT/);
+ assert.throws(()=>assembleVerifiedCaseAnalysis(reportDocuments,{...analysis,diagnostics},comparison),/INVALID_ANALYSIS_RESULT/);
+}
+assert.throws(()=>assembleCaseAnalysis(analysis,{...comparison,diagnostics:[]}),/INVALID_COMPARISON_RESULT/);
+assert.throws(()=>assembleVerifiedCaseAnalysis(reportDocuments,analysis,{...comparison,diagnostics:[]}),/INVALID_COMPARISON_RESULT/);
