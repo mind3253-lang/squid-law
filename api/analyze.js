@@ -49,6 +49,7 @@ export default async function handler(req,res){
   return res.status(200).json(result);
  }catch(error){
   const code=String(error?.message||'UNKNOWN_ERROR');
+  if(code==='MODEL_REQUEST_TIMEOUT')return res.status(504).json({error:'AI_ANALYSIS_TIMEOUT'});
   const inputError=/^(INVALID_|NO_|DUPLICATE_|PAGE_LIMIT|TEXT_LIMIT|SOURCE_PAGE_TOO_LARGE|BATCH_PROMPT_TOO_LARGE|TOO_MANY_BATCHES|JOB_TEXT_BUDGET|COMPARISON_BUDGET|COMPARISON_SOURCE|COMPARISON_INPUT|COMPARISON_REQUIRES)/.test(code);
   return res.status(inputError?422:502).json({error:inputError?code:'AI_ANALYSIS_FAILED'});
  }
