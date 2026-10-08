@@ -7,6 +7,7 @@ on:
       - 'analysis-cross-document.js'
       - 'analysis-comparison-report.js'
       - 'source-verification.js'
+      - 'private-pilot-validation.js'
       - 'tests/**'
       - '.github/workflows/analysis-regression.yml'
   pull_request:
@@ -29,4 +30,4 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: '22'
-      - run: node --experimental-default-type=module --test tests/analysis-evidence.test.mjs
+      - run: node --experimental-default-type=module --test tests/*.test.mjs
