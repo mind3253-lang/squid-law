@@ -11,6 +11,8 @@ on:
       - 'analysis-batches.js'
       - 'analysis-batch-results.js'
       - 'analysis-merge.js'
+      - 'analysis-pipeline.js'
+      - 'tests/analysis-pipeline-integration.test.mjs'
       - 'tests/analysis-merge.test.mjs'
       - 'tests/analysis-batch-results.test.mjs'
       - 'tests/analysis-batches.test.mjs'
@@ -30,6 +32,8 @@ on:
       - 'analysis-batches.js'
       - 'analysis-batch-results.js'
       - 'analysis-merge.js'
+      - 'analysis-pipeline.js'
+      - 'tests/analysis-pipeline-integration.test.mjs'
       - 'tests/analysis-merge.test.mjs'
       - 'tests/analysis-batch-results.test.mjs'
       - 'tests/analysis-batches.test.mjs'
@@ -59,3 +63,4 @@ jobs:
           node tests/analysis-batches.test.mjs
           node tests/analysis-batch-results.test.mjs
           node tests/analysis-merge.test.mjs
+          node tests/analysis-pipeline-integration.test.mjs
