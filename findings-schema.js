@@ -9,7 +9,13 @@ export function validateFindingsPayload(payload){
    return {document:c.document,page:c.page,quote:c.quote};
   });
   if(f.analysis!==undefined&&(typeof f.analysis!=='string'||!f.analysis.trim()||f.analysis.length>1800))throw Error('INVALID_FINDING_ANALYSIS');
-  return {title:f.title,...(f.analysis===undefined?{}:{analysis:f.analysis}),citations};
+  const sections={};
+  for(const key of ['claim','evidence','rebuttal','proofGap']){
+   if(f[key]===undefined)continue;
+   if(typeof f[key]!=='string'||f[key].length>900)throw Error('INVALID_FINDING_SECTION');
+   sections[key]=f[key].trim();
+  }
+  return {title:f.title,...(f.analysis===undefined?{}:{analysis:f.analysis}),...sections,citations};
  });
  return {schema:'squidlaw-findings-v1',findings};
 }
