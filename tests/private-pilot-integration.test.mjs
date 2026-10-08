@@ -150,3 +150,11 @@ test('new PDF immediately clears old citation and page controls',()=>{
 test('new PDF clears old file and extraction status',()=>{
  assert.match(page,/fileState\.textContent='새 PDF 처리 중…';status\.textContent='새 PDF 처리 중…'/);
 });
+
+test('saved review notes pass the same schema as imported notes',()=>{
+ assert.match(page,/validateReviewRecords\(\{schema:'squidlaw-review-v1',records:\[candidate\]\}\)/);
+ assert.match(page,/reviewRecords\.push\(candidate\)/);
+});
+test('stale review imports release only their original selected file',()=>{
+ assert.match(page,/finally\{if\(event\.target\.files\?\.\[0\]===f\)event\.target\.value=''\}/);
+});
