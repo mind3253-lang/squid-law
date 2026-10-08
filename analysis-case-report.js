@@ -28,6 +28,7 @@ export function assembleCaseAnalysis(analysis,comparison){
    findings:findings.length,
    comparisons:comparisons.length,
    missingBatches:analysis.diagnostics.missingBatches??[],
+   analysisFindingsPresent:findings.length>0,
    unreadableDetails:analysis.diagnostics.unreadableDetails??[],
    analysisSourceReady:analysisReady,
    comparisonSourceReady:comparisonReady
