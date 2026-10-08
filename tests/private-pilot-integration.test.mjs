@@ -186,3 +186,7 @@ test('PDF search paginates results and guards against changed source',()=>{
 test('PDF search recovers from out-of-range pages',()=>{
  assert.match(page,/if\(found\.offsetOutOfRange\)\{searchOriginal\(found\.suggestedOffset\);return;\}/);
 });
+
+test('search result buttons reject stale query text before opening a PDF page',()=>{
+ assert.match(page,/searchRevision!==sourceRevision\|\|searchInput\.value\.trim\(\)!==query\|\|!documents\[item\.documentIndex\]/);
+});
