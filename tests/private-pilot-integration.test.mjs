@@ -170,3 +170,8 @@ test('review export validates its payload and refuses malformed records',()=>{
 test('PDF replacement resets the review import status message',()=>{
  assert.match(page,/이전 검토 기록은 초기화했습니다/);
 });
+
+test('review save avoids accidental identical duplicate notes',()=>{
+ assert.match(page,/reviewRecords\.some\(r=>r\.document===candidate\.document&&r\.page===candidate\.page/);
+ assert.match(page,/동일한 검토 기록이 이미 저장되어 있습니다/);
+});
