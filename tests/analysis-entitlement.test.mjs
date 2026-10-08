@@ -1,0 +1,23 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+const src=readFileSync(new URL('../analysis-entitlement.js',import.meta.url),'utf8');
+const {authorizeAnalysisJob}=await import('data:text/javascript;charset=utf-8,'+encodeURIComponent(src));
+const args={entitlementId:'ent_12345678',accountId:'user-1',jobId:'job_12345678',actualPages:50};
+let consumed=0;
+const used=new Set();
+const ledger={async consumeEntitlement(request){
+ consumed++;
+ if(used.has(request.entitlementId)||request.actualPages>50||request.accountId!=='user-1')return {accepted:false};
+ used.add(request.entitlementId);
+ return {accepted:true,jobId:request.jobId};
+}};
+await assert.rejects(authorizeAnalysisJob(args),/DURABLE_LEDGER_REQUIRED/);
+assert.equal(consumed,0);
+const authorized=await authorizeAnalysisJob({...args,ledger});
+assert.equal(authorized.jobId,args.jobId);
+assert.equal(Object.isFrozen(authorized),true);
+await assert.rejects(authorizeAnalysisJob({...args,ledger}),/ENTITLEMENT_NOT_AUTHORIZED/);
+await assert.rejects(authorizeAnalysisJob({...args,actualPages:51,entitlementId:'ent_87654321',ledger}),/ENTITLEMENT_NOT_AUTHORIZED/);
+await assert.rejects(authorizeAnalysisJob({...args,actualPages:0,ledger}),/INVALID_PAGE_COUNT/);
+await assert.rejects(authorizeAnalysisJob({...args,entitlementId:'unpaid',ledger}),/INVALID_ENTITLEMENT_ID/);
+console.log('PASS: paid entitlement requires server ledger and denies reuse or excess pages');
