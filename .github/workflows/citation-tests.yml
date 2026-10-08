@@ -18,6 +18,9 @@ on:
       - 'pilot-analysis-cli.js'
       - 'dry-run-analysis-cli.js'
       - 'analysis-evaluation.js'
+      - 'evaluate-pilot-cli.js'
+      - 'fixtures/synthetic-lease-evaluation.json'
+      - 'tests/evaluate-pilot-cli.test.mjs'
       - 'tests/analysis-evaluation.test.mjs'
       - 'tests/dry-run-analysis-cli.test.mjs'
       - 'tests/pilot-analysis-cli.test.mjs'
@@ -102,6 +105,7 @@ jobs:
           node tests/pilot-analysis-cli.test.mjs
           node tests/dry-run-analysis-cli.test.mjs
           node tests/analysis-evaluation.test.mjs
+          node tests/evaluate-pilot-cli.test.mjs
           node --experimental-default-type=module tests/analysis-private-runner.test.mjs
           node tests/analysis-entitlement.test.mjs
           node --experimental-default-type=module tests/analysis-authorized-runner.test.mjs
