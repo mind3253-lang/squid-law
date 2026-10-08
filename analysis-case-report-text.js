@@ -11,7 +11,20 @@ export function formatCaseReportText(report){
  const documents=new Set();
  for(const f of report.findings)for(const c of Array.isArray(f.citations)?f.citations:[])if(c.document)documents.add(c.document);
  for(const c of report.comparisons)for(const source of Array.isArray(c.citations)?c.citations:[])if(source.document)documents.add(source.document);
+ const sourcePages=new Set();
+ let citationCount=0,matchedCount=0,unmatchedCount=0;
+ for(const f of report.findings)for(const [index,c] of (Array.isArray(f.citations)?f.citations:[]).entries()){
+  citationCount++;
+  sourcePages.add(JSON.stringify([c.document,c.page]));
+  if(f.citationChecks?.[index]?.verification?.status==='matched')matchedCount++;else unmatchedCount++;
+ }
+ for(const c of report.comparisons)for(const source of Array.isArray(c.citations)?c.citations:[]){
+  citationCount++;
+  sourcePages.add(JSON.stringify([source.document,source.page]));
+  if(source.verification?.status==='matched')matchedCount++;else unmatchedCount++;
+ }
  lines.push('분석에서 인용된 문서: '+documents.size+'개');
+ lines.push('분석에서 인용된 서로 다른 원문 페이지: '+sourcePages.size+'쪽');
  if(documents.size)for(const name of documents)lines.push('  · '+name);
  lines.push('');
  lines.push('1. 원문 기반 분석 항목 ('+report.findings.length+'건)');
@@ -57,6 +70,13 @@ export function formatCaseReportText(report){
  const missing=Array.isArray(report.diagnostics?.missingBatches)?report.diagnostics.missingBatches:[];
  if(missing.length)lines.push('- 결과가 누락된 분석 묶음: '+missing.join(', '));
  lines.push('- AI 분석 항목: '+report.findings.length+'건');
+ lines.push('- 출처 인용 총수: '+citationCount+'건');
+ lines.push('- 원문 일치 인용: '+matchedCount+'건');
+ lines.push('- 원문 확인 필요 인용: '+unmatchedCount+'건');
+ const unverifiedFindings=report.findings.filter(f=>!Array.isArray(f.citationChecks)||f.citationChecks.length!==(Array.isArray(f.citations)?f.citations.length:0)||f.citationChecks.some(c=>c.verification?.status!=='matched')).length;
+ lines.push('- 인용 확인이 필요한 분석 항목: '+unverifiedFindings+'건');
+ const unverifiedComparisons=report.comparisons.filter(c=>c.sourceReady!==true).length;
+ lines.push('- 출처 확인이 필요한 비교 후보: '+unverifiedComparisons+'건');
  lines.push('- 서면 간 비교 후보: '+report.comparisons.length+'건');
  lines.push('- 식별되지 않은 페이지: '+skipped.length+'쪽');
  lines.push('- 출처 검산 상태: '+(report.status==='source_checked'?'전체 일치':report.status==='source_checked_partial'?'확인된 인용은 일치하나 일부 페이지 미식별':'추가 확인 필요'));
@@ -67,6 +87,10 @@ export function formatCaseReportText(report){
  lines.push('- 본 보고서의 문서 수는 인용된 문서 수이며, 제출된 전체 PDF 수를 뜻하지 않습니다.');
  lines.push('- AI 분석 항목은 출처가 확인된 주장 및 쟁점의 목록이며, 모든 법률 쟁점의 누락 없는 검토를 뜻하지 않습니다.');
  if(skipped.length)lines.push('- 읽지 못한 페이지는 분석 대상에서 제외되었으므로 중요한 주장·반증이 누락되었을 수 있습니다.');
+ if(unmatchedCount)lines.push('- 원문 확인이 필요한 인용은 보고서에 기재된 원본 PDF 페이지와 직접 대조하세요.');
+ if(missing.length)lines.push('- 누락된 분석 묶음이 있으므로 일부 사건기록은 분석 결과에 반영되지 않았을 수 있습니다.');
+ if(!report.findings.length)lines.push('- 확인 가능한 분석 항목이 없습니다. 자료 부족 또는 AI 출력 누락 여부를 점검하세요.');
+ if(!documents.size)lines.push('- 인용된 문서가 없으므로 제출 문서의 분석 범위를 확인할 수 없습니다.');
  if(relationCounts.conflict_candidate)lines.push('- 충돌 가능성은 주장 간 비교 후보이며 허위 진술 또는 증거 조작을 의미하지 않습니다.');
  lines.push('','5. 검토 안내');
  for(const notice of Array.isArray(report.notices)?report.notices:[])lines.push('- '+String(notice));
