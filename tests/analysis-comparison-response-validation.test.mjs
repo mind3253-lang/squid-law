@@ -1,0 +1,15 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+const read=p=>readFileSync(new URL('../'+p,import.meta.url),'utf8');
+const uri=s=>'data:text/javascript;charset=utf-8,'+encodeURIComponent(s).replace(/'/g,'%27');
+const verification=uri(read('source-verification.js'));
+const source=read('analysis-comparison-response.js').replace("'./source-verification.js'","'"+verification+"'");
+const {validateComparisonResponse}=await import(uri(source));
+const docs=[{name:'원고.pdf',pages:[{text:'계약기간은 5년이라고 주장한다.'}]},{name:'피고.pdf',pages:[{text:'계약기간은 2년이라고 주장한다.'}]}];
+const sources=[{document:'원고.pdf',page:1,quote:'계약기간은 5년이라고 주장한다.'},{document:'피고.pdf',page:1,quote:'계약기간은 2년이라고 주장한다.'}];
+const lead={reference:'소갑 제3호증',sources};
+const response={relation:'different_positions',explanation:'기간 주장이 다름',citations:sources};
+assert.equal(validateComparisonResponse(docs,lead,response).sourceReady,true);
+for(const invalid of [null,{},[],{...lead,sources:[null,sources[1]]},{...lead,sources:[{...sources[0],page:'1'},sources[1]]},{...lead,sources:[{...sources[0],quote:123456789},sources[1]]},{...lead,sources:[{...sources[0],quote:'가         나'},sources[1]]}])assert.throws(()=>validateComparisonResponse(docs,invalid,response),/INVALID_COMPARISON_LEAD/);
+assert.throws(()=>validateComparisonResponse(docs,lead,{...response,citations:[{...sources[0],quote:'원문에 없는 문장'},sources[1]]}),/COMPARISON_CITATION_CHANGED/);
+console.log('PASS: comparison leads and source citations validated before matching');
