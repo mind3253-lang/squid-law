@@ -35,3 +35,7 @@ await assert.rejects(analyzeBatchWithModel(batch,{enabled:true,apiKey:'test-secr
 await assert.rejects(analyzeBatchWithModel(batch,{enabled:true,apiKey:'test-secret',model:'gpt-test',fetchImpl:async()=>({ok:true,json:async()=>({status:'completed',output:[{content:[{type:'refusal',refusal:'Cannot comply'}]}]})})}),/MODEL_REFUSED/);
 await assert.rejects(analyzeBatchWithModel(batch,{enabled:true,apiKey:'test-secret',model:'gpt-test',fetchImpl:async(_url,{signal})=>{await new Promise(resolve=>signal.addEventListener('abort',resolve,{once:true}));throw Error('aborted');},timeoutMs:1000}),/MODEL_REQUEST_TIMEOUT/);
 console.log('PASS: worker stays disabled by default, mock request is private and output is validated');
+
+const configForBodyTimeout={enabled:true,apiKey:'test-secret',model:'gpt-test'};
+// Regression: a timeout while parsing the HTTP body is still a model timeout.
+await assert.rejects(analyzeBatchWithModel(batch,{...configForBodyTimeout,fetchImpl:async(_url,{signal})=>({ok:true,json:async()=>{await new Promise(resolve=>signal.addEventListener('abort',resolve,{once:true}));throw Error('body aborted');}}),timeoutMs:1000}),/MODEL_REQUEST_TIMEOUT/);
