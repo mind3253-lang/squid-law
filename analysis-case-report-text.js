@@ -33,6 +33,10 @@ export function formatCaseReportText(report){
   lines.push('',(i+1)+'. '+String(f.title||'제목 없음'));
   if(typeof f.analysis==='string'&&f.analysis.trim())lines.push('   쟁점 검토: '+f.analysis);
   else lines.push('   쟁점 검토: 별도 설명 없음 · 원문 인용만 제공');
+  for(const [key,label] of [['claim','주장'],['evidence','근거'],['rebuttal','반박·반증'],['proofGap','추가 입증사항']]){
+   if(typeof f[key]==='string'&&f[key].trim())lines.push('   '+label+': '+f[key]);
+   else if(Object.hasOwn(f,key))lines.push('   '+label+': 제출 자료에서 별도 확인되지 않음');
+  }
   if(f.citations?.length>1)lines.push('   복수 출처: '+f.citations.length+'건 · 각 출처의 주장 주체와 의미를 대조하세요.');
   const citations=Array.isArray(f.citations)?f.citations:[];
   if(!citations.length)lines.push('   출처 없음 · 확인 필요');
