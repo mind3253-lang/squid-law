@@ -45,7 +45,13 @@ export function assembleVerifiedCaseAnalysis(documents,analysis,comparison){
  if(!Array.isArray(documents))throw Error('INVALID_DOCUMENTS');
  if(!analysis||!Array.isArray(analysis.findings))throw Error('INVALID_ANALYSIS_RESULT');
  if(!comparison||!Array.isArray(comparison.comparisons))throw Error('INVALID_COMPARISON_RESULT');
- const checkedAnalysis={...analysis,findings:analysis.findings.map(f=>{
+ // Derive omissions from the original uploaded pages, not AI-supplied diagnostics.
+ const unreadableDetails=documents.flatMap(doc=>
+  Array.isArray(doc?.pages)?doc.pages.flatMap((page,index)=>
+   typeof page?.text==='string'&&!page.text.trim()?
+    [{document:doc.name,page:index+1,totalPages:doc.pages.length}]:[]):[]
+ );
+ const checkedAnalysis={...analysis,diagnostics:{...analysis.diagnostics,unreadableDetails},findings:analysis.findings.map(f=>{
   const citations=Array.isArray(f.citations)?f.citations:[];
   return {...f,citations,citationChecks:citations.map(c=>({verification:verifyCitation(documents,c)}))};
  })};
@@ -55,6 +61,7 @@ export function assembleVerifiedCaseAnalysis(documents,analysis,comparison){
   return {...c,citations:verified,sourceReady:verified.length===2&&verified.every(x=>x.verification.status==='matched')};
  })};
  const report=assembleCaseAnalysis(checkedAnalysis,checkedComparison);
+ if(unreadableDetails.length&&report.status==='source_checked')return {...report,status:'source_checked_partial'};
  // A zero-finding analysis must never pass a vacuous every() check.
  if(report.findings.length===0)return {...report,status:'needs_source_review',diagnostics:{...report.diagnostics,analysisSourceReady:false}};
  return report;
