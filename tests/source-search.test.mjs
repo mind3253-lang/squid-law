@@ -13,3 +13,19 @@ test('search preserves document and page navigation',()=>{const r=searchDocument
 
 test('search matches phrases spanning a PDF line break',()=>assert.equal(searchDocumentPages(docs,'첫 줄 둘째 줄').total,1));
 test('search normalizes compatibility Unicode',()=>assert.equal(searchDocumentPages([{name:'a',pages:[{text:'ＡＢＣ 서류'}]}],'ABC').total,1));
+
+test('search paginates without repeating prior matches',()=>{
+ const first=searchDocumentPages(docs,'계약',{limit:1,offset:0});
+ const second=searchDocumentPages(docs,'계약',{limit:1,offset:1});
+ const last=searchDocumentPages(docs,'계약',{limit:1,offset:2});
+ assert.equal(first.results[0].pageIndex,0);
+ assert.equal(second.results[0].pageIndex,1);
+ assert.equal(last.results[0].documentIndex,1);
+ assert.equal(first.hasNext,true);
+ assert.equal(last.hasNext,false);
+ assert.equal(last.hasPrevious,true);
+});
+test('invalid search offsets are rejected',()=>{
+ assert.throws(()=>searchDocumentPages(docs,'계약',{offset:-1}),/INVALID_SEARCH_OFFSET/);
+ assert.throws(()=>searchDocumentPages(docs,'계약',{offset:1.5}),/INVALID_SEARCH_OFFSET/);
+});
