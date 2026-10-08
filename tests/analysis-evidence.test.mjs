@@ -106,3 +106,16 @@ test('comparison cap is marked truncated only after a second eligible lead exist
  assert.equal(complete.leads.length,2);
  assert.equal(complete.diagnostics.truncated,false);
 });
+
+test('alternate spellings of one exhibit in the same passage do not duplicate a comparison',()=>{
+ const source=[
+  {name:'one.pdf',pages:[{text:'원고는 소갑 제55호증과 갑 제55호증을 동일한 계약자료로 언급하며 기간 5년을 주장한다.'}]},
+  {name:'two.pdf',pages:[{text:'피고는 갑 제55호증을 언급하며 기간 2년을 주장한다.'}]}
+ ];
+ const evidence=buildEvidenceMap(buildLocalIndex(source));
+ const shared=evidence.find(x=>x.documentCount===2);
+ assert.equal(shared.occurrences.length,2);
+ const comparison=buildVerifiedComparisonReport(source,{maxLeads:1});
+ assert.equal(comparison.leads.length,1);
+ assert.equal(comparison.diagnostics.truncated,false);
+});
