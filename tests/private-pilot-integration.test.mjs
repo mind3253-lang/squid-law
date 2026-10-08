@@ -119,3 +119,12 @@ test('review labels are explicitly user classifications',()=>{
  assert.match(page,/\[사용자 분류: '\+record\.status/);
  assert.match(page,/인용 문구 일치 \(사실관계 확정 아님\)/);
 });
+
+test('page preview handles missing pages safely',()=>{
+ assert.match(page,/const p=d\?\.pages\[Number\(pageSelect\.value\)\]/);
+ assert.match(page,/if\(!p\)\{textView\.textContent='선택한 페이지가 없습니다\.'/);
+});
+test('clipboard completion cannot overwrite status after PDF replacement',()=>{
+ assert.match(page,/const revision=sourceRevision;const docIndex=Number\(docSelect\.value\)/);
+ assert.match(page,/if\(revision===sourceRevision&&Number\(docSelect\.value\)===docIndex/);
+});
