@@ -52,4 +52,6 @@ assert.equal(structured.findings[0].proofGap,'변경합의 확인 필요');
 assert.throws(()=>validateFindingsPayload({schema:'squidlaw-findings-v1',findings:[{title:'초과',claim:'x'.repeat(901),citations:[]}]}),/INVALID_FINDING_SECTION/);
 const structuredText=formatCaseReportText({schema:'squidlaw-case-analysis-v1',status:'needs_source_review',findings:structured.findings,comparisons:[],diagnostics:{},notices:[]});
 for(const term of ['주장: 원고 5년 주장','근거: 계약서 5년 문구','반박·반증: 피고 2년 주장','추가 입증사항: 변경합의 확인 필요'])assert.ok(structuredText.includes(term));
+for(const term of ['반박·반증 기재 항목: 1건','추가 입증사항 기재 항목: 1건','반박·반증이 확인된 쟁점','추가 입증 검토가 필요한 쟁점','원문 인용 검산: 원문 대조 필요'])assert.ok(structuredText.includes(term),'Missing structured report summary: '+term);
+assert.match(report,/원문 인용 검산: 인용 일치/);
 console.log('PASS: customer module syntax and comparison preview wiring are valid');
