@@ -4,11 +4,11 @@ const src=readFileSync(new URL('../analysis-quality.js',import.meta.url),'utf8')
 const {summarizeCitationChecks,isSourceReadyForReview}=await import('data:text/javascript;charset=utf-8,'+encodeURIComponent(src));
 const matched={verification:{status:'matched'}};
 const missing={verification:{status:'missing_document'}};
-const good=[{citationChecks:[matched,matched]},{citationChecks:[matched]}];
+const good=[{citations:[{document:'a.pdf',page:1,quote:'원문 인용 첫 번째'},{document:'a.pdf',page:2,quote:'원문 인용 두 번째'}],citationChecks:[matched,matched]},{citations:[{document:'b.pdf',page:1,quote:'원문 인용 세 번째'}],citationChecks:[matched]}];
 assert.deepEqual({...summarizeCitationChecks(good).byStatus},{matched:3});
 assert.equal(summarizeCitationChecks(good).verifiedFindings,2);
 assert.equal(isSourceReadyForReview(good),true);
-const mixed=[...good,{citationChecks:[matched,missing]},{citationChecks:[]}];
+const mixed=[...good,{citations:[{document:'c.pdf',page:1,quote:'원문 인용 네 번째'},{document:'c.pdf',page:2,quote:'원문 인용 다섯 번째'}],citationChecks:[matched,missing]},{citations:[],citationChecks:[]}];
 const result=summarizeCitationChecks(mixed);
 assert.equal(result.findings,4);
 assert.equal(result.verifiedFindings,2);
