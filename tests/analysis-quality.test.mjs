@@ -41,3 +41,5 @@ assert.equal(isSourceReadyForReview([{citations:[{document:'a.pdf',page:'1',quot
 assert.equal(isSourceReadyForReview([{citations:[{document:'a.pdf',page:1,quote:'짧은말'}],citationChecks:[matched]}]),false);
 
 assert.equal(isSourceReadyForReview([{citations:[{document:'a.pdf',page:1,quote:'가          나'}],citationChecks:[matched]}]),false);
+
+for(const invalid of [{},'not-an-array',42])assert.throws(()=>summarizeCitationChecks(invalid),/INVALID_CHECKED_FINDINGS/);
