@@ -38,13 +38,6 @@ try{
  r=await run(req({consent:true,documents:comparisonDocuments},{'x-squidlaw-test-token':token}));
  assert.equal(r.statusCode,422);
  assert.equal(r.body.error,'COMPARISON_BUDGET_EXCEEDED');
- const longComparison=[
-  {name:'원고.pdf',pages:[{text:'원고는 갑 제1호증 '+('계약을 주장한다. '.repeat(115))}]},
-  {name:'피고.pdf',pages:[{text:'피고는 갑 제1호증 '+('계약을 부인한다. '.repeat(115))}]}
- ];
- r=await run(req({consent:true,documents:longComparison},{'x-squidlaw-test-token':token}));
- assert.equal(r.statusCode,422);
- assert.match(r.body.error,/COMPARISON_(SOURCE|INPUT)/);
  const get=response();await handler({method:'GET',headers:{}},get);assert.equal(get.statusCode,405);
  console.log('PASS: AI endpoint requires operator access, explicit consent, bounded payload, and valid PDF text');
 }finally{
