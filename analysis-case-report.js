@@ -2,8 +2,8 @@ import {verifyCitation} from './source-verification.js';
 // Assemble a private case-analysis result without conflating source matches with truth.
 // Neither analysis nor comparison may be represented as complete if any source check fails.
 export function assembleCaseAnalysis(analysis,comparison){
- if(!analysis||analysis.schema!=='squidlaw-merged-analysis-v1'||!Array.isArray(analysis.findings)||!analysis.diagnostics||typeof analysis.diagnostics!=='object')throw Error('INVALID_ANALYSIS_RESULT');
- if(!comparison||comparison.schema!=='squidlaw-private-comparisons-v1'||!Array.isArray(comparison.comparisons)||!comparison.diagnostics||typeof comparison.diagnostics!=='object')throw Error('INVALID_COMPARISON_RESULT');
+ if(!analysis||analysis.schema!=='squidlaw-merged-analysis-v1'||!Array.isArray(analysis.findings)||!analysis.diagnostics||typeof analysis.diagnostics!=='object'||Array.isArray(analysis.diagnostics)||!Array.isArray(analysis.diagnostics.missingBatches??[]))throw Error('INVALID_ANALYSIS_RESULT');
+ if(!comparison||comparison.schema!=='squidlaw-private-comparisons-v1'||!Array.isArray(comparison.comparisons)||!comparison.diagnostics||typeof comparison.diagnostics!=='object'||Array.isArray(comparison.diagnostics))throw Error('INVALID_COMPARISON_RESULT');
  if(analysis.findings.some(f=>!f||typeof f!=='object')||comparison.comparisons.some(c=>!c||typeof c!=='object'))throw Error('INVALID_REPORT_ENTRY');
  const findings=analysis.findings.map(f=>({
   title:f.title,
@@ -20,7 +20,7 @@ export function assembleCaseAnalysis(analysis,comparison){
   sourceReady:c.sourceReady===true
  }));
  const validCitation=c=>!!c&&typeof c.document==='string'&&c.document.trim().length>0&&Number.isInteger(c.page)&&c.page>0&&typeof c.quote==='string'&&c.quote.normalize('NFKC').replace(/\s+/g,' ').trim().length>=8;
- const analysisReady=analysis.sourceReady===true&&(!Array.isArray(analysis.diagnostics.missingBatches)||analysis.diagnostics.missingBatches.length===0)&&findings.length>0&&findings.every(f=>Array.isArray(f.citations)&&f.citations.length>0&&Array.isArray(f.citationChecks)&&f.citationChecks.length===f.citations.length&&f.citations.every(validCitation)&&f.citationChecks.every(c=>c?.verification?.status==='matched'));
+ const analysisReady=analysis.sourceReady===true&&analysis.diagnostics.missingBatches.length===0&&findings.length>0&&findings.every(f=>Array.isArray(f.citations)&&f.citations.length>0&&Array.isArray(f.citationChecks)&&f.citationChecks.length===f.citations.length&&f.citations.every(validCitation)&&f.citationChecks.every(c=>c?.verification?.status==='matched'));
  const comparisonReady=comparison.sourceReady===true&&comparisons.every(c=>c.sourceReady===true&&Array.isArray(c.citations)&&c.citations.length===2&&c.citations.every(x=>validCitation(x)&&x.verification?.status==='matched'));
  return {
   schema:'squidlaw-case-analysis-v1',
@@ -51,8 +51,8 @@ export function assembleCaseAnalysis(analysis,comparison){
 export function assembleVerifiedCaseAnalysis(documents,analysis,comparison){
  if(!Array.isArray(documents)||documents.some(doc=>!doc||typeof doc!=='object'||typeof doc.name!=='string'||!doc.name.trim()||!Array.isArray(doc.pages)||doc.pages.some(page=>!page||typeof page!=='object'||typeof page.text!=='string')))throw Error('INVALID_DOCUMENTS');
  if(new Set(documents.map(doc=>doc.name)).size!==documents.length)throw Error('DUPLICATE_DOCUMENT_NAME');
- if(!analysis||analysis.schema!=='squidlaw-merged-analysis-v1'||!Array.isArray(analysis.findings)||!analysis.diagnostics||typeof analysis.diagnostics!=='object')throw Error('INVALID_ANALYSIS_RESULT');
- if(!comparison||comparison.schema!=='squidlaw-private-comparisons-v1'||!Array.isArray(comparison.comparisons)||!comparison.diagnostics||typeof comparison.diagnostics!=='object')throw Error('INVALID_COMPARISON_RESULT');
+ if(!analysis||analysis.schema!=='squidlaw-merged-analysis-v1'||!Array.isArray(analysis.findings)||!analysis.diagnostics||typeof analysis.diagnostics!=='object'||Array.isArray(analysis.diagnostics)||!Array.isArray(analysis.diagnostics.missingBatches??[]))throw Error('INVALID_ANALYSIS_RESULT');
+ if(!comparison||comparison.schema!=='squidlaw-private-comparisons-v1'||!Array.isArray(comparison.comparisons)||!comparison.diagnostics||typeof comparison.diagnostics!=='object'||Array.isArray(comparison.diagnostics))throw Error('INVALID_COMPARISON_RESULT');
  // Derive omissions from the original uploaded pages, not AI-supplied diagnostics.
  const unreadableDetails=documents.flatMap(doc=>
   Array.isArray(doc?.pages)?doc.pages.flatMap((page,index)=>
