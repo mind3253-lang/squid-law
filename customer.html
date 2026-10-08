@@ -133,6 +133,7 @@ document.getElementById('review-save').addEventListener('click',()=>{
  if(!selectedReview)return;
  const status=document.getElementById('review-status').value;
  const note=document.getElementById('review-note').value.trim();
+ reviewImportRevision++;
  reviewRecords.push({...selectedReview,status,note});
  renderReviews();
 });
@@ -153,7 +154,7 @@ document.getElementById('review-import').addEventListener('change',async event=>
    if(!x||typeof x.document!=='string'||x.document.length>300||!Number.isInteger(x.page)||x.page<1||typeof x.text!=='string'||x.text.length>1200||typeof x.note!=='string'||x.note.length>10000||!allowed.has(x.status))throw Error('검토 기록의 항목 형식이 올바르지 않습니다.');
    return {document:x.document,page:x.page,text:x.text,status:x.status,note:x.note};
   });
-  reviewRecords=checked;renderReviews();
+  reviewRecords=checked;reviewImportRevision++;renderReviews();
   info.textContent=checked.length+'건을 불러왔습니다. 원본 PDF와 일치하는지는 직접 확인해야 합니다.';
  }catch(e){if(sourceRevision===requestSourceRevision&&reviewImportRevision===requestReviewRevision)info.textContent='불러오기 실패: SQUID LAW 검토 기록 JSON 파일인지 확인하세요.';}
  event.target.value='';
