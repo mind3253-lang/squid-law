@@ -9,27 +9,25 @@ export function formatCaseReportText(report){
  if(!report||report.schema!=='squidlaw-case-analysis-v1'||!Array.isArray(report.findings)||!Array.isArray(report.comparisons))throw Error('INVALID_CASE_REPORT');
  const lines=['SQUID LAW · 사건자료 분석 보고서','',report.status==='source_checked'?'출처 검산: 원문 일치':report.status==='source_checked_partial'?'출처 검산: 일부 페이지 미식별':'출처 검산: 확인 필요',''];
  const documents=new Set();
- for(const f of report.findings)for(const c of Array.isArray(f.citations)?f.citations:[])if(c.document)documents.add(c.document);
- for(const c of report.comparisons)for(const source of Array.isArray(c.citations)?c.citations:[])if(source.document)documents.add(source.document);
+ for(const f of report.findings)for(const [i,c] of (Array.isArray(f.citations)?f.citations:[]).entries())if(c.document&&f.citationChecks?.[i]?.verification?.status==='matched')documents.add(c.document);
+ for(const c of report.comparisons)for(const source of Array.isArray(c.citations)?c.citations:[])if(source.document&&source.verification?.status==='matched')documents.add(source.document);
  const sourcePages=new Set();
  let citationCount=0,matchedCount=0,unmatchedCount=0;
  for(const f of report.findings)for(const [index,c] of (Array.isArray(f.citations)?f.citations:[]).entries()){
   citationCount++;
-  sourcePages.add(JSON.stringify([c.document,c.page]));
-  if(f.citationChecks?.[index]?.verification?.status==='matched')matchedCount++;else unmatchedCount++;
+  if(f.citationChecks?.[index]?.verification?.status==='matched'){matchedCount++;sourcePages.add(JSON.stringify([c.document,c.page]));}else unmatchedCount++;
  }
  for(const c of report.comparisons)for(const source of Array.isArray(c.citations)?c.citations:[]){
   citationCount++;
-  sourcePages.add(JSON.stringify([source.document,source.page]));
-  if(source.verification?.status==='matched')matchedCount++;else unmatchedCount++;
+  if(source.verification?.status==='matched'){matchedCount++;sourcePages.add(JSON.stringify([source.document,source.page]));}else unmatchedCount++;
  }
  const submitted=Array.isArray(report.diagnostics?.submittedDocuments)?report.diagnostics.submittedDocuments:[];
  if(submitted.length){
   lines.push('제출된 문서: '+submitted.length+'개');
   for(const item of submitted)lines.push('  · '+String(item.name||'문서 미상')+' · 총 '+String(item.pageCount??'?')+'쪽');
  }
- lines.push('분석에서 인용된 문서: '+documents.size+'개');
- lines.push('분석에서 인용된 서로 다른 원문 페이지: '+sourcePages.size+'쪽');
+ lines.push('원문 일치가 확인된 인용 문서: '+documents.size+'개');
+ lines.push('원문 일치가 확인된 서로 다른 페이지: '+sourcePages.size+'쪽');
  if(documents.size)for(const name of documents)lines.push('  · '+name);
  lines.push('');
  lines.push('1. 원문 기반 분석 항목 ('+report.findings.length+'건)');
