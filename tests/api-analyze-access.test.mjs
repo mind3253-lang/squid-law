@@ -24,6 +24,12 @@ try{
  r=await run(req({consent:true,documents:[{name:'synthetic.pdf',pages:[{text:''}]}]},{'x-squidlaw-test-token':token}));assert.equal(r.statusCode,422);assert.equal(r.body.error,'NO_READABLE_TEXT');
  r=await run(req({consent:true,documents:[{name:'oversized.pdf',pages:[{text:'x'.repeat(30001)}]}]},{'x-squidlaw-test-token':token}));assert.equal(r.statusCode,422);assert.equal(r.body.error,'SOURCE_PAGE_TOO_LARGE');
  r=await run({...req({consent:true,documents:[]},{'x-squidlaw-test-token':token,'content-length':'160001'})});assert.equal(r.statusCode,413);
+ for(const invalidLength of ['-1','1.5','not-a-number','9007199254740992']){
+  r=await run(req({consent:true,documents:[]},{'x-squidlaw-test-token':token,'content-length':invalidLength}));
+  assert.equal(r.statusCode,413,'Invalid content-length should be rejected: '+invalidLength);
+ }
+ r=await run({method:'POST',body:{consent:true,documents:[]}});
+ assert.equal(r.statusCode,401);
  const refs=Array.from({length:7},(_,i)=>'갑 제'+(i+1)+'호증').join(' ');
  const comparisonDocuments=[
   {name:'원고.pdf',pages:[{text:'원고는 '+refs+'에 기초하여 청구한다.'}]},
