@@ -71,7 +71,7 @@ export function formatCaseReportText(report){
   const grouped=new Map();
   for(const item of skipped){
    if(!item||typeof item.document!=='string'||!Number.isInteger(item.page))continue;
-   const key=item.document+'\\u0000'+item.totalPages;
+   const key=JSON.stringify([item.document,item.totalPages]);
    if(!grouped.has(key))grouped.set(key,{document:item.document,totalPages:item.totalPages,pages:[]});
    grouped.get(key).pages.push(item.page);
   }
