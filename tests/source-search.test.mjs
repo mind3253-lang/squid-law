@@ -29,3 +29,17 @@ test('invalid search offsets are rejected',()=>{
  assert.throws(()=>searchDocumentPages(docs,'계약',{offset:-1}),/INVALID_SEARCH_OFFSET/);
  assert.throws(()=>searchDocumentPages(docs,'계약',{offset:1.5}),/INVALID_SEARCH_OFFSET/);
 });
+
+test('out of range pagination suggests the final populated page',()=>{
+ const r=searchDocumentPages(docs,'계약',{limit:1,offset:100});
+ assert.equal(r.total,3);
+ assert.equal(r.results.length,0);
+ assert.equal(r.offsetOutOfRange,true);
+ assert.equal(r.suggestedOffset,2);
+});
+test('empty search has no previous page even when offset was supplied',()=>{
+ const r=searchDocumentPages(docs,'없는표현',{offset:100});
+ assert.equal(r.total,0);
+ assert.equal(r.hasPrevious,false);
+ assert.equal(r.suggestedOffset,0);
+});
