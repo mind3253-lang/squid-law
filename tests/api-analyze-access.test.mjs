@@ -24,6 +24,14 @@ try{
  r=await run(req({consent:true,documents:[{name:'synthetic.pdf',pages:[{text:''}]}]},{'x-squidlaw-test-token':token}));assert.equal(r.statusCode,422);assert.equal(r.body.error,'NO_READABLE_TEXT');
  r=await run(req({consent:true,documents:[{name:'oversized.pdf',pages:[{text:'x'.repeat(30001)}]}]},{'x-squidlaw-test-token':token}));assert.equal(r.statusCode,422);assert.equal(r.body.error,'SOURCE_PAGE_TOO_LARGE');
  r=await run({...req({consent:true,documents:[]},{'x-squidlaw-test-token':token,'content-length':'160001'})});assert.equal(r.statusCode,413);
+ const refs=Array.from({length:7},(_,i)=>'갑 제'+(i+1)+'호증').join(' ');
+ const comparisonDocuments=[
+  {name:'원고.pdf',pages:[{text:'원고는 '+refs+'에 기초하여 청구한다.'}]},
+  {name:'피고.pdf',pages:[{text:'피고는 '+refs+'의 내용을 다투고 있다.'}]}
+ ];
+ r=await run(req({consent:true,documents:comparisonDocuments},{'x-squidlaw-test-token':token}));
+ assert.equal(r.statusCode,422);
+ assert.equal(r.body.error,'COMPARISON_BUDGET_EXCEEDED');
  const get=response();await handler({method:'GET',headers:{}},get);assert.equal(get.statusCode,405);
  console.log('PASS: AI endpoint requires operator access, explicit consent, bounded payload, and valid PDF text');
 }finally{
