@@ -51,7 +51,7 @@ export async function analyzeBatchWithModel(batch,{
       }
      }
     }},
-    max_output_tokens:5000,
+    max_output_tokens:9000,
     store:false
    }),
    signal:controller.signal
