@@ -18,6 +18,8 @@ on:
       - 'pilot-analysis-cli.js'
       - 'dry-run-analysis-cli.js'
       - 'analysis-evaluation.js'
+      - 'analysis-cross-document.js'
+      - 'tests/analysis-cross-document.test.mjs'
       - 'evaluate-pilot-cli.js'
       - 'fixtures/synthetic-lease-evaluation.json'
       - 'tests/evaluate-pilot-cli.test.mjs'
@@ -106,6 +108,7 @@ jobs:
           node tests/pilot-analysis-cli.test.mjs
           node tests/dry-run-analysis-cli.test.mjs
           node tests/analysis-evaluation.test.mjs
+          node tests/analysis-cross-document.test.mjs
           node tests/evaluate-pilot-cli.test.mjs
           node tests/analysis-ai-quality-integration.test.mjs
           node --experimental-default-type=module tests/analysis-private-runner.test.mjs
