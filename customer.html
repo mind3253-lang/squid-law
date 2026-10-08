@@ -358,7 +358,7 @@ fileInput.addEventListener('change',async e=>{
  let pages=0,failed=0,empty=0,skipped=0,duplicateSkipped=0;const seenNames=new Set();const MAX_FILE_BYTES=30*1024*1024,MAX_TOTAL_PAGES=300;
  for(const f of selectedFiles){
   if(extractionRevision!==sourceRevision)return;
-  if(!/\.pdf$/i.test(f.name)&&f.type!=='application/pdf'){failed++;continue;}if(seenNames.has(f.name)){duplicateSkipped++;continue;}seenNames.add(f.name);if(f.size>MAX_FILE_BYTES){skipped++;status.textContent=f.name+' : 30MB 초과로 제외';continue;}
+  if(!/\.pdf$/i.test(f.name)&&f.type!=='application/pdf'){failed++;continue;}if(seenNames.has(f.name)){duplicateSkipped++;continue;}if(f.size>MAX_FILE_BYTES){skipped++;status.textContent=f.name+' : 30MB 초과로 제외';continue;}
   status.textContent=f.name+' 처리 중…';
   let pdf=null,committed=false;
   try{
@@ -379,7 +379,7 @@ fileInput.addEventListener('change',async e=>{
     d.pages.push({text:extracted});
    }
    if(extractionRevision!==sourceRevision)return;
-   documents.push(d);pdfInstances.push(pdf);committed=true;
+   documents.push(d);pdfInstances.push(pdf);seenNames.add(f.name);committed=true;
    pages+=d.pages.length;empty+=documentEmpty;
   }catch{if(extractionRevision!==sourceRevision)return;failed++;}
   finally{if(pdf&&!committed){try{await pdf.destroy()}catch{}}}
