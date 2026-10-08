@@ -10,7 +10,8 @@ const analysis={schema:'squidlaw-merged-analysis-v1',sourceReady:true,diagnostic
 const comparison={schema:'squidlaw-private-comparisons-v1',sourceReady:false,diagnostics:{},comparisons:[]};
 const report=assembleVerifiedCaseAnalysis(docs,analysis,comparison);
 const txt=formatCaseReportText(report);
-assert.match(txt,/「계약서.pdf」 총 3페이지 중 2페이지는 내용을 식별할 수 없어/);
+assert.match(txt,/「계약서.pdf」 총 3페이지 중 2페이지는 텍스트를 추출하지 못하여/);
+assert.match(txt,/이미지나 스캔 원본의 글씨도 흐릿하여 실제로 판독하기 어렵다면/);
 assert.match(txt,/선명하게 다시 스캔한 후 업로드/);
 assert.match(txt,/재판부가 판독하기 어려워 원본 제출/);
 assert.match(txt,/텍스트 추출 실패만으로 원본 자체가 판독 불가능하다고 단정할 수는 없습니다/);
