@@ -20,3 +20,9 @@ assert.equal(result.byStatus.missing_document,1);
 assert.equal(isSourceReadyForReview(mixed),false);
 assert.equal(isSourceReadyForReview([]),false);
 console.log('PASS: citation coverage counts, missing citations, and source readiness gate');
+
+const mismatched=[{citations:[{document:'a.pdf',page:1,quote:'인용 1'},{document:'a.pdf',page:2,quote:'인용 2'}],citationChecks:[matched]}];
+assert.equal(summarizeCitationChecks(mismatched).verifiedFindings,0);
+assert.equal(summarizeCitationChecks(mismatched).needsReviewFindings,1);
+assert.equal(isSourceReadyForReview(mismatched),false);
+assert.equal(isSourceReadyForReview([null]),false);
