@@ -1,0 +1,26 @@
+import assert from 'node:assert/strict';
+import handler from '../api/analyze.js';
+
+const prior={...process.env};
+const token='operator-test-token-very-long-123456';
+function req(body={},headers={}){return {method:'POST',headers,body};}
+function response(){return {statusCode:200,headers:{},setHeader(k,v){this.headers[k]=v;},status(code){this.statusCode=code;return this;},json(data){this.body=data;return this;}};}
+async function run(request){const res=response();await handler(request,res);return res;}
+try{
+ delete process.env.SQUIDLAW_AI_TEST_ENABLED;
+ let r=await run(req());assert.equal(r.statusCode,503);assert.equal(r.body.error,'AI_TEST_DISABLED');
+ process.env.SQUIDLAW_AI_TEST_ENABLED='true';
+ delete process.env.SQUIDLAW_AI_TEST_TOKEN;
+ r=await run(req());assert.equal(r.statusCode,503);assert.equal(r.body.error,'TEST_TOKEN_NOT_CONFIGURED');
+ process.env.SQUIDLAW_AI_TEST_TOKEN=token;
+ r=await run(req());assert.equal(r.statusCode,401);assert.equal(r.body.error,'UNAUTHORIZED');
+ process.env.OPENAI_API_KEY='test-key-never-sent';
+ r=await run(req({consent:false,documents:[]},{'x-squidlaw-test-token':token}));assert.equal(r.statusCode,400);assert.equal(r.body.error,'EXTERNAL_AI_CONSENT_REQUIRED');
+ r=await run(req({consent:true,documents:[]},{'x-squidlaw-test-token':token}));assert.equal(r.statusCode,422);assert.equal(r.body.error,'INVALID_DOCUMENT_COUNT');
+ r=await run(req({consent:true,documents:[{name:'synthetic.pdf',pages:[{text:''}]}]},{'x-squidlaw-test-token':token}));assert.equal(r.statusCode,422);assert.equal(r.body.error,'NO_READABLE_TEXT');
+ r=await run({...req({consent:true,documents:[]},{'x-squidlaw-test-token':token,'content-length':'160001'})});assert.equal(r.statusCode,413);
+ const get=response();await handler({method:'GET',headers:{}},get);assert.equal(get.statusCode,405);
+ console.log('PASS: AI endpoint requires operator access, explicit consent, bounded payload, and valid PDF text');
+}finally{
+ for(const k of ['SQUIDLAW_AI_TEST_ENABLED','SQUIDLAW_AI_TEST_TOKEN','OPENAI_API_KEY']){if(prior[k]===undefined)delete process.env[k];else process.env[k]=prior[k];}
+}
