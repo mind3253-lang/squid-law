@@ -9,6 +9,7 @@ on:
       - 'source-verification.js'
       - 'private-pilot-validation.js'
       - 'private-pilot-input.js'
+      - 'private-pilot-digest.js'
       - 'scripts/private-model-pilot.mjs'
       - 'findings-schema.js'
       - 'analysis-quality.js'
@@ -18,6 +19,7 @@ on:
     paths:
       - 'private-pilot-validation.js'
       - 'private-pilot-input.js'
+      - 'private-pilot-digest.js'
       - 'scripts/private-model-pilot.mjs'
       - 'findings-schema.js'
       - 'analysis-quality.js'
