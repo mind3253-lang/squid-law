@@ -51,3 +51,29 @@ test('API requires explicit consent and never exposes a model key',async()=>{
   }
  }
 });
+
+test('API rejects invalid document counts before paid analysis',async()=>{
+ const saved={enabled:process.env.SQUIDLAW_AI_TEST_ENABLED,token:process.env.SQUIDLAW_AI_TEST_TOKEN,key:process.env.OPENAI_API_KEY};
+ try{
+  process.env.SQUIDLAW_AI_TEST_ENABLED='true';
+  process.env.SQUIDLAW_AI_TEST_TOKEN='a'.repeat(32);
+  process.env.OPENAI_API_KEY='unit-test-placeholder';
+  const result=await invoke({consent:true,documents:[]});
+  assert.equal(result.status,422);
+  assert.equal(result.payload.error,'INVALID_DOCUMENT_COUNT');
+ }finally{
+  for(const [key,val] of Object.entries({SQUIDLAW_AI_TEST_ENABLED:saved.enabled,SQUIDLAW_AI_TEST_TOKEN:saved.token,OPENAI_API_KEY:saved.key})){
+   if(val===undefined)delete process.env[key];else process.env[key]=val;
+  }
+ }
+});
+
+test('API refuses non-POST requests without revealing configuration',async()=>{
+ const req={method:'GET',headers:{}};
+ const result=await new Promise((resolve,reject)=>{
+  const res={setHeader(){return this},status(code){this.code=code;return this},json(payload){resolve({status:this.code,payload});return this}};
+  Promise.resolve(handler(req,res)).catch(reject);
+ });
+ assert.equal(result.status,405);
+ assert.equal(result.payload.error,'METHOD_NOT_ALLOWED');
+});
