@@ -18,6 +18,7 @@ assert.equal(result.diagnostics.unreadablePages,0);
 assert.equal(result.diagnostics.verifiedCitationCount,3);
 assert.equal(result.diagnostics.unverifiedCitationCount,0);
 assert.deepEqual(result.diagnostics.unknownCitationDocuments,[]);
+assert.equal(result.diagnostics.verifiedPageCoveragePercent,100);
 assert.match(result.text,/최종 원문 재검증 일치 인용: 3건/);
 assert.match(result.text,/최종 원문 재검증 확인 필요 인용: 0건/);
 assert.deepEqual(result.diagnostics.uncitedDocuments,[]);
