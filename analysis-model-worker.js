@@ -59,8 +59,10 @@ export async function analyzeBatchWithModel(batch,{
   if(!response||!response.ok)throw Error('MODEL_REQUEST_FAILED');
   const data=await response.json();
   if(data.status==='incomplete')throw Error('MODEL_RESPONSE_INCOMPLETE');
+  if(data.incomplete_details)throw Error('MODEL_RESPONSE_INCOMPLETE');
   if(data.status&&data.status!=='completed')throw Error('MODEL_RESPONSE_NOT_COMPLETED');
   if(data.error)throw Error('MODEL_RESPONSE_ERROR');
+  if(data.output&& !Array.isArray(data.output))throw Error('INVALID_MODEL_OUTPUT');
   if((Array.isArray(data.output)?data.output:[]).some(item=>item.type==='refusal'||(Array.isArray(item.content)&&item.content.some(part=>part.type==='refusal'))))throw Error('MODEL_REFUSED');
   const raw=(Array.isArray(data.output)?data.output:[])
    .flatMap(item=>Array.isArray(item.content)?item.content:[])
