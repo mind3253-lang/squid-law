@@ -1,3 +1,4 @@
+import {verifyCitation} from './source-verification.js';
 // Assemble a private case-analysis result without conflating source matches with truth.
 // Neither analysis nor comparison may be represented as complete if any source check fails.
 export function assembleCaseAnalysis(analysis,comparison){
@@ -33,4 +34,27 @@ export function assembleCaseAnalysis(analysis,comparison){
    'AI가 제시한 주장 차이와 충돌 가능성은 사람의 검토가 필요한 해석 후보입니다.'
   ]
  };
+}
+
+/**
+ * Recheck every final-report citation against original uploaded page text.
+ * Previously stored verification flags are untrusted at the export boundary.
+ */
+export function assembleVerifiedCaseAnalysis(documents,analysis,comparison){
+ if(!Array.isArray(documents))throw Error('INVALID_DOCUMENTS');
+ if(!analysis||!Array.isArray(analysis.findings))throw Error('INVALID_ANALYSIS_RESULT');
+ if(!comparison||!Array.isArray(comparison.comparisons))throw Error('INVALID_COMPARISON_RESULT');
+ const checkedAnalysis={...analysis,findings:analysis.findings.map(f=>{
+  const citations=Array.isArray(f.citations)?f.citations:[];
+  return {...f,citations,citationChecks:citations.map(c=>({verification:verifyCitation(documents,c)}))};
+ })};
+ const checkedComparison={...comparison,comparisons:comparison.comparisons.map(c=>{
+  const citations=Array.isArray(c.citations)?c.citations:[];
+  const verified=citations.map(source=>({...source,verification:verifyCitation(documents,source)}));
+  return {...c,citations:verified,sourceReady:verified.length===2&&verified.every(x=>x.verification.status==='matched')};
+ })};
+ const report=assembleCaseAnalysis(checkedAnalysis,checkedComparison);
+ // A zero-finding analysis must never pass a vacuous every() check.
+ if(report.findings.length===0)return {...report,status:'needs_source_review',diagnostics:{...report.diagnostics,analysisSourceReady:false}};
+ return report;
 }
