@@ -50,7 +50,7 @@ export function formatCaseReportText(report){
   const citations=Array.isArray(f.citations)?f.citations:[];
   if(!citations.length)lines.push('   출처 없음 · 확인 필요');
   citations.forEach((c,j)=>{
-   const check=f.citationChecks?.[j]?.verification?.status;
+   const check=validCitation(c)?f.citationChecks?.[j]?.verification?.status:undefined;
    lines.push('   출처: '+String(c.document||'문서 미상')+' · '+String(c.page||'?')+'쪽 · '+status(check));
    lines.push('   인용: '+String(c.quote||''));
   });
@@ -61,7 +61,7 @@ export function formatCaseReportText(report){
   lines.push('',(i+1)+'. '+String(c.reference||'공통 번호 없음')+' · '+(relations[c.relation]||'분류 확인 필요'));
   lines.push('   비교 해석: '+String(c.explanation||'해석 없음'));
   for(const source of Array.isArray(c.citations)?c.citations:[]){
-   lines.push('   출처: '+String(source.document||'문서 미상')+' · '+String(source.page||'?')+'쪽 · '+status(source.verification?.status));
+   lines.push('   출처: '+String(source.document||'문서 미상')+' · '+String(source.page||'?')+'쪽 · '+status(validCitation(source)?source.verification?.status:undefined));
    lines.push('   인용: '+String(source.quote||''));
   }
  }
@@ -119,7 +119,7 @@ export function formatCaseReportText(report){
  }
  const unverifiedFindings=report.findings.filter(f=>!Array.isArray(f.citations)||f.citations.length===0||!Array.isArray(f.citationChecks)||f.citationChecks.length!==f.citations.length||f.citations.some(c=>!validCitation(c))||f.citationChecks.some(c=>c?.verification?.status!=='matched')).length;
  lines.push('- 인용 확인이 필요한 분석 항목: '+unverifiedFindings+'건');
- const unverifiedComparisons=report.comparisons.filter(c=>c.sourceReady!==true).length;
+ const unverifiedComparisons=report.comparisons.filter(c=>c.sourceReady!==true||!Array.isArray(c.citations)||c.citations.length!==2||c.citations.some(source=>!validCitation(source)||source.verification?.status!=='matched')).length;
  lines.push('- 출처 확인이 필요한 비교 후보: '+unverifiedComparisons+'건');
  lines.push('- 서면 간 비교 후보: '+report.comparisons.length+'건');
  lines.push('- 식별되지 않은 페이지: '+skipped.length+'쪽');
