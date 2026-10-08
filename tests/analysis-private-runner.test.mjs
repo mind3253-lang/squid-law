@@ -8,8 +8,8 @@ const mock=async(_url,options)=>{
  const body=JSON.parse(options.body);
  const json=JSON.parse(body.input.slice(body.input.indexOf('{')));
  const page=json.pages[0];
- const findings={schema:'squidlaw-findings-v1',findings:[{title:'문서별 주장',citations:[{document:page.document,page:page.page,quote:page.text}]}]};
- return {ok:true,json:async()=>({output:[{content:[{type:'output_text',text:JSON.stringify(findings)}]}]})};
+ const findings={schema:'squidlaw-findings-v1',findings:[{title:'문서별 주장',analysis:'원문에서 문서별 주장 확인',claim:'기간 주장',evidence:'원문 확인',rebuttal:'',proofGap:'',citations:[{document:page.document,page:page.page,quote:page.text}]}]};
+ return {ok:true,json:async()=>({status:'completed',output:[{content:[{type:'output_text',text:JSON.stringify(findings)}]}]})};
 };
 const config={enabled:true,apiKey:'test-secret',model:'gpt-test',fetchImpl:mock,batches:{maxBatchPages:1,maxBatchChars:100}};
 await assert.rejects(runPrivateAnalysis(documents,{...config,enabled:false}),/AI_WORKER_DISABLED/);
