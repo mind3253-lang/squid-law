@@ -15,7 +15,10 @@ export function mergeCheckedBatches(expectedBatches,results){
  const missingBatches=expectedBatches.batches.map(b=>b.batch).filter(id=>!received.has(id));
  const findings=expectedBatches.batches.flatMap(b=>(received.get(b.batch)?.findings||[]).map(f=>({...f,sourceBatch:b.batch})));
  const needsReview=findings.filter(f=>!Array.isArray(f.citations)||f.citations.length===0||!Array.isArray(f.citationChecks)||f.citationChecks.length!==f.citations.length||f.citationChecks.some(c=>c.verification?.status!=='matched')).length;
- const allBatchesReady=missingBatches.length===0&&expectedBatches.batches.length>0&&expectedBatches.batches.every(b=>received.get(b.batch)?.sourceReady===true);
+ const allBatchesReady=missingBatches.length===0&&expectedBatches.batches.length>0&&expectedBatches.batches.every(b=>{
+  const result=received.get(b.batch);
+  return result?.sourceReady===true&&result.findings.length>0&&result.findings.every(f=>Array.isArray(f.citations)&&f.citations.length>0&&Array.isArray(f.citationChecks)&&f.citationChecks.length===f.citations.length&&f.citationChecks.every(c=>c.verification?.status==='matched'));
+ });
  return {
   schema:'squidlaw-merged-analysis-v1',
   findings,
