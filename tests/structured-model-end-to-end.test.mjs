@@ -59,6 +59,8 @@ for(const badResponse of [
  {ok:true},
  {ok:true,json:async()=>null},
  {ok:true,json:async()=>({status:'completed',output:[]})},
+ {ok:true,json:async()=>({status:'completed',output:[null]})},
+ {ok:true,json:async()=>({status:'completed',output:[{content:[null]}]})},
  {ok:true,json:async()=>({status:'completed',output:[{content:[{type:'output_text',text:''}]}]})},
  {ok:true,json:async()=>({output:[{content:[{type:'output_text',text:JSON.stringify(payload)}]}]})}
 ]){
