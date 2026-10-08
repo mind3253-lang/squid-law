@@ -15,6 +15,8 @@ const result=await runPrivateCaseReport(documents,{...credentials,enabled:true,a
 assert.equal(result.sourceReady,true);
 assert.equal(result.diagnostics.comparisonPerformed,true);
 assert.equal(result.diagnostics.unreadablePages,0);
+assert.equal(result.diagnostics.verifiedCitationCount,3);
+assert.equal(result.diagnostics.unverifiedCitationCount,0);
 assert.deepEqual(result.diagnostics.uncitedDocuments,[]);
 assert.deepEqual(result.diagnostics.missingBatches,[]);
 assert.deepEqual(calls,['analyze','compare']);
@@ -24,6 +26,8 @@ calls=[];
 const badAnalysis={...analysis,findings:[{...analysis.findings[0],citations:[{...a,quote:'원문에 없는 문장'}]}]};
 const resultBad=await runPrivateCaseReport(documents,{...credentials,enabled:true,analyze:async()=>badAnalysis,compare});
 assert.equal(resultBad.sourceReady,false);
+assert.equal(resultBad.diagnostics.verifiedCitationCount,2);
+assert.equal(resultBad.diagnostics.unverifiedCitationCount,1);
 const isolated=await runPrivateCaseReport(documents,{...credentials,enabled:true,analyze:async()=>badAnalysis,compare:async()=>({...comparison,comparisons:[]})});
 assert.deepEqual(isolated.diagnostics.uncitedDocuments,['원고.pdf','피고.pdf']);
 assert.equal(isolated.report.diagnostics.citedReadablePages,0);
