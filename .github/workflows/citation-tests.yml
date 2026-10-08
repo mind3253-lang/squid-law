@@ -8,6 +8,7 @@ on:
       - 'analysis-local.js'
       - 'analysis-quality.js'
       - 'analysis-input.js'
+      - 'tests/unreadable-page-notice.test.mjs'
       - 'analysis-batches.js'
       - 'analysis-batch-results.js'
       - 'analysis-merge.js'
@@ -120,6 +121,7 @@ jobs:
           node tests/analysis-pipeline.test.mjs
           node tests/analysis-quality.test.mjs
           node tests/analysis-input.test.mjs
+          node tests/unreadable-page-notice.test.mjs
           node tests/analysis-batches.test.mjs
           node tests/analysis-batch-results.test.mjs
           node tests/analysis-merge.test.mjs
