@@ -38,3 +38,8 @@ assert.equal(assembleCaseAnalysis({...analysis,findings:[]},comparison).status,'
 assert.equal(assembleCaseAnalysis({...analysis,diagnostics:{missingBatches:[2]}},comparison).status,'needs_source_review');
 assert.equal(assembleCaseAnalysis({...analysis,findings:[{...analysis.findings[0],citations:[analysis.findings[0].citations[0],analysis.findings[0].citations[0]],citationChecks:[check]}]},comparison).status,'needs_source_review');
 console.log('PASS: unified case report requires source-checked findings and both comparison quotes');
+
+assert.throws(()=>assembleCaseAnalysis({...analysis,findings:[null]},comparison),/INVALID_REPORT_ENTRY/);
+assert.throws(()=>assembleCaseAnalysis(analysis,{...comparison,comparisons:[null]}),/INVALID_REPORT_ENTRY/);
+assert.equal(assembleCaseAnalysis({...analysis,findings:[{...analysis.findings[0],citationChecks:[null]}]},comparison).status,'needs_source_review');
+assert.equal(assembleCaseAnalysis(analysis,{...comparison,comparisons:[{...comparison.comparisons[0],citations:[null,comparison.comparisons[0].citations[1]]}]}).status,'needs_source_review');
