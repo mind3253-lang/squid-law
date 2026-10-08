@@ -44,4 +44,7 @@ const enriched=validateFindingsPayload({schema:'squidlaw-findings-v1',findings:[
 assert.match(enriched.findings[0].analysis,/계약기간 5년/);
 assert.throws(()=>validateFindingsPayload({schema:'squidlaw-findings-v1',findings:[{title:'계약기간',analysis:'x'.repeat(1801),citations:[]}]}),/INVALID_FINDING_ANALYSIS/);
 assert.match(formatCaseReportText({schema:'squidlaw-case-analysis-v1',status:'source_checked',findings:[{title:'계약기간',analysis:'원문에 기초한 검토 설명',citations:[]}],comparisons:[],diagnostics:{},notices:[]}),/쟁점 검토: 원문에 기초한 검토 설명/);
+for(const term of ['입증책임','반박의 가능성','불리한 내용','청구취지 변경','증거번호'])assert.ok(ANALYSIS_SYSTEM_PROMPT.includes(term),'Missing reasoning safeguard: '+term);
+assert.match(report,/쟁점별 설명 누락: 1건/);
+assert.match(formatCaseReportText({schema:'squidlaw-case-analysis-v1',status:'needs_source_review',findings:[{title:'검토',citations:[{document:'가.pdf',page:1,quote:'원문 문장입니다.'},{document:'나.pdf',page:2,quote:'상대방 주장입니다.'}]}],comparisons:[],diagnostics:{},notices:[]}),/복수 출처: 2건/);
 console.log('PASS: customer module syntax and comparison preview wiring are valid');
