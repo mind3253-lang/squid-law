@@ -196,6 +196,7 @@ function searchOriginal(offset=0){
 }
 document.getElementById('source-search-button').addEventListener('click',()=>searchOriginal());
 searchInput.addEventListener('keydown',e=>{if(e.key==='Enter')searchOriginal()});
+searchInput.addEventListener('input',()=>searchResults.replaceChildren());
 function renderPage(){const d=documents[Number(docSelect.value)];const p=d?.pages[Number(pageSelect.value)];if(!p){textView.textContent='선택한 페이지가 없습니다.';return;}textView.textContent=p.text||'텍스트를 추출하지 못했습니다. 이미지로 스캔된 PDF는 별도 문자 인식이 필요합니다.';if(document.getElementById('pdf-visual').open)showPdfPage();}
 function renderDocument(){const d=documents[Number(docSelect.value)];if(!d)return;pageSelect.replaceChildren();d.pages.forEach((p,i)=>{const o=document.createElement('option');o.value=String(i);o.textContent=(i+1)+'쪽'+(p.text?'':' · 텍스트 없음');pageSelect.append(o)});renderPage();}
 docSelect.addEventListener('change',renderDocument);pageSelect.addEventListener('change',renderPage);
