@@ -55,4 +55,13 @@ assert.ok(partialText.includes('인용되지 않은 제출 문서:')&&partialTex
 assert.match(partialText,/총 2페이지 중 2페이지는 내용을 식별할 수 없어/);
 await assert.rejects(()=>analyzeBatchWithModel(batch,{enabled:true,apiKey:'test-only',model:'gpt-4.1-mini',fetchImpl:async()=>({ok:true,json:async()=>({status:'incomplete',output:[]})})}),/MODEL_RESPONSE_INCOMPLETE/);
 await assert.rejects(()=>analyzeBatchWithModel(batch,{enabled:true,apiKey:'test-only',model:'gpt-4.1-mini',fetchImpl:async()=>({ok:true,json:async()=>({status:'completed',output:{}})})}),/INVALID_MODEL_OUTPUT/);
+for(const badResponse of [
+ {ok:true},
+ {ok:true,json:async()=>null},
+ {ok:true,json:async()=>({status:'completed',output:[]})},
+ {ok:true,json:async()=>({status:'completed',output:[{content:[{type:'output_text',text:''}]}]})},
+ {ok:true,json:async()=>({output:[{content:[{type:'output_text',text:JSON.stringify(payload)}]}]})}
+]){
+ await assert.rejects(()=>analyzeBatchWithModel(batch,{enabled:true,apiKey:'test-only',model:'gpt-4.1-mini',fetchImpl:async()=>badResponse}),/INVALID_MODEL_RESPONSE|INVALID_MODEL_OUTPUT|MODEL_RESPONSE_NOT_COMPLETED/);
+}
 console.log('PASS: simulated model response flows through source verification and structured final report');
