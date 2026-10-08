@@ -9,6 +9,7 @@ import {validatePrivatePilotResult} from './private-pilot-validation.js';
 import {validatePilotInput} from './private-pilot-input.js';
 import {digestPilotDocuments} from './private-pilot-digest.js';
 import {validateReviewRecords,REVIEW_RECORD_LIMIT,REVIEW_NOTE_LIMIT} from './review-record-validation.js';
+import {searchDocumentPages} from './source-search.js';
 pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.worker.min.mjs';
 let comparisonText='';
 const compareBtn=document.getElementById('compare-documents');
@@ -168,19 +169,17 @@ const searchResults=document.getElementById('source-results');
 function searchOriginal(){
  const query=searchInput.value.trim();
  searchResults.replaceChildren();
- if(query.length<2){searchResults.textContent='검색어를 두 글자 이상 입력하세요.';return;}
- let count=0;
+ let found;
+ try{found=searchDocumentPages(documents,query);}catch{searchResults.textContent='검색어는 2~200자로 입력하세요.';return;}
  const list=document.createElement('ol');list.style.paddingLeft='22px';
- for(let d=0;d<documents.length;d++)for(let p=0;p<documents[d].pages.length;p++){
-  const text=documents[d].pages[p].text||'';const at=text.toLocaleLowerCase().indexOf(query.toLocaleLowerCase());
-  if(at<0)continue;count++;
-  if(count>100)continue;
+ for(const item of found.results){
   const li=document.createElement('li');li.style.margin='10px 0';
-  const btn=document.createElement('button');btn.type='button';btn.textContent=documents[d].name+' · '+(p+1)+'쪽';btn.addEventListener('click',()=>{docSelect.value=String(d);renderDocument();pageSelect.value=String(p);renderPage();document.getElementById('local-review').scrollIntoView({behavior:'smooth'});});
-  const snippet=document.createElement('p');snippet.textContent=text.slice(Math.max(0,at-70),Math.min(text.length,at+query.length+100)).replace(/\\s+/g,' ');snippet.style.margin='4px 0';
+  const btn=document.createElement('button');btn.type='button';btn.textContent=item.name+' · '+(item.pageIndex+1)+'쪽';
+  btn.addEventListener('click',()=>{if(!documents[item.documentIndex]||documents[item.documentIndex].name!==item.name)return;docSelect.value=String(item.documentIndex);renderDocument();pageSelect.value=String(item.pageIndex);renderPage();document.getElementById('local-review').scrollIntoView({behavior:'smooth'});});
+  const snippet=document.createElement('p');snippet.textContent=item.snippet;snippet.style.margin='4px 0';
   li.append(btn,snippet);list.append(li);
  }
- const summary=document.createElement('p');summary.textContent=count+'개 페이지에서 검색어를 찾았습니다.'+(count>100?' 처음 100개만 표시합니다.':'');
+ const summary=document.createElement('p');summary.textContent=found.total+'개 페이지에서 검색어를 찾았습니다.'+(found.truncated?' 처음 100개만 표시합니다.':'');
  searchResults.append(summary,list);
 }
 document.getElementById('source-search-button').addEventListener('click',searchOriginal);
