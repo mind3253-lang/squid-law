@@ -54,7 +54,7 @@ operatorAiBtn.addEventListener('click',async()=>{
  finally{clearTimeout(abortTimer);}
   const payload=await response.json();
   if(revision!==sourceRevision)return;
-  if(!response.ok){const messages={AI_TEST_DISABLED:'서버 AI 시험 기능이 아직 켜지지 않았습니다.',TEST_TOKEN_NOT_CONFIGURED:'서버 관리자 토큰이 설정되지 않았습니다.',UNAUTHORIZED:'관리자 시험 토큰이 일치하지 않습니다.',MODEL_KEY_NOT_CONFIGURED:'서버 AI API 키가 설정되지 않았습니다.',EXTERNAL_AI_CONSENT_REQUIRED:'외부 AI 전송 동의가 필요합니다.',REQUEST_TOO_LARGE:'AI 전송 크기 한도를 초과했습니다.',AI_ANALYSIS_FAILED:'AI 서버 분석을 완료하지 못했습니다.'};throw Error(messages[payload.error]||payload.error||'AI_REQUEST_FAILED');}
+  if(!response.ok){const messages={AI_TEST_DISABLED:'서버 AI 시험 기능이 아직 켜지지 않았습니다.',TEST_TOKEN_NOT_CONFIGURED:'서버 관리자 토큰이 설정되지 않았습니다.',UNAUTHORIZED:'관리자 시험 토큰이 일치하지 않습니다.',MODEL_KEY_NOT_CONFIGURED:'서버 AI API 키가 설정되지 않았습니다.',EXTERNAL_AI_CONSENT_REQUIRED:'외부 AI 전송 동의가 필요합니다.',REQUEST_TOO_LARGE:'AI 전송 크기 한도를 초과했습니다.',AI_ANALYSIS_FAILED:'AI 서버 분석을 완료하지 못했습니다.',SOURCE_PAGE_TOO_LARGE:'한 페이지의 텍스트가 AI 분석 한도를 초과했습니다.',BATCH_PROMPT_TOO_LARGE:'분석 묶음의 전송 한도를 초과했습니다.',TOO_MANY_BATCHES:'분석 묶음이 8개를 초과했습니다.',INVALID_REQUEST_BODY:'요청 데이터 형식이 올바르지 않습니다.'};throw Error(messages[payload.error]||payload.error||'AI_REQUEST_FAILED');}
   if(payload.schema!=='squidlaw-private-case-job-v1'||typeof payload.text!=='string')throw Error('INVALID_AI_REPORT');
   const title=document.createElement('h3');title.textContent='AI 통합 분석보고서';
   const report=document.createElement('pre');report.textContent=payload.text;report.style.cssText='white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.7;background:#f6f8fb;padding:16px;border-radius:8px';
