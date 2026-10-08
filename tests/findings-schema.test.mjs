@@ -9,7 +9,8 @@ const bad=[
  {...valid,findings:[{title:'',citations:[]}]},
  {...valid,findings:[{title:'항목',citations:[{document:'계약서.pdf',page:'2',quote:'계약기간은 5년으로 정한다.'}]}]},
  {...valid,findings:[{title:'항목',citations:[{document:'계약서.pdf',page:0,quote:'계약기간은 5년으로 정한다.'}]}]},
- {...valid,findings:[{title:'항목',citations:[{document:'계약서.pdf',page:2,quote:'짧음'}]}]}
+ {...valid,findings:[{title:'항목',citations:[{document:'계약서.pdf',page:2,quote:'짧음'}]}]},
+ {...valid,findings:[{title:'항목',citations:[{document:'계약서.pdf',page:2,quote:'가          나'}]}]}
 ];
 for(const item of bad)assert.throws(()=>validateFindingsPayload(item));
 console.log('PASS: 1 valid payload + '+bad.length+' invalid payload cases');
