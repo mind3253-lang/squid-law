@@ -73,7 +73,7 @@ test('invalid comparison inputs fail explicitly',()=>{
 });
 
 test('cross-document repeated snippets are deduplicated by normalized text',()=>{
- const phrase='원고는 계약서에 기재된 지급기한을 다투고 있습니다.';
+ const phrase='원고는 계약서에 기재된 지급기한을 다투고 있으며 별도의 합의가 없었다고 주장합니다.';
  const result=buildLocalIndex([
   {name:'one.pdf',pages:[{text:phrase}]},
   {name:'two.pdf',pages:[{text:phrase}]},
