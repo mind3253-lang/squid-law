@@ -4,6 +4,7 @@ import {readFile} from 'node:fs/promises';
 import {validateFindingsPayload} from '../findings-schema.js';
 import {verifyFindings} from '../source-verification.js';
 import {summarizeCitationChecks} from '../analysis-quality.js';
+import {validatePilotInput} from '../private-pilot-input.js';
 
 const fail=(code,message)=>{console.error(message);process.exitCode=code;};
 async function main(){
@@ -13,20 +14,11 @@ async function main(){
  const filename=process.argv[2];
  if(!filename)throw Error('USAGE: node scripts/private-model-pilot.mjs extracted-pages.json');
  const input=JSON.parse(await readFile(filename,'utf8'));
- if(!Array.isArray(input)||input.length<1||input.length>12)throw Error('INVALID_DOCUMENT_COUNT');
- const names=new Set();let pages=0;
- for(const d of input){
-  if(!d||typeof d.name!=='string'||!d.name.trim()||names.has(d.name)||!Array.isArray(d.pages))throw Error('INVALID_DOCUMENT');
-  names.add(d.name);pages+=d.pages.length;
-  if(d.pages.length<1||d.pages.length>100||d.pages.some(p=>!p||typeof p.text!=='string'||p.text.length>12000))throw Error('INVALID_PAGES');
- }
- if(pages>50)throw Error('PILOT_PAGE_LIMIT_50');
+ validatePilotInput(input);
  const extracted=input.flatMap(d=>d.pages.map((p,i)=>({document:d.name,page:i+1,text:p.text})).filter(p=>p.text.trim()));
  if(!extracted.length)throw Error('NO_READABLE_PAGES');
  const model=process.env.SQUIDLAW_MODEL||'gpt-4.1-mini';
  // Enforce an explicit input budget before any external transmission.
- const inputChars=extracted.reduce((n,p)=>n+p.text.length,0);
- if(inputChars>60000)throw Error('PILOT_INPUT_LIMIT_60000_CHARS');
  const controller=new AbortController();
  const timeout=setTimeout(()=>controller.abort(),90000);
  let response;
