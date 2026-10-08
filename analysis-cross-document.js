@@ -4,6 +4,7 @@ import {buildLocalIndex,buildEvidenceMap} from './analysis-local.js';
 
 export function buildCrossDocumentLeads(documents,{maxLeads=80,maxPerReference=4}={}){
  if(!Array.isArray(documents)||!Number.isInteger(maxLeads)||maxLeads<1||maxLeads>500||!Number.isInteger(maxPerReference)||maxPerReference<1||maxPerReference>20)throw Error('INVALID_COMPARISON_INPUT');
+ if(documents.some(d=>!d||typeof d.name!=='string'||!Array.isArray(d.pages))||new Set(documents.map(d=>d.name)).size!==documents.length)throw Error('AMBIGUOUS_COMPARISON_DOCUMENTS');
  const index=buildLocalIndex(documents);
  const entries=buildEvidenceMap(index).filter(e=>e.documentCount>1);
  const leads=[];
