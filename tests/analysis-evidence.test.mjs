@@ -93,3 +93,16 @@ test('comparison cap is not reported as truncation when it exactly fits',()=>{
  assert.equal(exact.leads.length,1);
  assert.equal(exact.diagnostics.truncated,false);
 });
+
+test('comparison cap is marked truncated only after a second eligible lead exists',()=>{
+ const source=[
+  {name:'one.pdf',pages:[{text:'원고는 갑 제42호증을 근거로 계약기간 5년을 주장한다. 갑 제43호증은 별도의 입금내역이다.'}]},
+  {name:'two.pdf',pages:[{text:'피고는 갑 제42호증을 근거로 계약기간 2년을 주장한다. 갑 제43호증의 입금은 부인한다.'}]}
+ ];
+ const capped=buildVerifiedComparisonReport(source,{maxLeads:1});
+ assert.equal(capped.leads.length,1);
+ assert.equal(capped.diagnostics.truncated,true);
+ const complete=buildVerifiedComparisonReport(source,{maxLeads:2});
+ assert.equal(complete.leads.length,2);
+ assert.equal(complete.diagnostics.truncated,false);
+});
