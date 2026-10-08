@@ -25,6 +25,7 @@ on:
       - 'analysis-comparison-worker.js'
       - 'analysis-private-comparisons.js'
       - 'analysis-case-report.js'
+      - 'tests/analysis-case-report-source-gate.test.mjs'
       - 'analysis-case-report-text.js'
       - 'customer.html'
       - 'tests/customer-comparison-ui.test.mjs'
@@ -131,6 +132,7 @@ jobs:
           node tests/analysis-comparison-worker.test.mjs
           node tests/analysis-private-comparisons.test.mjs
           node tests/analysis-case-report.test.mjs
+          node tests/analysis-case-report-source-gate.test.mjs
           node tests/analysis-case-report-text.test.mjs
           node tests/export-case-report-cli.test.mjs
           node tests/customer-comparison-ui.test.mjs
