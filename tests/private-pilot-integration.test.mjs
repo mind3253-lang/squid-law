@@ -62,7 +62,7 @@ test('failed PDF extraction releases document resources',()=>{
  assert.match(page,/finally\{if\(pdf&&!committed\)\{try\{await pdf\.destroy\(\)\}catch\{\}\}\}/);
 });
 test('only complete PDFs are added to the visible document list',()=>{
- assert.match(page,/documents\.push\(d\);pdfInstances\.push\(pdf\);committed=true/);
+ assert.match(page,/documents\.push\(d\);pdfInstances\.push\(pdf\);seenNames\.add\(f\.name\);committed=true/);
 });
 
 test('PDF.js has one module loader',()=>{
