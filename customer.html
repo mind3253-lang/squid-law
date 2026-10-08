@@ -310,6 +310,11 @@ pilotExportBtn.addEventListener('click',()=>{
 });
 document.getElementById('private-pilot-result-file').addEventListener('change',async event=>{
  const file=event.target.files?.[0];if(!file)return;
+ const requestDocuments=documents;
+ const output=document.getElementById('findings-results');
+ output.replaceChildren();verifiedReportText='';
+ document.getElementById('copy-verified-report').disabled=true;
+ document.getElementById('save-verified-report').disabled=true;
  const status=document.getElementById('private-pilot-result-status');
  try{
   if(!documents.length)throw Error('먼저 원본 PDF를 등록하세요.');
@@ -318,6 +323,7 @@ document.getElementById('private-pilot-result-file').addEventListener('change',a
   if(typeof parsed.sourceDigest!=='string'||!/^[0-9a-f]{64}$/.test(parsed.sourceDigest))throw Error('원본 PDF 지문이 없는 이전 시험 결과입니다. 새로 분석해 주세요.');
   const currentDigest=await digestPilotDocuments(documents);
   if(currentDigest!==parsed.sourceDigest)throw Error('원본 PDF 내용이 시험 당시와 다릅니다. 동일한 PDF를 다시 등록하세요.');
+  if(documents!==requestDocuments)throw Error('PDF 등록이 변경되어 가져오기를 중단했습니다.');
   const {checked}=validatePrivatePilotResult(documents,parsed);
   showVerifiedFindings(checked,'비공개 AI 시험 결과 재검산 완료 (법적 결론 아님)');
   status.textContent='시험 결과 '+checked.length+'건을 현재 PDF 원문과 재검산했습니다. 인용문 일치가 사실의 진실성을 증명하지 않습니다.';
