@@ -1,6 +1,6 @@
 // Browser-only preliminary index. This is not legal advice or an AI conclusion.
 const datePattern=/(?:20\d{2})\s*[.년\-/]\s*(?:0?[1-9]|1[0-2])\s*[.월\-/]\s*(?:0?[1-9]|[12]\d|3[01])\s*일?/g;
-const refPattern=/(?:(?:소\\s*)?[갑을]\s*제?\s*\d+\s*호증(?:의\s*\d+)?|제\s*\d+\s*항|\d{4}[가-힣]{1,5}\d{3,})/g;
+const refPattern=/(?:(?:소\s*)?[갑을]\s*제?\s*\d+\s*호증(?:의\s*\d+)?|제\s*\d+\s*항|\d{4}[가-힣]{1,5}\d{3,})/g;
 const signal=/(주장|반박|인정|부인|제출|요청|신청|계약|해지|종료|취소|삭제|게시|지급|반환|판결|결정|증거|진술|위반)/;
 function snippets(text){
  const lines=text.split(/\n+/).map(x=>x.replace(/\s+/g,' ').trim()).filter(Boolean);
