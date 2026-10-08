@@ -1,0 +1,12 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {validateReviewRecords,REVIEW_RECORD_LIMIT,REVIEW_NOTE_LIMIT} from '../review-record-validation.js';
+const sample=()=>({schema:'squidlaw-review-v1',records:[{document:'a.pdf',page:1,text:'원문 인용',status:'미검토',note:'확인'}]});
+test('valid review record is normalized',()=>assert.equal(validateReviewRecords(sample())[0].page,1));
+test('empty review export is allowed',()=>assert.equal(validateReviewRecords({schema:'squidlaw-review-v1',records:[]}).length,0));
+test('invalid review schema is rejected',()=>assert.throws(()=>validateReviewRecords({schema:'wrong',records:[]}),/INVALID_REVIEW_PAYLOAD/));
+test('too many review records are rejected',()=>{const p=sample();p.records=Array.from({length:REVIEW_RECORD_LIMIT+1},()=>sample().records[0]);assert.throws(()=>validateReviewRecords(p),/INVALID_REVIEW_PAYLOAD/)});
+test('oversized note is rejected',()=>{const p=sample();p.records[0].note='가'.repeat(REVIEW_NOTE_LIMIT+1);assert.throws(()=>validateReviewRecords(p),/INVALID_REVIEW_RECORD/)});
+test('empty quoted text is rejected',()=>{const p=sample();p.records[0].text=' ';assert.throws(()=>validateReviewRecords(p),/INVALID_REVIEW_RECORD/)});
+test('unrecognized review status is rejected',()=>{const p=sample();p.records[0].status='법원 인정';assert.throws(()=>validateReviewRecords(p),/INVALID_REVIEW_RECORD/)});
+test('invalid page is rejected',()=>{const p=sample();p.records[0].page=0;assert.throws(()=>validateReviewRecords(p),/INVALID_REVIEW_RECORD/)});
