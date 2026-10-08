@@ -13,6 +13,10 @@ await assert.rejects(runPrivateCaseReport(documents,{...credentials,analyze,comp
 assert.deepEqual(calls,[]);
 const result=await runPrivateCaseReport(documents,{...credentials,enabled:true,analyze,compare});
 assert.equal(result.sourceReady,true);
+assert.equal(result.diagnostics.comparisonPerformed,true);
+assert.equal(result.diagnostics.unreadablePages,0);
+assert.deepEqual(result.diagnostics.uncitedDocuments,[]);
+assert.deepEqual(result.diagnostics.missingBatches,[]);
 assert.deepEqual(calls,['analyze','compare']);
 assert.match(result.text,/원고.pdf · 1쪽 · 원문 일치/);
 assert.match(result.text,/피고.pdf · 1쪽 · 원문 일치/);
