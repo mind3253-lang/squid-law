@@ -4,6 +4,7 @@ import {prepareAnalysisInput} from './analysis-input.js';
 import {batchAnalysisInput} from './analysis-batches.js';
 import {validateBatchFindings} from './analysis-batch-results.js';
 import {mergeCheckedBatches} from './analysis-merge.js';
+import {parseModelFindings} from './analysis-model-response.js';
 
 export function createAnalysisJob(documents,options={}){
  const input=prepareAnalysisInput(documents,options.input);
@@ -20,7 +21,8 @@ export function finishAnalysisJob(job,responses){
   seen.add(response.batch);
   const batch=job.plan.batches.find(b=>b.batch===response.batch);
   if(!batch)throw Error('UNKNOWN_BATCH_RESPONSE');
-  checked.push(validateBatchFindings(batch,response.payload));
+  const payload=typeof response.payload==='string'?parseModelFindings(response.payload):response.payload;
+  checked.push(validateBatchFindings(batch,payload));
  }
  const merged=mergeCheckedBatches(job.plan,checked);
  return {...merged,diagnostics:{...merged.diagnostics,unreadablePages:job.input.diagnostics.unreadablePages}};
