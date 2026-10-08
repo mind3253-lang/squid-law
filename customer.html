@@ -5,6 +5,7 @@ import {verifyCitation,verifyFindings} from './source-verification.js';
 import {buildVerifiedComparisonReport} from './analysis-comparison-report.js';
 import {validateFindingsPayload} from './findings-schema.js';
 import {summarizeCitationChecks,isSourceReadyForReview} from './analysis-quality.js';
+import {validatePrivatePilotResult} from './private-pilot-validation.js';
 pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.worker.min.mjs';
 let comparisonText='';
 const compareBtn=document.getElementById('compare-documents');
@@ -309,14 +310,7 @@ document.getElementById('private-pilot-result-file').addEventListener('change',a
   if(!documents.length)throw Error('먼저 원본 PDF를 등록하세요.');
   if(file.size>1024*1024)throw Error('시험 결과는 1MB 이하만 허용합니다.');
   const parsed=JSON.parse(await file.text());
-  if(!parsed||parsed.schema!=='squidlaw-private-pilot-v1'||parsed.kind!=='source-matched-review-candidates-not-legal-conclusions'||!Array.isArray(parsed.documents)||!Array.isArray(parsed.findings))throw Error('비공개 AI 시험 결과 형식이 아닙니다.');
-  if(new Set(documents.map(d=>d.name)).size!==documents.length)throw Error('현재 PDF 파일명이 중복되어 출처를 특정할 수 없습니다.');
-  const uploaded=new Map(documents.map(d=>[d.name,d.pages.length]));
-  if(parsed.documents.length!==documents.length||parsed.documents.some(d=>!uploaded.has(d.name)||uploaded.get(d.name)!==d.pages))throw Error('시험 결과와 현재 PDF의 문서명 또는 페이지 수가 다릅니다.');
-  const validated=validateFindingsPayload({schema:'squidlaw-findings-v1',findings:parsed.findings});
-  if(validated.findings.length>12||validated.findings.some(f=>!f.citations.length))throw Error('시험 결과의 분석 항목 수 또는 출처가 올바르지 않습니다.');
-  const checked=verifyFindings(documents,validated.findings);
-  if(checked.some(f=>!f.citationChecks.length||f.citationChecks.some(c=>c.verification.status!=='matched')))throw Error('현재 PDF 원문과 일치하지 않는 AI 인용문이 포함되어 있습니다.');
+  const {checked}=validatePrivatePilotResult(documents,parsed);
   showVerifiedFindings(checked,'비공개 AI 시험 결과 재검산 완료 (법적 결론 아님)');
   status.textContent='시험 결과 '+checked.length+'건을 현재 PDF 원문과 재검산했습니다. 인용문 일치가 사실의 진실성을 증명하지 않습니다.';
  }catch(error){status.textContent='가져오기 실패: '+error.message;}
