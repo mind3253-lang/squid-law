@@ -69,8 +69,8 @@ export async function analyzeBatchWithModel(batch,{
   if(!Array.isArray(data.output)||data.output.length===0)throw Error('INVALID_MODEL_OUTPUT');
   if(data.output.some(item=>item?.type==='refusal'||(Array.isArray(item?.content)&&item.content.some(part=>part?.type==='refusal'))))throw Error('MODEL_REFUSED');
   const raw=(Array.isArray(data.output)?data.output:[])
-   .flatMap(item=>Array.isArray(item.content)?item.content:[])
-   .filter(item=>item.type==='output_text'&&typeof item.text==='string')
+   .flatMap(item=>Array.isArray(item?.content)?item.content:[])
+   .filter(item=>item?.type==='output_text'&&typeof item.text==='string')
    .map(item=>item.text).join('');
   if(!raw.trim())throw Error('INVALID_MODEL_OUTPUT');
   return parseModelFindings(raw);
