@@ -18,7 +18,7 @@ export function assembleCaseAnalysis(analysis,comparison){
   citations:c.citations,
   sourceReady:c.sourceReady===true
  }));
- const analysisReady=analysis.sourceReady===true&&findings.every(f=>Array.isArray(f.citationChecks)&&f.citationChecks.length>0&&f.citationChecks.every(c=>c.verification?.status==='matched'));
+ const analysisReady=analysis.sourceReady===true&&findings.length>0&&findings.every(f=>Array.isArray(f.citations)&&f.citations.length>0&&Array.isArray(f.citationChecks)&&f.citationChecks.length===f.citations.length&&f.citationChecks.every(c=>c.verification?.status==='matched'));
  const comparisonReady=comparison.sourceReady===true&&comparisons.every(c=>c.sourceReady===true&&Array.isArray(c.citations)&&c.citations.length===2&&c.citations.every(x=>x.verification?.status==='matched'));
  return {
   schema:'squidlaw-case-analysis-v1',
@@ -64,8 +64,8 @@ export function assembleVerifiedCaseAnalysis(documents,analysis,comparison){
  })};
  const report=assembleCaseAnalysis(checkedAnalysis,checkedComparison);
  report.diagnostics.submittedDocuments=documents.map(doc=>({name:doc.name,pageCount:Array.isArray(doc.pages)?doc.pages.length:0}));
- if(unreadableDetails.length&&report.status==='source_checked')return {...report,status:'source_checked_partial'};
- // A zero-finding analysis must never pass a vacuous every() check.
+ // No findings or missing citation checks must never produce a verified report.
  if(report.findings.length===0)return {...report,status:'needs_source_review',diagnostics:{...report.diagnostics,analysisSourceReady:false}};
+ if(unreadableDetails.length&&report.status==='source_checked')return {...report,status:'source_checked_partial'};
  return report;
 }
