@@ -1,5 +1,6 @@
 // Merge independently verified batches without promoting unsupported findings.
 // A partial or missing batch always prevents an all-clear result.
+const citationReady=f=>!!f&&Array.isArray(f.citations)&&f.citations.length>0&&Array.isArray(f.citationChecks)&&f.citationChecks.length===f.citations.length&&f.citations.every(c=>c&&typeof c.document==='string'&&Number.isInteger(c.page)&&typeof c.quote==='string')&&f.citationChecks.every(c=>c?.verification?.status==='matched');
 export function mergeCheckedBatches(expectedBatches,results){
  if(!expectedBatches||expectedBatches.schema!=='squidlaw-analysis-batches-v1'||!Array.isArray(expectedBatches.batches))throw Error('INVALID_EXPECTED_BATCHES');
  if(!Array.isArray(results))throw Error('INVALID_BATCH_RESULTS');
@@ -14,10 +15,10 @@ export function mergeCheckedBatches(expectedBatches,results){
  }
  const missingBatches=expectedBatches.batches.map(b=>b.batch).filter(id=>!received.has(id));
  const findings=expectedBatches.batches.flatMap(b=>(received.get(b.batch)?.findings||[]).map(f=>({...f,sourceBatch:b.batch})));
- const needsReview=findings.filter(f=>!f||!Array.isArray(f.citations)||f.citations.length===0||!Array.isArray(f.citationChecks)||f.citationChecks.length!==f.citations.length||f.citationChecks.some(c=>c?.verification?.status!=='matched')).length;
+ const needsReview=findings.filter(f=>!citationReady(f)).length;
  const allBatchesReady=missingBatches.length===0&&expectedBatches.batches.length>0&&expectedBatches.batches.every(b=>{
   const result=received.get(b.batch);
-  return result?.sourceReady===true&&result.findings.length>0&&result.findings.every(f=>f&&Array.isArray(f.citations)&&f.citations.length>0&&Array.isArray(f.citationChecks)&&f.citationChecks.length===f.citations.length&&f.citationChecks.every(c=>c?.verification?.status==='matched'));
+  return result?.sourceReady===true&&result.findings.length>0&&result.findings.every(f=>citationReady(f));
  });
  return {
   schema:'squidlaw-merged-analysis-v1',
