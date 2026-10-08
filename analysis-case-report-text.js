@@ -117,9 +117,9 @@ export function formatCaseReportText(report){
  lines.push('- 서면 간 비교 후보: '+report.comparisons.length+'건');
  lines.push('- 식별되지 않은 페이지: '+skipped.length+'쪽');
  if(submitted.length){
-  const totalPages=submitted.reduce((sum,item)=>sum+(Number.isInteger(item.pageCount)?item.pageCount:0),0);
+  const totalPages=Number.isInteger(report.diagnostics?.totalPages)?report.diagnostics.totalPages:submitted.reduce((sum,item)=>sum+(Number.isInteger(item.pageCount)?item.pageCount:0),0);
   lines.push('- 제출 문서 전체 페이지: '+totalPages+'쪽');
-  lines.push('- 텍스트 식별 가능 페이지: '+Math.max(0,totalPages-skipped.length)+'쪽');
+  lines.push('- 텍스트 식별 가능 페이지: '+(Number.isInteger(report.diagnostics?.readablePages)?report.diagnostics.readablePages:Math.max(0,totalPages-skipped.length))+'쪽');
   lines.push('- 분석 인용에 등장하지 않은 제출 문서: '+submitted.filter(item=>!documents.has(item.name)).length+'개');
   const uncited=submitted.filter(item=>!documents.has(item.name));
   if(uncited.length){
