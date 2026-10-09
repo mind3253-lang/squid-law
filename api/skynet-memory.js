@@ -1,3 +1,4 @@
+import {indexSource} from './skynet-search-index.js';
 import {appendRecords,loadRecords} from './skynet-records.js';
 import {put,list,get} from '@vercel/blob';
 import {randomUUID} from 'node:crypto';
@@ -41,7 +42,7 @@ export default async function handler(req,res){
  if(!Array.isArray(messages)||messages.length!==2||messages[0]?.role!=='user'||messages[1]?.role!=='assistant'||messages.some(m=>typeof m.content!=='string'||!m.content.trim()||m.content.length>12000))return send(res,400,{error:'기억 형식 오류'});
  try{
   const pathname=prefix+Date.now()+'-'+randomUUID()+'.json';
-  await put(pathname,JSON.stringify({messages:messages.map(m=>({role:m.role,content:m.content})),savedAt:new Date().toISOString()}),{access:'private',addRandomSuffix:false,contentType:'application/json'});
+  const sourceData={messages:messages.map(m=>({role:m.role,content:m.content})),savedAt:new Date().toISOString()};await put(pathname,JSON.stringify(sourceData),{access:'private',addRandomSuffix:false,contentType:'application/json'});try{await indexSource(pathname,sourceData)}catch(e){console.error('Search index deferred',String(e.message).slice(0,120))}
   return send(res,200,{ok:true});
  }catch(e){return send(res,502,{error:'기억 저장 실패',detail:String(e?.message||'').slice(0,120)})}
 }
