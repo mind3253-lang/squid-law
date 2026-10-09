@@ -5,7 +5,7 @@ import {analyzeComparisonWithModel} from './analysis-comparison-worker.js';
 import {validateComparisonResponse} from './analysis-comparison-response.js';
 
 export async function runPrivateComparisons(documents,{
- enabled=false,apiKey,model,fetchImpl,timeoutMs,maxComparisons=10,
+ enabled=false,apiKey,model,fetchImpl,timeoutMs,deadlineAt,maxComparisons=10,
  compare=analyzeComparisonWithModel
 }={}){
  if(!enabled)throw Error('AI_COMPARISON_DISABLED');
@@ -21,7 +21,10 @@ export async function runPrivateComparisons(documents,{
  }
  const comparisons=[];
  for(const lead of report.leads){
-  const result=await compare(documents,lead,{enabled:true,apiKey,model,fetchImpl,timeoutMs});
+  const remaining=deadlineAt===undefined?undefined:deadlineAt-Date.now();
+  if(remaining!==undefined&&remaining<1000)throw Error('MODEL_REQUEST_TIMEOUT');
+  const callTimeout=remaining===undefined?timeoutMs:Math.min(timeoutMs??30000,remaining,120000);
+  const result=await compare(documents,lead,{enabled:true,apiKey,model,fetchImpl,timeoutMs:Math.floor(callTimeout)});
   if(!result||result.sourceReady!==true)throw Error('COMPARISON_RESULT_NOT_READY');
   // Never trust a caller-provided sourceReady flag or precomputed checks.
   const verified=validateComparisonResponse(documents,lead,result);
