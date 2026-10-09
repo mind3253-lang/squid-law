@@ -1,0 +1,14 @@
+import assert from 'node:assert/strict';
+import {classifyRecord,queryScope,filterCaseResults} from '../api/skynet-case-classifier.js';
+assert.equal(classifyRecord('민지 임대차계약 기간 5년').id,'case:minji');
+assert.equal(classifyRecord('2025가단106782 계약').id,'case:minji');
+assert.equal(classifyRecord('바우어 장비 문제').id,'case:bauer');
+assert.equal(classifyRecord('조혜정 환불 문제').id,'case:jo-hyejeong');
+assert.equal(classifyRecord('일반 계약 내용').id,null);
+assert.equal(classifyRecord('바우어와 조혜정 사건 비교').id,null);
+assert.equal(queryScope('민지 임대차 기간은?').strict,true);
+assert.equal(queryScope('민지와 바우어 비교').strict,false);
+const results=[{content:'바우어',case:{id:'case:bauer'}},{content:'민지',case:{id:'case:minji'}},{content:'일반',case:{id:null}}];
+assert.deepEqual(filterCaseResults(results,'민지 임대차 기간?').map(x=>x.content),['민지','일반']);
+assert.equal(filterCaseResults(results,'민지와 바우어 비교').length,3);
+console.log('SKYNET case classification tests passed');
