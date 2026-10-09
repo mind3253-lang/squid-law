@@ -40,7 +40,8 @@ const chatKey="skynet_chat_v1";el("fullBackup").onclick=()=>{const payload={form
     paths.push(result.path);
     item.content='📎 '+f.name+' · 저장 중 '+Math.round((i+1)/total*100)+'%';drawChat();
    }
-   item.content='📎 '+f.name+' · 서버 저장 완료 · '+(f.size/1048576).toFixed(1)+'MB';
+   for(let i=0;i<total;i++){const path=paths[i];const response=await fetch('/admin/skynet-archive?path='+encodeURIComponent(path));if(!response.ok)throw Error('저장 검증 실패: 조각 '+(i+1));const returned=new Uint8Array(await response.arrayBuffer());const original=new Uint8Array(await f.slice(i*chunkSize,Math.min(f.size,(i+1)*chunkSize)).arrayBuffer());if(returned.length!==original.length||returned.some((byte,j)=>byte!==original[j]))throw Error('저장 검증 실패: 내용 불일치 '+(i+1));item.content='📎 '+f.name+' · 저장 확인 중 '+Math.round((i+1)/total*100)+'%';drawChat()}
+   item.content='📎 '+f.name+' · 서버 저장·복원 검증 완료 · '+(f.size/1048576).toFixed(1)+'MB';
    item.archive={name:f.name,batch,parts:total,size:f.size};
    try{localStorage.setItem(chatKey,JSON.stringify(history))}catch{}
    status.textContent='';
