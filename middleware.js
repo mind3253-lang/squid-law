@@ -1,4 +1,4 @@
-export const config = { matcher: ['/admin', '/admin/:path*', '/api/skynet-archive'] };
+export const config = { matcher: ['/admin', '/admin/:path*', '/api/skynet-archive', '/api/skynet-memory'] };
 
 export default function middleware(request) {
   const password = process.env.ADMIN_PASSWORD;
