@@ -41,7 +41,7 @@ export default async function handler(req,res){
   if(comparisonPreflight.diagnostics.needsReview)return res.status(422).json({error:'COMPARISON_SOURCE_NOT_READY'});
   for(const lead of comparisonPreflight.leads)createComparisonModelRequest(lead);
   const result=await runPrivateCaseReport(documents,{
-   enabled:true,apiKey:process.env.OPENAI_API_KEY,
+   enabled:true,apiKey:process.env.OPENAI_API_KEY,maxDurationMs:105000,
    model:process.env.SQUIDLAW_AI_MODEL||'gpt-4.1-mini',
    analysisOptions:{input:{maxPages:30,maxChars:60000},maxBatches:8,maxTotalChars:60000},
    comparisonOptions:{maxComparisons:5}
