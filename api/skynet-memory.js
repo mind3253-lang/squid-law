@@ -13,7 +13,7 @@ export default async function handler(req,res){
     cursor=page.hasMore?page.cursor:undefined;
    }while(cursor&&files.length<5000);
    files.sort((a,b)=>String(a.uploadedAt||'').localeCompare(String(b.uploadedAt||'')));
-   const selected=files.slice(-40);
+   const q=String(req.query?.q||'').trim().slice(0,120);const selected=q?files.slice(-500):files.slice(-40);
    const groups=[];
    for(let i=0;i<selected.length;i+=8){
     const batch=await Promise.all(selected.slice(i,i+8).map(async file=>{
@@ -28,6 +28,7 @@ export default async function handler(req,res){
     groups.push(...batch);
    }
    const entries=groups.flat();
+   if(q){const terms=[...new Set(q.normalize('NFKC').toLowerCase().split(/\\s+/).filter(x=>x.length>1))].slice(0,8);const matches=entries.filter(m=>{const t=m.content.normalize('NFKC').toLowerCase();return terms.some(w=>t.includes(w))}).slice(-20);return send(res,200,{messages:matches,hasMore:files.length>500,search:true})}
    return send(res,200,{messages:entries.slice(-1000),hasMore:files.length>40});
   }catch(e){return send(res,502,{error:'서버 기억 불러오기 실패',detail:String(e?.message||'').slice(0,120)})}
  }
