@@ -81,7 +81,7 @@ operatorAiBtn.addEventListener('click',async()=>{
   const comparisonCount=Array.isArray(payload.report?.comparisons)?payload.report.comparisons.length:0;
   operatorAiStatus.textContent='AI 분석 응답 수신 · 분석 '+findingCount+'건 · 서면 비교 '+comparisonCount+'건 · 출처 검증: '+(payload.report?.status==='source_checked_partial'?'확인된 인용은 일치 · 일부 페이지 미식별':payload.sourceReady?'전체 확인':'추가 확인 필요');
  }catch(error){if(revision===sourceRevision)operatorAiStatus.textContent=error.name==='AbortError'?'AI 서버 응답이 120초를 초과했습니다. 서버 실행 시간 설정을 확인하세요.':'AI 실행 실패: '+error.message;}
- finally{clearInterval(aiProgressTimer);if(activeAiController?.signal.aborted||activeAiController?.signal===undefined||revision===sourceRevision){if(activeAiController?.signal.aborted||revision===sourceRevision)activeAiController=null;}if(revision===sourceRevision)operatorAiBtn.disabled=false;}
+ finally{clearInterval(aiProgressTimer);if(activeAiController===controller)activeAiController=null;if(revision===sourceRevision)operatorAiBtn.disabled=false;}
 });
 
 const instantBtn=document.getElementById('run-instant-report');
