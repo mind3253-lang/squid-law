@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/admin/skynet-chat",
+      "destination": "/api/skynet-chat"
+    }
+  ]
+}
