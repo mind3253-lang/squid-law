@@ -57,8 +57,8 @@ operatorAiBtn.addEventListener('click',async()=>{
  };
  updateAiProgress();
  const aiProgressTimer=setInterval(updateAiProgress,1000);
+ const controller=new AbortController();
  try{
-  const controller=new AbortController();
  activeAiController=controller;
  const abortTimer=setTimeout(()=>controller.abort(),120000);
  let response,payload;
