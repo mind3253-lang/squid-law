@@ -57,7 +57,13 @@ assert.equal(assembleCaseAnalysis(analysis,{...comparison,comparisons:[{...compa
 
 assert.equal(assembleCaseAnalysis({...analysis,findings:[{...analysis.findings[0],citations:[{document:'원고.pdf',page:1,quote:'짧음'}]}]},comparison).status,'needs_source_review');
 
-for(const invalid of [[null], [{name:'원고.pdf',pages:null}], [{name:'원고.pdf',pages:[null]}], [{name:'원고.pdf',pages:[{text:42}]}], [{name:'',pages:[]}]])assert.throws(()=>assembleVerifiedCaseAnalysis(invalid,analysis,comparison),/INVALID_DOCUMENTS/);
+for(const invalid of [[null], [{name:'원고.pdf',pages:null}], [{name:'',pages:[]}]])assert.throws(()=>assembleVerifiedCaseAnalysis(invalid,analysis,comparison),/INVALID_DOCUMENTS/);
+for(const unreadable of [null,{text:42},{}]){
+ const partial=assembleVerifiedCaseAnalysis([{name:'원고.pdf',pages:[{text:'원고는 계약기간 5년을 주장한다.'},unreadable]},reportDocuments[1]],analysis,comparison);
+ assert.equal(partial.diagnostics.unreadablePages,1);
+ assert.deepEqual(partial.diagnostics.unreadableDetails.map(item=>item.page),[2]);
+ assert.equal(partial.status,'source_checked_partial');
+}
 
 assert.throws(()=>assembleVerifiedCaseAnalysis([reportDocuments[0],reportDocuments[0]],analysis,comparison),/DUPLICATE_DOCUMENT_NAME/);
 
