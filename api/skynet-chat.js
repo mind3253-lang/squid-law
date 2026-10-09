@@ -12,7 +12,7 @@ export default async function handler(req,res){
  let retrieved=[];
  try{
   const question=clean.filter(m=>m.role==='user').slice(-1)[0]?.content||'';
-  const words=[...new Set((question.normalize('NFKC').toLowerCase().match(/[\\p{L}\\p{N}]{2,}/gu)||[]).filter(x=>x.length>1))].slice(0,12);
+  const words=[...new Set((question.normalize('NFKC').toLowerCase().match(/[\p{L}\p{N}]{2,}/gu)||[]).filter(x=>x.length>1))].slice(0,12);
   if(words.length){
    const {list,get}=await import('@vercel/blob');
    const blobs=[];let cursor;
