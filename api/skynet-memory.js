@@ -13,7 +13,7 @@ export default async function handler(req,res){
     cursor=page.hasMore?page.cursor:undefined;
    }while(cursor&&files.length<5000);
    files.sort((a,b)=>String(a.uploadedAt||'').localeCompare(String(b.uploadedAt||'')));
-   const selected=files.slice(-200);
+   const selected=files.slice(-40);
    const groups=[];
    for(let i=0;i<selected.length;i+=8){
     const batch=await Promise.all(selected.slice(i,i+8).map(async file=>{
@@ -28,7 +28,7 @@ export default async function handler(req,res){
     groups.push(...batch);
    }
    const entries=groups.flat();
-   return send(res,200,{messages:entries.slice(-1000),hasMore:files.length>200});
+   return send(res,200,{messages:entries.slice(-1000),hasMore:files.length>40});
   }catch(e){return send(res,502,{error:'서버 기억 불러오기 실패',detail:String(e?.message||'').slice(0,120)})}
  }
  if(req.method!=='POST')return send(res,405,{error:'허용되지 않은 요청'});
