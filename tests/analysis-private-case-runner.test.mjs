@@ -45,4 +45,7 @@ await assert.rejects(runPrivateCaseReport(documents,{...credentials,enabled:true
 assert.deepEqual(calls,[],'comparison should not run after failed analysis');
 const empty=await runPrivateCaseReport(documents,{...credentials,enabled:true,analyze,compare:async()=>({...comparison,comparisons:[],sourceReady:false})});
 assert.equal(empty.sourceReady,false);
-console.log('PASS: private case runner requires opt-in, runs sequentially and rechecks original citations');
+await assert.rejects(runPrivateCaseReport(documents,{...credentials,enabled:true,maxDurationMs:999,analyze,compare}),/INVALID_TIMEOUT/);
+const budgeted=await runPrivateCaseReport(documents,{...credentials,enabled:true,maxDurationMs:105000,analyze:async(_docs,opts)=>{assert.ok(opts.deadlineAt>Date.now());return analysis;},compare:async(_docs,opts)=>{assert.ok(opts.deadlineAt>Date.now());return comparison;}});
+assert.equal(budgeted.sourceReady,true);
+console.log('PASS: private case runner requires opt-in, runs sequentially, respects deadline and rechecks original citations');
