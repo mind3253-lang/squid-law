@@ -7,6 +7,10 @@
     {
       "source": "/admin/skynet-archive",
       "destination": "/api/skynet-archive"
+    },
+    {
+      "source": "/admin/skynet-memory",
+      "destination": "/api/skynet-memory"
     }
   ]
 }
