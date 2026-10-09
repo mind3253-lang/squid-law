@@ -14,17 +14,20 @@ export default async function handler(req,res){
    }while(cursor&&files.length<5000);
    files.sort((a,b)=>String(a.uploadedAt||'').localeCompare(String(b.uploadedAt||'')));
    const selected=files.slice(-50);
-   const entries=[];
-   for(const file of selected){
-    try{
+   const groups=[];
+   for(let i=0;i<selected.length;i+=8){
+    const batch=await Promise.all(selected.slice(i,i+8).map(async file=>{
      const obj=await get(file.pathname,{access:'private'});
-     if(!obj||obj.statusCode!==200)continue;
-     const chunks=[];
-     for await(const part of obj.stream)chunks.push(Buffer.from(part));
+     if(!obj||obj.statusCode!==200)throw Error('기억 파일을 읽을 수 없습니다');
+     const chunks=[];let length=0;
+     for await(const part of obj.stream){const chunk=Buffer.from(part);length+=chunk.length;if(length>50000)throw Error('기억 파일 크기 초과');chunks.push(chunk)}
      const item=JSON.parse(Buffer.concat(chunks).toString('utf8'));
-     if(item&&Array.isArray(item.messages))entries.push(...item.messages.filter(m=>['user','assistant'].includes(m.role)&&typeof m.content==='string').map(m=>({role:m.role,content:m.content.slice(0,12000)})));
-    }catch{}
+     if(!item||!Array.isArray(item.messages))throw Error('기억 데이터 형식 오류');
+     return item.messages.filter(m=>m&&['user','assistant'].includes(m.role)&&typeof m.content==='string').map(m=>({role:m.role,content:m.content.slice(0,12000)}));
+    }));
+    groups.push(...batch);
    }
+   const entries=groups.flat();
    return send(res,200,{messages:entries.slice(-1000),hasMore:files.length>50});
   }catch(e){return send(res,502,{error:'서버 기억 불러오기 실패',detail:String(e?.message||'').slice(0,120)})}
  }
