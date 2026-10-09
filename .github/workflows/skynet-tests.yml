@@ -1,0 +1,20 @@
+name: SKYNET regression tests
+on:
+  push:
+    paths:
+      - 'api/skynet-*.js'
+      - 'tests/**'
+      - 'package.json'
+      - '.github/workflows/skynet-tests.yml'
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --no-audit --no-fund
+      - run: node --test tests/skynet-search.test.mjs tests/skynet-case-classifier.test.mjs tests/skynet-timeline.test.mjs
