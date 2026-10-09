@@ -1,6 +1,6 @@
 export default async function handler(req,res){
- const send=(code,obj)=>res.status(code).setHeader('Cache-Control','no-store').json(obj);
- if(req.method!=='POST'){res.setHeader('Allow','POST');return send(405,{error:'POST only'})}
+ const send=(code,obj)=>res.status(code).setHeader('Cache-Control','no-store').setHeader('X-Content-Type-Options','nosniff').json(obj);
+ if(req.method!=='POST'){res.setHeader('Allow','POST');return send(405,{error:'POST only'})}if(Number(req.headers['content-length'])>250000)return send(413,{error:'요청 본문 크기 제한 초과'});
  const auth=typeof req.headers.authorization==='string'?req.headers.authorization:'';
  let valid=false;try{const raw=Buffer.from(auth.replace(/^Basic /,''),'base64').toString();valid=auth.startsWith('Basic ')&&raw==='admin:'+process.env.ADMIN_PASSWORD&&!!process.env.ADMIN_PASSWORD}catch{}
  if(!valid)return send(401,{error:'관리자 인증 필요'});
