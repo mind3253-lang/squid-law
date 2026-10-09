@@ -17,6 +17,10 @@ for(const id of ['run-operator-ai','copy-ai-report','save-ai-report','ai-integra
  assert.ok(html.includes('id="'+id+'"'),'Missing AI report UI element: '+id);
 }
 assert.match(moduleScript[2],/aiReportText=payload\.text/);
+assert.match(moduleScript[2],/const aiProgressTimer=setInterval\(updateAiProgress,1000\)/);
+assert.match(moduleScript[2],/clearInterval\(aiProgressTimer\)/);
+assert.match(moduleScript[2],/완료 예상 시간이 아님/);
+assert.match(moduleScript[2],/Math\.max\(0,maxWaitSeconds-elapsed\)/);
 assert.match(moduleScript[2],/navigator\.clipboard\.writeText\(aiReportText\)/);
 assert.match(moduleScript[2],/link\.download='SQUIDLAW_AI_통합보고서\.txt'/);
 assert.match(moduleScript[2],/aiReportText='';copyAiReport\.disabled=true;saveAiReport\.disabled=true/);
