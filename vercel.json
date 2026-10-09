@@ -3,6 +3,10 @@
     {
       "source": "/admin/skynet-chat",
       "destination": "/api/skynet-chat"
+    },
+    {
+      "source": "/admin/skynet-archive",
+      "destination": "/api/skynet-archive"
     }
   ]
 }
