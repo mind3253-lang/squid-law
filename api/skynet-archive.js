@@ -1,16 +1,24 @@
 import {put,list,get} from '@vercel/blob';
+const MAX=1024*1024*100;
+function authorized(req){try{const a=String(req.headers.authorization||'');return !!process.env.ADMIN_PASSWORD&&a.startsWith('Basic ')&&Buffer.from(a.slice(6),'base64').toString()==='admin:'+process.env.ADMIN_PASSWORD}catch{return false}}
 export default async function handler(req,res){
- const send=(code,obj)=>res.status(code).setHeader('Cache-Control','no-store').setHeader('X-Content-Type-Options','nosniff').json(obj);
- const auth=String(req.headers.authorization||'');let valid=false;
- try{valid=auth.startsWith('Basic ')&&Buffer.from(auth.slice(6),'base64').toString()==='admin:'+process.env.ADMIN_PASSWORD&&!!process.env.ADMIN_PASSWORD}catch{}
- if(!valid){res.setHeader('WWW-Authenticate','Basic realm="SKYNET Admin"');return send(401,{error:'관리자 인증 필요'})}
- if(!process.env.BLOB_READ_WRITE_TOKEN)return send(503,{error:'서버 저장소 미연결'});
- if(req.method==='GET'){try{const result=await list({prefix:'skynet/imports/',limit:1000});return send(200,{files:result.blobs.map(x=>({pathname:x.pathname,size:x.size,uploadedAt:x.uploadedAt})),hasMore:result.hasMore})}catch{return send(502,{error:'보관 목록 조회 실패'})}}
- if(req.method!=='POST'){res.setHeader('Allow','GET,POST');return send(405,{error:'method'})}
- let body=req.body;if(typeof body==='string'){try{body=JSON.parse(body)}catch{return send(400,{error:'JSON 형식 오류'})}}
- if(!body||typeof body!=='object'||typeof body.name!=='string'||typeof body.data!=='string'||typeof body.batch!=='string'||!Number.isInteger(body.part)||!Number.isInteger(body.total))return send(400,{error:'업로드 형식 오류'});
- if(body.name.length>180||body.data.length>160000||body.batch.length>80||body.part<0||body.total<1||body.total>10000||body.part>=body.total||!/^[a-zA-Z0-9_-]+$/.test(body.batch))return send(413,{error:'업로드 제한 초과'});
- const safe=body.name.replace(/[^a-zA-Z0-9._-]/g,'_').slice(0,100);
- const path='skynet/imports/'+body.batch+'/'+String(body.part).padStart(5,'0')+'-'+safe+'.txt';
- try{await put(path,body.data,{access:'private',addRandomSuffix:false,allowOverwrite:true,contentType:'text/plain;charset=utf-8'});return send(200,{ok:true,part:body.part+1,total:body.total})}catch(e){return send(502,{error:'서버 보관 실패',detail:String(e?.message||'').slice(0,140)})}
+ res.setHeader('Cache-Control','no-store');res.setHeader('X-Content-Type-Options','nosniff');
+ const reply=(code,obj)=>res.status(code).json(obj);
+ if(!authorized(req)){res.setHeader('WWW-Authenticate','Basic realm="SKYNET Admin"');return reply(401,{error:'관리자 인증 필요'})}
+ if(!process.env.BLOB_READ_WRITE_TOKEN)return reply(503,{error:'비공개 저장소 연결 필요'});
+ if(req.method==='GET'){
+  if(req.query?.path){
+   const path=String(req.query.path);if(!/^skynet\/uploads\/[a-zA-Z0-9_-]+\/\d{5}\.bin$/.test(path))return reply(400,{error:'경로 오류'});
+   try{const result=await get(path,{access:'private'});if(!result||result.statusCode!==200)return reply(404,{error:'자료 없음'});res.setHeader('Content-Type','application/octet-stream');return result.stream.pipe(res)}catch{return reply(502,{error:'파일 읽기 실패'})}
+  }
+  try{const x=await list({prefix:'skynet/uploads/',limit:1000});return reply(200,{files:x.blobs.map(b=>({pathname:b.pathname,size:b.size})),hasMore:x.hasMore})}catch{return reply(502,{error:'목록 조회 실패'})}
+ }
+ if(req.method!=='POST')return reply(405,{error:'POST 전용'});
+ let b=req.body;if(typeof b==='string'){try{b=JSON.parse(b)}catch{return reply(400,{error:'JSON 오류'})}}
+ if(!b||typeof b!=='object'||typeof b.batch!=='string'||!/^[a-zA-Z0-9_-]{8,80}$/.test(b.batch)||!Number.isInteger(b.part)||!Number.isInteger(b.total)||b.part<0||b.part>=b.total||b.total>100||typeof b.data!=='string'||b.data.length>2100000)return reply(400,{error:'업로드 데이터 오류'});
+ if(b.encoding!=='base64')return reply(400,{error:'인코딩 오류'});
+ const buf=Buffer.from(b.data,'base64');if(buf.length>1536*1024||buf.length===0||buf.length>MAX)return reply(413,{error:'조각 크기 초과'});
+ const path='skynet/uploads/'+b.batch+'/'+String(b.part).padStart(5,'0')+'.bin';
+ try{await put(path,buf,{access:'private',allowOverwrite:false,addRandomSuffix:false,contentType:'application/octet-stream'});return reply(200,{ok:true,path,part:b.part+1,total:b.total})}
+ catch(e){return reply(502,{error:'비공개 저장 실패',detail:String(e?.message||'').slice(0,180)})}
 }
