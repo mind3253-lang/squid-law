@@ -6,7 +6,7 @@ import {assembleVerifiedCaseAnalysis} from './analysis-case-report.js';
 import {formatCaseReportText} from './analysis-case-report-text.js';
 
 export async function runPrivateCaseReport(documents,{
- enabled=false,apiKey,model,fetchImpl,timeoutMs,
+ enabled=false,apiKey,model,fetchImpl,timeoutMs,maxDurationMs,
  analysisOptions={},comparisonOptions={},
  analyze=runPrivateAnalysis,compare=runPrivateComparisons
 }={}){
@@ -16,7 +16,8 @@ export async function runPrivateCaseReport(documents,{
  if(!Array.isArray(documents)||!documents.length)throw Error('INVALID_DOCUMENTS');
  if(typeof analyze!=='function'||typeof compare!=='function')throw Error('INVALID_HANDLER');
  // Both workers receive the same server-owned credentials. Never take enabled from the client.
- const shared={enabled:true,apiKey,model,fetchImpl,timeoutMs};
+ if(maxDurationMs!==undefined&&(!Number.isInteger(maxDurationMs)||maxDurationMs<1000||maxDurationMs>120000))throw Error('INVALID_TIMEOUT');
+ const shared={enabled:true,apiKey,model,fetchImpl,timeoutMs,deadlineAt:maxDurationMs===undefined?undefined:Date.now()+maxDurationMs};
  const analysis=await analyze(documents,{...analysisOptions,...shared});
  if(!analysis||analysis.schema!=='squidlaw-merged-analysis-v1')throw Error('INVALID_ANALYSIS_RESULT');
  if(analysis.sourceReady!==true)throw Error('ANALYSIS_SOURCE_NOT_READY');
