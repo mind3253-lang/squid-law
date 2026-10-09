@@ -1,3 +1,4 @@
+import {createHash} from 'node:crypto';
 import assert from 'node:assert/strict';
 import {tokens,entriesOf,rankIndex} from '../api/skynet-search-index.js';
 import {recordId} from '../api/skynet-records.js';
@@ -9,7 +10,7 @@ assert.equal(entriesOf(old)[0].at,'2023-11-07');
 assert.equal(entriesOf(recent)[0].title,'서브마린 운영');
 const entries=[...entriesOf(old),...entriesOf(recent)];
 const idx={entries,terms:{}};
-for(let i=0;i<entries.length;i++)for(const t of tokens(entries[i].content+' '+entries[i].title+' '+entries[i].category)){const {createHash}=await import('node:crypto');const b=createHash('sha256').update(t).digest('hex').slice(0,3);(idx.terms[b]??=[]).push(i)}
+for(let i=0;i<entries.length;i++)for(const t of tokens(entries[i].content+' '+entries[i].title+' '+entries[i].category)){const b=createHash('sha256').update(t).digest('hex').slice(0,3);(idx.terms[b]??=[]).push(i)}
 assert.equal(rankIndex(idx,'민지 임대차')[0].category,'법률·소송');
 assert.equal(rankIndex(idx,'서브마린')[0].title,'서브마린 운영');
 assert.equal(rankIndex(idx,'존재하지않는검색어').length,0);
