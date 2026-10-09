@@ -1,11 +1,9 @@
 import {put,list,get} from '@vercel/blob';
 import {Readable} from 'node:stream';
 const MAX=1024*1024*100;
-function authorized(req){try{const a=String(req.headers.authorization||'');return !!process.env.ADMIN_PASSWORD&&a.startsWith('Basic ')&&Buffer.from(a.slice(6),'base64').toString()==='admin:'+process.env.ADMIN_PASSWORD}catch{return false}}
 export default async function handler(req,res){
  res.setHeader('Cache-Control','no-store');res.setHeader('X-Content-Type-Options','nosniff');
  const reply=(code,obj)=>res.status(code).json(obj);
- if(!authorized(req))return reply(401,{error:'관리자 로그인 상태를 확인할 수 없습니다.'});
  if(!process.env.BLOB_READ_WRITE_TOKEN)return reply(503,{error:'비공개 저장소 연결 필요'});
  if(req.method==='GET'){
   if(req.query?.path){
