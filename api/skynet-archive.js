@@ -1,4 +1,5 @@
 import {put,list,get} from '@vercel/blob';
+import {Readable} from 'node:stream';
 const MAX=1024*1024*100;
 function authorized(req){try{const a=String(req.headers.authorization||'');return !!process.env.ADMIN_PASSWORD&&a.startsWith('Basic ')&&Buffer.from(a.slice(6),'base64').toString()==='admin:'+process.env.ADMIN_PASSWORD}catch{return false}}
 export default async function handler(req,res){
@@ -9,7 +10,7 @@ export default async function handler(req,res){
  if(req.method==='GET'){
   if(req.query?.path){
    const path=String(req.query.path);if(!/^skynet\/uploads\/[a-zA-Z0-9_-]+\/\d{5}\.bin$/.test(path))return reply(400,{error:'경로 오류'});
-   try{const result=await get(path,{access:'private'});if(!result||result.statusCode!==200)return reply(404,{error:'자료 없음'});res.setHeader('Content-Type','application/octet-stream');return result.stream.pipe(res)}catch{return reply(502,{error:'파일 읽기 실패'})}
+   try{const result=await get(path,{access:'private'});if(!result||result.statusCode!==200)return reply(404,{error:'자료 없음'});res.setHeader('Content-Type','application/octet-stream');return Readable.fromWeb(result.stream).pipe(res)}catch{return reply(502,{error:'파일 읽기 실패'})}
   }
   try{const x=await list({prefix:'skynet/uploads/',limit:1000});return reply(200,{files:x.blobs.map(b=>({pathname:b.pathname,size:b.size})),hasMore:x.hasMore})}catch{return reply(502,{error:'목록 조회 실패'})}
  }
