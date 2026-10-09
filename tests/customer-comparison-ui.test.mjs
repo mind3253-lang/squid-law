@@ -19,6 +19,8 @@ for(const id of ['run-operator-ai','copy-ai-report','save-ai-report','ai-integra
 assert.match(moduleScript[2],/aiReportText=payload\.text/);
 assert.match(moduleScript[2],/const aiProgressTimer=setInterval\(updateAiProgress,1000\)/);
 assert.match(moduleScript[2],/clearInterval\(aiProgressTimer\)/);
+assert.match(moduleScript[2],/activeAiController\.abort\(\)/);
+assert.match(moduleScript[2],/if\(activeAiController===controller\)activeAiController=null/);
 assert.match(moduleScript[2],/완료 예상 시간이 아님/);
 assert.match(moduleScript[2],/Math\.max\(0,maxWaitSeconds-elapsed\)/);
 assert.match(moduleScript[2],/navigator\.clipboard\.writeText\(aiReportText\)/);
