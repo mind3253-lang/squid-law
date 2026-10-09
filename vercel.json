@@ -15,6 +15,10 @@
     {
       "source": "/admin/skynet-document",
       "destination": "/api/skynet-document"
+    },
+    {
+      "source": "/admin/skynet-index-backfill",
+      "destination": "/api/skynet-index-backfill"
     }
   ]
 }
