@@ -9,6 +9,6 @@ assert.equal(classifyRecord('바우어와 조혜정 사건 비교').id,null);
 assert.equal(queryScope('민지 임대차 기간은?').strict,true);
 assert.equal(queryScope('민지와 바우어 비교').strict,false);
 const results=[{content:'바우어',case:{id:'case:bauer'}},{content:'민지',case:{id:'case:minji'}},{content:'일반',case:{id:null}}];
-assert.deepEqual(filterCaseResults(results,'민지 임대차 기간?').map(x=>x.content),['민지','일반']);
+assert.deepEqual(filterCaseResults(results,'민지 임대차 기간?').map(x=>x.content),['민지']);
 assert.equal(filterCaseResults(results,'민지와 바우어 비교').length,3);
 console.log('SKYNET case classification tests passed');
