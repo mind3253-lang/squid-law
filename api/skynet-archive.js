@@ -5,7 +5,7 @@ function authorized(req){try{const a=String(req.headers.authorization||'');retur
 export default async function handler(req,res){
  res.setHeader('Cache-Control','no-store');res.setHeader('X-Content-Type-Options','nosniff');
  const reply=(code,obj)=>res.status(code).json(obj);
- if(!authorized(req)){res.setHeader('WWW-Authenticate','Basic realm="SKYNET Admin"');return reply(401,{error:'관리자 인증 필요'})}
+ if(!authorized(req)){return reply(401,{error:'SKYNET 파일 저장 인증이 필요합니다. 관리자 로그인과 파일 API 인증은 현재 별개입니다.'})}
  if(!process.env.BLOB_READ_WRITE_TOKEN)return reply(503,{error:'비공개 저장소 연결 필요'});
  if(req.method==='GET'){
   if(req.query?.path){
