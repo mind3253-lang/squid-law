@@ -49,7 +49,7 @@ export function assembleCaseAnalysis(analysis,comparison){
  * Previously stored verification flags are untrusted at the export boundary.
  */
 export function assembleVerifiedCaseAnalysis(documents,analysis,comparison){
- if(!Array.isArray(documents)||documents.length===0||documents.some(doc=>!doc||typeof doc!=='object'||typeof doc.name!=='string'||!doc.name.trim()||!Array.isArray(doc.pages)||doc.pages.length===0||doc.pages.some(page=>!page||typeof page!=='object'||typeof page.text!=='string')))throw Error('INVALID_DOCUMENTS');
+ if(!Array.isArray(documents)||documents.length===0||documents.some(doc=>!doc||typeof doc!=='object'||typeof doc.name!=='string'||!doc.name.trim()||!Array.isArray(doc.pages)||doc.pages.length===0||doc.pages.some(page=>page!=null&&(typeof page!=='object'||Array.isArray(page)))))throw Error('INVALID_DOCUMENTS');
  if(new Set(documents.map(doc=>doc.name)).size!==documents.length)throw Error('DUPLICATE_DOCUMENT_NAME');
  if(!analysis||analysis.schema!=='squidlaw-merged-analysis-v1'||!Array.isArray(analysis.findings)||!analysis.diagnostics||typeof analysis.diagnostics!=='object'||Array.isArray(analysis.diagnostics)||!Array.isArray(analysis.diagnostics.missingBatches??[]))throw Error('INVALID_ANALYSIS_RESULT');
  if(!comparison||comparison.schema!=='squidlaw-private-comparisons-v1'||!Array.isArray(comparison.comparisons)||!comparison.diagnostics||typeof comparison.diagnostics!=='object'||Array.isArray(comparison.diagnostics))throw Error('INVALID_COMPARISON_RESULT');
