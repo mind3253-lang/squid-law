@@ -19,6 +19,7 @@ const aiReport=document.getElementById('ai-integrated-report');
 const copyAiReport=document.getElementById('copy-ai-report');
 const saveAiReport=document.getElementById('save-ai-report');
 let aiReportText='';
+let activeAiController=null;
 copyAiReport.addEventListener('click',async()=>{
  if(!aiReportText)return;
  try{await navigator.clipboard.writeText(aiReportText);operatorAiStatus.textContent='AI 보고서를 복사했습니다.';}
@@ -58,6 +59,7 @@ operatorAiBtn.addEventListener('click',async()=>{
  const aiProgressTimer=setInterval(updateAiProgress,1000);
  try{
   const controller=new AbortController();
+ activeAiController=controller;
  const abortTimer=setTimeout(()=>controller.abort(),120000);
  let response,payload;
  try{
@@ -79,7 +81,7 @@ operatorAiBtn.addEventListener('click',async()=>{
   const comparisonCount=Array.isArray(payload.report?.comparisons)?payload.report.comparisons.length:0;
   operatorAiStatus.textContent='AI 분석 응답 수신 · 분석 '+findingCount+'건 · 서면 비교 '+comparisonCount+'건 · 출처 검증: '+(payload.report?.status==='source_checked_partial'?'확인된 인용은 일치 · 일부 페이지 미식별':payload.sourceReady?'전체 확인':'추가 확인 필요');
  }catch(error){if(revision===sourceRevision)operatorAiStatus.textContent=error.name==='AbortError'?'AI 서버 응답이 120초를 초과했습니다. 서버 실행 시간 설정을 확인하세요.':'AI 실행 실패: '+error.message;}
- finally{clearInterval(aiProgressTimer);if(revision===sourceRevision)operatorAiBtn.disabled=false;}
+ finally{clearInterval(aiProgressTimer);if(activeAiController?.signal.aborted||activeAiController?.signal===undefined||revision===sourceRevision){if(activeAiController?.signal.aborted||revision===sourceRevision)activeAiController=null;}if(revision===sourceRevision)operatorAiBtn.disabled=false;}
 });
 
 const instantBtn=document.getElementById('run-instant-report');
@@ -492,6 +494,7 @@ fileInput.addEventListener('change',async e=>{
  const selectedFiles=[...e.target.files];
  if(!selectedFiles.length)return; // Cancelled file selection must preserve the current workspace.
  e.target.value=''; // Permit selecting the same PDF again after a failed or completed upload.
+ if(activeAiController){activeAiController.abort();activeAiController=null;}
  sourceRevision++;pilotImportRevision++;resultImportRevision++;reviewImportRevision++;
  instantBtn.disabled=true;instantOutput.replaceChildren();instantStatus.textContent='새 PDF 처리 중…';operatorAiBtn.disabled=true;aiReport.replaceChildren();aiReportText='';copyAiReport.disabled=true;saveAiReport.disabled=true;operatorAiStatus.textContent='PDF 처리 중…';
  const extractionRevision=sourceRevision;
