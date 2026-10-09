@@ -11,6 +11,10 @@
     {
       "source": "/admin/skynet-memory",
       "destination": "/api/skynet-memory"
+    },
+    {
+      "source": "/admin/skynet-document",
+      "destination": "/api/skynet-document"
     }
   ]
 }
