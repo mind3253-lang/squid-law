@@ -1,0 +1,17 @@
+import assert from 'node:assert/strict';
+import {datesIn,evidenceIn,timelineFromEntry,orderTimeline,timelineConflicts} from '../api/skynet-timeline-core.js';
+assert.deepEqual(datesIn('2023.11.07 2023년 12월 29일').map(x=>x.date),['2023-11-07','2023-12-29']);
+assert.equal(datesIn('2023.02.30').length,0);
+assert.deepEqual(evidenceIn('갑 제1호증과 을 제2호증'),['갑 제1호증','을 제2호증']);
+const minji=timelineFromEntry({source:'test/minji',part:'0:0',at:'2026-10-09',content:'민지 임대차계약 2023.11.07 체결. 갑 제1호증'});
+assert.equal(minji[0].eventDate,'2023-11-07');
+assert.equal(minji[0].recordedAt,'2026-10-09');
+assert.equal(minji[0].case.id,'case:minji');
+assert.equal(minji[0].source,'test/minji');
+const unknown=timelineFromEntry({source:'test/bauer',content:'바우어 장비 문제가 있다고 주장'});
+assert.equal(unknown[0].eventDate,null);
+assert.equal(unknown[0].stance,'claim');
+assert.equal(unknown[0].case.id,'case:bauer');
+assert.equal(orderTimeline([...unknown,...minji])[0].eventDate,'2023-11-07');
+assert.equal(timelineConflicts([...unknown,...minji]).length,0);
+console.log('SKYNET timeline extraction tests passed');
