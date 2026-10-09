@@ -25,7 +25,7 @@ export async function runPrivateAnalysis(documents,{
   const remaining=deadlineAt===undefined?undefined:deadlineAt-Date.now();
   if(remaining!==undefined&&remaining<1000)throw Error('MODEL_REQUEST_TIMEOUT');
   const callTimeout=remaining===undefined?timeoutMs:Math.min(timeoutMs??45000,remaining,120000);
-  const payload=await analyzeBatchWithModel(batch,{enabled:true,apiKey,model,fetchImpl,timeoutMs:Math.floor(callTimeout)});
+  const payload=await analyzeBatchWithModel(batch,{enabled:true,apiKey,model,fetchImpl,...(callTimeout===undefined?{}:{timeoutMs:Math.floor(callTimeout)})});
   responses.push({batch:batch.batch,payload});
  }
  return finishAnalysisJob(job,responses);
