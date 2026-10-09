@@ -6,7 +6,7 @@ import {analyzeBatchWithModel} from './analysis-model-worker.js';
 
 export async function runPrivateAnalysis(documents,{
  enabled=false,apiKey,model,fetchImpl,timeoutMs,
- input,batches,maxBatches=15,maxTotalChars=120000
+ input,batches,maxBatches=15,maxTotalChars=120000,deadlineAt
 }={}){
  if(!enabled)throw Error('AI_WORKER_DISABLED');
  if(typeof apiKey!=='string'||!apiKey.trim())throw Error('MISSING_SERVER_API_KEY');
@@ -22,7 +22,10 @@ export async function runPrivateAnalysis(documents,{
  // Sequential requests prevent accidental concurrency spikes.
  // Stop on error rather than claiming a complete analysis.
  for(const batch of job.plan.batches){
-  const payload=await analyzeBatchWithModel(batch,{enabled:true,apiKey,model,fetchImpl,timeoutMs});
+  const remaining=deadlineAt===undefined?undefined:deadlineAt-Date.now();
+  if(remaining!==undefined&&remaining<1000)throw Error('MODEL_REQUEST_TIMEOUT');
+  const callTimeout=remaining===undefined?timeoutMs:Math.min(timeoutMs??45000,remaining,120000);
+  const payload=await analyzeBatchWithModel(batch,{enabled:true,apiKey,model,fetchImpl,timeoutMs:Math.floor(callTimeout)});
   responses.push({batch:batch.batch,payload});
  }
  return finishAnalysisJob(job,responses);
