@@ -10,31 +10,62 @@ const send=document.getElementById('sendChat');if(send){send.title='보내기';s
 const status=document.getElementById('archiveStatus');if(status){status.textContent='파일은 대화창에 끌어놓을 수 있습니다.';const observer=new MutationObserver(()=>{if(status.textContent==='파일을 선택해 첨부한 뒤 보내기를 누르세요.')status.textContent='파일은 대화창에 끌어놓을 수 있습니다.';status.classList.toggle('skynet-status-alert',/실패|오류|제한|초과|필요/.test(status.textContent))});observer.observe(status,{childList:true,characterData:true,subtree:true})}
 const pending=document.getElementById('pendingFiles');
 if(pending){
- const fileCache=new Map(),urls=new Map();
- const capture=files=>{for(const f of files)fileCache.set(f.name,f)};
+ const cache=new Map(),objectUrls=new Map();
+ const capture=files=>{for(const f of files)cache.set(f.name,f)};
  composer.addEventListener('drop',e=>capture(e.dataTransfer?.files||[]),true);
  document.getElementById('archivePickInput')?.addEventListener('change',e=>capture(e.target.files||[]),true);
- const update=()=>{
-  for(const n of pending.querySelectorAll('[data-archive-pending]')){
-   if(n.dataset.previewReady)continue;
-   n.dataset.previewReady='1';
-   const raw=n.firstChild?.textContent||'';
-   const filename=raw.replace(/^📎\\s*/,'').split(' · ')[0];
-   const f=fileCache.get(filename);
-   const remove=n.querySelector('button');
-   const name=document.createElement('span');name.className='skynet-file-name';name.textContent=filename;name.title=filename;
-   const preview=document.createElement('div');preview.className='skynet-file-preview';
-   if(f&&(f.type.startsWith('image/')||/\\.(png|jpe?g|gif|webp)$/i.test(filename))){
-    const img=document.createElement('img');img.alt=filename;img.src=URL.createObjectURL(f);urls.set(n,img.src);preview.append(img);
-   }else if(f&&/\\.pdf$/i.test(filename)){
-    const frame=document.createElement('iframe');frame.title=filename+' 첫 페이지 미리보기';frame.loading='lazy';frame.tabIndex=-1;frame.src=URL.createObjectURL(f)+'#page=1&toolbar=0&navpanes=0&scrollbar=0';urls.set(n,frame.src.split('#')[0]);preview.append(frame);
-   }else{
-    const mark=document.createElement('span');mark.className='skynet-file-icon';mark.textContent=/\\.pdf$/i.test(filename)?'PDF':'▤';preview.append(mark);
+ let pdfLibrary;
+ const loadPdf=()=>pdfLibrary||(pdfLibrary=new Promise((resolve,reject)=>{
+   if(window.pdfjsLib){resolve(window.pdfjsLib);return}
+   const script=document.createElement('script');
+   script.src='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+   script.onload=()=>{if(!window.pdfjsLib){reject(Error('PDF renderer unavailable'));return}
+     window.pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+     resolve(window.pdfjsLib)};
+   script.onerror=()=>reject(Error('PDF renderer could not load'));
+   document.head.append(script);
+ })).catch(err=>{pdfLibrary=null;throw err});
+ async function renderPdf(file,preview,node){
+   try{
+     const lib=await loadPdf();
+     const bytes=new Uint8Array(await file.arrayBuffer());
+     const doc=await lib.getDocument({data:bytes}).promise;
+     const page=await doc.getPage(1);
+     const viewport=page.getViewport({scale:1});
+     const scale=Math.min(2,150/viewport.width,170/viewport.height);
+     const view=page.getViewport({scale});
+     const canvas=document.createElement('canvas');
+     canvas.width=Math.ceil(view.width);canvas.height=Math.ceil(view.height);
+     await page.render({canvasContext:canvas.getContext('2d'),viewport:view}).promise;
+     if(node.isConnected){preview.replaceChildren(canvas);preview.classList.remove('skynet-preview-loading')}
+     await doc.destroy();
+   }catch(err){
+     if(node.isConnected){preview.classList.remove('skynet-preview-loading');preview.textContent='PDF';preview.title='미리보기를 표시할 수 없습니다'}
    }
-   n.replaceChildren(preview,name);
-   if(remove){remove.textContent='×';remove.title='첨부 삭제';remove.setAttribute('aria-label',filename+' 삭제');n.append(remove)}
-  }
-  for(const [n,url] of urls)if(!n.isConnected){URL.revokeObjectURL(url);urls.delete(n)}
+ }
+ const update=()=>{
+   for(const node of pending.querySelectorAll('[data-archive-pending]')){
+     if(node.dataset.previewReady)continue;
+     node.dataset.previewReady='1';
+     const raw=node.firstChild?.textContent||'';
+     const filename=raw.replace(/^📎\s*/,'').split(' · ')[0];
+     const file=cache.get(filename);
+     const remove=node.querySelector('button');
+     const name=document.createElement('span');name.className='skynet-file-name';name.textContent=filename;name.title=filename;
+     const preview=document.createElement('div');preview.className='skynet-file-preview';
+     if(file && (file.type.startsWith('image/')||/\.(png|jpe?g)$/i.test(filename))){
+       const img=document.createElement('img');img.alt=filename;
+       const url=URL.createObjectURL(file);objectUrls.set(node,url);img.src=url;preview.append(img);
+     }else if(file && /\.pdf$/i.test(filename)){
+       preview.textContent='PDF';preview.classList.add('skynet-preview-loading');
+       renderPdf(file,preview,node);
+     }else{
+       preview.textContent=/\.pdf$/i.test(filename)?'PDF':'▤';
+     }
+     node.replaceChildren(preview,name);
+     if(remove){remove.textContent='×';remove.title='첨부 삭제';remove.setAttribute('aria-label',filename+' 삭제');node.append(remove)}
+   }
+   for(const [node,url] of objectUrls)if(!node.isConnected){URL.revokeObjectURL(url);objectUrls.delete(node)}
  };
  new MutationObserver(update).observe(pending,{childList:true});update();
 }
