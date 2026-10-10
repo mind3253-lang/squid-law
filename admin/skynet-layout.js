@@ -8,5 +8,35 @@ const label=reason?.parentElement;if(label){label.id='skynetReasoningLabel';labe
 const attachment=document.getElementById('archivePickButton');if(attachment){attachment.title='파일 첨부';attachment.setAttribute('aria-label','파일 첨부')}
 const send=document.getElementById('sendChat');if(send){send.title='보내기';send.setAttribute('aria-label','보내기')}
 const status=document.getElementById('archiveStatus');if(status){status.textContent='파일은 대화창에 끌어놓을 수 있습니다.';const observer=new MutationObserver(()=>{if(status.textContent==='파일을 선택해 첨부한 뒤 보내기를 누르세요.')status.textContent='파일은 대화창에 끌어놓을 수 있습니다.';status.classList.toggle('skynet-status-alert',/실패|오류|제한|초과|필요/.test(status.textContent))});observer.observe(status,{childList:true,characterData:true,subtree:true})}
-const pending=document.getElementById('pendingFiles');if(pending){const urls=new Map(),imageFiles=new Map();const capture=files=>{for(const f of files)if(f.type.startsWith('image/'))imageFiles.set(f.name,f)};composer.addEventListener('drop',e=>capture(e.dataTransfer?.files||[]),true);document.getElementById('archivePickInput')?.addEventListener('change',e=>capture(e.target.files||[]),true);const update=()=>{const nodes=[...pending.querySelectorAll('[data-archive-pending]')];for(const n of nodes){if(n.dataset.previewReady)continue;n.dataset.previewReady='1';const match=n.textContent.match(/📎\s*(.*?)\s*·/);const filename=match?.[1];const picker=document.getElementById('archivePickInput');const file=imageFiles.get(filename)||[...(picker?.files||[])].find(f=>f.name===filename);if(file?.type.startsWith('image/')){const img=document.createElement('img');img.alt=filename;const url=URL.createObjectURL(file);urls.set(n,url);img.src=url;n.prepend(img)}else{const mark=document.createElement('span');mark.textContent='📄';mark.style.fontSize='26px';n.prepend(mark)}}for(const [n,url] of urls){if(!n.isConnected){URL.revokeObjectURL(url);urls.delete(n)}}};new MutationObserver(update).observe(pending,{childList:true,subtree:true});update()}
+const pending=document.getElementById('pendingFiles');
+if(pending){
+ const fileCache=new Map(),urls=new Map();
+ const capture=files=>{for(const f of files)fileCache.set(f.name,f)};
+ composer.addEventListener('drop',e=>capture(e.dataTransfer?.files||[]),true);
+ document.getElementById('archivePickInput')?.addEventListener('change',e=>capture(e.target.files||[]),true);
+ const update=()=>{
+  for(const n of pending.querySelectorAll('[data-archive-pending]')){
+   if(n.dataset.previewReady)continue;
+   n.dataset.previewReady='1';
+   const raw=n.firstChild?.textContent||'';
+   const filename=raw.replace(/^📎\\s*/,'').split(' · ')[0];
+   const f=fileCache.get(filename);
+   const remove=n.querySelector('button');
+   const name=document.createElement('span');name.className='skynet-file-name';name.textContent=filename;name.title=filename;
+   const preview=document.createElement('div');preview.className='skynet-file-preview';
+   if(f&&(f.type.startsWith('image/')||/\\.(png|jpe?g|gif|webp)$/i.test(filename))){
+    const img=document.createElement('img');img.alt=filename;img.src=URL.createObjectURL(f);urls.set(n,img.src);preview.append(img);
+   }else if(f&&/\\.pdf$/i.test(filename)){
+    const frame=document.createElement('iframe');frame.title=filename+' 첫 페이지 미리보기';frame.loading='lazy';frame.tabIndex=-1;frame.src=URL.createObjectURL(f)+'#page=1&toolbar=0&navpanes=0&scrollbar=0';urls.set(n,frame.src.split('#')[0]);preview.append(frame);
+   }else{
+    const mark=document.createElement('span');mark.className='skynet-file-icon';mark.textContent=/\\.pdf$/i.test(filename)?'PDF':'▤';preview.append(mark);
+   }
+   n.replaceChildren(preview,name);
+   if(remove){remove.textContent='×';remove.title='첨부 삭제';remove.setAttribute('aria-label',filename+' 삭제');n.append(remove)}
+  }
+  for(const [n,url] of urls)if(!n.isConnected){URL.revokeObjectURL(url);urls.delete(n)}
+ };
+ new MutationObserver(update).observe(pending,{childList:true});update();
+}
+
 });
