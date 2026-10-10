@@ -21,3 +21,38 @@ main .chat-shell{background:transparent;border:0;padding:0 0 10px}
 #pendingFiles [data-archive-pending] img{width:42px;height:42px;object-fit:cover;border-radius:7px}
 @media(max-width:700px){#chatComposer .composerbar .muted{display:none}#chatComposer textarea{min-height:70px}}
 #archiveStatus{display:none}#archiveStatus.skynet-status-alert{display:block}
+/* SKYNET familiar light reading interface */
+body{background:#fff;color:#24262b}
+header{background:#fff;color:#20232a;border-bottom:1px solid #ededed;padding:8px 22px}
+header h1{font-size:19px;line-height:1.35}
+header a{font-size:12px;color:#656a73!important}
+main{background:#fff}
+.chat-shell h2{font-size:17px;font-weight:600;margin:5px 0 8px}
+#conversation{background:#fff;line-height:1.75;padding:8px 5px 18px}
+.chat-message{font-size:15px;line-height:1.8;margin:16px 0;padding:12px 16px}
+.chat-message.assistant{background:transparent;border:0;max-width:100%;padding:12px 3px;margin-right:0}
+.chat-message.user{background:#f0f1f3;border-radius:19px;max-width:88%;margin-left:auto;padding:12px 16px}
+#chatComposer{background:#f7f7f8;border-color:#e9e9ed;padding:12px 14px;border-radius:26px}
+#chatComposer textarea{min-height:54px;height:58px;max-height:32vh;resize:none;line-height:1.6;font-size:15px;padding:7px 8px}
+#chatComposer .composerbar .muted{font-size:11px;color:#a1a5ac}
+#pendingFiles [data-archive-pending]{width:112px;height:116px;max-width:112px;min-height:116px;box-sizing:border-box;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:4px;padding:7px;border-radius:15px;overflow:hidden;text-align:center;font-size:10px}
+#pendingFiles [data-archive-pending] img{width:90px;height:82px;object-fit:cover;border-radius:10px}
+#pendingFiles [data-archive-pending] button{position:absolute;top:3px;right:3px;width:22px;height:22px;padding:0!important;border-radius:50%;background:#e6e8eb!important;font-size:0!important}
+#pendingFiles [data-archive-pending] button::after{content:'×';font-size:16px;color:#353941}
+#skynetSidebar{background:#f7f7f8;color:#32363c;border-right:1px solid #e8e8eb;box-shadow:none}
+#skynetSidebar button{color:#34383e!important;font-size:14px}
+#skynetSidebarToggle{font-size:0!important;border-radius:10px!important;margin:8px 7px!important;width:43px;height:43px}
+#skynetSidebarToggle svg{width:21px;height:21px}
+#skynetSidebarToggle:hover,.skynetToolLink:hover{background:#e9eaed!important}
+#skynetSidebarPanel{display:flex!important;flex-direction:column;align-items:stretch;padding:4px 7px;gap:4px;overflow-x:hidden}
+#skynetSidebarPanel strong{display:none}
+.skynetToolLink{height:44px;min-height:44px;display:flex!important;align-items:center;gap:12px;white-space:nowrap;border-radius:10px!important;padding:0 11px!important;margin:0!important;font-size:14px!important;line-height:1.5}
+.skynetToolLink.active{background:#e9eaed!important}
+.skynetToolLink svg{width:20px;height:20px;flex-shrink:0}
+.skynetToolLink .skynetToolText{overflow:hidden;text-overflow:ellipsis}
+#skynetSidebar:not(.open) .skynetToolLink{padding-left:11px!important}
+#skynetSidebar:not(.open) .skynetToolText{display:none}
+#skynetSidebar.open{width:270px}
+body.skynet-sidebar-open{padding-left:270px}
+#skynetToolContent{left:270px}
+@media(max-width:700px){body.skynet-sidebar-open{padding-left:min(270px,85vw)}#skynetSidebar.open{width:min(270px,85vw)}#skynetToolContent{left:58px}#skynetSidebar.open~#skynetToolContent{left:min(270px,85vw)}}
