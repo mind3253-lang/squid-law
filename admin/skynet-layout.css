@@ -1,1 +1,22 @@
 html,body{height:100%;overflow:hidden}body{display:flex;flex-direction:column;padding-left:58px;box-sizing:border-box;transition:padding-left .18s ease}body.skynet-sidebar-open{padding-left:350px}header{flex:none;padding:10px 22px}header h1{margin:0 0 4px}main{box-sizing:border-box;width:100%;max-width:none;margin:0;padding:10px 22px;flex:1;min-height:0;display:flex;justify-content:center}main .chat-shell{box-sizing:border-box;width:100%;max-width:760px;min-width:0;min-height:0;height:100%;margin:0;display:flex;flex-direction:column}#conversation{flex:1;min-height:0!important;overflow-y:auto}.composer{flex:none}.chat-shell>p.muted{display:none}.chat-message{box-sizing:border-box;max-width:95%}.chat-message.assistant{background:#fff}.chat-message.user{background:#e8edf2}#skynetSidebar{position:fixed;z-index:100;left:0;top:0;bottom:0;width:58px;background:#10243b;color:white;box-sizing:border-box;display:flex;flex-direction:column}#skynetSidebar.open{width:min(350px,90vw)}#skynetSidebar button{background:transparent;color:white;margin:0;text-align:left}#skynetSidebarToggle{height:56px;font-size:22px;text-align:center!important}#skynetSidebarPanel{display:none;overflow:auto;padding:12px;flex:1}#skynetSidebar.open #skynetSidebarPanel{display:block}.skynetToolLink{display:block;width:100%;padding:12px!important;margin:3px 0!important}.skynetToolLink.active{background:#31567c!important}#skynetToolContent{display:none;position:fixed;z-index:101;top:0;bottom:0;left:min(350px,90vw);right:0;overflow:auto;background:#f2f5fa;padding:24px;box-sizing:border-box}#skynetToolContent.active{display:block}#skynetToolContent section{max-width:1100px;margin:12px 0;background:#fff;padding:20px;border-radius:12px}#skynetToolContent .skynetToolClose{position:sticky;top:0;float:right}@media(max-width:700px){main{padding:8px}main .chat-shell{padding:8px}.composer textarea{min-height:85px}#skynetToolContent{left:58px;padding:8px}#skynetSidebar.open~#skynetToolContent{left:min(350px,90vw)}}#skynetToolContent section[hidden]{display:none!important}#skynetToolContent section.internal-memory:not([hidden]){display:block!important}@media(max-width:700px){body.skynet-sidebar-open{padding-left:min(350px,90vw)}main{min-width:0}}
+/* Familiar compact conversation composer */
+main .chat-shell{background:transparent;border:0;padding:0 0 10px}
+.chat-shell h2{margin:5px 0 12px}
+#chatComposer{background:#f6f6f6;border:1px solid #e4e4e7;border-radius:26px;padding:12px 14px;box-shadow:0 2px 8px #00000008}
+#chatComposer textarea{background:transparent;min-height:80px;max-height:34vh;padding:8px 10px;border:0;resize:vertical}
+#chatInput::placeholder{color:#b4b7bd;opacity:1}
+#chatComposer .composerbar{display:flex;flex-wrap:nowrap;align-items:center;gap:8px}
+#chatComposer .composerbar .muted{font-size:12px;color:#8b919a;min-width:0}
+#archivePickButton{margin:0 auto 0 0;background:transparent;color:#3e4652;border:1px solid #d4d7dc;border-radius:50%;width:36px;height:36px;min-width:36px;padding:0;font-size:0}
+#archivePickButton::before{content:'+';font-size:25px;font-weight:300}
+#sendChat{margin:0;background:#2776d2;border-radius:50%;width:38px;height:38px;min-width:38px;padding:0;font-size:0}
+#sendChat::before{content:'↑';font-size:24px}
+#chatCount{display:none!important}
+#archiveStatus{font-size:12px;margin:6px 0 0;color:#87909b}
+#skynetReasoning{width:auto;max-width:125px;border:0;background:transparent;color:#616875;padding:6px 4px;font-size:12px}
+#skynetReasoningLabel{font-size:0;margin-left:auto;white-space:nowrap}
+#pendingFiles{display:flex;gap:6px;flex-wrap:wrap}
+#pendingFiles [data-archive-pending]{position:relative;display:flex;align-items:center;gap:5px;max-width:145px;min-height:60px;padding:8px;border:1px solid #e0e3e7;border-radius:12px;background:#fff;color:#5a6370;font-size:11px;overflow-wrap:anywhere}
+#pendingFiles [data-archive-pending] button{background:#e7ebf0;color:#384252;padding:3px 6px;margin:0;border-radius:8px;font-size:11px}
+#pendingFiles [data-archive-pending] img{width:42px;height:42px;object-fit:cover;border-radius:7px}
+@media(max-width:700px){#chatComposer .composerbar .muted{display:none}#chatComposer textarea{min-height:70px}}
