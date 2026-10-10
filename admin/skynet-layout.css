@@ -56,3 +56,4 @@ main{background:#fff}
 body.skynet-sidebar-open{padding-left:270px}
 #skynetToolContent{left:270px}
 @media(max-width:700px){body.skynet-sidebar-open{padding-left:min(270px,85vw)}#skynetSidebar.open{width:min(270px,85vw)}#skynetToolContent{left:58px}#skynetSidebar.open~#skynetToolContent{left:min(270px,85vw)}}
+#skynetSidebar .skynetToolIcon{display:inline-flex;align-items:center;justify-content:center;width:20px;height:22px;flex:none;font-size:20px;font-weight:400}#skynetSidebar:not(.open) #skynetSidebarPanel{display:flex!important}#skynetSidebar.open #skynetSidebarPanel{display:flex!important}
