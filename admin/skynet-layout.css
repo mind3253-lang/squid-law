@@ -57,3 +57,15 @@ body.skynet-sidebar-open{padding-left:270px}
 #skynetToolContent{left:270px}
 @media(max-width:700px){body.skynet-sidebar-open{padding-left:min(270px,85vw)}#skynetSidebar.open{width:min(270px,85vw)}#skynetToolContent{left:58px}#skynetSidebar.open~#skynetToolContent{left:min(270px,85vw)}}
 #skynetSidebar .skynetToolIcon{display:inline-flex;align-items:center;justify-content:center;width:20px;height:22px;flex:none;font-size:20px;font-weight:400}#skynetSidebar:not(.open) #skynetSidebarPanel{display:flex!important}#skynetSidebar.open #skynetSidebarPanel{display:flex!important}
+/* Shared SKYNET visual foundation: soft canvas and readable content */
+body,main{background:#fafaf9}
+#conversation{background:transparent;font-size:16px;line-height:1.75}
+.chat-message{font-size:16px;line-height:1.75;white-space:pre-wrap;overflow-wrap:anywhere}
+.chat-message.user{background:#f4f4f4;color:#252525;border:0}
+.chat-message.assistant{background:transparent;color:#252525}
+#chatComposer{background:#fff;border:1px solid #e8e8e8;box-shadow:0 2px 12px rgba(0,0,0,.045)}
+#chatComposer textarea{background:transparent}
+header{background:#fafaf9;border-bottom:1px solid #eeeeeb;padding:6px 22px}
+header h1{font-size:18px;margin:0;line-height:1.3}
+.chat-shell h2{font-size:15px;margin:4px 0 8px;color:#666}
+#conversation .chat-message{margin-top:16px;margin-bottom:18px}
