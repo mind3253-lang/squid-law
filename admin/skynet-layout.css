@@ -69,3 +69,11 @@ header{background:#fafaf9;border-bottom:1px solid #eeeeeb;padding:6px 22px}
 header h1{font-size:18px;margin:0;line-height:1.3}
 .chat-shell h2{font-size:15px;margin:4px 0 8px;color:#666}
 #conversation .chat-message{margin-top:16px;margin-bottom:18px}
+
+/* Match ChatGPT reference: cool clean whites and pale blue user bubbles */
+html,body,main,.chat-shell,#conversation{background:#ffffff!important}
+#skynetSidebar{background:#f9f9f9!important}
+.chat-message.user{background:#eaf3ff!important;color:#202124!important;border:0!important;border-radius:20px!important}
+.chat-message.assistant{background:transparent!important;color:#202124!important}
+#chatComposer{background:#ffffff!important;border:1px solid #e9e9e9!important;box-shadow:0 2px 12px rgba(0,0,0,.035)!important}
+header{background:#ffffff!important;border-bottom:1px solid #f0f0f0!important}
