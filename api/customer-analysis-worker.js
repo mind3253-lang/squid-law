@@ -6,6 +6,7 @@ import {analyzeUnit,independentlyVerify} from '../lib/legal-evidence-review.mjs'
 import {put} from '@vercel/blob';
 import {candidateDocuments} from './customer-document-boundaries.js';
 import {planVisualEvidence} from '../lib/visual-evidence.mjs';
+import {assertPageBatch,assertBatchManifest} from '../lib/batch-integrity.mjs';
 const eq=(a,b)=>{const x=Buffer.from(a||''),y=Buffer.from(b||'');return x.length===y.length&&timingSafeEqual(x,y)};
 async function load(path){const r=await get(path,{access:'private'});if(!r||r.statusCode!==200)return null;let size=0,parts=[];for await(const chunk of r.stream){size+=chunk.length;if(size>32*1024*1024)throw Error('BLOB_TOO_LARGE');parts.push(Buffer.from(chunk))}return JSON.parse(Buffer.concat(parts).toString())}
 export default async function handler(req,res){
@@ -32,6 +33,7 @@ export default async function handler(req,res){
   await advanceJob(job,'extraction_incomplete',{...previous,nextDocument:index,documentId:d.id},'blocked','PAGE_EXTRACTION_INCOMPLETE');
   return res.status(200).json({status:'blocked',reason:'PAGE_EXTRACTION_INCOMPLETE'});
  }
+ if(!Array.isArray(e.pages))assertBatchManifest({batches:e.batches,pageCount:d.pageCount});
  const pageOffset=Number.isSafeInteger(previous.nextPage)&&previous.nextDocument===index?previous.nextPage:0;
  if(pageOffset<0||pageOffset>=d.pageCount||pageOffset%20!==0)throw Error('INVALID_CHECKPOINT_OFFSET');
  const batchIndex=Math.floor(pageOffset/20);
@@ -40,7 +42,7 @@ export default async function handler(req,res){
  if(batchPath&&(!batchPath.startsWith(prefix+'extracted/'+d.id+'/')||!batchPath.endsWith('.json')))throw Error('INVALID_EXTRACTION_PATH');
  const batch=Array.isArray(e.pages)?null:await load(batchPath);
  const selectedPages=Array.isArray(e.pages)?e.pages.slice(pageOffset,pageOffset+20):batch?.pages;
- if(!Array.isArray(selectedPages)||selectedPages.length!==Math.min(20,d.pageCount-pageOffset)||selectedPages.some((p,i)=>p.page!==pageOffset+i+1)){
+ let batchIntegrity;try{batchIntegrity=assertPageBatch({pages:selectedPages,pageOffset,pageCount:d.pageCount})}catch{
   await advanceJob(job,'page_sequence_invalid',{...previous,nextDocument:index,documentId:d.id},'blocked','INVALID_PAGE_SEQUENCE');
   return res.status(200).json({status:'blocked',reason:'INVALID_PAGE_SEQUENCE'});
  }
@@ -59,7 +61,7 @@ export default async function handler(req,res){
  const existing=await load(output);
  if(existing&&existing.sourceVersion!==job.documentVersion)throw Error('RESULT_VERSION_MISMATCH');
  if(!existing)await put(output,JSON.stringify(payload),{access:'private',allowOverwrite:false,addRandomSuffix:false,contentType:'application/json'});
- const finished=pageOffset+selectedPages.length>=d.pageCount;
+ const finished=batchIntegrity.finished;
  const checkpoint={nextDocument:finished?index+1:index,nextPage:finished?0:pageOffset+selectedPages.length,documentCount:docs.length,lastDocumentId:d.id,lastOutput:output,verifiedTextDocuments:finished?index+1:index,errorAttempts:0};
  if(finished&&index+1===docs.length){
   await advanceJob(job,'text_review_completed_visual_pending',checkpoint,'blocked','VISUAL_EVIDENCE_NOT_VERIFIED');
