@@ -80,3 +80,11 @@ test('source review audit rejects duplicate original units',async()=>{
  const units=segmentRecord({scope:'customer',documentId:'d',pages:[{page:1,text:'원본 내용'}]}).segments;
  assert.equal(independentlyVerify([...units,...units],units.map(analyzeUnit)).complete,false);
 });
+
+test('segment audit rejects mixed document and invalid original pages',()=>{
+ const a=segmentRecord({scope:'customer',documentId:'a',pages:[{page:1,text:'first'}]}).segments;
+ const b=segmentRecord({scope:'customer',documentId:'b',pages:[{page:2,text:'second'}]}).segments;
+ assert.equal(auditSegments([{page:1,text:'first'},{page:2,text:'second'}],[...a,...b]).complete,false);
+ assert.equal(auditSegments([null],a).complete,false);
+ assert.equal(auditSegments([],[]).complete,false);
+});
