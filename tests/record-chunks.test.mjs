@@ -28,3 +28,11 @@ test('claim candidates retain exact source location',async()=>{
  const unit=prepareCorpus('skynet',[{id:'case-doc',pageCount:1,pages:[{page:1,text:'피고는 대여금 청구를 부인한다.'}]}]).units[0];
  const result=analyzeUnit(unit);assert.ok(result.claimCandidates.length>0);assert.equal(result.claimCandidates[0].source.page,1);assert.equal(result.claimCandidates[0].source.documentId,'case-doc');
 });
+
+test('10001 pages partition and resume with no page loss',async()=>{
+ const {pageBatches}=await import('../lib/corpus-coverage.mjs');
+ const pages=Array.from({length:10001},(_,i)=>({page:i+1,text:'원문 '+i}));
+ const batches=pageBatches(pages,20);assert.equal(batches.length,501);
+ assert.deepEqual(batches.flatMap(b=>b.pages.map(p=>p.page)),pages.map(p=>p.page));
+ assert.equal(batches.at(-1).offset,10000);
+});
