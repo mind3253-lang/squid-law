@@ -37,7 +37,7 @@ export default async function handler(req,res){
   if(action==='stage'){
    let totalPages;try{totalPages=await inspectPdfPageCount(buf)}catch{return respond(res,422,{error:'PDF 페이지 수 확인 실패'})}
    const uuid=randomUUID(),createdAt=new Date().toISOString();
-   const meta={id:uuid,name,sha256,size:buf.length,createdAt,side:'customer',pageCount:totalPages,extractedPages:0,excludedPages:totalPages,readablePages:0,imageOperatorPages:0,unscannedVisualPages:totalPages,visualVerified:false,status:'extraction_pending',extractionNextPage:1};
+   const meta={id:uuid,name,sha256,size:buf.length,createdAt,side:'customer',pageCount:totalPages,extractedPages:0,excludedPages:0,pendingPages:totalPages,readablePages:0,imageOperatorPages:0,unscannedVisualPages:totalPages,visualVerified:false,status:'extraction_pending',extractionNextPage:1};
    await put(prefix+'pdf/'+uuid+'.pdf',buf,{access:'private',addRandomSuffix:false,allowOverwrite:false,contentType:'application/pdf'});
    await put(prefix+'docs/'+uuid+'.json',JSON.stringify(meta),{access:'private',addRandomSuffix:false,allowOverwrite:false,contentType:'application/json'});
    await Promise.allSettled(paths.map(p=>del(p)));
