@@ -55,3 +55,10 @@ Read current repository HEAD, tests, Vercel deployment and actual source files b
 
 ### Still required before production legal analysis
 Wire actual page/image extraction and OCR into the durable worker, move full-file synchronous PDF processing to recoverable ingestion jobs, implement model-driven case structure and genuine independent reasoning, and exercise production API after provider approval. Do not report these items complete merely because their interfaces or mocks exist.
+
+### Further integration
+- `lib/batch-integrity.mjs` checks 20-page alignment, exact page count, no repeated/missing pages and manifest uniqueness. The customer worker uses it before writing a checkpoint.
+- `lib/document-boundary-merge.mjs` combines boundary candidates across adjacent batches, rejecting overlap and page gaps. It is not yet invoked by a persistent final aggregation stage.
+- `lib/case-crosscheck.mjs` detects polarity-based *candidates* across different source documents with a bounded output; semantic contradictions are **not verified**. The mock pipeline includes these candidates and date/amount cross-document matches.
+- New tests cover 338/10,001 page batches, boundary merges and contradictory-pleading candidates.
+- The worker still has no end-to-end finalizer; its blocked visual state is intentional until a real inventory, OCR and semantic audit are wired.
