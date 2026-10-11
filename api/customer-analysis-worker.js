@@ -10,6 +10,7 @@ import {assertPageBatch,assertBatchManifest} from '../lib/batch-integrity.mjs';
 import {expectedTextReviewOutputs,auditTextReviewOutputs} from '../lib/text-review-manifest.mjs';
 import {verifyPageDigests} from '../lib/page-digests.mjs';
 import {ANALYSIS_STAGES} from '../lib/analysis-pipeline-state.mjs';
+import {aggregateTextReview} from '../lib/text-review-aggregation.mjs';
 const eq=(a,b)=>{const x=Buffer.from(a||''),y=Buffer.from(b||'');return x.length===y.length&&timingSafeEqual(x,y)};
 async function load(path){const r=await get(path,{access:'private'});if(!r||r.statusCode!==200)return null;let size=0,parts=[];for await(const chunk of r.stream){size+=chunk.length;if(size>32*1024*1024)throw Error('BLOB_TOO_LARGE');parts.push(Buffer.from(chunk))}return JSON.parse(Buffer.concat(parts).toString())}
 export default async function handler(req,res){
@@ -75,9 +76,16 @@ export default async function handler(req,res){
   do{const page=await blob.list({prefix:root,limit:1000,...(resultCursor?{cursor:resultCursor}:{})});actual.push(...page.blobs.filter(x=>x.pathname.endsWith('.json')).map(x=>x.pathname));resultCursor=page.hasMore?page.cursor:null}while(resultCursor);
   const outputAudit=auditTextReviewOutputs({expected,actual});
   if(!outputAudit.complete){await advanceJob(job,'text_review_output_incomplete',{...checkpoint,missingOutputs:outputAudit.missing.slice(0,50)},'blocked','TEXT_REVIEW_OUTPUT_INCOMPLETE');return res.status(200).json({status:'blocked',reason:'TEXT_REVIEW_OUTPUT_INCOMPLETE'})}
+  // Load the exact persisted batch payloads; a pathname-only audit cannot verify contents.
+  const persisted=await Promise.all(expected.map(async path=>({path,payload:await load(path)})));
+  let aggregate;
+  try{aggregate=aggregateTextReview({caseId:job.caseId,sourceVersion:job.documentVersion,root,documents:docs,outputs:persisted})}
+  catch{await advanceJob(job,'text_review_content_invalid',{...checkpoint},'blocked','TEXT_REVIEW_CONTENT_INVALID');return res.status(200).json({status:'blocked',reason:'TEXT_REVIEW_CONTENT_INVALID'})}
+  const aggregatePath=root+'text-review-aggregate.json';
+  await put(aggregatePath,JSON.stringify(aggregate),{access:'private',allowOverwrite:true,addRandomSuffix:false,contentType:'application/json'});
   const manifestPath=root+'text-review-manifest.json';
   await put(manifestPath,JSON.stringify({caseId:job.caseId,sourceVersion:job.documentVersion,documents:docs.map(x=>({id:x.id,pageCount:x.pageCount})),outputs:expected,verifiedVisual:false,verifiedLegal:false,analysisComplete:false,pendingStages:ANALYSIS_STAGES.slice(2)}),{access:'private',allowOverwrite:true,addRandomSuffix:false,contentType:'application/json'});
-  await advanceJob(job,'text_review_completed_visual_pending',{...checkpoint,textReviewManifest:manifestPath},'blocked','VISUAL_EVIDENCE_NOT_VERIFIED');
+  await advanceJob(job,'text_review_completed_visual_pending',{...checkpoint,textReviewManifest:manifestPath,textReviewAggregate:aggregatePath},'blocked','VISUAL_EVIDENCE_NOT_VERIFIED');
   return res.status(200).json({status:'blocked',reason:'VISUAL_EVIDENCE_NOT_VERIFIED',verifiedTextDocuments:docs.length});
  }
  await advanceJob(job,'text_review_checkpoint',checkpoint,'retry');
