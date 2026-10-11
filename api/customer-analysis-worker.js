@@ -12,6 +12,7 @@ import {expectedTextReviewOutputs,auditTextReviewOutputs} from '../lib/text-revi
 import {verifyPageDigests} from '../lib/page-digests.mjs';
 import {ANALYSIS_STAGES} from '../lib/analysis-pipeline-state.mjs';
 import {buildLegalReasoningRequest} from '../lib/analysis-stage-gates.mjs';
+import {buildTextReviewReport} from '../lib/text-review-report.mjs';
 import {validatePersistedBatch,finalizationDescriptors,validateFinalizationPart,summarizeClaimRoles} from '../lib/text-review-aggregation.mjs';
 import {detectOpposingStatements} from '../lib/case-crosscheck.mjs';
 const eq=(a,b)=>{const x=Buffer.from(a||''),y=Buffer.from(b||'');return x.length===y.length&&timingSafeEqual(x,y)};
@@ -86,6 +87,9 @@ export default async function handler(req,res){
   const documentBoundaryCandidates=docs.map(d=>mergeDocumentBoundaryCandidates({documentId:d.id,pageCount:d.pageCount,batches:boundaries.filter(x=>x.documentId===d.id)}));
   const aggregate={caseId:job.caseId,sourceVersion:job.documentVersion,coverage:docs.map(d=>({documentId:d.id,pages:d.pageCount,textBatchCount:Math.ceil(d.pageCount/20)})),observationCount:total,opposingStatementCandidates:detectOpposingStatements(claims),claimRoleSummary:summarizeClaimRoles(claims),crossDocumentEvidenceLinks:crosscheckObservations(observations),documentBoundaryCandidates,verifiedLegal:false,verifiedVisual:false,status:'awaiting_visual_and_semantic_review'};
   const aggregatePath=root+'text-review-aggregate.json',manifestPath=root+'text-review-manifest.json';
+  const intermediateReportPath=root+'text-review-intermediate-report.json';
+  const intermediateReport=buildTextReviewReport(aggregate);
+  await put(intermediateReportPath,JSON.stringify(intermediateReport),{access:'private',allowOverwrite:true,addRandomSuffix:false,contentType:'application/json'});
   await put(aggregatePath,JSON.stringify(aggregate),{access:'private',allowOverwrite:true,addRandomSuffix:false,contentType:'application/json'});
   const partPaths=Array.from({length:Math.ceil(descriptors.length/8)},(_,i)=>root+'finalize-parts/'+String(i*8).padStart(8,'0')+'.json');
   const legalReasoningRequestPath=root+'legal-reasoning-request.json';
@@ -93,7 +97,7 @@ export default async function handler(req,res){
   const legalRequest=buildLegalReasoningRequest({caseId:job.caseId,sourceVersion:job.documentVersion,aggregatePath,aggregateSha256,partPaths,partDigests:previous.finalizePartDigests});
   await put(legalReasoningRequestPath,JSON.stringify(legalRequest),{access:'private',allowOverwrite:true,addRandomSuffix:false,contentType:'application/json'});
   await put(manifestPath,JSON.stringify({caseId:job.caseId,sourceVersion:job.documentVersion,documents:docs.map(x=>({id:x.id,pageCount:x.pageCount})),outputs:expectedTextReviewOutputs({root,documents:docs}),aggregateSha256,verifiedVisual:false,verifiedLegal:false,analysisComplete:false,pendingStages:ANALYSIS_STAGES.slice(2)}),{access:'private',allowOverwrite:true,addRandomSuffix:false,contentType:'application/json'});
-  await advanceJob(job,'text_review_completed_visual_pending',{...previous,textReviewManifest:manifestPath,textReviewAggregate:aggregatePath,legalReasoningRequest:legalReasoningRequestPath},'blocked','VISUAL_EVIDENCE_NOT_VERIFIED');
+  await advanceJob(job,'text_review_completed_visual_pending',{...previous,textReviewManifest:manifestPath,textReviewAggregate:aggregatePath,textReviewIntermediateReport:intermediateReportPath,legalReasoningRequest:legalReasoningRequestPath},'blocked','VISUAL_EVIDENCE_NOT_VERIFIED');
   return res.status(200).json({status:'blocked',reason:'VISUAL_EVIDENCE_NOT_VERIFIED',verifiedTextDocuments:docs.length});
  }
  if(index>=docs.length){
