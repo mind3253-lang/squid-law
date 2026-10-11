@@ -1,0 +1,25 @@
+name: Customer analysis recovery checks
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'api/customer-*.js'
+      - 'db/customer-analysis-leases.sql'
+      - 'tests/customer-analysis-recovery.test.mjs'
+      - '.github/workflows/customer-analysis-recovery.yml'
+  workflow_dispatch:
+jobs:
+  customer-recovery:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --ignore-scripts --no-audit --no-fund
+      - run: node --test tests/customer-analysis-recovery.test.mjs
+      - run: node --check api/customer-analysis.js
+      - run: node --check api/customer-analysis-lease-db.js
+      - run: node --check api/customer-request-state.js
+      - run: node --check api/customer-case-knowledge.js
