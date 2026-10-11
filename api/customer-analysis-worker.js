@@ -29,7 +29,7 @@ export default async function handler(req,res){
 
  const previous=job.checkpoint||{},index=Number.isSafeInteger(previous.nextDocument)?previous.nextDocument:0;
  if(index>=docs.length){
-  if(!previous.textReviewManifest||!previous.textReviewAggregate){
+  if(!previous.textReviewManifest||!previous.textReviewAggregate||!(await load(previous.textReviewManifest))||!(await load(previous.textReviewAggregate))){
    await advanceJob(job,'text_review_checkpoint_incomplete',{...previous,documentCount:docs.length},'blocked','TEXT_REVIEW_AGGREGATION_MISSING');
    return res.status(200).json({status:'blocked',reason:'TEXT_REVIEW_AGGREGATION_MISSING'});
   }
