@@ -1,6 +1,6 @@
 import {get,put,del} from '@vercel/blob';
 import {randomUUID,createHash} from 'node:crypto';
-import {extractPdfPages} from './customer-pdf-extract.js';
+import {extractPdfPages,inspectPdfPageCount} from './customer-pdf-extract.js';
 import {guard,respond,readJson,documents,casePrefix} from './customer-case.js';
 export const config={api:{bodyParser:false}};
 const MAX=100*1024*1024,CHUNK=1024*1024;
