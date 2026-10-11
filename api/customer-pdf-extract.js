@@ -1,4 +1,4 @@
-import {getDocument} from 'pdfjs-dist/legacy/build/pdf.mjs';
+import {getDocument,OPS} from 'pdfjs-dist/legacy/build/pdf.mjs';
 import * as pdfWorker from 'pdfjs-dist/legacy/build/pdf.worker.mjs';
 if(!globalThis.pdfjsWorker)globalThis.pdfjsWorker=pdfWorker;
 export function countImagePaintOperations(operatorList){
