@@ -35,3 +35,8 @@ test('reject a missing page even when batch metadata claims complete coverage',(
  const altered=outputs.map((o,i)=>i?o:{...o,payload:{...o.payload,results:o.payload.results.filter(r=>r.page!==10),unitCount:19}});
  assert.throws(()=>aggregateTextReview({caseId:'case',sourceVersion:version,root,documents:docs,outputs:altered}),/TEXT_PAGE_UNIT_COVERAGE_INCOMPLETE/);
 });
+
+test('reject missing final chunk on a page',()=>{
+ const changed=outputs.map((o,i)=>i?o:{...o,payload:{...o.payload,results:o.payload.results.map(r=>r.page===3?{...r,parts:2}:r)}});
+ assert.throws(()=>aggregateTextReview({caseId:'case',sourceVersion:version,root,documents:docs,outputs:changed}),/TEXT_PAGE_UNIT_COVERAGE_INCOMPLETE/);
+});
