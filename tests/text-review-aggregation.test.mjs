@@ -112,7 +112,7 @@ test('resumable finalization descriptor counts cover 338 and 10001 pages',async(
 test('finalization part rejects tampered persisted claims',async()=>{
  const {validateFinalizationPart}=await import('../lib/text-review-aggregation.mjs');
  const {createHash}=await import('node:crypto');
- const part={sourceVersion:version,offset:0,batchCount:8,unitCount:160,claims:[]};
+ const part={sourceVersion:version,offset:0,batchCount:8,unitCount:160,claims:[],observations:[]};
  const sha256=createHash('sha256').update(JSON.stringify(part)).digest('hex');
  assert.equal(validateFinalizationPart(part,{sourceVersion:version,offset:0,batchCount:8,sha256}),true);
  assert.throws(()=>validateFinalizationPart({...part,unitCount:159},{sourceVersion:version,offset:0,batchCount:8,sha256}),/INVALID_FINALIZATION_PART/);
