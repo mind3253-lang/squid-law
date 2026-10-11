@@ -77,3 +77,8 @@ test('cross-document opposing claims remain unverified candidates',async()=>{
  assert.equal(audit.verified,false);
  assert.equal(audit.candidates[0].first.source.documentId,'a');
 });
+
+test('manifest rejects unsafe document path identifiers',async()=>{
+ const {expectedTextReviewOutputs}=await import('../lib/text-review-manifest.mjs');
+ for(const id of ['../outside','other/file','',null])assert.throws(()=>expectedTextReviewOutputs({root,documents:[{id,pageCount:1}]}),/INVALID_DOCUMENT_PAGES/);
+});
