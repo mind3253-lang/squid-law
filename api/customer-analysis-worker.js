@@ -2,6 +2,8 @@ import {claimJob,advanceJob} from './customer-analysis-jobs-db.js';
 import {get} from '@vercel/blob';
 import {createHash,timingSafeEqual} from 'node:crypto';
 import {prepareCorpus} from '../lib/corpus-coverage.mjs';
+import {analyzeUnit,independentlyVerify} from '../lib/legal-evidence-review.mjs';
+import {put} from '@vercel/blob';
 const eq=(a,b)=>{const x=Buffer.from(a||''),y=Buffer.from(b||'');return x.length===y.length&&timingSafeEqual(x,y)};
 async function load(path){const r=await get(path,{access:'private'});if(!r||r.statusCode!==200)return null;let size=0,parts=[];for await(const chunk of r.stream){size+=chunk.length;if(size>32*1024*1024)throw Error('BLOB_TOO_LARGE');parts.push(Buffer.from(chunk))}return JSON.parse(Buffer.concat(parts).toString())}
 export default async function handler(req,res){
@@ -17,10 +19,35 @@ export default async function handler(req,res){
  const meta=[];for(let i=0;i<paths.length;i+=12)meta.push(...await Promise.all(paths.slice(i,i+12).map(p=>load(p))));
  const docs=meta.filter(Boolean),version=createHash('sha256').update(JSON.stringify(docs.map(d=>[d.id,d.sha256,d.pageCount]).sort((a,b)=>a[0].localeCompare(b[0])))).digest('hex');
  if(version!==job.documentVersion){await advanceJob(job,'source_changed',{expected:job.documentVersion,actual:version},'blocked','SOURCE_VERSION_CHANGED');return res.status(200).json({status:'blocked',reason:'SOURCE_VERSION_CHANGED'})}
- const coverage=[];for(const d of docs){const e=await load(prefix+'extracted/'+d.id+'.json');const pages=e?.pages||[],nums=new Set(pages.map(p=>p.page));const corpus=prepareCorpus('customer',[{id:d.id,name:d.name,pageCount:d.pageCount,pages}]);coverage.push({documentId:d.id,total:d.pageCount,extracted:pages.length,unique:nums.size,segments:corpus.units.length,segmentAudit:corpus.completeTextCoverage,unreadable:pages.filter(p=>!String(p.text||'').trim()).map(p=>p.page)})}
- const missing=coverage.some(c=>c.extracted!==c.total||c.unique!==c.total||c.unreadable.length);
- if(missing){await advanceJob(job,'extraction_incomplete',{coverage},'blocked','OCR_REQUIRED');return res.status(200).json({status:'blocked',reason:'OCR_REQUIRED'})}
- await advanceJob(job,'full_review_not_implemented',{coverage},'blocked','ANALYSIS_PIPELINE_REQUIRED');
- return res.status(200).json({status:'blocked',reason:'ANALYSIS_PIPELINE_REQUIRED'});
+
+ const previous=job.checkpoint||{},index=Number.isSafeInteger(previous.nextDocument)?previous.nextDocument:0;
+ if(index>=docs.length){
+  await advanceJob(job,'awaiting_visual_verification',{...previous,documentCount:docs.length},'blocked','VISUAL_EVIDENCE_NOT_VERIFIED');
+  return res.status(200).json({status:'blocked',reason:'VISUAL_EVIDENCE_NOT_VERIFIED'});
+ }
+ const d=docs[index],e=await load(prefix+'extracted/'+d.id+'.json');
+ if(!e||!Array.isArray(e.pages)||e.pages.length!==d.pageCount){
+  await advanceJob(job,'extraction_incomplete',{...previous,nextDocument:index,documentId:d.id},'blocked','PAGE_EXTRACTION_INCOMPLETE');
+  return res.status(200).json({status:'blocked',reason:'PAGE_EXTRACTION_INCOMPLETE'});
+ }
+ const corpus=prepareCorpus('customer',[{id:d.id,name:d.name,pageCount:d.pageCount,pages:e.pages}]);
+ const units=corpus.units,results=units.map(analyzeUnit),audit=independentlyVerify(units,results);
+ if(!audit.complete){
+  await advanceJob(job,'ocr_required',{...previous,nextDocument:index,documentId:d.id,missing:audit.missing.slice(0,100)},'blocked','OCR_REQUIRED');
+  return res.status(200).json({status:'blocked',reason:'OCR_REQUIRED'});
+ }
+ const output='squidlaw/analysis-jobs/'+job.customerKey+'/'+job.caseId+'/'+job.jobId+'/'+d.id+'.json';
+ const payload={documentId:d.id,sourceVersion:job.documentVersion,unitCount:units.length,pageCount:d.pageCount,verifiedText:true,visualVerified:false,results};
+ const existing=await load(output);
+ if(existing&&existing.sourceVersion!==job.documentVersion)throw Error('RESULT_VERSION_MISMATCH');
+ if(!existing)await put(output,JSON.stringify(payload),{access:'private',allowOverwrite:false,addRandomSuffix:false,contentType:'application/json'});
+ const checkpoint={nextDocument:index+1,documentCount:docs.length,lastDocumentId:d.id,lastOutput:output,verifiedTextDocuments:index+1};
+ if(index+1===docs.length){
+  await advanceJob(job,'text_review_completed_visual_pending',checkpoint,'blocked','VISUAL_EVIDENCE_NOT_VERIFIED');
+  return res.status(200).json({status:'blocked',reason:'VISUAL_EVIDENCE_NOT_VERIFIED',verifiedTextDocuments:docs.length});
+ }
+ await advanceJob(job,'text_review_checkpoint',checkpoint,'retry');
+ return res.status(200).json({status:'retry',processed:index+1,total:docs.length});
+
  }catch(e){if(job){try{await advanceJob(job,'error',{message:String(e.message||e).slice(0,250)},job.attempts>=job.maxAttempts?'failed':'retry','WORKER_ERROR')}catch{}}return res.status(503).json({error:'WORKER_ERROR'})}
 }
