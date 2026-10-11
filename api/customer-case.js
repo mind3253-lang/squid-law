@@ -22,13 +22,14 @@ return respond(res,200,{documents:await documents(user,id),messages:await messag
 }catch(e){return respond(res,502,{error:'사건 자료 조회 실패'})}}
 if(req.method!=='POST')return respond(res,405,{error:'GET/POST만 허용'});
 if(Number(req.headers['content-length']||0)>8500000)return respond(res,413,{error:'PDF는 파일당 5MB 이하만 지원합니다'});
-const b=typeof req.body==='string'?JSON.parse(req.body):req.body;
+let b;try{b=typeof req.body==='string'?JSON.parse(req.body):req.body}catch{return respond(res,400,{error:'업로드 요청 형식 오류'})}
 if(b?.action!=='upload'||typeof b.name!=='string'||typeof b.data!=='string'||b.data.length>7500000)return respond(res,400,{error:'업로드 형식 오류'});
 const filename=b.name.replace(/[\\/\x00-\x1f]/g,'').slice(0,140);if(!/\.pdf$/i.test(filename))return respond(res,400,{error:'PDF만 지원'});
 let buf;try{buf=Buffer.from(b.data,'base64')}catch{return respond(res,400,{error:'파일 디코딩 실패'})}
 if(buf.length<100||buf.length>5*1024*1024||buf.subarray(0,5).toString()!=='%PDF-')return respond(res,400,{error:'유효한 5MB 이하 PDF를 첨부해 주세요'});
+const sha256=hash(buf);try{const existing=await documents(user,id);const duplicate=existing.find(d=>d.sha256===sha256);if(duplicate)return respond(res,200,{document:duplicate,duplicate:true})}catch{return respond(res,502,{error:'중복 문서 조회 실패'})}
 let pages=[];try{const pdf=(await import('pdf-parse')).default;let page=0;await pdf(buf,{max:100,pagerender:async p=>{const n=++page;const text=await p.getTextContent();let lastY,lines=[];for(const item of text.items){if(lastY!==undefined&&lastY!==item.transform?.[5])lines.push('\n');lines.push(item.str||'');lastY=item.transform?.[5]}pages.push({page:n,text:lines.join(' ').slice(0,16000)});return ''}})}catch(e){return respond(res,422,{error:'PDF 본문 추출 실패. 암호화 또는 손상된 파일인지 확인해 주세요'})}
 if(!pages.length)return respond(res,422,{error:'페이지를 읽을 수 없는 PDF입니다'});
-const uuid=randomUUID(),createdAt=new Date().toISOString(),meta={id:uuid,name:filename,size:buf.length,createdAt,side:'customer',pageCount:pages.length,readablePages:pages.filter(p=>p.text.trim().length>=15).length,status:pages.some(p=>p.text.trim().length<15)?'일부 페이지 텍스트 없음 (스캔 가능성)':'본문 추출 완료'};
+const uuid=randomUUID(),createdAt=new Date().toISOString(),meta={id:uuid,name:filename,sha256,size:buf.length,createdAt,side:'customer',pageCount:pages.length,readablePages:pages.filter(p=>p.text.trim().length>=15).length,status:pages.some(p=>p.text.trim().length<15)?'일부 페이지 텍스트 없음 (스캔 가능성)':'본문 추출 완료'};
 try{await put(prefix+'pdf/'+uuid+'.pdf',buf,{access:'private',addRandomSuffix:false,allowOverwrite:false,contentType:'application/pdf'});await put(prefix+'extracted/'+uuid+'.json',JSON.stringify({pages}),{access:'private',addRandomSuffix:false,allowOverwrite:false,contentType:'application/json'});await put(prefix+'docs/'+uuid+'.json',JSON.stringify(meta),{access:'private',addRandomSuffix:false,allowOverwrite:false,contentType:'application/json'});return respond(res,200,{document:meta})}catch(e){return respond(res,502,{error:'PDF 서버 저장 실패'})}
 }
