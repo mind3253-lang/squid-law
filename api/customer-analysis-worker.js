@@ -5,7 +5,7 @@ import {segmentRecord,auditSegments} from '../lib/record-chunks.mjs';
 import {analyzeUnit,independentlyVerify,crosscheckObservations} from '../lib/legal-evidence-review.mjs';
 import {put} from '@vercel/blob';
 import {candidateDocuments,mergeDocumentBoundaryCandidates} from './customer-document-boundaries.js';
-import {extractPdfPages} from './customer-pdf-extract.js';
+import {extractPdfPages,choosePdfExtractionWindow} from './customer-pdf-extract.js';
 import {planVisualEvidence,buildVisualWorkQueue} from '../lib/visual-evidence.mjs';
 import {assertPageBatch,assertBatchManifest} from '../lib/batch-integrity.mjs';
 import {expectedTextReviewOutputs,auditTextReviewOutputs} from '../lib/text-review-manifest.mjs';
@@ -110,7 +110,7 @@ export default async function handler(req,res){
   if(!Number.isSafeInteger(start)||start<1||start>d.pageCount||((start-1)%20)!==0)throw Error('INVALID_EXTRACTION_CHECKPOINT');
   const bytes=await loadBinary(prefix+'pdf/'+d.id+'.pdf');
   if(!bytes||createHash('sha256').update(bytes).digest('hex')!==d.sha256)throw Error('SOURCE_PDF_DIGEST_MISMATCH');
-  const extractionWindow=d.size>50*1024*1024?20:d.size>20*1024*1024?40:100;
+  const extractionWindow=choosePdfExtractionWindow(d.size);
   const extracted=await extractPdfPages(bytes,{startPage:start,pageCount:extractionWindow});
   if(extracted.totalPages!==d.pageCount||extracted.pages.length!==Math.min(extractionWindow,d.pageCount-start+1))throw Error('PDF_EXTRACTION_PAGE_MISMATCH');
   for(const page of extracted.pages)page.textSha256=createHash('sha256').update(String(page.text||'')).digest('hex');
