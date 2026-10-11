@@ -1,7 +1,7 @@
 import {getDocument} from 'pdfjs-dist/legacy/build/pdf.mjs';
 import * as pdfWorker from 'pdfjs-dist/legacy/build/pdf.worker.mjs';
 if(!globalThis.pdfjsWorker)globalThis.pdfjsWorker=pdfWorker;
-export async function extractPdfPages(buffer,maxPages=100){
+export async function extractPdfPages(buffer,maxPages=Infinity){
  const task=getDocument({data:new Uint8Array(buffer),useSystemFonts:true,disableFontFace:true});
  try{
   const pdf=await task.promise;
@@ -15,7 +15,7 @@ export async function extractPdfPages(buffer,maxPages=100){
     if(lastY!==undefined&&y!==lastY)lines.push('\n');
     lines.push(item.str||'');lastY=y;
    }
-   pages.push({page:n,text:lines.join(' ').slice(0,16000)});
+   pages.push({page:n,text:lines.join(' ')});
    page.cleanup();
   }
   return {pages,totalPages};
