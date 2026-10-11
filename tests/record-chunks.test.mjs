@@ -114,3 +114,15 @@ test('legal claim role classifier preserves unverified source attribution',async
  assert.equal(result.claimCandidates[0].classification,'unverified_heuristic');
  assert.equal(result.claimCandidates[0].source.hash,source.hash);
 });
+
+test('same payment subject across documents produces a reviewable opposing claim candidate',async()=>{
+ const {analyzeUnit}=await import('../lib/legal-evidence-review.mjs');
+ const {detectOpposingStatements}=await import('../lib/case-crosscheck.mjs');
+ const first=segmentRecord({scope:'customer',documentId:'a',pages:[{page:1,text:'피고는 지급을 인정한다.'}]}).segments[0];
+ const second=segmentRecord({scope:'customer',documentId:'b',pages:[{page:1,text:'피고는 지급하지 않았다고 부인한다.'}]}).segments[0];
+ const results=[analyzeUnit(first),analyzeUnit(second)];
+ assert.ok(results.every(x=>x.claimCandidates[0].terms.includes('지급')));
+ const checked=detectOpposingStatements(results);
+ assert.ok(checked.candidates.length>=1);
+ assert.equal(checked.verified,false);
+});
