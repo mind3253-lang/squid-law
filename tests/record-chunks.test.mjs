@@ -74,3 +74,9 @@ test('independent review rejects duplicate and forged chunk counts',async()=>{
  assert.equal(independentlyVerify(u,[...r,...r]).complete,false);
  assert.equal(independentlyVerify(u,[{...r[0],parts:2}]).complete,false);
 });
+
+test('source review audit rejects duplicate original units',async()=>{
+ const {analyzeUnit,independentlyVerify}=await import('../lib/legal-evidence-review.mjs');
+ const units=segmentRecord({scope:'customer',documentId:'d',pages:[{page:1,text:'원본 내용'}]}).segments;
+ assert.equal(independentlyVerify([...units,...units],units.map(analyzeUnit)).complete,false);
+});
