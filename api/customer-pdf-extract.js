@@ -16,7 +16,8 @@ export async function extractPdfPages(buffer,maxPages=Infinity){
  try{
   const pdf=await task.promise;
   const totalPages=pdf.numPages,pages=[];
-  for(let n=1;n<=Math.min(totalPages,maxPages);n++){
+  const range=resolvePdfPageRange(totalPages,typeof maxPages==='object'&&maxPages!==null?maxPages:{pageCount:maxPages});
+  for(let n=range.startPage;n<=range.endPage;n++){
    const page=await pdf.getPage(n);
    const content=await page.getTextContent();
    const lines=[];let lastY;
@@ -30,6 +31,6 @@ export async function extractPdfPages(buffer,maxPages=Infinity){
    pages.push({page:n,text:lines.join(' '),imageOperatorCount,visualInventoryStatus});
    page.cleanup();
   }
-  return {pages,totalPages};
+  return {pages,totalPages,startPage:range.startPage,endPage:range.endPage,finished:range.endPage===totalPages};
  }finally{await task.destroy()}
 }
