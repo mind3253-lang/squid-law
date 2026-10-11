@@ -17,7 +17,7 @@ export default async function handler(req,res){
  // Do not claim completed until OCR, document boundaries, cross-check and independent verification exist.
  const blob=(await import('@vercel/blob'));let cursor,paths=[];do{const listing=await blob.list({prefix:prefix+'docs/',limit:1000,...(cursor?{cursor}:{})});paths.push(...listing.blobs.filter(b=>b.pathname.endsWith('.json')).map(b=>b.pathname));cursor=listing.hasMore?listing.cursor:null}while(cursor);
  const meta=[];for(let i=0;i<paths.length;i+=12)meta.push(...await Promise.all(paths.slice(i,i+12).map(p=>load(p))));
- const docs=meta.filter(Boolean),version=createHash('sha256').update(JSON.stringify(docs.map(d=>[d.id,d.sha256,d.pageCount]).sort((a,b)=>a[0].localeCompare(b[0])))).digest('hex');
+ const docs=meta.filter(Boolean).sort((a,b)=>a.id.localeCompare(b.id)),version=createHash('sha256').update(JSON.stringify(docs.map(d=>[d.id,d.sha256,d.pageCount]).sort((a,b)=>a[0].localeCompare(b[0])))).digest('hex');
  if(version!==job.documentVersion){await advanceJob(job,'source_changed',{expected:job.documentVersion,actual:version},'blocked','SOURCE_VERSION_CHANGED');return res.status(200).json({status:'blocked',reason:'SOURCE_VERSION_CHANGED'})}
 
  const previous=job.checkpoint||{},index=Number.isSafeInteger(previous.nextDocument)?previous.nextDocument:0;
@@ -30,9 +30,9 @@ export default async function handler(req,res){
   await advanceJob(job,'extraction_incomplete',{...previous,nextDocument:index,documentId:d.id},'blocked','PAGE_EXTRACTION_INCOMPLETE');
   return res.status(200).json({status:'blocked',reason:'PAGE_EXTRACTION_INCOMPLETE'});
  }
- const corpus=prepareCorpus('customer',[{id:d.id,name:d.name,pageCount:d.pageCount,pages:e.pages}]);
  const pageOffset=Number.isSafeInteger(previous.nextPage)&&previous.nextDocument===index?previous.nextPage:0;
  const selectedPages=e.pages.slice(pageOffset,pageOffset+20);
+ if(selectedPages.length===0)throw Error('EMPTY_PAGE_BATCH');
  const selected=prepareCorpus('customer',[{id:d.id,name:d.name,pageCount:selectedPages.length,pages:selectedPages.map((p,i)=>({...p,page:i+1}))}]);
  const units=selected.units.map(u=>({...u,page:selectedPages[u.page-1].page,hash:u.hash}));
  const results=units.map(analyzeUnit),audit=independentlyVerify(units,results);
