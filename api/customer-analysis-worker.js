@@ -7,6 +7,7 @@ import {put} from '@vercel/blob';
 import {candidateDocuments} from './customer-document-boundaries.js';
 import {planVisualEvidence} from '../lib/visual-evidence.mjs';
 import {assertPageBatch,assertBatchManifest} from '../lib/batch-integrity.mjs';
+import {expectedTextReviewOutputs,auditTextReviewOutputs} from '../lib/text-review-manifest.mjs';
 const eq=(a,b)=>{const x=Buffer.from(a||''),y=Buffer.from(b||'');return x.length===y.length&&timingSafeEqual(x,y)};
 async function load(path){const r=await get(path,{access:'private'});if(!r||r.statusCode!==200)return null;let size=0,parts=[];for await(const chunk of r.stream){size+=chunk.length;if(size>32*1024*1024)throw Error('BLOB_TOO_LARGE');parts.push(Buffer.from(chunk))}return JSON.parse(Buffer.concat(parts).toString())}
 export default async function handler(req,res){
@@ -64,7 +65,15 @@ export default async function handler(req,res){
  const finished=batchIntegrity.finished;
  const checkpoint={nextDocument:finished?index+1:index,nextPage:finished?0:pageOffset+selectedPages.length,documentCount:docs.length,lastDocumentId:d.id,lastOutput:output,verifiedTextDocuments:finished?index+1:index,errorAttempts:0};
  if(finished&&index+1===docs.length){
-  await advanceJob(job,'text_review_completed_visual_pending',checkpoint,'blocked','VISUAL_EVIDENCE_NOT_VERIFIED');
+  const root='squidlaw/analysis-jobs/'+job.customerKey+'/'+job.caseId+'/'+job.jobId+'/';
+  const expected=expectedTextReviewOutputs({root,documents:docs});
+  const actual=[];let resultCursor;
+  do{const page=await blob.list({prefix:root,limit:1000,...(resultCursor?{cursor:resultCursor}:{})});actual.push(...page.blobs.filter(x=>x.pathname.endsWith('.json')).map(x=>x.pathname));resultCursor=page.hasMore?page.cursor:null}while(resultCursor);
+  const outputAudit=auditTextReviewOutputs({expected,actual});
+  if(!outputAudit.complete){await advanceJob(job,'text_review_output_incomplete',{...checkpoint,missingOutputs:outputAudit.missing.slice(0,50)},'blocked','TEXT_REVIEW_OUTPUT_INCOMPLETE');return res.status(200).json({status:'blocked',reason:'TEXT_REVIEW_OUTPUT_INCOMPLETE'})}
+  const manifestPath=root+'text-review-manifest.json';
+  await put(manifestPath,JSON.stringify({caseId:job.caseId,sourceVersion:job.documentVersion,documents:docs.map(x=>({id:x.id,pageCount:x.pageCount})),outputs:expected,verifiedVisual:false,verifiedLegal:false}),{access:'private',allowOverwrite:true,addRandomSuffix:false,contentType:'application/json'});
+  await advanceJob(job,'text_review_completed_visual_pending',{...checkpoint,textReviewManifest:manifestPath},'blocked','VISUAL_EVIDENCE_NOT_VERIFIED');
   return res.status(200).json({status:'blocked',reason:'VISUAL_EVIDENCE_NOT_VERIFIED',verifiedTextDocuments:docs.length});
  }
  await advanceJob(job,'text_review_checkpoint',checkpoint,'retry');
