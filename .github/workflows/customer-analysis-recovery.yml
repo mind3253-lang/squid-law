@@ -23,3 +23,4 @@ jobs:
       - run: node --check api/customer-analysis-lease-db.js
       - run: node --check api/customer-request-state.js
       - run: node --check api/customer-case-knowledge.js
+      - run: node --check scripts/customer-db-migrate.mjs
