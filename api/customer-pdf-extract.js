@@ -20,7 +20,9 @@ export async function extractPdfPages(buffer,maxPages=Infinity){
     if(lastY!==undefined&&y!==lastY)lines.push('\n');
     lines.push(item.str||'');lastY=y;
    }
-   pages.push({page:n,text:lines.join(' ')});
+   let imageOperatorCount=null,visualInventoryStatus='operator_scan_failed';
+   try{imageOperatorCount=countImagePaintOperations(await page.getOperatorList());visualInventoryStatus='operator_scan_unverified'}catch{}
+   pages.push({page:n,text:lines.join(' '),imageOperatorCount,visualInventoryStatus});
    page.cleanup();
   }
   return {pages,totalPages};
