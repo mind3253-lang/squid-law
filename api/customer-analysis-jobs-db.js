@@ -1,5 +1,6 @@
 import {createHash,randomUUID} from 'node:crypto';
 import {withLeaseDb} from './customer-analysis-lease-db.js';
+import {assertCompletionTransition} from '../lib/analysis-stage-gates.mjs';
 const key=user=>createHash('sha256').update(user).digest('hex');
 const publicJob=r=>r&&({jobId:r.job_id,caseId:r.case_id,documentVersion:r.document_version,status:r.status,stage:r.stage,checkpoint:r.checkpoint,attempts:r.attempts,maxAttempts:r.max_attempts,errorCode:r.error_code,updatedAt:r.updated_at});
 export const documentVersion=docs=>createHash('sha256').update(JSON.stringify([...docs].map(d=>[d.id,d.sha256,d.pageCount]).sort((a,b)=>a[0].localeCompare(b[0])))).digest('hex');
@@ -27,6 +28,7 @@ export async function claimJob(){
 }
 export async function advanceJob(job,stage,checkpoint,status='running',errorCode=null){
  if(!['running','retry','blocked','completed','failed'].includes(status))throw Error('INVALID_STATUS');
+ assertCompletionTransition(status,checkpoint);
  return withLeaseDb(async db=>{const r=await db.query(`UPDATE customer_analysis_jobs SET stage=$6,checkpoint=$7::jsonb,status=$8,error_code=$9,attempts=CASE WHEN $6='error' THEN attempts+1 ELSE attempts END,
  lease_expires_at=CASE WHEN $8='running' THEN now()+interval '90 seconds' ELSE NULL END,
  next_run_at=CASE WHEN $8='retry' THEN now()+CASE WHEN $6='text_review_checkpoint' THEN interval '2 seconds' ELSE LEAST(3600,POWER(2,LEAST(attempts,10))) * interval '1 second' END ELSE next_run_at END,
