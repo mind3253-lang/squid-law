@@ -52,17 +52,19 @@ export default async function handler(req,res){
    }
    const partPath=root+'finalize-parts/'+String(offset).padStart(8,'0')+'.json';
    const part={sourceVersion:job.documentVersion,offset,batchCount:selected.length,unitCount:count,claims};
+   if(!Array.isArray(previous.finalizePartDigests)||previous.finalizePartDigests.length!==offset/8)throw Error('INVALID_FINALIZATION_DIGEST_CHECKPOINT');
    const old=await load(partPath);
    const hash=value=>createHash('sha256').update(JSON.stringify(value)).digest('hex');
    if(old&&hash(old)!==hash(part))throw Error('FINALIZATION_PART_CONFLICT');
    if(!old)await put(partPath,JSON.stringify(part),{access:'private',allowOverwrite:false,addRandomSuffix:false,contentType:'application/json'});
-   await advanceJob(job,'text_review_finalize_checkpoint',{...previous,finalizeOffset:offset+selected.length,finalizeUnitCount:(previous.finalizeUnitCount||0)+count},'retry');
+   await advanceJob(job,'text_review_finalize_checkpoint',{...previous,finalizeOffset:offset+selected.length,finalizeUnitCount:(previous.finalizeUnitCount||0)+count,finalizePartDigests:[...previous.finalizePartDigests,hash(part)]},'retry');
    return res.status(200).json({status:'retry',stage:'text_review_finalize_checkpoint',verifiedBatches:offset+selected.length,totalBatches:descriptors.length});
   }
+  if(!Array.isArray(previous.finalizePartDigests)||previous.finalizePartDigests.length!==Math.ceil(descriptors.length/8))throw Error('FINALIZATION_DIGEST_COUNT_MISMATCH');
   const claims=[];let total=0;
   for(let start=0;start<descriptors.length;start+=8){
    const part=await load(root+'finalize-parts/'+String(start).padStart(8,'0')+'.json');
-   if(!part||part.sourceVersion!==job.documentVersion||part.offset!==start||part.batchCount!==Math.min(8,descriptors.length-start)||!Array.isArray(part.claims)||!Number.isSafeInteger(part.unitCount))throw Error('FINALIZATION_PART_MISSING');
+   if(!part||createHash('sha256').update(JSON.stringify(part)).digest('hex')!==previous.finalizePartDigests[Math.floor(start/8)]||part.sourceVersion!==job.documentVersion||part.offset!==start||part.batchCount!==Math.min(8,descriptors.length-start)||!Array.isArray(part.claims)||!Number.isSafeInteger(part.unitCount))throw Error('FINALIZATION_PART_MISSING');
    total+=part.unitCount;claims.push(...part.claims);
   }
   if(total!==previous.finalizeUnitCount)throw Error('FINALIZATION_COUNT_MISMATCH');
