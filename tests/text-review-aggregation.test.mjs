@@ -95,3 +95,16 @@ test('streamed batch loads stay within eight concurrent reads',async()=>{
  assert.equal(result.observationCount,338);
  assert.ok(peak<=8&&peak>1);
 });
+
+test('resumable finalization descriptor counts cover 338 and 10001 pages',async()=>{
+ const {finalizationDescriptors}=await import('../lib/text-review-aggregation.mjs');
+ for(const pages of [338,1000,10001]){
+  const plan=finalizationDescriptors([{id:'large',pageCount:pages}]);
+  assert.equal(plan.length,Math.ceil(pages/20));
+  assert.equal(plan.reduce((sum,b)=>sum+b.count,0),pages);
+  assert.equal(plan.at(-1).start,Math.floor((pages-1)/20)*20);
+  for(let i=0;i<plan.length;i++)assert.equal(plan[i].start,i*20);
+ }
+ const two=finalizationDescriptors([{id:'a',pageCount:21},{id:'b',pageCount:1}]);
+ assert.deepEqual(two.map(x=>[x.documentId,x.start,x.count]),[['a',0,20],['a',20,1],['b',0,1]]);
+});
