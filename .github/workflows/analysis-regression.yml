@@ -17,6 +17,8 @@ on:
       - 'findings-schema.js'
       - 'analysis-quality.js'
       - 'customer.html'
+      - 'api/customer-*.js'
+      - 'db/customer-analysis-leases.sql'
       - 'api/analyze.js'
       - 'analysis-model-worker.js'
       - 'analysis-comparison-worker.js'
