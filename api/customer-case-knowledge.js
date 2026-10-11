@@ -17,7 +17,7 @@ export const checklist={
 'g':['계약 성립','의무 내용','위반 여부','손해·해제·항변'],
 'h':['피보전채권','보전 필요성','채무자 재산','집행·이의']
 };
-export function caseChecklist(caseId){const m=String(caseId).match(/(?:^|-)CASE([bcdefgh])(?:-|$)/i);return checklist[m?.[1]?.toLowerCase()]||Object.fromEntries(Object.entries(checklist))}
+export function caseChecklist(caseId){const type=String(caseId).toLowerCase();const m=type.match(/(?:^|-)case([bcdefgh])(?:-|$)/);return checklist[checklist[type]?type:m?.[1]]||Object.fromEntries(Object.entries(checklist))}
 export async function writeSnapshot(user,caseId,kind,data){
  const now=new Date().toISOString(),id=randomUUID(),prefix=casePrefix(user,caseId)+'analysis/'+kind+'/';
  const path=prefix+now.replace(/[:.]/g,'-')+'-'+id+'.json';
@@ -60,4 +60,4 @@ export async function latestSnapshot(user,caseId,kind){
  for(const row of candidates){try{const item=await hydrate(await readJson(row.pathname));if(item)return item}catch{}}
  return null;
 }
-export async function analysisHistory(user,caseId){const rows=await all(casePrefix(user,caseId)+'analysis/result/',500);return (await Promise.all(rows.filter(x=>x.pathname.endsWith('.json')).map(x=>readJson(x.pathname).catch(()=>null)))).filter(Boolean).sort((a,b)=>b.createdAt.localeCompare(a.createdAt))}
+export async function analysisHistory(user,caseId){const rows=await all(casePrefix(user,caseId)+'analysis/result/',500);return (await Promise.all(rows.filter(x=>x.pathname.endsWith('.json')&&!x.pathname.includes('/parts/')).map(x=>readJson(x.pathname).catch(()=>null)))).filter(Boolean).sort((a,b)=>b.createdAt.localeCompare(a.createdAt))}
