@@ -34,3 +34,9 @@ test('duplicate verification rows cannot masquerade as full visual coverage',()=
  assert.equal(validateVisualResult(plan,{...base,pages:[one,one]}).complete,false);
  assert.equal(validateVisualResult(plan,{...base,pages:[{...one,images:[one.images[0],one.images[0]]},two]}).complete,false);
 });
+
+test('source visual plan duplicate pages rejected',()=>{
+ const p=planVisualEvidence({documentId:'doc',pages:[{page:1,text:'A'},{page:2,text:'B'}],inventoryComplete:true});
+ const r={documentId:'doc',independentVisualVerified:true,pages:p.pages.map(x=>({page:x.page,textHash:x.textHash,images:[]}))};
+ assert.equal(validateVisualResult({...p,pages:[p.pages[0],p.pages[0]]},r).complete,false);
+});
