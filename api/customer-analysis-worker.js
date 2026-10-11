@@ -2,7 +2,7 @@ import {claimJob,advanceJob} from './customer-analysis-jobs-db.js';
 import {get} from '@vercel/blob';
 import {createHash,timingSafeEqual} from 'node:crypto';
 import {prepareCorpus} from '../lib/corpus-coverage.mjs';
-import {analyzeUnit,independentlyVerify} from '../lib/legal-evidence-review.mjs';
+import {analyzeUnit,independentlyVerify,crosscheckObservations} from '../lib/legal-evidence-review.mjs';
 import {put} from '@vercel/blob';
 import {candidateDocuments} from './customer-document-boundaries.js';
 const eq=(a,b)=>{const x=Buffer.from(a||''),y=Buffer.from(b||'');return x.length===y.length&&timingSafeEqual(x,y)};
@@ -46,7 +46,7 @@ export default async function handler(req,res){
   return res.status(200).json({status:'blocked',reason:'OCR_REQUIRED'});
  }
  const output='squidlaw/analysis-jobs/'+job.customerKey+'/'+job.caseId+'/'+job.jobId+'/'+d.id+'-'+String(pageOffset).padStart(8,'0')+'.json';
- const payload={documentId:d.id,sourceVersion:job.documentVersion,unitCount:units.length,pageCount:selectedPages.length,pageStart:pageOffset+1,verifiedText:true,visualVerified:false,documentBoundaryCandidates:candidateDocuments(selectedPages.map(p=>({...p,documentId:d.id,filename:d.name}))),results};
+ const payload={documentId:d.id,sourceVersion:job.documentVersion,unitCount:units.length,pageCount:selectedPages.length,pageStart:pageOffset+1,verifiedText:true,visualVerified:false,documentBoundaryCandidates:candidateDocuments(selectedPages.map(p=>({...p,documentId:d.id,filename:d.name}))),crossDocumentLinks:crosscheckObservations(results),results};
  const existing=await load(output);
  if(existing&&existing.sourceVersion!==job.documentVersion)throw Error('RESULT_VERSION_MISMATCH');
  if(!existing)await put(output,JSON.stringify(payload),{access:'private',allowOverwrite:false,addRandomSuffix:false,contentType:'application/json'});
