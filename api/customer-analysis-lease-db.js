@@ -1,7 +1,7 @@
 import {createHash,randomUUID} from 'node:crypto';
 import {LeaseUnavailable} from './customer-analysis-lease.js';
 const customerKey=user=>createHash('sha256').update(user).digest('hex');
-const db=async()=>{if(!process.env.SQUID_CUSTOMER_DATABASE_URL)throw new LeaseUnavailable();const {Pool}=await import('pg');return new Pool({connectionString:process.env.SQUID_CUSTOMER_DATABASE_URL,max:2,connectionTimeoutMillis:3500,ssl:process.env.SQUID_CUSTOMER_DATABASE_SSL==='disable'?false:{rejectUnauthorized:true}})};
+const db=async()=>{const url=process.env.SQUID_CUSTOMER_DATABASE_URL||process.env.SQUID_CUSTOMER_DATABASE_DATABASE_URL;if(!url)throw new LeaseUnavailable();const {Pool}=await import('pg');return new Pool({connectionString:url,max:2,connectionTimeoutMillis:3500,ssl:process.env.SQUID_CUSTOMER_DATABASE_SSL==='disable'?false:{rejectUnauthorized:true}})};
 export async function withLeaseDb(fn){const pool=await db();try{return await fn(pool)}finally{await pool.end()}}
 export async function acquireCustomerLease(user,caseId,requestId,requestHash,hasDurableDraft=false){
  return withLeaseDb(async pool=>{
