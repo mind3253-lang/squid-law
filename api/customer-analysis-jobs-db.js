@@ -21,13 +21,13 @@ export async function claimJob(){
  OR (status='running' AND lease_expires_at<now())
  ORDER BY next_run_at,created_at FOR UPDATE SKIP LOCKED LIMIT 1
 ) UPDATE customer_analysis_jobs j SET status='running',owner_token=$1,fence=fence+1,
- lease_expires_at=now()+interval '90 seconds',attempts=attempts+1,updated_at=now()
+ lease_expires_at=now()+interval '90 seconds',updated_at=now()
  FROM candidate c WHERE j.customer_key=c.customer_key AND j.case_id=c.case_id AND j.job_id=c.job_id
  RETURNING j.*`,[token]);return r.rows[0]?{...publicJob(r.rows[0]),customerKey:r.rows[0].customer_key,token,fence:String(r.rows[0].fence)}:null});
 }
 export async function advanceJob(job,stage,checkpoint,status='running',errorCode=null){
  if(!['running','retry','blocked','completed','failed'].includes(status))throw Error('INVALID_STATUS');
- return withLeaseDb(async db=>{const r=await db.query(`UPDATE customer_analysis_jobs SET stage=$6,checkpoint=$7::jsonb,status=$8,error_code=$9,
+ return withLeaseDb(async db=>{const r=await db.query(`UPDATE customer_analysis_jobs SET stage=$6,checkpoint=$7::jsonb,status=$8,error_code=$9,attempts=CASE WHEN $6='error' THEN attempts+1 ELSE attempts END,
  lease_expires_at=CASE WHEN $8='running' THEN now()+interval '90 seconds' ELSE NULL END,
  next_run_at=CASE WHEN $8='retry' THEN now()+CASE WHEN $6='text_review_checkpoint' THEN interval '2 seconds' ELSE LEAST(3600,POWER(2,LEAST(attempts,10))) * interval '1 second' END ELSE next_run_at END,
  owner_token=CASE WHEN $8='running' THEN owner_token ELSE NULL END,updated_at=now()
