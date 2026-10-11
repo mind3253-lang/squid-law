@@ -65,3 +65,12 @@ test('a blank source page blocks text review without silently skipping',async()=
  assert.equal(result.complete,false);
  assert.equal(result.missing[0].page,42);
 });
+
+test('independent review rejects duplicate and forged chunk counts',async()=>{
+ const {analyzeUnit,independentlyVerify}=await import('../lib/legal-evidence-review.mjs');
+ const u=segmentRecord({scope:'customer',documentId:'d',pages:[{page:1,text:'확인할 원문'}]}).segments;
+ const r=u.map(analyzeUnit);
+ assert.equal(independentlyVerify(u,r).complete,true);
+ assert.equal(independentlyVerify(u,[...r,...r]).complete,false);
+ assert.equal(independentlyVerify(u,[{...r[0],parts:2}]).complete,false);
+});
