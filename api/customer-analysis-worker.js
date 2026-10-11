@@ -13,6 +13,7 @@ import {verifyPageDigests} from '../lib/page-digests.mjs';
 import {ANALYSIS_STAGES} from '../lib/analysis-pipeline-state.mjs';
 import {buildLegalReasoningRequest} from '../lib/analysis-stage-gates.mjs';
 import {buildTextReviewReport} from '../lib/text-review-report.mjs';
+import {auditSourceUnitIndex} from '../lib/legal-reasoning-audit.mjs';
 import {validatePersistedBatch,finalizationDescriptors,validateFinalizationPart,summarizeClaimRoles} from '../lib/text-review-aggregation.mjs';
 import {detectOpposingStatements} from '../lib/case-crosscheck.mjs';
 const eq=(a,b)=>{const x=Buffer.from(a||''),y=Buffer.from(b||'');return x.length===y.length&&timingSafeEqual(x,y)};
@@ -86,6 +87,7 @@ export default async function handler(req,res){
    for(const source of part.sources||[])sources.push(source);
   }
   if(total!==previous.finalizeUnitCount||sources.length!==total)throw Error('FINALIZATION_COUNT_MISMATCH');
+  auditSourceUnitIndex({documents:docs,sources});
   const documentBoundaryCandidates=docs.map(d=>mergeDocumentBoundaryCandidates({documentId:d.id,pageCount:d.pageCount,batches:boundaries.filter(x=>x.documentId===d.id)}));
   const aggregate={caseId:job.caseId,sourceVersion:job.documentVersion,coverage:docs.map(d=>({documentId:d.id,pages:d.pageCount,textBatchCount:Math.ceil(d.pageCount/20)})),observationCount:total,opposingStatementCandidates:detectOpposingStatements(claims),claimRoleSummary:summarizeClaimRoles(claims),crossDocumentEvidenceLinks:crosscheckObservations(observations),documentBoundaryCandidates,verifiedLegal:false,verifiedVisual:false,status:'awaiting_visual_and_semantic_review'};
   const aggregatePath=root+'text-review-aggregate.json',manifestPath=root+'text-review-manifest.json';
