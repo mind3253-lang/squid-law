@@ -15,7 +15,7 @@ export default async function handler(req,res){
  if(b?.approved!==true||!['approve-analysis','resume-analysis'].includes(b?.action))return respond(res,400,{error:'고객의 명시적 전체 분석 승인이 필요합니다'});
  if(b.action==='resume-analysis'){
   if(!/^[0-9a-f-]{36}$/.test(String(b.jobId||'')))return respond(res,400,{error:'작업 ID 오류'});
-  try{const docs=await documents(a.user,caseId);const job=await resumeJob(a.user,caseId,b.jobId,documentVersion(docs));return job?respond(res,202,{job}):respond(res,409,{error:'재개할 수 없는 작업 또는 원문 버전 변경'})}catch{return respond(res,503,{error:'작업 재개 실패'})}
+  try{const docs=await documents(a.user,caseId);const job=await resumeJob(a.user,caseId,b.jobId,documentVersion(docs));return job?respond(res,202,{job}):respond(res,409,{error:'작업을 재개할 수 없습니다. 이미지 증거 검증 단계가 준비되지 않았거나 원문 버전이 변경되었습니다.'})}catch{return respond(res,503,{error:'작업 재개 실패'})}
  }
  try{const docs=await documents(a.user,caseId);if(!docs.length)return respond(res,409,{error:'분석할 문서가 없습니다'});
  const job=await enqueueJob(a.user,caseId,documentVersion(docs));return respond(res,202,{job,notice:'분석 요청이 저장되었습니다. 실행 워커 활성화 여부는 별도로 확인해야 합니다.'})}
