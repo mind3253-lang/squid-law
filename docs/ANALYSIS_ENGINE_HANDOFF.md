@@ -43,3 +43,15 @@ Run `node --test tests/record-chunks.test.mjs`; deployment install command curre
 
 ## Handoff
 Read current repository HEAD, tests, Vercel deployment and actual source files before changing code. Fix structural defects in shared modules; do not create parallel emergency pipelines. Document code completion, mocked coverage, production verification and real legal analysis quality separately. Continue independent work when a single tool or paid provider is blocked.
+
+## Follow-on code (2026-10-12)
+- `lib/visual-evidence.mjs`: page/image source inventory schema, OCR/vision verification contract, deferred provider request and cost estimate. The worker stores a *preliminary* visual plan with `visualInventoryComplete:false`; it is not a real image inventory.
+- `lib/pdf-visual-inventory.mjs`: inspect PDF page image paint operators without paid services. This is a detection hint and is not yet wired into customer upload/worker or a verified extraction pipeline.
+- `lib/provider-gate.mjs`: explicit opt-in, transfer consent and cost ceiling; no paid provider execution.
+- `lib/case-reasoning.mjs`: proposition and source-quote audit, independent semantic audit gate. It is a contract, not an implemented AI legal reasoner.
+- `lib/mock-case-pipeline.mjs`: deterministic end-to-end mock harness, whose status is `mock_completed` (never production completion).
+- New tests: visual evidence, source citations, provider guard, mock pipeline. GitHub Actions and Vercel install command now run `node --test tests/*.test.mjs`.
+- Queue bug fixed: DB error counter increments on error, not every 20-page checkpoint; original page numbers preserved across batches.
+
+### Still required before production legal analysis
+Wire actual page/image extraction and OCR into the durable worker, move full-file synchronous PDF processing to recoverable ingestion jobs, implement model-driven case structure and genuine independent reasoning, and exercise production API after provider approval. Do not report these items complete merely because their interfaces or mocks exist.
