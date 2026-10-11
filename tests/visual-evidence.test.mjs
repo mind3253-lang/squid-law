@@ -120,3 +120,20 @@ test('visual work queue separates OCR, image inventory and paid provider executi
  assert.equal(queue.verified,false);
  assert.ok(queue.tasks.every(t=>t.status==='awaiting_visual_provider'));
 });
+
+test('large PDF extraction windows preserve exact page coverage',async()=>{
+ const {choosePdfExtractionWindow,resolvePdfPageRange}=await import('../api/customer-pdf-extract.js');
+ for(const [bytes,window] of [[5*1024*1024,100],[30*1024*1024,40],[80*1024*1024,20]]){
+  assert.equal(choosePdfExtractionWindow(bytes),window);
+  for(const pageCount of [338,1000,10001]){
+   const covered=[];
+   for(let start=1;start<=pageCount;start+=window){
+    const range=resolvePdfPageRange(pageCount,{startPage:start,pageCount:window});
+    for(let page=range.startPage;page<=range.endPage;page++)covered.push(page);
+   }
+   assert.equal(covered.length,pageCount);
+   assert.equal(new Set(covered).size,pageCount);
+   assert.equal(covered.at(-1),pageCount);
+  }
+ }
+});
