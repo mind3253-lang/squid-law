@@ -37,6 +37,42 @@ export default async function handler(req,res){
  const index=previous.nextDocument??0;
  if(index<0||index>docs.length)throw Error('INVALID_DOCUMENT_CHECKPOINT');
  if(index===docs.length&&previous.nextPage!==0&&previous.nextPage!==undefined)throw Error('INVALID_TERMINAL_PAGE_CHECKPOINT');
+ if(index===docs.length&&Number.isSafeInteger(previous.finalizeOffset)){
+  const root='squidlaw/analysis-jobs/'+job.customerKey+'/'+job.caseId+'/'+job.jobId+'/';
+  const descriptors=docs.flatMap(d=>Array.from({length:Math.ceil(d.pageCount/20)},(_,i)=>({documentId:d.id,start:i*20,count:Math.min(20,d.pageCount-i*20)})));
+  const offset=previous.finalizeOffset;
+  if(offset<0||offset>descriptors.length||offset%8!==0&&offset!==descriptors.length)throw Error('INVALID_FINALIZATION_CHECKPOINT');
+  if(offset<descriptors.length){
+   const selected=descriptors.slice(offset,offset+8);
+   const batches=await Promise.all(selected.map(x=>load(root+x.documentId+'-'+String(x.start).padStart(8,'0')+'.json')));
+   const claims=[];let count=0;
+   for(let i=0;i<selected.length;i++){
+    const x=selected[i],verified=validatePersistedBatch({batch:batches[i],documentId:x.documentId,sourceVersion:job.documentVersion,pageStart:x.start+1,pageCount:x.count});
+    count+=verified.unitCount;claims.push(...verified.claimResults);
+   }
+   const partPath=root+'finalize-parts/'+String(offset).padStart(8,'0')+'.json';
+   const part={sourceVersion:job.documentVersion,offset,batchCount:selected.length,unitCount:count,claims};
+   const old=await load(partPath);
+   const hash=value=>createHash('sha256').update(JSON.stringify(value)).digest('hex');
+   if(old&&hash(old)!==hash(part))throw Error('FINALIZATION_PART_CONFLICT');
+   if(!old)await put(partPath,JSON.stringify(part),{access:'private',allowOverwrite:false,addRandomSuffix:false,contentType:'application/json'});
+   await advanceJob(job,'text_review_finalize_checkpoint',{...previous,finalizeOffset:offset+selected.length,finalizeUnitCount:(previous.finalizeUnitCount||0)+count},'retry');
+   return res.status(200).json({status:'retry',stage:'text_review_finalize_checkpoint',verifiedBatches:offset+selected.length,totalBatches:descriptors.length});
+  }
+  const claims=[];let total=0;
+  for(let start=0;start<descriptors.length;start+=8){
+   const part=await load(root+'finalize-parts/'+String(start).padStart(8,'0')+'.json');
+   if(!part||part.sourceVersion!==job.documentVersion||part.offset!==start||part.batchCount!==Math.min(8,descriptors.length-start)||!Array.isArray(part.claims)||!Number.isSafeInteger(part.unitCount))throw Error('FINALIZATION_PART_MISSING');
+   total+=part.unitCount;claims.push(...part.claims);
+  }
+  if(total!==previous.finalizeUnitCount)throw Error('FINALIZATION_COUNT_MISMATCH');
+  const aggregate={caseId:job.caseId,sourceVersion:job.documentVersion,coverage:docs.map(d=>({documentId:d.id,pages:d.pageCount,textBatchCount:Math.ceil(d.pageCount/20)})),observationCount:total,opposingStatementCandidates:detectOpposingStatements(claims),verifiedLegal:false,verifiedVisual:false,status:'awaiting_visual_and_semantic_review'};
+  const aggregatePath=root+'text-review-aggregate.json',manifestPath=root+'text-review-manifest.json';
+  await put(aggregatePath,JSON.stringify(aggregate),{access:'private',allowOverwrite:true,addRandomSuffix:false,contentType:'application/json'});
+  await put(manifestPath,JSON.stringify({caseId:job.caseId,sourceVersion:job.documentVersion,documents:docs.map(x=>({id:x.id,pageCount:x.pageCount})),outputs:expectedTextReviewOutputs({root,documents:docs}),verifiedVisual:false,verifiedLegal:false,analysisComplete:false,pendingStages:ANALYSIS_STAGES.slice(2)}),{access:'private',allowOverwrite:true,addRandomSuffix:false,contentType:'application/json'});
+  await advanceJob(job,'text_review_completed_visual_pending',{...previous,textReviewManifest:manifestPath,textReviewAggregate:aggregatePath},'blocked','VISUAL_EVIDENCE_NOT_VERIFIED');
+  return res.status(200).json({status:'blocked',reason:'VISUAL_EVIDENCE_NOT_VERIFIED',verifiedTextDocuments:docs.length});
+ }
  if(index>=docs.length){
   if(!previous.textReviewManifest||!previous.textReviewAggregate||!(await load(previous.textReviewManifest))||!(await load(previous.textReviewAggregate))){
    await advanceJob(job,'text_review_checkpoint_incomplete',{...previous,documentCount:docs.length},'blocked','TEXT_REVIEW_AGGREGATION_MISSING');
