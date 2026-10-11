@@ -21,3 +21,10 @@ test('shared corpus rejects duplicate document and page',async()=>{
  assert.throws(()=>prepareCorpus('customer',[{id:'a',pageCount:2,pages:[{page:1,text:'x'},{page:1,text:'y'}]}]));
  assert.throws(()=>prepareCorpus('customer',[{id:'a',pageCount:1,pages:[{page:1,text:'x'}]},{id:'a',pageCount:1,pages:[{page:1,text:'y'}]}]));
 });
+
+test('claim candidates retain exact source location',async()=>{
+ const {prepareCorpus}=await import('../lib/corpus-coverage.mjs');
+ const {analyzeUnit}=await import('../lib/legal-evidence-review.mjs');
+ const unit=prepareCorpus('skynet',[{id:'case-doc',pageCount:1,pages:[{page:1,text:'피고는 대여금 청구를 부인한다.'}]}]).units[0];
+ const result=analyzeUnit(unit);assert.ok(result.claimCandidates.length>0);assert.equal(result.claimCandidates[0].source.page,1);assert.equal(result.claimCandidates[0].source.documentId,'case-doc');
+});
