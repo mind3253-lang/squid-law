@@ -89,8 +89,9 @@ async function fullReviewStatus(jobId,caseId){
  const r=await fetch('/api/customer-analysis-job?caseId='+encodeURIComponent(caseId)+'&jobId='+encodeURIComponent(jobId),{credentials:'same-origin',cache:'no-store'});const j=await r.json();if(!r.ok)throw Error(j.error||'분석 상태 조회 실패');
  const job=j.job,cp=job.checkpoint||{};notice('전체 분석: '+job.status+' · '+job.stage+' · 확인된 문서 '+(cp.verifiedTextDocuments||0)+'/'+(cp.documentCount||'?')+' · '+(job.errorCode||'진행 중'),job.status==='blocked'?'error':'info');
  if(['blocked','failed','completed'].includes(job.status)){clearInterval(fullReviewTimer);fullReviewTimer=null}
+ return job.status;
 }
-async function restoreFullReview(){if(!select.value)return;const id=sessionStorage.getItem('squidlaw-full-review:'+select.value);if(!id)return;try{await fullReviewStatus(id,select.value);if(fullReviewTimer)clearInterval(fullReviewTimer);fullReviewTimer=setInterval(()=>fullReviewStatus(id,select.value).catch(e=>notice(e.message,'error')),15000)}catch{sessionStorage.removeItem('squidlaw-full-review:'+select.value)}}
+async function restoreFullReview(){if(!select.value)return;const id=sessionStorage.getItem('squidlaw-full-review:'+select.value);if(!id)return;try{const state=await fullReviewStatus(id,select.value);if(fullReviewTimer)clearInterval(fullReviewTimer);if(['blocked','failed','completed'].includes(state))return;fullReviewTimer=setInterval(()=>fullReviewStatus(id,select.value).catch(e=>notice(e.message,'error')),15000)}catch{sessionStorage.removeItem('squidlaw-full-review:'+select.value)}}
 fullReviewButton.onclick=async()=>{
  if(!select.value){notice('먼저 사건을 등록해 주세요.','error');return}
  if(!confirm('이 사건에 등록한 전체 문서의 장시간 분석을 신청하시겠습니까? 분석은 즉시 완료되지 않으며, 이미지 검증이 끝나기 전에는 완료로 표시되지 않습니다.'))return;
