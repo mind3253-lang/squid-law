@@ -21,4 +21,5 @@ test('visual operator inventory tampering is detected independently of text hash
  const original={page,text,textSha256,imageOperatorCount,visualInventoryStatus,visualOperatorDigest};
  assert.equal(verifyPageDigests([original],{requireDigests:true}).complete,true);
  assert.equal(verifyPageDigests([{...original,imageOperatorCount:3}],{requireDigests:true}).complete,false);
+ assert.equal(verifyPageDigests([{...original,visualOperatorDigest:undefined}],{requireDigests:true}).complete,false);
 });
