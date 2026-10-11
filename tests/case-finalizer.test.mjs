@@ -16,5 +16,6 @@ test('finalizer rejects incomplete stages, missing visual verification and missi
  for(const stage of ANALYSIS_STAGES)state=advancePipelineState(state,{stage,checkpoint:{},receipt:createAnalysisReceipt({stage,sourceVersion:version,inputs:[],outputs:[],verified:true})});
  assert.equal(finalizeCaseAnalysis({state,...args,visualCoverage:{d:{complete:false}}}).completed,false);
  assert.equal(finalizeCaseAnalysis({state,...args,semanticAudit:null}).completed,false);
- assert.equal(finalizeCaseAnalysis({state,...args}).completed,true);
+ assert.equal(finalizeCaseAnalysis({state,...args}).completed,false);
+ assert.equal(finalizeCaseAnalysis({state,...args,providerExecution:{mock:false,sourceVersion:version,responseId:'provider-1'},auditorExecution:{mock:false,sourceVersion:version,responseId:'audit-2'}}).completed,true);
 });
