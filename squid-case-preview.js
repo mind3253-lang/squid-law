@@ -1,6 +1,7 @@
 /* SQUIDLAW browser-only case archive prototype. Not server storage or billing. */
 (()=>{'use strict';
-const DB='squidlaw-case-preview-v2',STORE='documents';\nlet account=null;async function requireAccount(){if(account)return account;const r=await fetch('/api/customer-auth',{credentials:'same-origin',cache:'no-store'});const d=await r.json();if(!r.ok||!d.authenticated)throw Error('로그인이 필요합니다');account=d.id;return account}
+const DB='squidlaw-case-preview-v2',STORE='documents';
+let account=null;async function requireAccount(){if(account)return account;const r=await fetch('/api/customer-auth',{credentials:'same-origin',cache:'no-store'});const d=await r.json();if(!r.ok||!d.authenticated)throw Error('로그인이 필요합니다');account=d.id;return account}
 const cases=[{id:'SL-20261007-001',type:'대여·금전'},{id:'SL-20261006-003',type:'임대·명도'}];
 function db(){return new Promise((resolve,reject)=>{const req=indexedDB.open(DB,1);req.onupgradeneeded=()=>{const d=req.result;if(!d.objectStoreNames.contains(STORE)){const s=d.createObjectStore(STORE,{keyPath:'id'});s.createIndex('caseId','caseId')}};req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error)})}
 async function transaction(mode,action){const d=await db();return new Promise((resolve,reject)=>{const t=d.transaction(STORE,mode),s=t.objectStore(STORE);let req;try{req=action(s)}catch(e){d.close();reject(e);return}req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error);t.oncomplete=()=>d.close();t.onerror=()=>reject(t.error)})}
