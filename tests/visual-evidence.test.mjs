@@ -71,3 +71,12 @@ test('PDF page range checkpoints cover final page of 10001-page corpus',async()=
  assert.deepEqual(resolvePdfPageRange(338,{startPage:321,pageCount:20}),{startPage:321,endPage:338});
  assert.throws(()=>resolvePdfPageRange(10001,{startPage:10002,pageCount:20}),/INVALID_PDF_PAGE_RANGE/);
 });
+
+test('visual plan refuses tampered image operator count',async()=>{
+ const {createHash}=await import('node:crypto');
+ const visualOperatorDigest=createHash('sha256').update(JSON.stringify([1,2,'operator_scan_unverified'])).digest('hex');
+ const plan=planVisualEvidence({documentId:'d',pages:[{page:1,text:'본문',imageOperatorCount:2,visualInventoryStatus:'operator_scan_unverified',visualOperatorDigest}],inventoryComplete:true});
+ const result={documentId:'d',independentVisualVerified:true,pages:[{page:1,textHash:plan.pages[0].textHash,images:[]}]};
+ assert.equal(validateVisualResult(plan,result).complete,true);
+ assert.equal(validateVisualResult({...plan,pages:[{...plan.pages[0],imageOperatorCount:3}]},result).complete,false);
+});
