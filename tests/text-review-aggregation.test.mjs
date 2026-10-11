@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import {aggregateTextReview} from '../lib/text-review-aggregation.mjs';
 const version='a'.repeat(64),root='private/job/';
 const docs=[{id:'doc',pageCount:21}];
-const outputs=[{path:root+'doc-00000000.json',payload:{documentId:'doc',sourceVersion:version,pageStart:1,pageCount:20,verifiedText:true,unitCount:0,visualVerified:false,visualInventoryComplete:false,results:[]}},{path:root+'doc-00000020.json',payload:{documentId:'doc',sourceVersion:version,pageStart:21,pageCount:1,verifiedText:true,unitCount:0,visualVerified:false,visualInventoryComplete:false,results:[]}}];
+const unit=page=>({status:'verified',documentId:'doc',page,part:1,hash:'a'.repeat(64),textHash:'b'.repeat(64),claimCandidates:[],observations:[]});
+const outputs=[{path:root+'doc-00000000.json',payload:{documentId:'doc',sourceVersion:version,pageStart:1,pageCount:20,verifiedText:true,unitCount:20,visualVerified:false,visualInventoryComplete:false,results:Array.from({length:20},(_,i)=>unit(i+1))}},{path:root+'doc-00000020.json',payload:{documentId:'doc',sourceVersion:version,pageStart:21,pageCount:1,verifiedText:true,unitCount:1,visualVerified:false,visualInventoryComplete:false,results:[unit(21)]}}];
 test('persisted text batches aggregate without falsely completing legal analysis',()=>{
  const r=aggregateTextReview({caseId:'case',sourceVersion:version,root,documents:docs,outputs});
  assert.equal(r.status,'awaiting_visual_and_semantic_review');assert.equal(r.coverage[0].pages,21);assert.equal(r.verifiedLegal,false);
@@ -24,8 +25,8 @@ test('reject forged source page, duplicate units and candidate provenance',()=>{
  const valid={status:'verified',documentId:'doc',page:1,part:1,hash,textHash,claimCandidates:[{text:'청구 부인',source:{documentId:'doc',page:1,part:1,hash}}]};
  const make=(results)=>outputs.map((o,i)=>i?o:{...o,payload:{...o.payload,unitCount:results.length,results}});
  const args=(results)=>({caseId:'case',sourceVersion:version,root,documents:docs,outputs:make(results)});
- assert.equal(aggregateTextReview(args([valid])).observationCount,1);
- assert.throws(()=>aggregateTextReview(args([{...valid,page:21}])),/INVALID_TEXT_RESULT_PROVENANCE/);
- assert.throws(()=>aggregateTextReview(args([valid,valid])),/DUPLICATE_TEXT_UNIT/);
- assert.throws(()=>aggregateTextReview(args([{...valid,claimCandidates:[{...valid.claimCandidates[0],source:{...valid.claimCandidates[0].source,page:2}}]}])),/INVALID_CANDIDATE_PROVENANCE/);
+ assert.equal(aggregateTextReview(args([valid,...Array.from({length:19},(_,i)=>unit(i+2))])).observationCount,21);
+ assert.throws(()=>aggregateTextReview(args([{...valid,page:21},...Array.from({length:19},(_,i)=>unit(i+2))])),/INVALID_TEXT_RESULT_PROVENANCE/);
+ assert.throws(()=>aggregateTextReview(args([valid,valid,...Array.from({length:19},(_,i)=>unit(i+2))])),/DUPLICATE_TEXT_UNIT/);
+ assert.throws(()=>aggregateTextReview(args([{...valid,claimCandidates:[{...valid.claimCandidates[0],source:{...valid.claimCandidates[0].source,page:2}}]},...Array.from({length:19},(_,i)=>unit(i+2))])),/INVALID_CANDIDATE_PROVENANCE/);
 });
