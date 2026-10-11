@@ -98,7 +98,33 @@ export default async function handler(req,res){
   await advanceJob(job,'awaiting_visual_verification',{...previous,documentCount:docs.length},'blocked','VISUAL_EVIDENCE_NOT_VERIFIED');
   return res.status(200).json({status:'blocked',reason:'VISUAL_EVIDENCE_NOT_VERIFIED'});
  }
- const d=docs[index],e=await load(prefix+'extracted/'+d.id+'.json');
+ const d=docs[index],extractionPath=prefix+'extracted/'+d.id+'.json';
+ const e=await load(extractionPath);
+ if(!e&&d.status==='extraction_pending'){
+  const start=previous.nextDocument===index?(previous.extractionNextPage??1):1;
+  if(!Number.isSafeInteger(start)||start<1||start>d.pageCount||((start-1)%20)!==0)throw Error('INVALID_EXTRACTION_CHECKPOINT');
+  const bytes=await loadBinary(prefix+'pdf/'+d.id+'.pdf');
+  if(!bytes||createHash('sha256').update(bytes).digest('hex')!==d.sha256)throw Error('SOURCE_PDF_DIGEST_MISMATCH');
+  const extracted=await extractPdfPages(bytes,{startPage:start,pageCount:20});
+  if(extracted.totalPages!==d.pageCount||extracted.pages.length!==Math.min(20,d.pageCount-start+1))throw Error('PDF_EXTRACTION_PAGE_MISMATCH');
+  for(const page of extracted.pages)page.textSha256=createHash('sha256').update(String(page.text||'')).digest('hex');
+  const batchPath=prefix+'extracted/'+d.id+'/batch-'+String(start-1).padStart(8,'0')+'.json';
+  const payload={pages:extracted.pages},old=await load(batchPath);
+  const digest=value=>createHash('sha256').update(JSON.stringify(value)).digest('hex');
+  if(old&&digest(old)!==digest(payload))throw Error('EXTRACTION_BATCH_CONFLICT');
+  if(!old)await put(batchPath,JSON.stringify(payload),{access:'private',allowOverwrite:false,addRandomSuffix:false,contentType:'application/json'});
+  if(!extracted.finished){
+   await advanceJob(job,'pdf_extraction_checkpoint',{...previous,nextDocument:index,nextPage:0,extractionNextPage:start+extracted.pages.length},'retry');
+   return res.status(200).json({status:'retry',stage:'pdf_extraction_checkpoint',extractedPages:start+extracted.pages.length-1,totalPages:d.pageCount});
+  }
+  const batches=Array.from({length:Math.ceil(d.pageCount/20)},(_,i)=>prefix+'extracted/'+d.id+'/batch-'+String(i*20).padStart(8,'0')+'.json');
+  for(const path of batches)if(!await load(path))throw Error('EXTRACTION_BATCH_MISSING');
+  await put(extractionPath,JSON.stringify({pageCount:d.pageCount,batches}),{access:'private',allowOverwrite:false,addRandomSuffix:false,contentType:'application/json'});
+  await put(prefix+'docs/'+d.id+'.json',JSON.stringify({...d,status:'extraction_complete',extractedPages:d.pageCount,excludedPages:0,extractionNextPage:null}),{access:'private',allowOverwrite:true,addRandomSuffix:false,contentType:'application/json'});
+  await advanceJob(job,'pdf_extraction_completed',{...previous,nextDocument:index,nextPage:0,extractionNextPage:null},'retry');
+  return res.status(200).json({status:'retry',stage:'pdf_extraction_completed',totalPages:d.pageCount});
+ }
+
  if(!e||(Array.isArray(e.pages)?e.pages.length!==d.pageCount:e.pageCount!==d.pageCount||!Array.isArray(e.batches))){
   await advanceJob(job,'extraction_incomplete',{...previous,nextDocument:index,documentId:d.id},'blocked','PAGE_EXTRACTION_INCOMPLETE');
   return res.status(200).json({status:'blocked',reason:'PAGE_EXTRACTION_INCOMPLETE'});
