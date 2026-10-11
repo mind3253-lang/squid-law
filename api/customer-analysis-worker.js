@@ -125,7 +125,7 @@ export default async function handler(req,res){
    if(!old)await put(batchPath,JSON.stringify(payload),{access:'private',allowOverwrite:false,addRandomSuffix:false,contentType:'application/json'});
   }
   if(!extracted.finished){
-   await advanceJob(job,'pdf_extraction_checkpoint',{...previous,nextDocument:index,nextPage:0,extractionNextPage:start+extracted.pages.length},'retry');
+   await advanceJob(job,'pdf_extraction_checkpoint',{...previous,nextDocument:index,nextPage:0,extractionNextPage:start+extracted.pages.length,extractionReadablePages:extractedReadable,extractionImageOperatorPages:extractedImagePages,extractionUnscannedVisualPages:extractedUnscannedPages},'retry');
    return res.status(200).json({status:'retry',stage:'pdf_extraction_checkpoint',extractedPages:start+extracted.pages.length-1,totalPages:d.pageCount});
   }
   const batches=Array.from({length:Math.ceil(d.pageCount/20)},(_,i)=>prefix+'extracted/'+d.id+'/batch-'+String(i*20).padStart(8,'0')+'.json');
@@ -133,7 +133,7 @@ export default async function handler(req,res){
   do{const listing=await blob.list({prefix:prefix+'extracted/'+d.id+'/',limit:1000,...(extractionCursor?{cursor:extractionCursor}:{})});existingPaths.push(...listing.blobs.map(x=>x.pathname));extractionCursor=listing.hasMore?listing.cursor:null}while(extractionCursor);
   if(!auditTextReviewOutputs({expected:batches,actual:existingPaths}).complete)throw Error('EXTRACTION_BATCH_MISSING');
   await put(extractionPath,JSON.stringify({pageCount:d.pageCount,batches}),{access:'private',allowOverwrite:false,addRandomSuffix:false,contentType:'application/json'});
-  await put(prefix+'docs/'+d.id+'.json',JSON.stringify({...d,status:'extraction_complete',extractedPages:d.pageCount,excludedPages:0,extractionNextPage:null}),{access:'private',allowOverwrite:true,addRandomSuffix:false,contentType:'application/json'});
+  await put(prefix+'docs/'+d.id+'.json',JSON.stringify({...d,status:'extraction_complete',extractedPages:d.pageCount,excludedPages:0,pendingPages:0,readablePages:extractedReadable,imageOperatorPages:extractedImagePages,unscannedVisualPages:extractedUnscannedPages,extractionNextPage:null}),{access:'private',allowOverwrite:true,addRandomSuffix:false,contentType:'application/json'});
   await advanceJob(job,'pdf_extraction_completed',{...previous,nextDocument:index,nextPage:0,extractionNextPage:null},'retry');
   return res.status(200).json({status:'retry',stage:'pdf_extraction_completed',totalPages:d.pageCount});
  }
