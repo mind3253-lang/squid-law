@@ -23,7 +23,7 @@ r=await request('/api/customer-cases',{cookie:a.cookie});assert.equal(r.status,2
 r=await request('/api/customer-cases',{cookie:b.cookie});assert.equal(r.status,200);assert.ok(!r.data.cases.some(x=>x.id===caseId));
 r=await request('/api/customer-case?caseId='+encodeURIComponent(caseId),{cookie:b.cookie});assert.equal(r.status,404,'cross-customer case access');
 const pdf=makePdf();
-r=await request('/api/customer-case?caseId='+encodeURIComponent(caseId),{method:'POST',cookie:a.cookie,body:{action:'upload',name:'integration.pdf',data:pdf.toString('base64')}});assert.equal(r.status,200,'PDF upload and parse');const docId=r.data.document.id;
+r=await request('/api/customer-case?caseId='+encodeURIComponent(caseId),{method:'POST',cookie:a.cookie,body:{action:'upload',name:'integration.pdf',data:pdf.toString('base64')}});assert.equal(r.status,200,'PDF upload and parse: '+JSON.stringify(r.data));const docId=r.data.document.id;
 r=await request('/api/customer-case?caseId='+encodeURIComponent(caseId),{cookie:a.cookie});assert.equal(r.status,200);assert.ok(r.data.documents.some(x=>x.id===docId),'PDF metadata persisted');
 r=await request('/api/customer-case?caseId='+encodeURIComponent(caseId)+'&view='+encodeURIComponent(docId),{cookie:a.cookie});assert.equal(r.status,200,'PDF private readback');assert.equal(r.res.headers.get('content-type'),'application/pdf');assert.equal((await r.res.arrayBuffer()).byteLength,pdf.length);
 r=await request('/api/customer-analysis-history?caseId='+encodeURIComponent(caseId),{cookie:a.cookie});assert.equal(r.status,200,'analysis history readback');
