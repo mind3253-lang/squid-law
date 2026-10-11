@@ -10,7 +10,7 @@ import {assertPageBatch,assertBatchManifest} from '../lib/batch-integrity.mjs';
 import {expectedTextReviewOutputs,auditTextReviewOutputs} from '../lib/text-review-manifest.mjs';
 import {verifyPageDigests} from '../lib/page-digests.mjs';
 import {ANALYSIS_STAGES} from '../lib/analysis-pipeline-state.mjs';
-import {validatePersistedBatch} from '../lib/text-review-aggregation.mjs';
+import {validatePersistedBatch,finalizationDescriptors} from '../lib/text-review-aggregation.mjs';
 import {detectOpposingStatements} from '../lib/case-crosscheck.mjs';
 const eq=(a,b)=>{const x=Buffer.from(a||''),y=Buffer.from(b||'');return x.length===y.length&&timingSafeEqual(x,y)};
 async function load(path){const r=await get(path,{access:'private'});if(!r||r.statusCode!==200)return null;let size=0,parts=[];for await(const chunk of r.stream){size+=chunk.length;if(size>32*1024*1024)throw Error('BLOB_TOO_LARGE');parts.push(Buffer.from(chunk))}return JSON.parse(Buffer.concat(parts).toString())}
@@ -39,7 +39,7 @@ export default async function handler(req,res){
  if(index===docs.length&&previous.nextPage!==0&&previous.nextPage!==undefined)throw Error('INVALID_TERMINAL_PAGE_CHECKPOINT');
  if(index===docs.length&&Number.isSafeInteger(previous.finalizeOffset)){
   const root='squidlaw/analysis-jobs/'+job.customerKey+'/'+job.caseId+'/'+job.jobId+'/';
-  const descriptors=docs.flatMap(d=>Array.from({length:Math.ceil(d.pageCount/20)},(_,i)=>({documentId:d.id,start:i*20,count:Math.min(20,d.pageCount-i*20)})));
+  const descriptors=finalizationDescriptors(docs);
   const offset=previous.finalizeOffset;
   if(offset<0||offset>descriptors.length||offset%8!==0&&offset!==descriptors.length)throw Error('INVALID_FINALIZATION_CHECKPOINT');
   if(offset<descriptors.length){
