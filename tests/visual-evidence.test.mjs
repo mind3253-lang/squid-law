@@ -47,3 +47,10 @@ test('visual audit rejects malformed source image identifiers',()=>{
  assert.equal(validateVisualResult(p,r).complete,true);
  assert.equal(validateVisualResult({...p,pages:[{...p.pages[0],images:[p.pages[0].images[0],p.pages[0].images[0]]}]},r).complete,false);
 });
+
+test('visual plan source digest and document identity cannot be forged',()=>{
+ const p=planVisualEvidence({documentId:'d',pages:[{page:1,text:'A'}],inventoryComplete:true});
+ const r={documentId:'d',independentVisualVerified:true,pages:[{page:1,textHash:p.pages[0].textHash,images:[]}]};
+ assert.equal(validateVisualResult(p,r).complete,true);
+ assert.equal(validateVisualResult({...p,pages:[{...p.pages[0],documentId:'other'}]},r).complete,false);
+});
