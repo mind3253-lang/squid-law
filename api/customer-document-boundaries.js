@@ -9,3 +9,26 @@ export function candidateDocuments(pages){
  }if(current)sections.push(current)}
  return {sections,coveredPages:sections.reduce((n,s)=>n+s.pages.length,0),verified:false};
 }
+
+export function mergeDocumentBoundaryCandidates({documentId,pageCount,batches}){
+ if(!documentId||!Number.isSafeInteger(pageCount)||pageCount<1||!Array.isArray(batches))throw Error('INVALID_BOUNDARY_MERGE');
+ const sections=[],seen=new Set();
+ for(const batch of batches){
+  if(!batch||batch.documentId!==documentId||!Array.isArray(batch.sections))throw Error('INVALID_BOUNDARY_BATCH');
+  for(let i=0;i<batch.sections.length;i++){
+   const section=batch.sections[i];
+   if(section.documentId!==documentId||!Array.isArray(section.pages)||!section.pages.length||section.classification!=='미검증 후보')throw Error('INVALID_BOUNDARY_SECTION');
+   for(const page of section.pages){if(!Number.isSafeInteger(page)||page<1||page>pageCount||seen.has(page))throw Error('INVALID_BOUNDARY_PAGE');seen.add(page)}
+   if(section.startPage!==section.pages[0]||section.endPage!==section.pages.at(-1))throw Error('INVALID_BOUNDARY_RANGE');
+   const prior=sections.at(-1);
+   const continuous=prior&&prior.endPage+1===section.startPage;
+   const same=prior?.kind===section.kind;
+   const inherited=i===0&&section.kind==='미분류';
+   if(continuous&&(same||inherited)){prior.pages.push(...section.pages);prior.endPage=section.endPage}
+   else sections.push({...section,pages:[...section.pages]});
+  }
+ }
+ if(seen.size!==pageCount)throw Error('INCOMPLETE_BOUNDARY_COVERAGE');
+ for(let page=1;page<=pageCount;page++)if(!seen.has(page))throw Error('MISSING_BOUNDARY_PAGE');
+ return {documentId,sections,coveredPages:seen.size,verified:false};
+}
