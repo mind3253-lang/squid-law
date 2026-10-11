@@ -14,14 +14,22 @@ export async function acquireCustomerLease(user,caseId,requestId,requestHash){
    const row=rows[0];if(!row)throw Error('REQUEST_MISSING');
    if(row.request_hash!==requestHash){await client.query('COMMIT');return {kind:'conflict'}}
    if(row.status==='completed'){await client.query('COMMIT');return {kind:'completed',resultId:row.result_id}}
-   if(row.status==='processing'||row.status==='saving'||row.status==='recovery_required'){
-    await client.query('COMMIT');return {kind:row.lease_expires_at&&new Date(row.lease_expires_at)<new Date()?'recovery_required':'in_progress',status:row.status}
+   if(row.status==='recovery_required'){await client.query('COMMIT');return {kind:'recovery_required',status:row.status}}
+   if(row.status==='processing'||row.status==='saving'){
+    await client.query('COMMIT');return {kind:row.lease_expires_at&&new Date(row.lease_expires_at)<=new Date()?'recovery_required':'in_progress',status:row.status}
    }
    if(row.attempt>0){await client.query('COMMIT');return {kind:'recovery_required'}}
    const update=await client.query("UPDATE customer_analysis_leases SET owner_token=$4,fencing_token=fencing_token+1,attempt=attempt+1,status='processing',lease_expires_at=now()+interval '120 seconds',updated_at=now() WHERE customer_key=$1 AND case_id=$2 AND request_id=$3 RETURNING fencing_token",[key,caseId,requestId,ownerToken]);
    await client.query('COMMIT');
    return {kind:'acquired',ownerToken,fencingToken:String(update.rows[0].fencing_token),customerKey:key};
   }catch(e){await client.query('ROLLBACK').catch(()=>{});throw e}finally{client.release()}
+ });
+}
+export async function renewCustomerLease(lease,caseId,requestId){
+ return withLeaseDb(async pool=>{
+  const {rowCount}=await pool.query("UPDATE customer_analysis_leases SET lease_expires_at=now()+interval '120 seconds',updated_at=now() WHERE customer_key=$1 AND case_id=$2 AND request_id=$3 AND owner_token=$4 AND fencing_token=$5 AND lease_expires_at>now() AND status IN ('processing','saving')",[lease.customerKey,caseId,requestId,lease.ownerToken,lease.fencingToken]);
+  if(rowCount!==1)throw Error('LEASE_LOST');
+  return true;
  });
 }
 export async function advanceCustomerLease(lease,caseId,requestId,status,step,resultId=null){
