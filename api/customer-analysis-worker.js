@@ -10,7 +10,7 @@ import {assertPageBatch,assertBatchManifest} from '../lib/batch-integrity.mjs';
 import {expectedTextReviewOutputs,auditTextReviewOutputs} from '../lib/text-review-manifest.mjs';
 import {verifyPageDigests} from '../lib/page-digests.mjs';
 import {ANALYSIS_STAGES} from '../lib/analysis-pipeline-state.mjs';
-import {aggregateTextReview} from '../lib/text-review-aggregation.mjs';
+import {aggregateTextReviewStreaming} from '../lib/text-review-aggregation.mjs';
 const eq=(a,b)=>{const x=Buffer.from(a||''),y=Buffer.from(b||'');return x.length===y.length&&timingSafeEqual(x,y)};
 async function load(path){const r=await get(path,{access:'private'});if(!r||r.statusCode!==200)return null;let size=0,parts=[];for await(const chunk of r.stream){size+=chunk.length;if(size>32*1024*1024)throw Error('BLOB_TOO_LARGE');parts.push(Buffer.from(chunk))}return JSON.parse(Buffer.concat(parts).toString())}
 export default async function handler(req,res){
@@ -95,14 +95,9 @@ export default async function handler(req,res){
   do{const page=await blob.list({prefix:root,limit:1000,...(resultCursor?{cursor:resultCursor}:{})});actual.push(...page.blobs.filter(x=>/^[^/]+-\d{8}\.json$/.test(x.pathname.slice(root.length))).map(x=>x.pathname));resultCursor=page.hasMore?page.cursor:null}while(resultCursor);
   const outputAudit=auditTextReviewOutputs({expected,actual});
   if(!outputAudit.complete){await advanceJob(job,'text_review_output_incomplete',{...checkpoint,missingOutputs:outputAudit.missing.slice(0,50)},'blocked','TEXT_REVIEW_OUTPUT_INCOMPLETE');return res.status(200).json({status:'blocked',reason:'TEXT_REVIEW_OUTPUT_INCOMPLETE'})}
-  // Load the exact persisted batch payloads; a pathname-only audit cannot verify contents.
-  const persisted=[];
-  for(let offset=0;offset<expected.length;offset+=8){
-   const group=await Promise.all(expected.slice(offset,offset+8).map(async path=>({path,payload:await load(path)})));
-   persisted.push(...group);
-  }
+  // Verify persisted results one batch at a time to bound memory on large cases.
   let aggregate;
-  try{aggregate=aggregateTextReview({caseId:job.caseId,sourceVersion:job.documentVersion,root,documents:docs,outputs:persisted})}
+  try{aggregate=await aggregateTextReviewStreaming({caseId:job.caseId,sourceVersion:job.documentVersion,root,documents:docs,loadBatch:load})}
   catch{await advanceJob(job,'text_review_content_invalid',{...checkpoint},'blocked','TEXT_REVIEW_CONTENT_INVALID');return res.status(200).json({status:'blocked',reason:'TEXT_REVIEW_CONTENT_INVALID'})}
   const aggregatePath=root+'text-review-aggregate.json';
   await put(aggregatePath,JSON.stringify(aggregate),{access:'private',allowOverwrite:true,addRandomSuffix:false,contentType:'application/json'});
