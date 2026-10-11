@@ -31,7 +31,6 @@ let b=req.body;try{if(typeof b==='string')b=JSON.parse(b)}catch{return send(res,
 if(!b||typeof b!=='object'||!Array.isArray(b.messages)||b.messages.length<1||b.messages.length>16||!/^SL-[a-zA-Z0-9-]{5,40}$/.test(String(b.caseId||'')))return send(res,400,{error:'사건 또는 대화 형식 오류'});
 if(b.requestId!==undefined&&!validRequestId(b.requestId))return send(res,400,{error:'분석 요청 ID 오류'});
 if(b.messages.some(m=>!m||!['user','assistant'].includes(m.role)||typeof m.content!=='string'||!m.content.trim()||m.content.length>9000)||b.messages.at(-1).role!=='user')return send(res,400,{error:'대화 내용 오류'});
-const questionHash=createHash('sha256').update(b.messages.at(-1).content).digest('hex');
 const registry=await readJson(casePrefix(user,'_index').replace(/_index\/$/,'')+'registry/'+b.caseId+'.json').catch(()=>null);if(!registry||registry.id!==b.caseId)return send(res,404,{error:'등록된 사건이 없습니다'});
 const reqId=b.requestId||null,hashValue=reqId?hashRequest(b.caseId,b.messages,b.options||{}):null;
 if(!reqId)return send(res,400,{error:'분석 요청 ID가 필요합니다.'});
