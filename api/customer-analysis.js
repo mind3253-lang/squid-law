@@ -1,3 +1,4 @@
+import {leaseConfigured} from './customer-analysis-lease.js';
 import {validRequestId,requestHash as hashRequest,requestState,requestPaths,saveImmutable,publicState} from './customer-request-state.js';
 import {createHash} from 'node:crypto';
 import {guard,respond,documents,messages,readJson,casePrefix,saveMessage} from './customer-case.js';
@@ -22,6 +23,7 @@ export default async function handler(req,res){
 if(req.method!=='POST')return send(res,405,{error:'POST만 허용됩니다.'});
 const auth=guard(req);if(auth.error)return send(res,auth.status,{error:auth.error});const user=auth.user;
 if(!process.env.OPENAI_API_KEY)return send(res,503,{error:'AI 서비스 설정이 필요합니다.'});
+if(!leaseConfigured())return send(res,503,{code:'LEASE_UNAVAILABLE',error:'중복 분석 방지용 실행권 저장소가 준비되지 않았습니다. 데이터 보호를 위해 분석을 일시 중단합니다.'});
 if(Number(req.headers['content-length']||0)>85000)return send(res,413,{error:'요청이 너무 큽니다.'});
 let b=req.body;try{if(typeof b==='string')b=JSON.parse(b)}catch{return send(res,400,{error:'요청 형식 오류'})}
 if(!b||typeof b!=='object'||!Array.isArray(b.messages)||b.messages.length<1||b.messages.length>16||!/^SL-[a-zA-Z0-9-]{5,40}$/.test(String(b.caseId||'')))return send(res,400,{error:'사건 또는 대화 형식 오류'});
