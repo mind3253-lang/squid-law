@@ -133,7 +133,7 @@ export default async function handler(req,res){
   const existingPaths=[];let extractionCursor;
   do{const listing=await blob.list({prefix:prefix+'extracted/'+d.id+'/',limit:1000,...(extractionCursor?{cursor:extractionCursor}:{})});existingPaths.push(...listing.blobs.map(x=>x.pathname));extractionCursor=listing.hasMore?listing.cursor:null}while(extractionCursor);
   if(!auditTextReviewOutputs({expected:batches,actual:existingPaths}).complete)throw Error('EXTRACTION_BATCH_MISSING');
-  await put(extractionPath,JSON.stringify({pageCount:d.pageCount,batches}),{access:'private',allowOverwrite:false,addRandomSuffix:false,contentType:'application/json'});
+  await put(extractionPath,JSON.stringify({documentId:d.id,sourcePdfSha256:d.sha256,pageCount:d.pageCount,batches}),{access:'private',allowOverwrite:false,addRandomSuffix:false,contentType:'application/json'});
   await put(prefix+'docs/'+d.id+'.json',JSON.stringify({...d,status:'extraction_complete',extractedPages:d.pageCount,excludedPages:0,pendingPages:0,readablePages:extractedReadable,imageOperatorPages:extractedImagePages,unscannedVisualPages:extractedUnscannedPages,extractionNextPage:null}),{access:'private',allowOverwrite:true,addRandomSuffix:false,contentType:'application/json'});
   await advanceJob(job,'pdf_extraction_completed',{...previous,nextDocument:index,nextPage:0,extractionNextPage:null},'retry');
   return res.status(200).json({status:'retry',stage:'pdf_extraction_completed',totalPages:d.pageCount});
@@ -144,6 +144,7 @@ export default async function handler(req,res){
   return res.status(200).json({status:'blocked',reason:'PAGE_EXTRACTION_INCOMPLETE'});
  }
  if(!Array.isArray(e.pages))assertBatchManifest({batches:e.batches,pageCount:d.pageCount});
+ if(!Array.isArray(e.pages)&&e.sourcePdfSha256&&e.sourcePdfSha256!==d.sha256)throw Error('EXTRACTION_SOURCE_VERSION_MISMATCH');
  if(previous.nextDocument===index&&previous.nextPage!==undefined&&!Number.isSafeInteger(previous.nextPage))throw Error('INVALID_PAGE_CHECKPOINT');
  const pageOffset=previous.nextDocument===index?(previous.nextPage??0):0;
  if(pageOffset<0||pageOffset>=d.pageCount||pageOffset%20!==0)throw Error('INVALID_CHECKPOINT_OFFSET');
@@ -153,6 +154,9 @@ export default async function handler(req,res){
  if(batchPath&&(!batchPath.startsWith(prefix+'extracted/'+d.id+'/')||!batchPath.endsWith('.json')))throw Error('INVALID_EXTRACTION_PATH');
  const batch=Array.isArray(e.pages)?null:await load(batchPath);
  const selectedPages=Array.isArray(e.pages)?e.pages.slice(pageOffset,pageOffset+20):batch?.pages;
+ if(batch?.sourcePdfSha256&&batch.sourcePdfSha256!==d.sha256)throw Error('EXTRACTION_BATCH_SOURCE_MISMATCH');
+ if(batch?.documentId&&batch.documentId!==d.id)throw Error('EXTRACTION_BATCH_DOCUMENT_MISMATCH');
+ if(batch?.pageStart&&batch.pageStart!==pageOffset+1)throw Error('EXTRACTION_BATCH_OFFSET_MISMATCH');
  let batchIntegrity;try{batchIntegrity=assertPageBatch({pages:selectedPages,pageOffset,pageCount:d.pageCount})}catch{
   await advanceJob(job,'page_sequence_invalid',{...previous,nextDocument:index,documentId:d.id},'blocked','INVALID_PAGE_SEQUENCE');
   return res.status(200).json({status:'blocked',reason:'INVALID_PAGE_SEQUENCE'});
