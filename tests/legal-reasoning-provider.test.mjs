@@ -13,6 +13,7 @@ test('legal model response cannot invent quote or page number',()=>{
  assert.equal(parseLegalReasoningOutput({units,response:{propositions:[{...claim,sources:[{...source,page:1}]}]}}).accepted,false);
  assert.equal(parseLegalReasoningOutput({units,response:{propositions:[{...claim,sources:[{...source,quote:'10년'}]}]}}).accepted,false);
  assert.equal(parseLegalReasoningOutput({units,response:{mock:true,propositions:[claim]}}).accepted,false);
+ assert.equal(parseLegalReasoningOutput({units,response:JSON.stringify({mock:true,propositions:[claim]})}).accepted,false);
 });
 test('overlong legal sources must be split rather than truncated',()=>{
  const huge=segmentRecord({scope:'customer',documentId:'large',pages:Array.from({length:12},(_,i)=>({page:i+1,text:'법'.repeat(10000)}))}).segments;
