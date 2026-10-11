@@ -14,3 +14,13 @@ test('all verified gates must agree on the source version',()=>{
  gates.visualVerification.sourceVersion='version2';
  assert.equal(validateCompletionGates(gates).complete,false);
 });
+
+test('legal reasoning request requires source part receipts and independent audit',async()=>{
+ const {buildLegalReasoningRequest}=await import('../lib/analysis-stage-gates.mjs');
+ const sha='a'.repeat(64);
+ const request=buildLegalReasoningRequest({caseId:'case',sourceVersion:sha,aggregatePath:'private/aggregate.json',partPaths:['private/part-0.json'],partDigests:[sha]});
+ assert.equal(request.status,'awaiting_semantic_provider');
+ assert.equal(request.verified,false);
+ assert.equal(request.requiresIndependentAudit,true);
+ assert.throws(()=>buildLegalReasoningRequest({caseId:'case',sourceVersion:sha,aggregatePath:'private/aggregate.json',partPaths:['private/part-0.json'],partDigests:[]}),/INVALID_LEGAL_REASONING_REQUEST/);
+});
