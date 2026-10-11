@@ -40,3 +40,10 @@ test('source visual plan duplicate pages rejected',()=>{
  const r={documentId:'doc',independentVisualVerified:true,pages:p.pages.map(x=>({page:x.page,textHash:x.textHash,images:[]}))};
  assert.equal(validateVisualResult({...p,pages:[p.pages[0],p.pages[0]]},r).complete,false);
 });
+
+test('visual audit rejects malformed source image identifiers',()=>{
+ const p=planVisualEvidence({documentId:'d',pages:[{page:1,text:'A'}],images:[{page:1,index:1,sha256:hash}],inventoryComplete:true});
+ const r={documentId:'d',independentVisualVerified:true,pages:[{page:1,textHash:p.pages[0].textHash,images:[{index:1,sha256:hash,status:'verified'}]}]};
+ assert.equal(validateVisualResult(p,r).complete,true);
+ assert.equal(validateVisualResult({...p,pages:[{...p.pages[0],images:[p.pages[0].images[0],p.pages[0].images[0]]}]},r).complete,false);
+});
