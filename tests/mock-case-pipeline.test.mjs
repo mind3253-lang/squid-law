@@ -10,7 +10,7 @@ test('mock full-stage pipeline cannot finalize without vision and independent au
  assert.deepEqual(incomplete.audit.visualMissing,['contract']);
  const complete=runMockCasePipeline({...base,inventoryProvider:()=>({complete:true,images:[]}),visualProvider:plan=>({documentId:plan.documentId,independentVisualVerified:true,pages:plan.pages.map(p=>({page:p.page,textHash:p.textHash,images:[]}))}),semanticVerifier:({model})=>({complete:true,modelVersion:model.version,reviewerIndependent:true})});
  assert.equal(complete.status,'blocked'); // Unverified model proposition cannot be treated as independently checked
- const verified=runMockCasePipeline({...base,modelProvider:({units})=>[{id:'claim',type:'claim',statement:'계약기간',status:'independently_verified',sources:[source(units[0])]}],visualProvider:plan=>({documentId:plan.documentId,pages:plan.pages.map(p=>({page:p.page,textHash:p.textHash,images:[]}))}),semanticVerifier:({model})=>({complete:true,modelVersion:model.version,reviewerIndependent:true})});
+ const verified=runMockCasePipeline({...base,modelProvider:({units})=>[{id:'claim',type:'claim',statement:'계약기간',status:'independently_verified',sources:[source(units[0])]}],inventoryProvider:()=>({complete:true,images:[]}),visualProvider:plan=>({documentId:plan.documentId,independentVisualVerified:true,pages:plan.pages.map(p=>({page:p.page,textHash:p.textHash,images:[]}))}),semanticVerifier:({model})=>({complete:true,modelVersion:model.version,reviewerIndependent:true})});
  assert.equal(verified.status,'mock_completed');
  assert.equal(verified.mock,true);
 });
