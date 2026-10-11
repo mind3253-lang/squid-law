@@ -31,6 +31,7 @@ jobs:
     env:
       SQUID_CUSTOMER_DATABASE_URL: postgres://postgres:postgres@localhost:5432/squid_test
       SQUID_CUSTOMER_DATABASE_SSL: disable
+      SQUID_CI_POSTGRES_INTEGRATION: 'true'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
