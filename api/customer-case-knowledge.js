@@ -18,11 +18,12 @@ export const checklist={
 'h':['피보전채권','보전 필요성','채무자 재산','집행·이의']
 };
 export function caseChecklist(caseId){const type=String(caseId).toLowerCase();const m=type.match(/(?:^|-)case([bcdefgh])(?:-|$)/);return checklist[checklist[type]?type:m?.[1]]||Object.fromEntries(Object.entries(checklist))}
-export async function writeSnapshot(user,caseId,kind,data){
- const now=new Date().toISOString(),id=randomUUID(),prefix=casePrefix(user,caseId)+'analysis/'+kind+'/';
- const path=prefix+now.replace(/[:.]/g,'-')+'-'+id+'.json';
+export async function writeSnapshot(user,caseId,kind,data,stableId=null){
+ const now=new Date().toISOString(),id=stableId||randomUUID(),prefix=casePrefix(user,caseId)+'analysis/'+kind+'/';
+ const path=stableId?prefix+'request-'+id+'.json':prefix+now.replace(/[:.]/g,'-')+'-'+id+'.json';
+ if(stableId){const prior=await readJson(path);if(prior?.complete&&prior.id===id)return {id,path}}
  const item={id,kind,caseId,createdAt:now,version:2,...data};
- const write=(p,value)=>put(p,JSON.stringify(value),{access:'private',allowOverwrite:false,addRandomSuffix:false,contentType:'application/json'});
+ const write=async(p,value)=>{if(stableId){const prior=await readJson(p);if(prior)return prior}try{return await put(p,JSON.stringify(value),{access:'private',allowOverwrite:false,addRandomSuffix:false,contentType:'application/json'})}catch(e){if(stableId){const prior=await readJson(p);if(prior)return prior}throw e}};
  const parts={},main={...item};
  for(const key of ['facts','timeline','conflicts','claimGraph']){
   if(!Array.isArray(main[key]))continue;
