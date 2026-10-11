@@ -33,13 +33,14 @@ export default async function handler(req,res){
   return res.status(200).json({status:'blocked',reason:'PAGE_EXTRACTION_INCOMPLETE'});
  }
  const pageOffset=Number.isSafeInteger(previous.nextPage)&&previous.nextDocument===index?previous.nextPage:0;
+ if(pageOffset<0||pageOffset>=d.pageCount||pageOffset%20!==0)throw Error('INVALID_CHECKPOINT_OFFSET');
  const batchIndex=Math.floor(pageOffset/20);
  const batchPath=Array.isArray(e.pages)?null:e.batches[batchIndex];
  if(!Array.isArray(e.pages)&&typeof batchPath!=='string')throw Error('MISSING_EXTRACTION_BATCH');
  if(batchPath&&(!batchPath.startsWith(prefix+'extracted/'+d.id+'/')||!batchPath.endsWith('.json')))throw Error('INVALID_EXTRACTION_PATH');
  const batch=Array.isArray(e.pages)?null:await load(batchPath);
  const selectedPages=Array.isArray(e.pages)?e.pages.slice(pageOffset,pageOffset+20):batch?.pages;
- if(!Array.isArray(selectedPages)||selectedPages.some((p,i)=>p.page!==pageOffset+i+1)){
+ if(!Array.isArray(selectedPages)||selectedPages.length!==Math.min(20,d.pageCount-pageOffset)||selectedPages.some((p,i)=>p.page!==pageOffset+i+1)){
   await advanceJob(job,'page_sequence_invalid',{...previous,nextDocument:index,documentId:d.id},'blocked','INVALID_PAGE_SEQUENCE');
   return res.status(200).json({status:'blocked',reason:'INVALID_PAGE_SEQUENCE'});
  }
