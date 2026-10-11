@@ -23,7 +23,7 @@ const action=String(b?.action||'');
 if(action==='logout'){res.setHeader('Set-Cookie',cookie('',0));return res.status(200).json({ok:true})}
 if(!['register','login'].includes(action))return fail(res,400,'요청 오류');
 const id=normalize(b?.id),password=String(b?.password||'');
-if(!/^[a-z0-9][a-z0-9_-]{3,29}$/.test(id)||password.length<10||password.length>128)return fail(res,400,'아이디는 영문·숫자 4~30자, 비밀번호는 10~128자로 입력해 주세요');
+if(!(action==='login'&&/^a[123]$/.test(id))&&!/^[a-z0-9][a-z0-9_-]{3,29}$/.test(id)||password.length<10||password.length>128)return fail(res,400,'아이디는 영문·숫자 4~30자, 비밀번호는 10~128자로 입력해 주세요');
 try{
 let user=await load(id);
 if(action==='register'){
