@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {randomBytes} from 'node:crypto';
-const origin='https://squidlaw.co.kr';
+const origin='https://www.squidlaw.co.kr';
 const id=()=>('ci'+randomBytes(8).toString('hex')).slice(0,24);
 const password=()=>randomBytes(24).toString('base64url');
 function makePdf(){
