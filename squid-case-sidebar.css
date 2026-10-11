@@ -1,0 +1,17 @@
+/* SQUIDLAW user-facing case sidebar, isolated from SKYNET */
+body.squid-has-sidebar{padding-left:58px;transition:padding-left .18s ease}
+body.squid-has-sidebar.squid-sidebar-open{padding-left:270px}
+#squidCaseSidebar{position:fixed;z-index:90;top:0;bottom:0;left:0;width:58px;display:flex;flex-direction:column;overflow:hidden;background:#f9f9f9;color:#252525;border-right:1px solid #e8e8e8;transition:width .18s ease}
+#squidCaseSidebar.open{width:270px}
+#squidCaseSidebar .squidSidebarToggle{height:60px;flex:none;border:0;background:transparent;color:inherit;display:flex;align-items:center;justify-content:center;cursor:pointer}
+#squidCaseSidebar .squidSidebarToggle:hover,#squidCaseSidebar .squidSidebarLink:hover{background:#e9eaed}
+#squidCaseSidebar .squidSidebarNav{padding:6px 7px;display:flex;flex-direction:column;gap:4px;overflow-y:auto;overflow-x:hidden;flex:1}
+#squidCaseSidebar .squidSidebarHeading{font-size:13px;color:#777;padding:12px 12px 8px;white-space:nowrap}
+#squidCaseSidebar:not(.open) .squidSidebarHeading{visibility:hidden;height:8px;padding:0}
+#squidCaseSidebar .squidSidebarLink{height:44px;min-height:44px;display:flex;align-items:center;gap:12px;padding:0 11px;color:#252525;text-decoration:none;border-radius:10px;white-space:nowrap;font-size:14px}
+#squidCaseSidebar .squidSidebarLink.active{background:#e9eaed;font-weight:700}
+#squidCaseSidebar .squidSidebarIcon{width:20px;min-width:20px;text-align:center;font-size:19px;font-weight:400}
+#squidCaseSidebar .squidSidebarLabel{overflow:hidden;text-overflow:ellipsis}
+#squidCaseSidebar:not(.open) .squidSidebarLabel{display:none}
+#squidCaseSidebar .squidSidebarBottom{padding:10px 7px 16px;border-top:1px solid #e8e8e8}
+@media(max-width:700px){body.squid-has-sidebar.squid-sidebar-open{padding-left:58px}#squidCaseSidebar.open{width:min(270px,85vw);box-shadow:4px 0 20px #0002}}
