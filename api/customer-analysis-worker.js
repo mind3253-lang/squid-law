@@ -14,6 +14,7 @@ import {ANALYSIS_STAGES} from '../lib/analysis-pipeline-state.mjs';
 import {buildLegalReasoningRequest} from '../lib/analysis-stage-gates.mjs';
 import {buildTextReviewReport} from '../lib/text-review-report.mjs';
 import {auditSourceUnitIndex} from '../lib/legal-reasoning-audit.mjs';
+import {buildVisualReferenceManifest} from '../lib/source-continuity.mjs';
 import {validatePersistedBatch,finalizationDescriptors,validateFinalizationPart,summarizeClaimRoles} from '../lib/text-review-aggregation.mjs';
 import {detectOpposingStatements} from '../lib/case-crosscheck.mjs';
 const eq=(a,b)=>{const x=Buffer.from(a||''),y=Buffer.from(b||'');return x.length===y.length&&timingSafeEqual(x,y)};
@@ -183,14 +184,15 @@ export default async function handler(req,res){
  const results=units.map(analyzeUnit),audit=independentlyVerify(units,results);
  const visualQueue=buildVisualWorkQueue({documentId:d.id,pages:selectedPages,sourcePdfPath:prefix+'pdf/'+d.id+'.pdf'});
  const visualQueuePath='squidlaw/analysis-jobs/'+job.customerKey+'/'+job.caseId+'/'+job.jobId+'/visual-queues/'+d.id+'-'+String(pageOffset).padStart(8,'0')+'.json';
+ const visualReferences=buildVisualReferenceManifest({caseId:job.caseId,sourceVersion:job.documentVersion,documentId:d.id,sourcePdfSha256:d.sha256,pages:selectedPages.map(p=>({...p,textPresent:!!String(p.text||'').trim()}))});
  if(!audit.complete){
-  await put(visualQueuePath,JSON.stringify({...visualQueue,sourceVersion:job.documentVersion}),{access:'private',allowOverwrite:true,addRandomSuffix:false,contentType:'application/json'});
+  await put(visualQueuePath,JSON.stringify({...visualQueue,sourceVersion:job.documentVersion,visualReferences}),{access:'private',allowOverwrite:true,addRandomSuffix:false,contentType:'application/json'});
   await advanceJob(job,'ocr_required',{...previous,nextDocument:index,documentId:d.id,missing:audit.missing.slice(0,100)},'blocked','OCR_REQUIRED');
   return res.status(200).json({status:'blocked',reason:'OCR_REQUIRED'});
  }
  const output='squidlaw/analysis-jobs/'+job.customerKey+'/'+job.caseId+'/'+job.jobId+'/'+d.id+'-'+String(pageOffset).padStart(8,'0')+'.json';
  const visualPlan=planVisualEvidence({documentId:d.id,pages:selectedPages,images:[]});
- if(visualQueue.taskCount)await put(visualQueuePath,JSON.stringify({...visualQueue,sourceVersion:job.documentVersion}),{access:'private',allowOverwrite:true,addRandomSuffix:false,contentType:'application/json'});
+ if(visualQueue.taskCount)await put(visualQueuePath,JSON.stringify({...visualQueue,sourceVersion:job.documentVersion,visualReferences}),{access:'private',allowOverwrite:true,addRandomSuffix:false,contentType:'application/json'});
  const payload={documentId:d.id,sourceVersion:job.documentVersion,unitCount:units.length,pageCount:selectedPages.length,pageStart:pageOffset+1,verifiedText:true,visualVerified:false,visualPlan,visualWorkQueuePath:visualQueue.taskCount?visualQueuePath:null,visualInventoryComplete:false,documentBoundaryCandidates:candidateDocuments(selectedPages.map(p=>({...p,documentId:d.id,filename:d.name}))),results};
  const existing=await load(output);
  if(existing){
