@@ -24,7 +24,7 @@ export default async function handler(req,res){
    await put(root+index+'.part',buf,{access:'private',addRandomSuffix:false,allowOverwrite:true,contentType:'application/octet-stream'});
    return respond(res,200,{ok:true,index});
   }
-  if(action!=='complete')return respond(res,400,{error:'동작 오류'});
+  if(action!=='complete'&&action!=='stage')return respond(res,400,{error:'동작 오류'});
   const b=JSON.parse((await readBody(req,8192)).toString('utf8'));
   const name=String(b?.name||'').replace(/[\\/\x00-\x1f]/g,'').slice(0,140),total=Number(b?.total),size=Number(b?.size);
   if(!/\.pdf$/i.test(name)||!Number.isInteger(total)||total<1||total>100||!Number.isInteger(size)||size<100||size>MAX||total!==Math.ceil(size/CHUNK))return respond(res,400,{error:'PDF 또는 용량 정보 오류'});
