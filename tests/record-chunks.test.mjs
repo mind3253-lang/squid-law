@@ -43,3 +43,25 @@ test('OCR-required page never counts as complete text coverage',async()=>{
  assert.equal(corpus.completeTextCoverage,false);
  assert.equal(corpus.completeVisualCoverage,false);
 });
+
+
+test('absolute source page and hash survive a later batch',async()=>{
+ const {analyzeUnit,independentlyVerify}=await import('../lib/legal-evidence-review.mjs');
+ const pages=Array.from({length:20},(_,i)=>({page:201+i,text:'2023.11.07 계약금 '+(i+1)+'만원'}));
+ const segmented=segmentRecord({scope:'customer',documentId:'original-document',pages});
+ assert.equal(auditSegments(pages,segmented.segments).complete,true);
+ assert.deepEqual(segmented.segments.map(u=>u.page),pages.map(p=>p.page));
+ const review=segmented.segments.map(analyzeUnit);
+ assert.equal(independentlyVerify(segmented.segments,review).complete,true);
+ assert.equal(review[0].observations[0].source.page,201);
+ assert.equal(review[0].observations[0].source.hash,segmented.segments[0].hash);
+});
+
+test('a blank source page blocks text review without silently skipping',async()=>{
+ const {analyzeUnit,independentlyVerify}=await import('../lib/legal-evidence-review.mjs');
+ const pages=[{page:41,text:'증거 원문'},{page:42,text:''}];
+ const segmented=segmentRecord({scope:'customer',documentId:'original-document',pages});
+ const result=independentlyVerify(segmented.segments,segmented.segments.map(analyzeUnit));
+ assert.equal(result.complete,false);
+ assert.equal(result.missing[0].page,42);
+});
