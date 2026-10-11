@@ -30,6 +30,10 @@ export default async function handler(req,res){
   await advanceJob(job,'extraction_incomplete',{...previous,nextDocument:index,documentId:d.id},'blocked','PAGE_EXTRACTION_INCOMPLETE');
   return res.status(200).json({status:'blocked',reason:'PAGE_EXTRACTION_INCOMPLETE'});
  }
+ if(new Set(e.pages.map(p=>p.page)).size!==d.pageCount||e.pages.some((p,i)=>p.page!==i+1)){
+  await advanceJob(job,'page_sequence_invalid',{...previous,nextDocument:index,documentId:d.id},'blocked','INVALID_PAGE_SEQUENCE');
+  return res.status(200).json({status:'blocked',reason:'INVALID_PAGE_SEQUENCE'});
+ }
  const pageOffset=Number.isSafeInteger(previous.nextPage)&&previous.nextDocument===index?previous.nextPage:0;
  const selectedPages=e.pages.slice(pageOffset,pageOffset+20);
  if(selectedPages.length===0)throw Error('EMPTY_PAGE_BATCH');
