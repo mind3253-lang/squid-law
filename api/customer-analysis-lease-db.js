@@ -3,7 +3,7 @@ import {LeaseUnavailable} from './customer-analysis-lease.js';
 const customerKey=user=>createHash('sha256').update(user).digest('hex');
 const db=async()=>{if(!process.env.SQUID_CUSTOMER_DATABASE_URL)throw new LeaseUnavailable();const {Pool}=await import('pg');return new Pool({connectionString:process.env.SQUID_CUSTOMER_DATABASE_URL,max:2,connectionTimeoutMillis:3500,ssl:process.env.SQUID_CUSTOMER_DATABASE_SSL==='disable'?false:{rejectUnauthorized:true}})};
 export async function withLeaseDb(fn){const pool=await db();try{return await fn(pool)}finally{await pool.end()}}
-export async function acquireCustomerLease(user,caseId,requestId,requestHash){
+export async function acquireCustomerLease(user,caseId,requestId,requestHash,hasDurableDraft=false){
  return withLeaseDb(async pool=>{
   const ownerToken=randomUUID(),key=customerKey(user);
   const client=await pool.connect();
@@ -16,8 +16,8 @@ export async function acquireCustomerLease(user,caseId,requestId,requestHash){
    if(row.status==='completed'){await client.query('COMMIT');return {kind:'completed',resultId:row.result_id}}
    if(row.status==='recovery_required'){await client.query('COMMIT');return {kind:'recovery_required',status:row.status}}
    if(row.status==='processing'||row.status==='saving'){
-    if(row.lease_expires_at&&new Date(row.lease_expires_at)<=new Date()&&row.status==='saving'){
-     const renewed=await client.query("UPDATE customer_analysis_leases SET owner_token=$4,fencing_token=fencing_token+1,lease_expires_at=now()+interval '120 seconds',updated_at=now() WHERE customer_key=$1 AND case_id=$2 AND request_id=$3 RETURNING fencing_token",[key,caseId,requestId,ownerToken]);
+    if(row.lease_expires_at&&new Date(row.lease_expires_at)<=new Date()&&(row.status==='saving'||(row.status==='processing'&&hasDurableDraft))){
+     const renewed=await client.query("UPDATE customer_analysis_leases SET owner_token=$4,fencing_token=fencing_token+1,status='saving',lease_expires_at=now()+interval '120 seconds',updated_at=now() WHERE customer_key=$1 AND case_id=$2 AND request_id=$3 RETURNING fencing_token",[key,caseId,requestId,ownerToken]);
      await client.query('COMMIT');return {kind:'resume_saving',ownerToken,fencingToken:String(renewed.rows[0].fencing_token),customerKey:key};
     }
     if(row.lease_expires_at&&new Date(row.lease_expires_at)<=new Date()){await client.query("UPDATE customer_analysis_leases SET status='recovery_required',updated_at=now() WHERE customer_key=$1 AND case_id=$2 AND request_id=$3",[key,caseId,requestId]);await client.query('COMMIT');return {kind:'recovery_required',status:'recovery_required'}}
