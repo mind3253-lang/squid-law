@@ -34,3 +34,10 @@ export async function advanceJob(job,stage,checkpoint,status='running',errorCode
  WHERE customer_key=$1 AND case_id=$2 AND job_id=$3 AND owner_token=$4 AND fence=$5 AND lease_expires_at>now()
  RETURNING *`,[job.customerKey,job.caseId,job.jobId,job.token,job.fence,stage,JSON.stringify(checkpoint),status,errorCode]);if(!r.rows[0])throw Error('JOB_LEASE_LOST');return publicJob(r.rows[0])});
 }
+
+export async function resumeJob(user,caseId,jobId,version){
+ return withLeaseDb(async db=>{
+  const r=await db.query("UPDATE customer_analysis_jobs SET status='queued',stage='resume_requested',error_code=NULL,next_run_at=now(),updated_at=now() WHERE customer_key=$1 AND case_id=$2 AND job_id=$3 AND document_version=$4 AND status='blocked' RETURNING *",[key(user),caseId,jobId,version]);
+  return publicJob(r.rows[0]);
+ });
+}
