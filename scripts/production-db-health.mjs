@@ -15,4 +15,4 @@ const data=await response.json();
 console.log('Production DB diagnostic:',JSON.stringify({http:response.status,ok:data.ok,checks:data.checks||null,stage:data.stage||null}));
 assert.equal(response.status,200,'Authenticated production DB health');
 assert.equal(data.ok,true);
-for(const field of ['connection','schema','primaryKey','statusConstraint','readAccess','writeAccess'])assert.equal(data.checks?.[field],true,field);
+for(const field of ['connection','schema','primaryKey','statusConstraint','readAccess','writeAccess','duplicateBlocked','customerIsolation','fencing','recovery'])assert.equal(data.checks?.[field],true,field);

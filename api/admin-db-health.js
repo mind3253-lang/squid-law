@@ -41,7 +41,7 @@ export default async function handler(req,res){
     let readAccess=false;
     if(schema){await client.query('SELECT customer_key FROM public.customer_analysis_leases LIMIT 0');readAccess=true}
     await client.query('COMMIT');
-    let writeAccess=false;
+    let writeAccess=false,duplicateBlocked=false,customerIsolation=false,fencing=false,recovery=false;
     if(schema&&primaryKey&&statusConstraint){
      try{
       await client.query('BEGIN');
@@ -50,9 +50,22 @@ export default async function handler(req,res){
       await client.query("INSERT INTO public.customer_analysis_leases(customer_key,case_id,request_id,request_hash) VALUES($1,$2,$3,$4)",[key,'SL-healthcheck',id,'0'.repeat(64)]);
       const check=await client.query('SELECT request_id FROM public.customer_analysis_leases WHERE customer_key=$1 AND case_id=$2 AND request_id=$3',[key,'SL-healthcheck',id]);
       writeAccess=check.rowCount===1;
+      const duplicate=await client.query("INSERT INTO public.customer_analysis_leases(customer_key,case_id,request_id,request_hash) VALUES($1,$2,$3,$4) ON CONFLICT DO NOTHING",[key,'SL-healthcheck',id,'1'.repeat(64)]);
+      duplicateBlocked=duplicate.rowCount===0;
+      const other=await client.query("INSERT INTO public.customer_analysis_leases(customer_key,case_id,request_id,request_hash) VALUES($1,$2,$3,$4) ON CONFLICT DO NOTHING",[key+'-other','SL-healthcheck',id,'0'.repeat(64)]);
+      customerIsolation=other.rowCount===1;
+      const owner=randomUUID();
+      const acquired=await client.query("UPDATE public.customer_analysis_leases SET status='processing',owner_token=$4,fencing_token=fencing_token+1,lease_expires_at=now()+interval '120 seconds' WHERE customer_key=$1 AND case_id=$2 AND request_id=$3 RETURNING fencing_token",[key,'SL-healthcheck',id,owner]);
+      const fence=acquired.rows[0]?.fencing_token;
+      const stale=await client.query("UPDATE public.customer_analysis_leases SET status='saving' WHERE customer_key=$1 AND case_id=$2 AND request_id=$3 AND owner_token=$4 AND fencing_token=$5",[key,'SL-healthcheck',id,randomUUID(),fence]);
+      const current=await client.query("UPDATE public.customer_analysis_leases SET status='saving' WHERE customer_key=$1 AND case_id=$2 AND request_id=$3 AND owner_token=$4 AND fencing_token=$5 AND lease_expires_at>now()",[key,'SL-healthcheck',id,owner,fence]);
+      fencing=stale.rowCount===0&&current.rowCount===1;
+      await client.query("UPDATE public.customer_analysis_leases SET lease_expires_at=now()-interval '1 second' WHERE customer_key=$1 AND case_id=$2 AND request_id=$3",[key,'SL-healthcheck',id]);
+      const expired=await client.query("UPDATE public.customer_analysis_leases SET status='recovery_required' WHERE customer_key=$1 AND case_id=$2 AND request_id=$3 AND lease_expires_at<now() AND status='saving'",[key,'SL-healthcheck',id]);
+      recovery=expired.rowCount===1;
      }finally{await client.query('ROLLBACK').catch(()=>{})}
     }
-    return {connection:ping.rows[0]?.healthy===1,schema,primaryKey,statusConstraint,readAccess,writeAccess};
+    return {connection:ping.rows[0]?.healthy===1,schema,primaryKey,statusConstraint,readAccess,writeAccess,duplicateBlocked,customerIsolation,fencing,recovery};
    }catch(e){await client.query('ROLLBACK').catch(()=>{});throw e}finally{client.release()}
   });
   const ok=Object.values(checks).every(Boolean);
