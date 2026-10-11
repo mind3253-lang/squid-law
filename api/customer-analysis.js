@@ -4,7 +4,7 @@ import {createHash} from 'node:crypto';
 const requestMessageId=(id,role)=>createHash('sha256').update(id+':'+role).digest('hex').slice(0,32);
 const snapshotId=(user,caseId,id,kind)=>createHash('sha256').update(JSON.stringify([user,caseId,id,kind])).digest('hex').slice(0,32);
 import {guard,respond,documents,messages,readJson,casePrefix} from './customer-case.js';
-import {pageIndex,buildTimeline,verifyCitations,evidenceContext,ANALYSIS_PROTOCOL} from './customer-evidence-engine.js';
+import {pageIndex,coverageAudit,buildTimeline,verifyCitations,evidenceContext,ANALYSIS_PROTOCOL} from './customer-evidence-engine.js';
 import {extractFacts,candidateConflicts,timelineFromFacts,caseChecklist,writeSnapshot,latestSnapshot} from './customer-case-knowledge.js';
 import {searchChunks,directQuoteCheck,claimGraph} from './customer-analysis-pipeline.js';
 const SYSTEM=`당신은 SQUIDLAW 고객 사건 분석 AI입니다. 정중하고 간결한 한국어 존댓말을 사용합니다. SKYNET 관리자, 관리자 기억, 개인화 프로필을 사용하지 않습니다.
@@ -63,7 +63,7 @@ if(reqId){
   }
  }catch{return send(res,502,{error:'분석 요청 저장소 확인 실패'})}
 }
-let history,docs,allPages,selected,timeline;try{history=await messages(user,b.caseId);docs=await documents(user,b.caseId);const extracted=new Map();for(const d of docs.slice(-60)){const x=await readJson(casePrefix(user,b.caseId)+'extracted/'+d.id+'.json').catch(()=>null);if(x)extracted.set(d.id,x)}allPages=pageIndex(docs,extracted);selected=searchChunks(allPages,b.messages.at(-1).content,18,36000);timeline=buildTimeline(selected.pages)}catch(e){return send(res,502,{error:'사건 자료 조회 실패'})}
+let history,docs,allPages,selected,timeline;try{history=await messages(user,b.caseId);docs=await documents(user,b.caseId);const extracted=new Map();for(const d of docs.slice(-60)){const x=await readJson(casePrefix(user,b.caseId)+'extracted/'+d.id+'.json').catch(()=>null);if(x)extracted.set(d.id,x)}allPages=pageIndex(docs,extracted);const audit=coverageAudit(docs,extracted);if(!audit.complete)return send(res,409,{code:'FULL_REVIEW_REQUIRED',error:'전체 사건 분석을 완료할 수 없습니다. 미추출·이미지 페이지를 먼저 처리해야 합니다.',coverage:audit});selected=searchChunks(allPages,b.messages.at(-1).content,18,36000);timeline=buildTimeline(selected.pages)}catch(e){return send(res,502,{error:'사건 자료 조회 실패'})}
 const prior=await latestSnapshot(user,b.caseId,'knowledge').catch(()=>null);const graph=claimGraph(b.messages.at(-1).content,selected.pages);const incoming=extractFacts(allPages);const facts=[...new Map([...incoming,...(prior?.facts||[])].map(f=>[f.id,f])).values()];const conflicts=candidateConflicts(facts);const factTimeline=timelineFromFacts(facts);const latest=b.messages.at(-1).content;const previous=history.slice(-14).map(m=>({role:m.role,content:m.content}));const overview=allPages.map(p=>({file:p.filename,page:p.page,readable:p.readable,excerpt:p.readable?p.text.replace(/\s+/g,' ').slice(0,220):'[텍스트 추출 불가: 이미지 확인 필요]'}));const overviewText=JSON.stringify(overview);const context=evidenceContext(selected);const chat=[...previous,{role:'user',content:latest}];const extra='\n주장-증거 관련성 후보: '+JSON.stringify(graph)+'\\n사건 구조화 사실 후보: '+JSON.stringify(facts.slice(0,45))+'\\n모순 후보(동일 사건 충돌 확정 아님): '+JSON.stringify(conflicts.slice(0,15))+'\\n사건 유형별 검토 항목: '+JSON.stringify(caseChecklist(registry.type))+'\\n이전 구조화 기억: '+JSON.stringify(prior?{createdAt:prior.createdAt,summary:prior.summary}:null);
 const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),55000);
 const heartbeat=setInterval(()=>{renewCustomerLease(lease,b.caseId,reqId).catch(()=>controller.abort())},30000);
