@@ -9,7 +9,7 @@ const {makePdf}=await import('../scripts/production-customer-e2e.mjs');
  const pdf=(await import('pdf-parse')).default;
  const pages=[];
  let page=0;
- const parsed=await pdf(buf,{max:100,pagerender:async p=>{
+ const parsed=await pdf(buf,{version:'v2.0.550',max:100,pagerender:async p=>{
   const n=++page;
   const t=await p.getTextContent();
   pages.push({page:n,text:t.items.map(x=>x.str||'').join(' ')});
