@@ -28,13 +28,16 @@ export default async function handler(req,res){
     const expected=['customer_key','case_id','request_id','request_hash','owner_token','fencing_token','status','lease_expires_at','attempt','last_completed_step','result_id','created_at','updated_at'];
     const present=new Set(columns.rows.map(x=>x.column_name));
     const schema=table.rows[0]?.present===true&&expected.every(x=>present.has(x));
+    const constraints=await client.query("SELECT contype,pg_get_constraintdef(oid) AS definition FROM pg_constraint WHERE conrelid='public.customer_analysis_leases'::regclass").catch(()=>({rows:[]}));
+    const primaryKey=constraints.rows.some(x=>x.contype==='p'&&/customer_key/.test(x.definition)&&/case_id/.test(x.definition)&&/request_id/.test(x.definition));
+    const statusConstraint=constraints.rows.some(x=>x.contype==='c'&&/status/.test(x.definition)&&/recovery_required/.test(x.definition));
     let readAccess=false;
     if(schema){await client.query('SELECT customer_key FROM public.customer_analysis_leases LIMIT 0');readAccess=true}
     await client.query('COMMIT');
-    return {connection:ping.rows[0]?.healthy===1,schema,readAccess};
+    return {connection:ping.rows[0]?.healthy===1,schema,primaryKey,statusConstraint,readAccess};
    }catch(e){await client.query('ROLLBACK').catch(()=>{});throw e}finally{client.release()}
   });
-  const ok=checks.connection&&checks.schema&&checks.readAccess;
+  const ok=Object.values(checks).every(Boolean);
   return reply(res,ok?200:503,{ok,checks});
  }catch{return reply(res,503,{ok:false,stage:'database',error:'Database diagnostic failed'})}
 }

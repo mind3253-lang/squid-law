@@ -1,0 +1,21 @@
+name: Admin DB diagnostic security checks
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'api/admin-db-health.js'
+      - 'tests/admin-db-health.test.mjs'
+      - '.github/workflows/admin-db-health.yml'
+  workflow_dispatch:
+jobs:
+  security:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --ignore-scripts --no-audit --no-fund
+      - run: node --test tests/admin-db-health.test.mjs
+      - run: node --check api/admin-db-health.js
