@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {spawnSync} from 'node:child_process';
-const html=await readFile(new URL('../customer.html',import.meta.url),'utf8');
+const html=await readFile(new URL('../archive/customer-analysis-pilot-20261011.html',import.meta.url),'utf8');
 const scripts=[...html.matchAll(new RegExp('<script\\b([^>]*)>([\\s\\S]*?)<\\/script>','gi'))];
 const moduleScript=scripts.find(m=>/type="module"/.test(m[1])&&m[2].includes('buildVerifiedComparisonReport'));
 assert.ok(moduleScript,'customer browser module script must exist');
