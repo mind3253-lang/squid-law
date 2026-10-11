@@ -109,3 +109,14 @@ test('PDF range extraction preserves absolute page numbers on a real three-page 
  assert.match(result.pages[0].text,/Second/);
  assert.equal(result.finished,false);
 });
+
+test('visual work queue separates OCR, image inventory and paid provider execution',async()=>{
+ const {buildVisualWorkQueue}=await import('../lib/visual-evidence.mjs');
+ const queue=buildVisualWorkQueue({documentId:'doc',sourcePdfPath:'private/doc.pdf',pages:[{page:1,text:'본문',imageOperatorCount:0},{page:2,text:'',imageOperatorCount:1},{page:3,text:'본문',imageOperatorCount:2}]});
+ assert.equal(queue.taskCount,2);
+ assert.deepEqual(queue.tasks.map(t=>t.page),[2,3]);
+ assert.equal(queue.tasks[0].needsOCR,true);
+ assert.equal(queue.tasks[1].needsOCR,false);
+ assert.equal(queue.verified,false);
+ assert.ok(queue.tasks.every(t=>t.status==='awaiting_visual_provider'));
+});
