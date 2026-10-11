@@ -1,5 +1,5 @@
 import {guard,respond,readJson,documents,casePrefix} from './customer-case.js';
-import {enqueueJob,getJob,documentVersion} from './customer-analysis-jobs-db.js';
+import {enqueueJob,getJob,resumeJob,documentVersion} from './customer-analysis-jobs-db.js';
 const idOk=id=>/^SL-[a-zA-Z0-9-]{5,40}$/.test(id);
 export default async function handler(req,res){
  const a=guard(req);if(a.error)return respond(res,a.status,{error:a.error});
@@ -12,7 +12,11 @@ export default async function handler(req,res){
  }
  if(req.method!=='POST')return respond(res,405,{error:'GET/POST만 허용'});
  let b=req.body;try{if(typeof b==='string')b=JSON.parse(b)}catch{return respond(res,400,{error:'요청 형식 오류'})}
- if(b?.action!=='approve-analysis'||b?.approved!==true)return respond(res,400,{error:'고객의 명시적 전체 분석 승인이 필요합니다'});
+ if(b?.approved!==true||!['approve-analysis','resume-analysis'].includes(b?.action))return respond(res,400,{error:'고객의 명시적 전체 분석 승인이 필요합니다'});
+ if(b.action==='resume-analysis'){
+  if(!/^[0-9a-f-]{36}$/.test(String(b.jobId||'')))return respond(res,400,{error:'작업 ID 오류'});
+  try{const docs=await documents(a.user,caseId);const job=await resumeJob(a.user,caseId,b.jobId,documentVersion(docs));return job?respond(res,202,{job}):respond(res,409,{error:'재개할 수 없는 작업 또는 원문 버전 변경'})}catch{return respond(res,503,{error:'작업 재개 실패'})}
+ }
  try{const docs=await documents(a.user,caseId);if(!docs.length)return respond(res,409,{error:'분석할 문서가 없습니다'});
  const job=await enqueueJob(a.user,caseId,documentVersion(docs));return respond(res,202,{job,notice:'분석 요청이 저장되었습니다. 실행 워커 활성화 여부는 별도로 확인해야 합니다.'})}
  catch{return respond(res,503,{error:'분석 작업 등록 실패'})}
