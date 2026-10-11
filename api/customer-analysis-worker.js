@@ -154,7 +154,7 @@ export default async function handler(req,res){
  if(batchPath&&(!batchPath.startsWith(prefix+'extracted/'+d.id+'/')||!batchPath.endsWith('.json')))throw Error('INVALID_EXTRACTION_PATH');
  const batch=Array.isArray(e.pages)?null:await load(batchPath);
  const selectedPages=Array.isArray(e.pages)?e.pages.slice(pageOffset,pageOffset+20):batch?.pages;
- if(batch?.sourcePdfSha256&&batch.sourcePdfSha256!==d.sha256)throw Error('EXTRACTION_BATCH_SOURCE_MISMATCH');
+ if(e.sourcePdfSha256&&batch?.sourcePdfSha256!==d.sha256)throw Error('EXTRACTION_BATCH_SOURCE_MISMATCH');
  if(batch?.documentId&&batch.documentId!==d.id)throw Error('EXTRACTION_BATCH_DOCUMENT_MISMATCH');
  if(batch?.pageStart&&batch.pageStart!==pageOffset+1)throw Error('EXTRACTION_BATCH_OFFSET_MISMATCH');
  let batchIntegrity;try{batchIntegrity=assertPageBatch({pages:selectedPages,pageOffset,pageCount:d.pageCount})}catch{
