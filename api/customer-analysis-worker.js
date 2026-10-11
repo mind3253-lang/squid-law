@@ -5,6 +5,7 @@ import {segmentRecord,auditSegments} from '../lib/record-chunks.mjs';
 import {analyzeUnit,independentlyVerify} from '../lib/legal-evidence-review.mjs';
 import {put} from '@vercel/blob';
 import {candidateDocuments} from './customer-document-boundaries.js';
+import {planVisualEvidence} from '../lib/visual-evidence.mjs';
 const eq=(a,b)=>{const x=Buffer.from(a||''),y=Buffer.from(b||'');return x.length===y.length&&timingSafeEqual(x,y)};
 async function load(path){const r=await get(path,{access:'private'});if(!r||r.statusCode!==200)return null;let size=0,parts=[];for await(const chunk of r.stream){size+=chunk.length;if(size>32*1024*1024)throw Error('BLOB_TOO_LARGE');parts.push(Buffer.from(chunk))}return JSON.parse(Buffer.concat(parts).toString())}
 export default async function handler(req,res){
@@ -52,7 +53,8 @@ export default async function handler(req,res){
   return res.status(200).json({status:'blocked',reason:'OCR_REQUIRED'});
  }
  const output='squidlaw/analysis-jobs/'+job.customerKey+'/'+job.caseId+'/'+job.jobId+'/'+d.id+'-'+String(pageOffset).padStart(8,'0')+'.json';
- const payload={documentId:d.id,sourceVersion:job.documentVersion,unitCount:units.length,pageCount:selectedPages.length,pageStart:pageOffset+1,verifiedText:true,visualVerified:false,documentBoundaryCandidates:candidateDocuments(selectedPages.map(p=>({...p,documentId:d.id,filename:d.name}))),results};
+ const visualPlan=planVisualEvidence({documentId:d.id,pages:selectedPages,images:[]});
+ const payload={documentId:d.id,sourceVersion:job.documentVersion,unitCount:units.length,pageCount:selectedPages.length,pageStart:pageOffset+1,verifiedText:true,visualVerified:false,visualPlan,visualInventoryComplete:false,documentBoundaryCandidates:candidateDocuments(selectedPages.map(p=>({...p,documentId:d.id,filename:d.name}))),results};
  const existing=await load(output);
  if(existing&&existing.sourceVersion!==job.documentVersion)throw Error('RESULT_VERSION_MISMATCH');
  if(!existing)await put(output,JSON.stringify(payload),{access:'private',allowOverwrite:false,addRandomSuffix:false,contentType:'application/json'});
