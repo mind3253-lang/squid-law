@@ -16,7 +16,7 @@ test('reject missing, duplicate, and forged batch coverage',()=>{
 });
 
 test('reject mismatched persisted observation counts',()=>{
- const forged=outputs.map((o,i)=>i?{...o,payload:{...o.payload,unitCount:1}}:o);
+ const forged=outputs.map((o,i)=>i?{...o,payload:{...o.payload,unitCount:2}}:o);
  assert.throws(()=>aggregateTextReview({caseId:'case',sourceVersion:version,root,documents:docs,outputs:forged}),/TEXT_UNIT_COUNT_MISMATCH/);
 });
 
