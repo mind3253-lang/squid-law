@@ -22,3 +22,12 @@ test('wrong page, hash and uncited conclusions are rejected',()=>{
 test('unverified visual gate cannot authorize legal reasoning audit',()=>{
  assert.equal(auditLegalReasoningResult({request:{...request,ready:false},result,sourceIndex}).complete,false);
 });
+
+test('source-unit index covers 10001 pages and rejects duplicate or missing final page',async()=>{
+ const {auditSourceUnitIndex}=await import('../lib/legal-reasoning-audit.mjs');
+ const docs=[{id:'d',pageCount:10001}];
+ const rows=Array.from({length:10001},(_,i)=>({documentId:'d',page:i+1,part:1,hash,textHash:hash}));
+ assert.equal(auditSourceUnitIndex({documents:docs,sources:rows}).unitCount,10001);
+ assert.throws(()=>auditSourceUnitIndex({documents:docs,sources:rows.slice(0,-1)}),/SOURCE_INDEX_PAGE_COVERAGE_INCOMPLETE/);
+ assert.throws(()=>auditSourceUnitIndex({documents:docs,sources:[...rows,rows[0]]}),/DUPLICATE_SOURCE_INDEX_ENTRY/);
+});
