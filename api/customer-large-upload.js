@@ -34,7 +34,7 @@ export default async function handler(req,res){
   if(buf.length!==size||buf.subarray(0,5).toString()!=='%PDF-')return respond(res,422,{error:'PDF 파일 검증 실패'});
   const sha256=createHash('sha256').update(buf).digest('hex'),existing=(await documents(user,id)).find(d=>d.sha256===sha256);
   if(existing){await Promise.allSettled(paths.map(p=>del(p)));return respond(res,200,{document:existing,duplicate:true})}
-  let extracted;try{extracted=await extractPdfPages(buf,100)}catch{return respond(res,422,{error:'PDF 본문 추출 실패. 암호 또는 파일 손상을 확인해 주세요'})}
+  let extracted;try{extracted=await extractPdfPages(buf)}catch{return respond(res,422,{error:'PDF 본문 추출 실패. 암호 또는 파일 손상을 확인해 주세요'})}
   const {pages,totalPages}=extracted;if(!pages.length)return respond(res,422,{error:'PDF 텍스트 추출 실패'});
   const uuid=randomUUID(),createdAt=new Date().toISOString();
   const meta={id:uuid,name,sha256,size:buf.length,createdAt,side:'customer',pageCount:totalPages,extractedPages:pages.length,excludedPages:Math.max(0,totalPages-pages.length),readablePages:pages.filter(p=>p.text.trim().length>=15).length,status:totalPages>pages.length?'일부 페이지만 추출됨':pages.some(p=>p.text.trim().length<15)?'일부 페이지 텍스트 없음 (스캔 가능성)':'본문 추출 완료'};
