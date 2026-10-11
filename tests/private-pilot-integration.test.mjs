@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
-const page=await readFile(new URL('../customer.html',import.meta.url),'utf8');
+const page=await readFile(new URL('../archive/customer-analysis-pilot-20261011.html',import.meta.url),'utf8');
 const cli=await readFile(new URL('../scripts/private-model-pilot.mjs',import.meta.url),'utf8');
 test('customer imports source digest and validation modules',()=>{
  assert.match(page,/import \{digestPilotDocuments\} from '\.\/private-pilot-digest\.js'/);
