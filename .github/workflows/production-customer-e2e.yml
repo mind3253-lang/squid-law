@@ -15,5 +15,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - run: python -m pip install --disable-pip-version-check reportlab
+      - run: python scripts/create-ci-pdf.py
+      - run: npm install --ignore-scripts --no-audit --no-fund
+      - run: node --test tests/customer-pdf-parser.test.mjs
       - run: sleep 35
       - run: node scripts/production-customer-e2e.mjs
