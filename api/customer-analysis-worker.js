@@ -43,22 +43,28 @@ export default async function handler(req,res){
   const offset=previous.finalizeOffset;
   if(offset<0||offset>descriptors.length||offset%8!==0&&offset!==descriptors.length)throw Error('INVALID_FINALIZATION_CHECKPOINT');
   if(offset<descriptors.length){
-   const selected=descriptors.slice(offset,offset+8);
-   const batches=await Promise.all(selected.map(x=>load(root+x.documentId+'-'+String(x.start).padStart(8,'0')+'.json')));
-   const claims=[];let count=0;
-   for(let i=0;i<selected.length;i++){
-    const x=selected[i],verified=validatePersistedBatch({batch:batches[i],documentId:x.documentId,sourceVersion:job.documentVersion,pageStart:x.start+1,pageCount:x.count});
-    count+=verified.unitCount;claims.push(...verified.claimResults);
-   }
-   const partPath=root+'finalize-parts/'+String(offset).padStart(8,'0')+'.json';
-   const part={sourceVersion:job.documentVersion,offset,batchCount:selected.length,unitCount:count,claims};
-   if(!Array.isArray(previous.finalizePartDigests)||previous.finalizePartDigests.length!==offset/8)throw Error('INVALID_FINALIZATION_DIGEST_CHECKPOINT');
-   const old=await load(partPath);
+   let cursor=offset,countTotal=previous.finalizeUnitCount||0;
+   const digests=[...(previous.finalizePartDigests||[])];
    const hash=value=>createHash('sha256').update(JSON.stringify(value)).digest('hex');
-   if(old&&hash(old)!==hash(part))throw Error('FINALIZATION_PART_CONFLICT');
-   if(!old)await put(partPath,JSON.stringify(part),{access:'private',allowOverwrite:false,addRandomSuffix:false,contentType:'application/json'});
-   await advanceJob(job,'text_review_finalize_checkpoint',{...previous,finalizeOffset:offset+selected.length,finalizeUnitCount:(previous.finalizeUnitCount||0)+count,finalizePartDigests:[...previous.finalizePartDigests,hash(part)]},'retry');
-   return res.status(200).json({status:'retry',stage:'text_review_finalize_checkpoint',verifiedBatches:offset+selected.length,totalBatches:descriptors.length});
+   for(let round=0;round<8&&cursor<descriptors.length;round++){
+    const selected=descriptors.slice(cursor,cursor+8);
+    const batches=await Promise.all(selected.map(x=>load(root+x.documentId+'-'+String(x.start).padStart(8,'0')+'.json')));
+    const claims=[];let count=0;
+    for(let i=0;i<selected.length;i++){
+     const x=selected[i],verified=validatePersistedBatch({batch:batches[i],documentId:x.documentId,sourceVersion:job.documentVersion,pageStart:x.start+1,pageCount:x.count});
+     count+=verified.unitCount;
+     for(const claim of verified.claimResults)claims.push(claim);
+    }
+    if(digests.length!==Math.ceil(cursor/8))throw Error('INVALID_FINALIZATION_DIGEST_CHECKPOINT');
+    const partPath=root+'finalize-parts/'+String(cursor).padStart(8,'0')+'.json';
+    const part={sourceVersion:job.documentVersion,offset:cursor,batchCount:selected.length,unitCount:count,claims};
+    const old=await load(partPath);
+    if(old&&hash(old)!==hash(part))throw Error('FINALIZATION_PART_CONFLICT');
+    if(!old)await put(partPath,JSON.stringify(part),{access:'private',allowOverwrite:false,addRandomSuffix:false,contentType:'application/json'});
+    digests.push(hash(part));countTotal+=count;cursor+=selected.length;
+   }
+   await advanceJob(job,'text_review_finalize_checkpoint',{...previous,finalizeOffset:cursor,finalizeUnitCount:countTotal,finalizePartDigests:digests},'retry');
+   return res.status(200).json({status:'retry',stage:'text_review_finalize_checkpoint',verifiedBatches:cursor,totalBatches:descriptors.length});
   }
   if(!Array.isArray(previous.finalizePartDigests)||previous.finalizePartDigests.length!==Math.ceil(descriptors.length/8))throw Error('FINALIZATION_DIGEST_COUNT_MISMATCH');
   const claims=[];let total=0;
