@@ -1,11 +1,10 @@
 import {acquireCustomerLease,advanceCustomerLease,renewCustomerLease} from './customer-analysis-lease-db.js';
-import {leaseConfigured} from './customer-analysis-lease.js';
-import {validRequestId,requestHash as hashRequest,requestState,requestPaths,saveImmutable,saveOnce,publicState} from './customer-request-state.js';
+import {validRequestId,requestHash as hashRequest,requestState,requestPaths,saveImmutable,saveOnce} from './customer-request-state.js';
 import {createHash} from 'node:crypto';
 const requestMessageId=(id,role)=>createHash('sha256').update(id+':'+role).digest('hex').slice(0,32);
 const snapshotId=(user,caseId,id,kind)=>createHash('sha256').update(JSON.stringify([user,caseId,id,kind])).digest('hex').slice(0,32);
-import {guard,respond,documents,messages,readJson,casePrefix,saveMessage} from './customer-case.js';
-import {pageIndex,retrieve,buildTimeline,verifyCitations,evidenceContext,ANALYSIS_PROTOCOL} from './customer-evidence-engine.js';
+import {guard,respond,documents,messages,readJson,casePrefix} from './customer-case.js';
+import {pageIndex,buildTimeline,verifyCitations,evidenceContext,ANALYSIS_PROTOCOL} from './customer-evidence-engine.js';
 import {extractFacts,candidateConflicts,timelineFromFacts,caseChecklist,writeSnapshot,latestSnapshot} from './customer-case-knowledge.js';
 import {searchChunks,directQuoteCheck,claimGraph} from './customer-analysis-pipeline.js';
 const SYSTEM=`당신은 SQUIDLAW 고객 사건 분석 AI입니다. 정중하고 간결한 한국어 존댓말을 사용합니다. SKYNET 관리자, 관리자 기억, 개인화 프로필을 사용하지 않습니다.
