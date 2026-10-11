@@ -158,6 +158,7 @@ export default async function handler(req,res){
  const visualQueue=buildVisualWorkQueue({documentId:d.id,pages:selectedPages,sourcePdfPath:prefix+'pdf/'+d.id+'.pdf'});
  const visualQueuePath='squidlaw/analysis-jobs/'+job.customerKey+'/'+job.caseId+'/'+job.jobId+'/visual-queues/'+d.id+'-'+String(pageOffset).padStart(8,'0')+'.json';
  if(!audit.complete){
+  await put(visualQueuePath,JSON.stringify({...visualQueue,sourceVersion:job.documentVersion}),{access:'private',allowOverwrite:true,addRandomSuffix:false,contentType:'application/json'});
   await advanceJob(job,'ocr_required',{...previous,nextDocument:index,documentId:d.id,missing:audit.missing.slice(0,100)},'blocked','OCR_REQUIRED');
   return res.status(200).json({status:'blocked',reason:'OCR_REQUIRED'});
  }
