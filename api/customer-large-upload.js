@@ -2,7 +2,9 @@ import {get,put,del} from '@vercel/blob';
 import {randomUUID,createHash} from 'node:crypto';
 import {extractPdfPages} from './customer-pdf-extract.js';
 import {guard,respond,readJson,documents,casePrefix} from './customer-case.js';
+export const config={api:{bodyParser:false}};
 const MAX=100*1024*1024,CHUNK=1024*1024;
+async function readBody(req,limit){const chunks=[];let n=0;for await(const c of req){n+=c.length;if(n>limit)throw Error('요청 용량 초과');chunks.push(Buffer.from(c))}return Buffer.concat(chunks)}
 async function bytes(path){const r=await get(path,{access:'private'});if(!r||r.statusCode!==200)throw Error('업로드 조각 누락');const parts=[];for await(const c of r.stream)parts.push(Buffer.from(c));return Buffer.concat(parts)}
 export default async function handler(req,res){
  const auth=guard(req);if(auth.error)return respond(res,auth.status,{error:auth.error});
@@ -17,13 +19,13 @@ export default async function handler(req,res){
   if(action==='chunk'){
    const index=Number(req.query.index),total=Number(req.query.total);
    if(!Number.isInteger(index)||!Number.isInteger(total)||total<1||total>100||index<0||index>=total)return respond(res,400,{error:'조각 순서 오류'});
-   const chunks=[];for await(const c of req)chunks.push(Buffer.from(c));const buf=Buffer.concat(chunks);
+   const buf=await readBody(req,CHUNK+1);
    if(!buf.length||buf.length>CHUNK)return respond(res,413,{error:'조각 크기 초과'});
    await put(root+index+'.part',buf,{access:'private',addRandomSuffix:false,allowOverwrite:true,contentType:'application/octet-stream'});
    return respond(res,200,{ok:true,index});
   }
   if(action!=='complete')return respond(res,400,{error:'동작 오류'});
-  const b=typeof req.body==='string'?JSON.parse(req.body):req.body;
+  const b=JSON.parse((await readBody(req,8192)).toString('utf8'));
   const name=String(b?.name||'').replace(/[\\/\x00-\x1f]/g,'').slice(0,140),total=Number(b?.total),size=Number(b?.size);
   if(!/\.pdf$/i.test(name)||!Number.isInteger(total)||total<1||total>100||!Number.isInteger(size)||size<100||size>MAX||total!==Math.ceil(size/CHUNK))return respond(res,400,{error:'PDF 또는 용량 정보 오류'});
   const paths=Array.from({length:total},(_,i)=>root+i+'.part');
