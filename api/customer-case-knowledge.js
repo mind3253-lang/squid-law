@@ -57,7 +57,7 @@ async function hydrate(item){
 }
 export async function latestSnapshot(user,caseId,kind){
  const rows=await all(casePrefix(user,caseId)+'analysis/'+kind+'/',500);
- const candidates=rows.filter(x=>x.pathname.endsWith('.json')&&!x.pathname.includes('/parts/')).sort((a,b)=>b.pathname.localeCompare(a.pathname));
+ const candidates=rows.filter(x=>x.pathname.endsWith('.json')&&!x.pathname.includes('/parts/')).sort((a,b)=>String(b.uploadedAt||b.pathname).localeCompare(String(a.uploadedAt||a.pathname)));
  for(const row of candidates){try{const item=await hydrate(await readJson(row.pathname));if(item)return item}catch{}}
  return null;
 }
