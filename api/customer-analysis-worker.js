@@ -57,13 +57,14 @@ export default async function handler(req,res){
     for(let i=0;i<selected.length;i++){
      const x=selected[i],verified=validatePersistedBatch({batch:batches[i],documentId:x.documentId,sourceVersion:job.documentVersion,pageStart:x.start+1,pageCount:x.count});
      count+=verified.unitCount;
+     for(const source of verified.sourceUnits)sources.push(source);
      for(const claim of verified.claimResults)claims.push(claim);
      for(const observation of verified.observationResults)observations.push(observation);
      boundaries.push({documentId:x.documentId,sections:batches[i].documentBoundaryCandidates?.sections});
     }
     if(digests.length!==Math.ceil(cursor/8))throw Error('INVALID_FINALIZATION_DIGEST_CHECKPOINT');
     const partPath=root+'finalize-parts/'+String(cursor).padStart(8,'0')+'.json';
-    const part={sourceVersion:job.documentVersion,offset:cursor,batchCount:selected.length,unitCount:count,claims,observations,boundaries};
+    const part={sourceVersion:job.documentVersion,offset:cursor,batchCount:selected.length,unitCount:count,claims,observations,boundaries,sources};
     const old=await load(partPath);
     if(old&&hash(old)!==hash(part))throw Error('FINALIZATION_PART_CONFLICT');
     if(!old)await put(partPath,JSON.stringify(part),{access:'private',allowOverwrite:false,addRandomSuffix:false,contentType:'application/json'});
@@ -73,7 +74,7 @@ export default async function handler(req,res){
    return res.status(200).json({status:'retry',stage:'text_review_finalize_checkpoint',verifiedBatches:cursor,totalBatches:descriptors.length});
   }
   if(!Array.isArray(previous.finalizePartDigests)||previous.finalizePartDigests.length!==Math.ceil(descriptors.length/8))throw Error('FINALIZATION_DIGEST_COUNT_MISMATCH');
-  const claims=[],observations=[],boundaries=[];let total=0;
+  const claims=[],observations=[],boundaries=[],sources=[];let total=0;
   for(let start=0;start<descriptors.length;start+=8){
    const part=await load(root+'finalize-parts/'+String(start).padStart(8,'0')+'.json');
    if(!part)throw Error('FINALIZATION_PART_MISSING');
@@ -82,8 +83,9 @@ export default async function handler(req,res){
    for(const claim of part.claims)claims.push(claim);
    for(const observation of part.observations||[])observations.push(observation);
    for(const boundary of part.boundaries||[])boundaries.push(boundary);
+   for(const source of part.sources||[])sources.push(source);
   }
-  if(total!==previous.finalizeUnitCount)throw Error('FINALIZATION_COUNT_MISMATCH');
+  if(total!==previous.finalizeUnitCount||sources.length!==total)throw Error('FINALIZATION_COUNT_MISMATCH');
   const documentBoundaryCandidates=docs.map(d=>mergeDocumentBoundaryCandidates({documentId:d.id,pageCount:d.pageCount,batches:boundaries.filter(x=>x.documentId===d.id)}));
   const aggregate={caseId:job.caseId,sourceVersion:job.documentVersion,coverage:docs.map(d=>({documentId:d.id,pages:d.pageCount,textBatchCount:Math.ceil(d.pageCount/20)})),observationCount:total,opposingStatementCandidates:detectOpposingStatements(claims),claimRoleSummary:summarizeClaimRoles(claims),crossDocumentEvidenceLinks:crosscheckObservations(observations),documentBoundaryCandidates,verifiedLegal:false,verifiedVisual:false,status:'awaiting_visual_and_semantic_review'};
   const aggregatePath=root+'text-review-aggregate.json',manifestPath=root+'text-review-manifest.json';
@@ -91,13 +93,15 @@ export default async function handler(req,res){
   const intermediateReport=buildTextReviewReport(aggregate);
   await put(intermediateReportPath,JSON.stringify(intermediateReport),{access:'private',allowOverwrite:true,addRandomSuffix:false,contentType:'application/json'});
   await put(aggregatePath,JSON.stringify(aggregate),{access:'private',allowOverwrite:true,addRandomSuffix:false,contentType:'application/json'});
+  const sourceIndexPath=root+'source-unit-index.json';
+  await put(sourceIndexPath,JSON.stringify({caseId:job.caseId,sourceVersion:job.documentVersion,sources}),{access:'private',allowOverwrite:true,addRandomSuffix:false,contentType:'application/json'});
   const partPaths=Array.from({length:Math.ceil(descriptors.length/8)},(_,i)=>root+'finalize-parts/'+String(i*8).padStart(8,'0')+'.json');
   const legalReasoningRequestPath=root+'legal-reasoning-request.json';
   const aggregateSha256=createHash('sha256').update(JSON.stringify(aggregate)).digest('hex');
   const legalRequest=buildLegalReasoningRequest({caseId:job.caseId,sourceVersion:job.documentVersion,aggregatePath,aggregateSha256,partPaths,partDigests:previous.finalizePartDigests});
   await put(legalReasoningRequestPath,JSON.stringify(legalRequest),{access:'private',allowOverwrite:true,addRandomSuffix:false,contentType:'application/json'});
   await put(manifestPath,JSON.stringify({caseId:job.caseId,sourceVersion:job.documentVersion,documents:docs.map(x=>({id:x.id,pageCount:x.pageCount})),outputs:expectedTextReviewOutputs({root,documents:docs}),aggregateSha256,verifiedVisual:false,verifiedLegal:false,analysisComplete:false,pendingStages:ANALYSIS_STAGES.slice(2)}),{access:'private',allowOverwrite:true,addRandomSuffix:false,contentType:'application/json'});
-  await advanceJob(job,'text_review_completed_visual_pending',{...previous,textReviewManifest:manifestPath,textReviewAggregate:aggregatePath,textReviewIntermediateReport:intermediateReportPath,legalReasoningRequest:legalReasoningRequestPath},'blocked','VISUAL_EVIDENCE_NOT_VERIFIED');
+  await advanceJob(job,'text_review_completed_visual_pending',{...previous,textReviewManifest:manifestPath,textReviewAggregate:aggregatePath,textReviewIntermediateReport:intermediateReportPath,legalReasoningRequest:legalReasoningRequestPath,sourceUnitIndex:sourceIndexPath},'blocked','VISUAL_EVIDENCE_NOT_VERIFIED');
   return res.status(200).json({status:'blocked',reason:'VISUAL_EVIDENCE_NOT_VERIFIED',verifiedTextDocuments:docs.length});
  }
  if(index>=docs.length){
