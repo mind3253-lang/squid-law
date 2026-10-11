@@ -5,3 +5,19 @@ test('duplicate page rejected',()=>assert.throws(()=>segmentRecord({scope:'custo
 
 test('shared corpus rejects incomplete document',async()=>{const {prepareCorpus}=await import('../lib/corpus-coverage.mjs');assert.throws(()=>prepareCorpus('customer',[{id:'a',pageCount:2,pages:[{page:1,text:'x'}]}]));});
 test('shared corpus supports both isolated scopes',async()=>{const {prepareCorpus,auditAnalysis}=await import('../lib/corpus-coverage.mjs');for(const scope of ['customer','skynet']){const c=prepareCorpus(scope,[{id:'a',pageCount:1,pages:[{page:1,text:'원문'}]}]);assert.equal(c.units.length,1);assert.equal(c.scope,scope);assert.equal(auditAnalysis(c,[]).complete,false)}});
+
+test('evidence review keeps source hashes and rejects missing verification',async()=>{
+ const {analyzeUnit,independentlyVerify,crosscheckObservations}=await import('../lib/legal-evidence-review.mjs');
+ const {prepareCorpus}=await import('../lib/corpus-coverage.mjs');
+ const corpus=prepareCorpus('customer',[{id:'a',pageCount:1,pages:[{page:1,text:'2023.11.07 계약 100만원 지급'}]},{id:'b',pageCount:1,pages:[{page:1,text:'2023.11.07 계약 100만원 수령'}]}]);
+ const results=corpus.units.map(analyzeUnit);
+ assert.equal(independentlyVerify(corpus.units,results).complete,true);
+ assert.equal(independentlyVerify(corpus.units,results.slice(1)).complete,false);
+ assert.ok(crosscheckObservations(results).length>0);
+ assert.equal(corpus.completeVisualCoverage,false);
+});
+test('shared corpus rejects duplicate document and page',async()=>{
+ const {prepareCorpus}=await import('../lib/corpus-coverage.mjs');
+ assert.throws(()=>prepareCorpus('customer',[{id:'a',pageCount:2,pages:[{page:1,text:'x'},{page:1,text:'y'}]}]));
+ assert.throws(()=>prepareCorpus('customer',[{id:'a',pageCount:1,pages:[{page:1,text:'x'}]},{id:'a',pageCount:1,pages:[{page:1,text:'y'}]}]));
+});
