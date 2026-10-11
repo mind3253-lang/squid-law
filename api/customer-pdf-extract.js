@@ -41,3 +41,8 @@ export async function inspectPdfPageCount(buffer){
  try{const pdf=await task.promise;return pdf.numPages}
  finally{await task.destroy()}
 }
+
+export function choosePdfExtractionWindow(sizeBytes){
+ if(!Number.isSafeInteger(sizeBytes)||sizeBytes<1)throw Error('INVALID_PDF_SIZE');
+ return sizeBytes>50*1024*1024?20:sizeBytes>20*1024*1024?40:100;
+}
