@@ -19,3 +19,9 @@ test('complete-looking claims cannot bypass independent legal audit',()=>{
  assert.equal(independentCaseAudit({units,model,documentCoverage:coverage,visualCoverage:coverage,semanticAudit:{complete:true,modelVersion:'wrong',reviewerIndependent:true}}).complete,false);
  assert.equal(independentCaseAudit({units,model,documentCoverage:coverage,visualCoverage:coverage,semanticAudit:{complete:true,modelVersion:model.version,reviewerIndependent:true}}).complete,true);
 });
+
+test('same document/page/part cannot contain conflicting source text',()=>{
+ const first=segmentRecord({scope:'customer',documentId:'d',pages:[{page:1,text:'원본 A'}]}).segments[0];
+ const second=segmentRecord({scope:'customer',documentId:'d',pages:[{page:1,text:'원본 B'}]}).segments[0];
+ assert.throws(()=>verifyCitedPropositions([first,second],[]),/DUPLICATE_SOURCE_UNIT/);
+});
