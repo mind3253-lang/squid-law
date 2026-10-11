@@ -13,3 +13,12 @@ test('legacy pages remain explicitly identifiable and new pages can require hash
  assert.equal(verifyPageDigests(legacy).legacyWithoutHashes,1);
  assert.equal(verifyPageDigests(legacy,{requireDigests:true}).complete,false);
 });
+
+test('visual operator inventory tampering is detected independently of text hash',()=>{
+ const text='계약서',page=1,imageOperatorCount=2,visualInventoryStatus='operator_scan_unverified';
+ const textSha256=createHash('sha256').update(text).digest('hex');
+ const visualOperatorDigest=createHash('sha256').update(JSON.stringify([page,imageOperatorCount,visualInventoryStatus])).digest('hex');
+ const original={page,text,textSha256,imageOperatorCount,visualInventoryStatus,visualOperatorDigest};
+ assert.equal(verifyPageDigests([original],{requireDigests:true}).complete,true);
+ assert.equal(verifyPageDigests([{...original,imageOperatorCount:3}],{requireDigests:true}).complete,false);
+});
