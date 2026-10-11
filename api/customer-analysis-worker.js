@@ -8,6 +8,7 @@ import {candidateDocuments} from './customer-document-boundaries.js';
 import {planVisualEvidence} from '../lib/visual-evidence.mjs';
 import {assertPageBatch,assertBatchManifest} from '../lib/batch-integrity.mjs';
 import {expectedTextReviewOutputs,auditTextReviewOutputs} from '../lib/text-review-manifest.mjs';
+import {verifyPageDigests} from '../lib/page-digests.mjs';
 const eq=(a,b)=>{const x=Buffer.from(a||''),y=Buffer.from(b||'');return x.length===y.length&&timingSafeEqual(x,y)};
 async function load(path){const r=await get(path,{access:'private'});if(!r||r.statusCode!==200)return null;let size=0,parts=[];for await(const chunk of r.stream){size+=chunk.length;if(size>32*1024*1024)throw Error('BLOB_TOO_LARGE');parts.push(Buffer.from(chunk))}return JSON.parse(Buffer.concat(parts).toString())}
 export default async function handler(req,res){
@@ -48,6 +49,8 @@ export default async function handler(req,res){
   return res.status(200).json({status:'blocked',reason:'INVALID_PAGE_SEQUENCE'});
  }
  if(selectedPages.length===0)throw Error('EMPTY_PAGE_BATCH');
+ const digestAudit=verifyPageDigests(selectedPages);
+ if(!digestAudit.complete){await advanceJob(job,'source_digest_mismatch',{...previous,nextDocument:index,nextPage:pageOffset,failures:digestAudit.failures.slice(0,20)},'blocked','SOURCE_DIGEST_MISMATCH');return res.status(200).json({status:'blocked',reason:'SOURCE_DIGEST_MISMATCH'})}
  const segmented=segmentRecord({scope:'customer',documentId:d.id,pages:selectedPages});
  if(!auditSegments(selectedPages,segmented.segments).complete)throw Error('SEGMENT_AUDIT');
  const units=segmented.segments.map(u=>({...u,filename:d.name||''}));
