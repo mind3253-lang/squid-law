@@ -1,0 +1,12 @@
+/* SUBMARINE 2-inspired lawsuit process layout */
+.process-page .process-hero{background:linear-gradient(112deg,#092c4a 0%,#075277 58%,#0b9ab4 100%);color:#fff;border:0;border-radius:0 0 42px 42px;padding:58px 62px 64px;margin:0 0 42px;box-shadow:none}
+.process-page .process-hero .eyebrow{color:#a5e4ef;font-size:14px;font-weight:700;letter-spacing:.14em}
+.process-page .process-hero h1{font-size:clamp(34px,4vw,56px);letter-spacing:-.035em;margin:12px 0 22px}
+.process-page .process-hero p{color:#e6f5fa;font-size:18px;line-height:1.9;max-width:800px}
+.process-page .process-columns{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px}
+.process-page .process-columns>.card{margin:0;padding:34px 32px;border:1px solid #e5eaee;border-radius:20px;background:#fff;box-shadow:0 4px 18px #092c4a0b}
+.process-page .process-columns h2{font-size:24px;line-height:1.4;margin:0 0 24px;color:#092c4a}
+.process-page .process-columns .steps{padding-left:1.4em;margin:0}
+.process-page .process-columns .steps li{padding:11px 0;line-height:1.85;border-bottom:1px solid #edf1f4}
+.process-page .process-columns .steps li:last-child{border-bottom:0}
+@media(max-width:800px){.process-page .process-hero{padding:40px 28px 48px;border-radius:0 0 28px 28px}.process-page .process-columns{grid-template-columns:1fr;gap:16px}.process-page .process-columns>.card{padding:26px 23px}}
