@@ -1,0 +1,17 @@
+// SQUIDLAW customer-only evidence engine. All inputs are caller-scoped, never cross-case.
+const iso=s=>{const m=String(s).match(/(?:19|20)\d{2}[.\-/]\s*(?:0?[1-9]|1[0-2])[.\-/]\s*(?:0?[1-9]|[12]\d|3[01])/);if(!m)return null;const [y,mo,d]=m[0].split(/[.\-/]\s*/).map(Number);const date=new Date(Date.UTC(y,mo-1,d));return date.getUTCFullYear()===y&&date.getUTCMonth()===mo-1&&date.getUTCDate()===d?date.toISOString().slice(0,10):null};
+export function pageIndex(docs,extracted){const pages=[];for(const d of docs){const data=extracted.get(d.id);if(!data)continue;for(const p of data.pages||[]){pages.push({id:d.id+':'+p.page,documentId:d.id,filename:d.name,page:p.page,text:String(p.text||'').slice(0,16000),readable:String(p.text||'').trim().length>=15})}}return pages}
+const terms=s=>[...new Set((String(s).toLowerCase().match(/[가-힣a-z0-9]{2,}/g)||[]).filter(x=>!['그리고','그러나','대한','관련','있습니다','합니다','문서','사건','증거','분석'].includes(x)))];
+export function retrieve(pages,question,limit=16,budget=40000){const keys=terms(question),scored=pages.map(p=>{const t=p.text.toLowerCase();let score=keys.reduce((n,k)=>n+(t.includes(k)?1+Math.min(4,t.split(k).length-1):0),0);if(keys.some(k=>p.filename.toLowerCase().includes(k)))score+=6;return {...p,score}});scored.sort((a,b)=>b.score-a.score||a.filename.localeCompare(b.filename)||a.page-b.page);let used=0;const chosen=[];for(const p of scored){if(chosen.length>=limit||used>=budget)break;const text=p.text.slice(0,Math.min(6500,budget-used));if(!text.trim())continue;chosen.push({...p,text});used+=text.length}return {pages:chosen,used,omitted:pages.length-chosen.length,unreadable:pages.filter(p=>!p.readable).map(p=>({filename:p.filename,page:p.page})).slice(0,50),totalPages:pages.length}}
+export function buildTimeline(pages){const items=[];for(const p of pages){for(const line of p.text.split(/[\n。]/).slice(0,100)){const date=iso(line);if(!date)continue;items.push({date,event:line.trim().slice(0,220),source:{documentId:p.documentId,filename:p.filename,page:p.page},status:'원문 날짜 발견·사건일 여부 미확정'})}}return items.sort((a,b)=>a.date.localeCompare(b.date)).slice(0,150)}
+export function verifyCitations(reply,pages){const citations=[],bad=[];const rx=/\[([^\[\]\n]{1,160}),\s*(?:PDF\s*)?(\d{1,4})\s*(?:쪽|페이지)\]/g;for(const m of reply.matchAll(rx)){const filename=m[1].trim(),page=Number(m[2]);const found=pages.find(p=>p.filename===filename&&p.page===page);const item={text:m[0],filename,page,valid:!!found,documentId:found?.documentId||null};(found?citations:bad).push(item)}return {citations,invalidCitations:bad}}
+export function evidenceContext(result){return result.pages.map(p=>'[파일: '+p.filename+', '+p.page+'쪽]\n'+p.text).join('\n---\n')}
+export const ANALYSIS_PROTOCOL=`[SQUIDLAW 사건 검토 절차]
+원본 자료의 문장과 당사자 주장, AI 추론을 반드시 분리하십시오. 법률상 청구요건·입증책임·항변은 해당 사건 유형과 제공된 사실에 맞춰 검토하되 불확실한 법리는 확인 필요로 표시하십시오.
+고객의 주장을 원자적 쟁점으로 분해하고 각각 지지 증거·반대 증거·미제출 증거를 비교하십시오. '입증 충분/일부 입증/증거 부족/상충'은 법원의 확정 판단이 아닌 잠정적 증거 평가로만 표시하십시오.
+날짜·금액·기간·의사표시가 다른 문서에서 충돌하면 양쪽의 정확한 출처를 대조하십시오. 단순 표현 차이는 모순으로 단정하지 마십시오.
+상대방 입장에서 가능한 가장 강한 반론과 고객에게 불리한 정황을 반드시 검토하십시오.
+타임라인은 사건 발생일과 문서 작성일/제출일을 구별하십시오. 사건일이 확인되지 않으면 미확정으로 표시하십시오.
+증거를 인용할 때는 오직 아래 제공된 [파일명, N쪽]만 사용하십시오. 인용한 문장과 페이지 내용의 정확한 일치를 보장할 수 없으면 직접 인용을 피하고 요약으로 표시하십시오.
+제공된 자료는 일부 검색 결과일 수 있습니다. 검색되지 않은 자료를 확인했다고 주장하지 마십시오. 외부 판례검색·승소 확률 수치화는 하지 마십시오.
+응답은 질문의 범위에 맞게 작성하되 가능하면 사실/주장/추론, 쟁점별 증거 매칭, 모순, 시간순 경과, 법률요건·항변, 상대방 반론, 추가 증거, 분석 제외 범위를 구분하십시오.`;
