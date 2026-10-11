@@ -57,7 +57,7 @@
 <div id="caseChatFiles" class="case-chat-files"></div>
 <textarea id="caseChatInput" maxlength="12000" aria-label="내 사건 분석 메시지" placeholder="사건 내용이나 궁금한 점을 입력하세요."></textarea>
 <div class="case-chat-bar"><span class="hint">Enter 줄바꿈 · 연속 Enter 두 번 전송 · 파일 끌어놓기</span><div><input type="file" id="caseChatPick" accept=".pdf,.png,.jpg,.jpeg,.doc,.docx,.hwp,.hwpx,.txt,.md,.csv,.xlsx,.xls" multiple hidden><button id="caseChatAttach" type="button">📎 파일 첨부</button> <button id="caseChatSend" type="button">➤ 보내기</button></div></div>
-</div><div id="caseChatStatus" class="case-chat-status" role="status">브라우저 시험 저장 · PDF만 지원 · 실제 서버 보관·AI 분석·과금은 연결 전입니다.</div>
+</div><div id="caseChatStatus" class="case-chat-status" role="status">텍스트 사건분석 AI 연결 · PDF는 아직 브라우저 임시 보관이며 AI가 읽지 못합니다.</div>
 </section>
 <section class="precedent-promo" aria-label="판례검색 서비스 안내">
 <div><p class="promo-kicker">CASE-BASED PRECEDENT SEARCH</p><h2>판례 10개보다,<br>내 사건에 맞는 판례 하나.</h2><p class="promo-lead">판례를 단순히 나열하지 않습니다. 내 사건의 쟁점을 기준으로 관련 판례의 법리를 살펴보고, 사건과 일치하는 부분과 다른 부분을 비교하는 서비스를 준비하고 있습니다.</p></div>
@@ -68,7 +68,7 @@
 <script>
 (()=>{
 const $=id=>document.getElementById(id),input=$('caseChatInput'),log=$('caseChatLog'),status=$('caseChatStatus'),pick=$('caseChatPick'),area=$('caseChatFiles'),selected=$('activeCase');
-const pending=[];const api=window.SquidCasePreview;
+const pending=[];const api=window.SquidCasePreview;const conversations=new Map();
 const params=new URLSearchParams(location.search);if(api.cases.some(c=>c.id===params.get('case')))selected.value=params.get('case');
 pick.accept='.pdf,application/pdf';
 function renderPending(){area.replaceChildren();pending.forEach((f,i)=>{const node=document.createElement('span');node.className='case-chat-file';node.append(document.createTextNode('📎 '+f.name));const btn=document.createElement('button');btn.type='button';btn.textContent='×';btn.onclick=()=>{pending.splice(i,1);renderPending()};node.append(btn);area.append(node)})}
@@ -77,8 +77,11 @@ $('caseChatAttach').onclick=()=>pick.click();pick.onchange=()=>{addFiles([...pic
 const composer=$('caseChatComposer');composer.addEventListener('dragover',e=>{e.preventDefault();composer.style.outline='2px dashed #1762b4'});composer.addEventListener('dragleave',()=>composer.style.outline='');composer.addEventListener('drop',e=>{e.preventDefault();composer.style.outline='';addFiles([...e.dataTransfer.files])});
 function message(text,side,buttonItem){log.querySelector('.case-chat-empty')?.remove();const el=document.createElement('div');el.className='case-chat-message '+(side==='customer'?'user':'system');el.textContent=text;if(buttonItem){const b=document.createElement('button');b.type='button';b.textContent='PDF 열기';b.style.cssText='display:block;margin-top:8px;padding:6px 12px;cursor:pointer';b.onclick=()=>api.open(buttonItem);el.append(b)}log.append(el);log.scrollTop=log.scrollHeight}
 async function load(){log.replaceChildren();try{const list=await api.records(selected.value);if(!list.length){const empty=document.createElement('p');empty.className='case-chat-empty';empty.textContent='이 사건에 저장된 PDF가 없어. 파일을 첨부해 줘.';log.append(empty)}for(const item of list)message('📎 '+item.name+' · '+api.fmt(item.size),item.side,item);status.textContent='브라우저 시험 저장 · '+list.length+'개 PDF · 실제 서버 저장 아님'}catch(e){status.textContent='자료 조회 실패: '+e.message}}
-selected.onchange=()=>{history.replaceState(null,'','?case='+encodeURIComponent(selected.value));load()};
-let sending=false;async function send(){if(sending)return;const txt=input.value.trim();if(!txt&&!pending.length)return;if(!pending.length){status.textContent='텍스트 AI 대화는 아직 연결되지 않았어. PDF 첨부만 시험 저장 가능해.';return}sending=true;$('caseChatSend').disabled=true;let saved=0;try{for(const f of pending){await api.save(selected.value,f);saved++}pending.splice(0,saved);renderPending();if(txt){status.textContent='PDF '+saved+'개 저장 완료. 텍스트 메시지는 AI 서버 미연결로 저장하지 않았어.'}else status.textContent='PDF '+saved+'개 브라우저에 저장 완료';await load();if(txt)status.textContent='PDF '+saved+'개 저장 완료 · 입력한 텍스트는 전송하지 않았어.'}catch(e){status.textContent='저장 실패: '+e.message+' · 브라우저 저장공간을 확인해 줘.';pending.splice(0,saved);renderPending();await load()}finally{sending=false;$('caseChatSend').disabled=false}}
+selected.onchange=()=>{history.replaceState(null,'','?case='+encodeURIComponent(selected.value));load().then(()=>{for(const m of conversations.get(selected.value)||[])message(m.content,m.role==='user'?'customer':'system')})};
+let sending=false;async function send(){if(sending)return;const txt=input.value.trim();if(!txt&&!pending.length)return;sending=true;$('caseChatSend').disabled=true;const caseId=selected.value;let saved=0;try{
+if(pending.length){for(const f of pending){await api.save(caseId,f);saved++}pending.splice(0,saved);renderPending();await load();status.textContent='PDF '+saved+'개 브라우저 보관 완료. AI 분석에는 포함되지 않습니다.'}
+if(txt){const conversation=conversations.get(caseId)||[];conversation.push({role:'user',content:txt});conversations.set(caseId,conversation);message(txt,'customer');input.value='';status.textContent='고객용 AI가 분석 중입니다…';const r=await fetch('/api/customer-analysis',{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},body:JSON.stringify({caseId,messages:conversation.slice(-16)})});const j=await r.json();if(!r.ok)throw Error(j.error||'AI 분석 실패');conversation.push({role:'assistant',content:j.reply});message(j.reply,'system');status.textContent='AI 응답 완료 · 대화는 현재 브라우저 화면에만 유지됩니다. PDF는 AI 분석에 포함되지 않았습니다.'}
+}catch(e){status.textContent='처리 실패: '+e.message;if(txt)message('분석을 완료하지 못했습니다. 다시 전송해 주세요.','system')}finally{sending=false;$('caseChatSend').disabled=false}}
 $('caseChatSend').onclick=send;let last=0;input.addEventListener('keydown',e=>{if(e.key!=='Enter'||e.isComposing||e.keyCode===229)return;if(e.shiftKey||e.ctrlKey||e.altKey||e.metaKey){last=0;return}const now=Date.now();if(now-last<1100&&input.selectionStart===input.selectionEnd&&input.selectionStart>0&&input.value[input.selectionStart-1]==='\n'&&input.value.trim()){e.preventDefault();last=0;send()}else last=now});load();
 })();
 </script>
