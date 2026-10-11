@@ -28,5 +28,6 @@
       "source": "/admin/skynet-data-admin",
       "destination": "/api/skynet-data-admin"
     }
-  ]
+  ],
+  "buildCommand": "node scripts/customer-db-migrate.mjs"
 }

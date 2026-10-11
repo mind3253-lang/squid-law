@@ -1,0 +1,42 @@
+name: Customer lease PostgreSQL integration
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'api/customer-analysis-lease-db.js'
+      - 'db/customer-analysis-leases.sql'
+      - 'scripts/customer-db-migrate.mjs'
+      - 'tests/customer-lease-postgres.test.mjs'
+      - '.github/workflows/customer-lease-postgres.yml'
+      - 'vercel.json'
+  workflow_dispatch:
+jobs:
+  postgres-integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: squid_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d squid_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      SQUID_CUSTOMER_DATABASE_URL: postgres://postgres:postgres@localhost:5432/squid_test
+      SQUID_CUSTOMER_DATABASE_SSL: disable
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --ignore-scripts --no-audit --no-fund
+      - run: node scripts/customer-db-migrate.mjs
+      - run: node --test tests/customer-lease-postgres.test.mjs
+      - run: node --check api/customer-analysis-lease-db.js
