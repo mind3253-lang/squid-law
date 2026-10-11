@@ -102,3 +102,15 @@ test('reject empty or malformed extracted chunk',()=>{
  assert.equal(auditSegments(pages,[{...chunks[0],part:0}]).complete,false);
  assert.equal(auditSegments(pages,[{...chunks[0],status:'unknown'}]).complete,false);
 });
+
+test('legal claim role classifier preserves unverified source attribution',async()=>{
+ const {classifyClaimCandidate,analyzeUnit}=await import('../lib/legal-evidence-review.mjs');
+ assert.equal(classifyClaimCandidate('피고의 반소 청구'),'counterclaim');
+ assert.equal(classifyClaimCandidate('원고 주장을 부인한다'),'rebuttal');
+ assert.equal(classifyClaimCandidate('채무를 인정한다'),'admission');
+ const source=segmentRecord({scope:'customer',documentId:'d',pages:[{page:1,text:'피고는 청구를 부인한다.'}]}).segments[0];
+ const result=analyzeUnit(source);
+ assert.equal(result.claimCandidates[0].candidateType,'rebuttal');
+ assert.equal(result.claimCandidates[0].classification,'unverified_heuristic');
+ assert.equal(result.claimCandidates[0].source.hash,source.hash);
+});
