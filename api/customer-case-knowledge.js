@@ -18,6 +18,46 @@ export const checklist={
 'h':['피보전채권','보전 필요성','채무자 재산','집행·이의']
 };
 export function caseChecklist(caseId){const m=String(caseId).match(/(?:^|-)CASE([bcdefgh])(?:-|$)/i);return checklist[m?.[1]?.toLowerCase()]||Object.fromEntries(Object.entries(checklist))}
-export async function writeSnapshot(user,caseId,kind,data){const now=new Date().toISOString(),id=randomUUID(),path=casePrefix(user,caseId)+'analysis/'+kind+'/'+now.replace(/[:.]/g,'-')+'-'+id+'.json';const item={id,kind,caseId,createdAt:now,version:1,...data};let serialized=JSON.stringify(item);if(Buffer.byteLength(serialized)>1700000){for(const key of ['timeline','conflicts','facts']){if(Array.isArray(item[key])){while(item[key].length>10&&Buffer.byteLength(serialized)>1700000){item[key]=item[key].slice(0,Math.ceil(item[key].length*.75));item.truncated=true;serialized=JSON.stringify(item)}}}if(Buffer.byteLength(serialized)>1700000)throw Error('분석 저장 크기 초과')}await put(path,serialized,{access:'private',allowOverwrite:false,addRandomSuffix:false,contentType:'application/json'});return {id,path}}
-export async function latestSnapshot(user,caseId,kind){const rows=await all(casePrefix(user,caseId)+'analysis/'+kind+'/',500);const last=rows.filter(x=>x.pathname.endsWith('.json')).sort((a,b)=>b.pathname.localeCompare(a.pathname))[0];return last?readJson(last.pathname):null}
+export async function writeSnapshot(user,caseId,kind,data){
+ const now=new Date().toISOString(),id=randomUUID(),prefix=casePrefix(user,caseId)+'analysis/'+kind+'/';
+ const path=prefix+now.replace(/[:.]/g,'-')+'-'+id+'.json';
+ const item={id,kind,caseId,createdAt:now,version:2,...data};
+ const write=(p,value)=>put(p,JSON.stringify(value),{access:'private',allowOverwrite:false,addRandomSuffix:false,contentType:'application/json'});
+ const parts={},main={...item};
+ for(const key of ['facts','timeline','conflicts','claimGraph']){
+  if(!Array.isArray(main[key]))continue;
+  const values=main[key];delete main[key];parts[key]=[];let batch=[];
+  for(const value of values){
+   batch.push(value);
+   if(Buffer.byteLength(JSON.stringify(batch))>600000){
+    const last=batch.pop();if(!batch.length)throw Error('분할 항목 크기 초과');
+    const n=parts[key].length,p=prefix+'parts/'+id+'/'+key+'-'+n+'.json';
+    await write(p,{snapshotId:id,key,part:n,values:batch});parts[key].push(p);batch=[last];
+   }
+  }
+  if(batch.length){const n=parts[key].length,p=prefix+'parts/'+id+'/'+key+'-'+n+'.json';await write(p,{snapshotId:id,key,part:n,values:batch});parts[key].push(p)}
+ }
+ main.parts=parts;main.complete=true;
+ if(Buffer.byteLength(JSON.stringify(main))>1700000)throw Error('스냅샷 매니페스트 크기 초과');
+ await write(path,main);return {id,path};
+}
+async function hydrate(item){
+ if(!item||item.version!==2||!item.parts)return item;
+ if(item.complete!==true)throw Error('스냅샷 미완료');
+ for(const [key,paths] of Object.entries(item.parts)){
+  item[key]=[];
+  for(const path of paths){
+   const part=await readJson(path);
+   if(!part||part.snapshotId!==item.id||part.key!==key)throw Error('분할 데이터 누락');
+   item[key].push(...part.values);
+  }
+ }
+ return item;
+}
+export async function latestSnapshot(user,caseId,kind){
+ const rows=await all(casePrefix(user,caseId)+'analysis/'+kind+'/',500);
+ const candidates=rows.filter(x=>x.pathname.endsWith('.json')&&!x.pathname.includes('/parts/')).sort((a,b)=>b.pathname.localeCompare(a.pathname));
+ for(const row of candidates){try{const item=await hydrate(await readJson(row.pathname));if(item)return item}catch{}}
+ return null;
+}
 export async function analysisHistory(user,caseId){const rows=await all(casePrefix(user,caseId)+'analysis/result/',500);return (await Promise.all(rows.filter(x=>x.pathname.endsWith('.json')).map(x=>readJson(x.pathname).catch(()=>null)))).filter(Boolean).sort((a,b)=>b.createdAt.localeCompare(a.createdAt))}
