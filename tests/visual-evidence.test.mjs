@@ -64,3 +64,10 @@ test('PDF image paint operations are inventoried without claiming image verifica
  assert.equal(plan.pages[0].requiresVisualReview,true);
  assert.equal(plan.inventoryComplete,false);
 });
+
+test('PDF page range checkpoints cover final page of 10001-page corpus',async()=>{
+ const {resolvePdfPageRange}=await import('../api/customer-pdf-extract.js');
+ assert.deepEqual(resolvePdfPageRange(10001,{startPage:10001,pageCount:20}),{startPage:10001,endPage:10001});
+ assert.deepEqual(resolvePdfPageRange(338,{startPage:321,pageCount:20}),{startPage:321,endPage:338});
+ assert.throws(()=>resolvePdfPageRange(10001,{startPage:10002,pageCount:20}),/INVALID_PDF_PAGE_RANGE/);
+});
