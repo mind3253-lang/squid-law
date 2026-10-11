@@ -22,7 +22,7 @@ test('reject mismatched persisted observation counts',()=>{
 
 test('reject forged source page, duplicate units and candidate provenance',()=>{
  const hash='a'.repeat(64),textHash='b'.repeat(64);
- const valid={status:'verified',documentId:'doc',page:1,part:1,hash,textHash,claimCandidates:[{text:'청구 부인',source:{documentId:'doc',page:1,part:1,hash}}]};
+ const valid={status:'verified',documentId:'doc',page:1,part:1,hash,textHash,observations:[],claimCandidates:[{text:'청구 부인',source:{documentId:'doc',page:1,part:1,hash}}]};
  const make=(results)=>outputs.map((o,i)=>i?o:{...o,payload:{...o.payload,unitCount:results.length,results}});
  const args=(results)=>({caseId:'case',sourceVersion:version,root,documents:docs,outputs:make(results)});
  assert.equal(aggregateTextReview(args([valid,...Array.from({length:19},(_,i)=>unit(i+2))])).observationCount,21);
