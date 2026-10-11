@@ -1,0 +1,19 @@
+name: Production customer E2E (no AI billing)
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/production-customer-e2e.mjs'
+      - '.github/workflows/production-customer-e2e.yml'
+  workflow_dispatch:
+jobs:
+  customer-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: sleep 35
+      - run: node scripts/production-customer-e2e.mjs

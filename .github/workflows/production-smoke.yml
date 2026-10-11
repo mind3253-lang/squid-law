@@ -36,6 +36,6 @@ jobs:
           check '/api/customer-case?caseId=SL-test000' 401
           check '/api/customer-analysis-history?caseId=SL-test000' 401
           check '/api/admin-db-health' 401
-          actual=$(curl --silent --show-error --max-time 20 --output /dev/null --write-out '%{http_code}' --request POST --header 'Content-Type: application/json' --data '{"caseId":"SL-test000","messages":[{"role":"user","content":"test"}]}' "$origin/api/customer-analysis")
+          actual=$(curl --silent --show-error --location --max-time 20 --output /dev/null --write-out '%{http_code}' --request POST --header 'Content-Type: application/json' --data '{"caseId":"SL-test000","messages":[{"role":"user","content":"test"}]}' "$origin/api/customer-analysis")
           [[ "$actual" == 401 ]] || { echo "FAIL customer-analysis POST expected 401 got $actual"; exit 1; }
           echo "PASS customer-analysis POST HTTP 401"
