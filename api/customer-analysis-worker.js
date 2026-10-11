@@ -49,7 +49,8 @@ export default async function handler(req,res){
   return res.status(200).json({status:'blocked',reason:'PAGE_EXTRACTION_INCOMPLETE'});
  }
  if(!Array.isArray(e.pages))assertBatchManifest({batches:e.batches,pageCount:d.pageCount});
- const pageOffset=Number.isSafeInteger(previous.nextPage)&&previous.nextDocument===index?previous.nextPage:0;
+ if(previous.nextDocument===index&&previous.nextPage!==undefined&&!Number.isSafeInteger(previous.nextPage))throw Error('INVALID_PAGE_CHECKPOINT');
+ const pageOffset=previous.nextDocument===index?(previous.nextPage??0):0;
  if(pageOffset<0||pageOffset>=d.pageCount||pageOffset%20!==0)throw Error('INVALID_CHECKPOINT_OFFSET');
  const batchIndex=Math.floor(pageOffset/20);
  const batchPath=Array.isArray(e.pages)?null:e.batches[batchIndex];
