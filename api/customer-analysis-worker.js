@@ -58,5 +58,5 @@ export default async function handler(req,res){
  await advanceJob(job,'text_review_checkpoint',checkpoint,'retry');
  return res.status(200).json({status:'retry',processedDocuments:checkpoint.verifiedTextDocuments,processedPages:checkpoint.nextPage,totalDocuments:docs.length});
 
- }catch(e){if(job){try{await advanceJob(job,'error',{message:String(e.message||e).slice(0,250)},job.attempts>=job.maxAttempts?'failed':'retry','WORKER_ERROR')}catch{}}return res.status(503).json({error:'WORKER_ERROR'})}
+ }catch(e){if(job){try{await advanceJob(job,'error',{...(job.checkpoint||{}),message:String(e.message||e).slice(0,250)},job.attempts>=job.maxAttempts?'failed':'retry','WORKER_ERROR')}catch{}}return res.status(503).json({error:'WORKER_ERROR'})}
 }
