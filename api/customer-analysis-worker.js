@@ -1,7 +1,7 @@
 import {claimJob,advanceJob} from './customer-analysis-jobs-db.js';
 import {get} from '@vercel/blob';
 import {createHash,timingSafeEqual} from 'node:crypto';
-import {segmentRecord,auditSegments} from '../lib/record-chunks.mjs';
+import {prepareCorpus} from '../lib/corpus-coverage.mjs';
 const eq=(a,b)=>{const x=Buffer.from(a||''),y=Buffer.from(b||'');return x.length===y.length&&timingSafeEqual(x,y)};
 async function load(path){const r=await get(path,{access:'private'});if(!r||r.statusCode!==200)return null;let size=0,parts=[];for await(const chunk of r.stream){size+=chunk.length;if(size>32*1024*1024)throw Error('BLOB_TOO_LARGE');parts.push(Buffer.from(chunk))}return JSON.parse(Buffer.concat(parts).toString())}
 export default async function handler(req,res){
@@ -17,7 +17,7 @@ export default async function handler(req,res){
  const meta=[];for(let i=0;i<paths.length;i+=12)meta.push(...await Promise.all(paths.slice(i,i+12).map(p=>load(p))));
  const docs=meta.filter(Boolean),version=createHash('sha256').update(JSON.stringify(docs.map(d=>[d.id,d.sha256,d.pageCount]).sort((a,b)=>a[0].localeCompare(b[0])))).digest('hex');
  if(version!==job.documentVersion){await advanceJob(job,'source_changed',{expected:job.documentVersion,actual:version},'blocked','SOURCE_VERSION_CHANGED');return res.status(200).json({status:'blocked',reason:'SOURCE_VERSION_CHANGED'})}
- const coverage=[];for(const d of docs){const e=await load(prefix+'extracted/'+d.id+'.json');const pages=e?.pages||[],nums=new Set(pages.map(p=>p.page));const segmented=segmentRecord({scope:'customer',documentId:d.id,pages});const audit=auditSegments(pages,segmented.segments);coverage.push({documentId:d.id,total:d.pageCount,extracted:pages.length,unique:nums.size,segments:segmented.segments.length,segmentAudit:audit.complete,unreadable:pages.filter(p=>!String(p.text||'').trim()).map(p=>p.page)})}
+ const coverage=[];for(const d of docs){const e=await load(prefix+'extracted/'+d.id+'.json');const pages=e?.pages||[],nums=new Set(pages.map(p=>p.page));const corpus=prepareCorpus('customer',[{id:d.id,name:d.name,pageCount:d.pageCount,pages}]);coverage.push({documentId:d.id,total:d.pageCount,extracted:pages.length,unique:nums.size,segments:corpus.units.length,segmentAudit:corpus.completeTextCoverage,unreadable:pages.filter(p=>!String(p.text||'').trim()).map(p=>p.page)})}
  const missing=coverage.some(c=>c.extracted!==c.total||c.unique!==c.total||c.unreadable.length);
  if(missing){await advanceJob(job,'extraction_incomplete',{coverage},'blocked','OCR_REQUIRED');return res.status(200).json({status:'blocked',reason:'OCR_REQUIRED'})}
  await advanceJob(job,'full_review_not_implemented',{coverage},'blocked','ANALYSIS_PIPELINE_REQUIRED');
