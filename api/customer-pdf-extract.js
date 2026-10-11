@@ -1,4 +1,6 @@
 import {getDocument} from 'pdfjs-dist/legacy/build/pdf.mjs';
+import * as pdfWorker from 'pdfjs-dist/legacy/build/pdf.worker.mjs';
+if(!globalThis.pdfjsWorker)globalThis.pdfjsWorker=pdfWorker;
 export async function extractPdfPages(buffer,maxPages=100){
  const task=getDocument({data:new Uint8Array(buffer),useSystemFonts:true,disableFontFace:true});
  try{
