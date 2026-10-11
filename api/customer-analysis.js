@@ -37,7 +37,8 @@ const reqId=b.requestId||null,hashValue=reqId?hashRequest(b.caseId,b.messages,b.
 if(!reqId)return send(res,400,{error:'분석 요청 ID가 필요합니다.'});
 let lease;
 try{
- lease=await acquireCustomerLease(user,b.caseId,reqId,hashValue);
+ const durable=await requestState(user,b.caseId,reqId);if(durable&&durable.requestHash!==hashValue)return send(res,409,{code:'REQUEST_CONFLICT',error:'동일 요청 ID의 입력 내용이 다릅니다.'});
+ lease=await acquireCustomerLease(user,b.caseId,reqId,hashValue,!!durable?.draft);
  if(lease.kind==='conflict')return send(res,409,{code:'REQUEST_CONFLICT',error:'동일 요청 ID에 다른 입력이 사용됐습니다.'});
  if(lease.kind==='in_progress')return send(res,409,{code:'REQUEST_IN_PROGRESS',error:'이미 분석 중인 요청입니다.',requestId:reqId});
  if(lease.kind==='recovery_required')return send(res,409,{code:'RECOVERY_REQUIRED',error:'이전 분석의 복구 확인이 필요합니다. AI 중복 호출을 차단했습니다.',requestId:reqId});
