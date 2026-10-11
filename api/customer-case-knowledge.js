@@ -22,7 +22,7 @@ export async function writeSnapshot(user,caseId,kind,data,stableId=null){
  const now=new Date().toISOString(),id=stableId||randomUUID(),prefix=casePrefix(user,caseId)+'analysis/'+kind+'/';
  const path=stableId?prefix+'request-'+id+'.json':prefix+now.replace(/[:.]/g,'-')+'-'+id+'.json';
  if(stableId){const prior=await readJson(path);if(prior?.complete&&prior.id===id)return {id,path}}
- const item={id,kind,caseId,createdAt:now,version:2,...data};
+ const item={...data,id,kind,caseId,createdAt:now,version:2};
  const write=async(p,value)=>{if(stableId){const prior=await readJson(p);if(prior)return prior}try{return await put(p,JSON.stringify(value),{access:'private',allowOverwrite:false,addRandomSuffix:false,contentType:'application/json'})}catch(e){if(stableId){const prior=await readJson(p);if(prior)return prior}throw e}};
  const parts={},main={...item};
  for(const key of ['facts','timeline','conflicts','claimGraph']){
