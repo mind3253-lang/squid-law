@@ -27,16 +27,18 @@ export default async function handler(req,res){
   return res.status(200).json({status:'blocked',reason:'VISUAL_EVIDENCE_NOT_VERIFIED'});
  }
  const d=docs[index],e=await load(prefix+'extracted/'+d.id+'.json');
- if(!e||!Array.isArray(e.pages)||e.pages.length!==d.pageCount){
+ if(!e||(Array.isArray(e.pages)?e.pages.length!==d.pageCount:e.pageCount!==d.pageCount||!Array.isArray(e.batches))){
   await advanceJob(job,'extraction_incomplete',{...previous,nextDocument:index,documentId:d.id},'blocked','PAGE_EXTRACTION_INCOMPLETE');
   return res.status(200).json({status:'blocked',reason:'PAGE_EXTRACTION_INCOMPLETE'});
  }
- if(new Set(e.pages.map(p=>p.page)).size!==d.pageCount||e.pages.some((p,i)=>p.page!==i+1)){
+ const pageOffset=Number.isSafeInteger(previous.nextPage)&&previous.nextDocument===index?previous.nextPage:0;
+ const batchIndex=Math.floor(pageOffset/20);
+ const batch=Array.isArray(e.pages)?null:await load(e.batches[batchIndex]);
+ const selectedPages=Array.isArray(e.pages)?e.pages.slice(pageOffset,pageOffset+20):batch?.pages;
+ if(!Array.isArray(selectedPages)||selectedPages.some((p,i)=>p.page!==pageOffset+i+1)){
   await advanceJob(job,'page_sequence_invalid',{...previous,nextDocument:index,documentId:d.id},'blocked','INVALID_PAGE_SEQUENCE');
   return res.status(200).json({status:'blocked',reason:'INVALID_PAGE_SEQUENCE'});
  }
- const pageOffset=Number.isSafeInteger(previous.nextPage)&&previous.nextDocument===index?previous.nextPage:0;
- const selectedPages=e.pages.slice(pageOffset,pageOffset+20);
  if(selectedPages.length===0)throw Error('EMPTY_PAGE_BATCH');
  const selected=prepareCorpus('customer',[{id:d.id,name:d.name,pageCount:selectedPages.length,pages:selectedPages.map((p,i)=>({...p,page:i+1}))}]);
  const units=selected.units.map(u=>({...u,page:selectedPages[u.page-1].page,hash:u.hash}));
