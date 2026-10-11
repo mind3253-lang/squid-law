@@ -114,6 +114,9 @@ export default async function handler(req,res){
   const extracted=await extractPdfPages(bytes,{startPage:start,pageCount:extractionWindow});
   if(extracted.totalPages!==d.pageCount||extracted.pages.length!==Math.min(extractionWindow,d.pageCount-start+1))throw Error('PDF_EXTRACTION_PAGE_MISMATCH');
   for(const page of extracted.pages)page.textSha256=createHash('sha256').update(String(page.text||'')).digest('hex');
+  const extractedReadable=(previous.nextDocument===index?previous.extractionReadablePages||0:0)+extracted.pages.filter(p=>String(p.text||'').trim().length>=15).length;
+  const extractedImagePages=(previous.nextDocument===index?previous.extractionImageOperatorPages||0:0)+extracted.pages.filter(p=>p.imageOperatorCount>0).length;
+  const extractedUnscannedPages=(previous.nextDocument===index?previous.extractionUnscannedVisualPages||0:0)+extracted.pages.filter(p=>p.imageOperatorCount===null).length;
   const digest=value=>createHash('sha256').update(JSON.stringify(value)).digest('hex');
   for(let i=0;i<extracted.pages.length;i+=20){
    const batchPath=prefix+'extracted/'+d.id+'/batch-'+String(start-1+i).padStart(8,'0')+'.json';
