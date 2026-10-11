@@ -18,3 +18,14 @@ test('reject mismatched persisted observation counts',()=>{
  const forged=outputs.map((o,i)=>i?{...o,payload:{...o.payload,unitCount:1}}:o);
  assert.throws(()=>aggregateTextReview({caseId:'case',sourceVersion:version,root,documents:docs,outputs:forged}),/TEXT_UNIT_COUNT_MISMATCH/);
 });
+
+test('reject forged source page, duplicate units and candidate provenance',()=>{
+ const hash='a'.repeat(64),textHash='b'.repeat(64);
+ const valid={status:'verified',documentId:'doc',page:1,part:1,hash,textHash,claimCandidates:[{text:'청구 부인',source:{documentId:'doc',page:1,part:1,hash}}]};
+ const make=(results)=>outputs.map((o,i)=>i?o:{...o,payload:{...o.payload,unitCount:results.length,results}});
+ const args=(results)=>({caseId:'case',sourceVersion:version,root,documents:docs,outputs:make(results)});
+ assert.equal(aggregateTextReview(args([valid])).observationCount,1);
+ assert.throws(()=>aggregateTextReview(args([{...valid,page:21}])),/INVALID_TEXT_RESULT_PROVENANCE/);
+ assert.throws(()=>aggregateTextReview(args([valid,valid])),/DUPLICATE_TEXT_UNIT/);
+ assert.throws(()=>aggregateTextReview(args([{...valid,claimCandidates:[{...valid.claimCandidates[0],source:{...valid.claimCandidates[0].source,page:2}}]}])),/INVALID_CANDIDATE_PROVENANCE/);
+});
