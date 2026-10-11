@@ -30,3 +30,8 @@ test('reject forged source page, duplicate units and candidate provenance',()=>{
  assert.throws(()=>aggregateTextReview(args([valid,valid,...Array.from({length:19},(_,i)=>unit(i+2))])),/DUPLICATE_TEXT_UNIT/);
  assert.throws(()=>aggregateTextReview(args([{...valid,claimCandidates:[{...valid.claimCandidates[0],source:{...valid.claimCandidates[0].source,page:2}}]},...Array.from({length:19},(_,i)=>unit(i+2))])),/INVALID_CANDIDATE_PROVENANCE/);
 });
+
+test('reject a missing page even when batch metadata claims complete coverage',()=>{
+ const altered=outputs.map((o,i)=>i?o:{...o,payload:{...o.payload,results:o.payload.results.filter(r=>r.page!==10),unitCount:19}});
+ assert.throws(()=>aggregateTextReview({caseId:'case',sourceVersion:version,root,documents:docs,outputs:altered}),/TEXT_PAGE_UNIT_COVERAGE_INCOMPLETE/);
+});
