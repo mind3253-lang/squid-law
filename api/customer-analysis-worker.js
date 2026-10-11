@@ -96,16 +96,9 @@ export default async function handler(req,res){
   do{const page=await blob.list({prefix:root,limit:1000,...(resultCursor?{cursor:resultCursor}:{})});actual.push(...page.blobs.filter(x=>/^[^/]+-\d{8}\.json$/.test(x.pathname.slice(root.length))).map(x=>x.pathname));resultCursor=page.hasMore?page.cursor:null}while(resultCursor);
   const outputAudit=auditTextReviewOutputs({expected,actual});
   if(!outputAudit.complete){await advanceJob(job,'text_review_output_incomplete',{...checkpoint,missingOutputs:outputAudit.missing.slice(0,50)},'blocked','TEXT_REVIEW_OUTPUT_INCOMPLETE');return res.status(200).json({status:'blocked',reason:'TEXT_REVIEW_OUTPUT_INCOMPLETE'})}
-  // Verify persisted results one batch at a time to bound memory on large cases.
-  let aggregate;
-  try{aggregate=await aggregateTextReviewStreaming({caseId:job.caseId,sourceVersion:job.documentVersion,root,documents:docs,loadBatch:load})}
-  catch{await advanceJob(job,'text_review_content_invalid',{...checkpoint},'blocked','TEXT_REVIEW_CONTENT_INVALID');return res.status(200).json({status:'blocked',reason:'TEXT_REVIEW_CONTENT_INVALID'})}
-  const aggregatePath=root+'text-review-aggregate.json';
-  await put(aggregatePath,JSON.stringify(aggregate),{access:'private',allowOverwrite:true,addRandomSuffix:false,contentType:'application/json'});
-  const manifestPath=root+'text-review-manifest.json';
-  await put(manifestPath,JSON.stringify({caseId:job.caseId,sourceVersion:job.documentVersion,documents:docs.map(x=>({id:x.id,pageCount:x.pageCount})),outputs:expected,verifiedVisual:false,verifiedLegal:false,analysisComplete:false,pendingStages:ANALYSIS_STAGES.slice(2)}),{access:'private',allowOverwrite:true,addRandomSuffix:false,contentType:'application/json'});
-  await advanceJob(job,'text_review_completed_visual_pending',{...checkpoint,textReviewManifest:manifestPath,textReviewAggregate:aggregatePath},'blocked','VISUAL_EVIDENCE_NOT_VERIFIED');
-  return res.status(200).json({status:'blocked',reason:'VISUAL_EVIDENCE_NOT_VERIFIED',verifiedTextDocuments:docs.length});
+  await advanceJob(job,'text_review_finalize_checkpoint',{...checkpoint,finalizeOffset:0,finalizeUnitCount:0},'retry');
+  return res.status(200).json({status:'retry',stage:'text_review_finalize_checkpoint'});
+
  }
  await advanceJob(job,'text_review_checkpoint',checkpoint,'retry');
  return res.status(200).json({status:'retry',processedDocuments:checkpoint.verifiedTextDocuments,processedPages:checkpoint.nextPage,totalDocuments:docs.length});
