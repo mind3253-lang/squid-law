@@ -7,6 +7,7 @@ export const requestHash=(caseId,messages,options={})=>sha(JSON.stringify({caseI
 const base=(user,caseId,id)=>casePrefix(user,caseId)+'requests/'+id+'/';
 export const requestPaths=(user,caseId,id)=>({base:base(user,caseId,id),initial:base(user,caseId,id)+'initial.json',draft:base(user,caseId,id)+'draft.json',completed:base(user,caseId,id)+'completed.json',knowledge:base(user,caseId,id)+'knowledge.json',result:base(user,caseId,id)+'result.json',userMessage:base(user,caseId,id)+'user-message.json',assistantMessage:base(user,caseId,id)+'assistant-message.json'});
 export async function saveImmutable(path,obj){await put(path,JSON.stringify(obj),{access:'private',allowOverwrite:false,addRandomSuffix:false,contentType:'application/json'});return obj}
+export async function saveOnce(path,obj){const prior=await readJson(path);if(prior)return prior;try{return await saveImmutable(path,obj)}catch(e){const existing=await readJson(path);if(existing)return existing;throw e}}
 export async function requestState(user,caseId,id){
  const p=requestPaths(user,caseId,id);
  const [initial,draft,knowledge,result,userMessage,assistantMessage,completed]=await Promise.all([p.initial,p.draft,p.knowledge,p.result,p.userMessage,p.assistantMessage,p.completed].map(path=>readJson(path)));
