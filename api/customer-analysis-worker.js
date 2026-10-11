@@ -10,7 +10,7 @@ import {assertPageBatch,assertBatchManifest} from '../lib/batch-integrity.mjs';
 import {expectedTextReviewOutputs,auditTextReviewOutputs} from '../lib/text-review-manifest.mjs';
 import {verifyPageDigests} from '../lib/page-digests.mjs';
 import {ANALYSIS_STAGES} from '../lib/analysis-pipeline-state.mjs';
-import {validatePersistedBatch,finalizationDescriptors} from '../lib/text-review-aggregation.mjs';
+import {validatePersistedBatch,finalizationDescriptors,validateFinalizationPart} from '../lib/text-review-aggregation.mjs';
 import {detectOpposingStatements} from '../lib/case-crosscheck.mjs';
 const eq=(a,b)=>{const x=Buffer.from(a||''),y=Buffer.from(b||'');return x.length===y.length&&timingSafeEqual(x,y)};
 async function load(path){const r=await get(path,{access:'private'});if(!r||r.statusCode!==200)return null;let size=0,parts=[];for await(const chunk of r.stream){size+=chunk.length;if(size>32*1024*1024)throw Error('BLOB_TOO_LARGE');parts.push(Buffer.from(chunk))}return JSON.parse(Buffer.concat(parts).toString())}
@@ -64,7 +64,8 @@ export default async function handler(req,res){
   const claims=[];let total=0;
   for(let start=0;start<descriptors.length;start+=8){
    const part=await load(root+'finalize-parts/'+String(start).padStart(8,'0')+'.json');
-   if(!part||createHash('sha256').update(JSON.stringify(part)).digest('hex')!==previous.finalizePartDigests[Math.floor(start/8)]||part.sourceVersion!==job.documentVersion||part.offset!==start||part.batchCount!==Math.min(8,descriptors.length-start)||!Array.isArray(part.claims)||!Number.isSafeInteger(part.unitCount))throw Error('FINALIZATION_PART_MISSING');
+   if(!part)throw Error('FINALIZATION_PART_MISSING');
+   validateFinalizationPart(part,{sourceVersion:job.documentVersion,offset:start,batchCount:Math.min(8,descriptors.length-start),sha256:previous.finalizePartDigests[Math.floor(start/8)]});
    total+=part.unitCount;claims.push(...part.claims);
   }
   if(total!==previous.finalizeUnitCount)throw Error('FINALIZATION_COUNT_MISMATCH');
