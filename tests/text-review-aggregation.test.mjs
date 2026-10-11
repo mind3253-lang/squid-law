@@ -126,3 +126,16 @@ test('cross-document same-date evidence remains a candidate rather than proof',a
  assert.ok(links.length>=2);
  assert.ok(links.every(x=>x.status==='related_evidence_candidate_not_proof_of_same_event'));
 });
+
+test('boundary candidates merge across extraction batches without dropping pages',async()=>{
+ const {candidateDocuments,mergeDocumentBoundaryCandidates}=await import('../api/customer-document-boundaries.js');
+ const pages=Array.from({length:41},(_,i)=>({documentId:'source',filename:'record.pdf',page:i+1,text:i===0?'준비서면':i===30?'답변서':'내용'}));
+ const batches=[pages.slice(0,20),pages.slice(20,40),pages.slice(40)].map(group=>({documentId:'source',sections:candidateDocuments(group).sections}));
+ const merged=mergeDocumentBoundaryCandidates({documentId:'source',pageCount:41,batches});
+ assert.equal(merged.coveredPages,41);
+ assert.equal(merged.sections[0].startPage,1);
+ assert.equal(merged.sections[0].endPage,30);
+ assert.equal(merged.sections.at(-1).endPage,41);
+ assert.equal(merged.verified,false);
+ assert.throws(()=>mergeDocumentBoundaryCandidates({documentId:'source',pageCount:41,batches:batches.slice(0,2)}),/INCOMPLETE_BOUNDARY_COVERAGE/);
+});
