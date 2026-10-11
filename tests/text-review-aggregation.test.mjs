@@ -118,3 +118,11 @@ test('finalization part rejects tampered persisted claims',async()=>{
  assert.throws(()=>validateFinalizationPart({...part,unitCount:159},{sourceVersion:version,offset:0,batchCount:8,sha256}),/INVALID_FINALIZATION_PART/);
  assert.throws(()=>validateFinalizationPart(part,{sourceVersion:version,offset:8,batchCount:8,sha256}),/INVALID_FINALIZATION_PART/);
 });
+
+test('cross-document same-date evidence remains a candidate rather than proof',async()=>{
+ const {crosscheckObservations}=await import('../lib/legal-evidence-review.mjs');
+ const rows=[{observations:[{dates:['2023.11.07'],amounts:['100만원'],source:{documentId:'a',page:1,part:1}}]},{observations:[{dates:['2023.11.07'],amounts:['100만원'],source:{documentId:'b',page:2,part:1}}]}];
+ const links=crosscheckObservations(rows);
+ assert.ok(links.length>=2);
+ assert.ok(links.every(x=>x.status==='related_evidence_candidate_not_proof_of_same_event'));
+});
