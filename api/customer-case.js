@@ -1,0 +1,34 @@
+import {get,put,list} from '@vercel/blob';
+import {createHash,randomUUID} from 'node:crypto';
+import {authenticatedUser} from './customer-auth.js';
+const hash=s=>createHash('sha256').update(s).digest('hex');
+const caseOk=s=>/^SL-[A-Za-z0-9-]{5,40}$/.test(s);
+export const casePrefix=(user,id)=>'squidlaw/cases/'+hash(user)+'/'+id+'/';
+export const respond=(res,n,obj)=>res.status(n).setHeader('Cache-Control','no-store').setHeader('X-Content-Type-Options','nosniff').json(obj);
+export const guard=req=>{const user=authenticatedUser(req);if(!user)return {error:'로그인이 필요합니다.',status:401};const origin=req.headers.origin;if(origin){try{if(new URL(origin).host!==req.headers.host||new URL(origin).protocol!=='https:')return {error:'요청 출처 오류',status:403}}catch{return {error:'요청 출처 오류',status:403}}}return {user}};
+export async function readJson(path){const r=await get(path,{access:'private'});if(!r||r.statusCode!==200)return null;let chunks=[],n=0;for await(const c of r.stream){n+=c.length;if(n>2e6)throw Error('문서 메타데이터 크기 초과');chunks.push(Buffer.from(c))}return JSON.parse(Buffer.concat(chunks).toString('utf8'))}
+export async function all(prefix,limit=300){let cursor,rows=[];do{const r=await list({prefix,cursor,limit:100});rows.push(...r.blobs);cursor=r.hasMore?r.cursor:null}while(cursor&&rows.length<limit);return rows.slice(0,limit)}
+export async function documents(user,id){const rows=await all(casePrefix(user,id)+'docs/');const meta=await Promise.all(rows.filter(r=>r.pathname.endsWith('.json')).map(r=>readJson(r.pathname).catch(()=>null)));return meta.filter(Boolean).sort((a,b)=>a.createdAt.localeCompare(b.createdAt))}
+export async function messages(user,id){const rows=await all(casePrefix(user,id)+'messages/',500);const meta=await Promise.all(rows.filter(r=>r.pathname.endsWith('.json')).map(r=>readJson(r.pathname).catch(()=>null)));return meta.filter(Boolean).sort((a,b)=>a.createdAt.localeCompare(b.createdAt))}
+export async function saveMessage(user,id,role,content){const createdAt=new Date().toISOString(),uuid=randomUUID();const m={id:uuid,role,content,createdAt};await put(casePrefix(user,id)+'messages/'+createdAt.replace(/[:.]/g,'-')+'-'+uuid+'.json',JSON.stringify(m),{access:'private',addRandomSuffix:false,allowOverwrite:false,contentType:'application/json'});return m}
+export default async function handler(req,res){
+const auth=guard(req);if(auth.error)return respond(res,auth.status,{error:auth.error});const {user}=auth;
+if(!process.env.BLOB_READ_WRITE_TOKEN)return respond(res,503,{error:'서버 저장소 설정 필요'});
+const id=String(req.query?.caseId||'');if(!caseOk(id))return respond(res,400,{error:'사건 ID 형식 오류'});
+const prefix=casePrefix(user,id);
+if(req.method==='GET'){
+try{if(req.query?.view){const doc=String(req.query.view);if(!/^[0-9a-f-]{36}$/.test(doc))return respond(res,400,{error:'문서 ID 오류'});const meta=await readJson(prefix+'docs/'+doc+'.json');if(!meta)return respond(res,404,{error:'문서 없음'});const blob=await get(prefix+'pdf/'+doc+'.pdf',{access:'private'});if(!blob||blob.statusCode!==200)return respond(res,404,{error:'파일 없음'});res.setHeader('Content-Type','application/pdf');res.setHeader('Content-Disposition','inline; filename="document.pdf"');res.setHeader('Cache-Control','private, no-store');for await(const c of blob.stream)res.write(c);return res.end()}
+return respond(res,200,{documents:await documents(user,id),messages:await messages(user,id)});
+}catch(e){return respond(res,502,{error:'사건 자료 조회 실패'})}}
+if(req.method!=='POST')return respond(res,405,{error:'GET/POST만 허용'});
+if(Number(req.headers['content-length']||0)>8500000)return respond(res,413,{error:'PDF는 파일당 5MB 이하만 지원합니다'});
+const b=typeof req.body==='string'?JSON.parse(req.body):req.body;
+if(b?.action!=='upload'||typeof b.name!=='string'||typeof b.data!=='string'||b.data.length>7500000)return respond(res,400,{error:'업로드 형식 오류'});
+const filename=b.name.replace(/[\\/\x00-\x1f]/g,'').slice(0,140);if(!/\.pdf$/i.test(filename))return respond(res,400,{error:'PDF만 지원'});
+let buf;try{buf=Buffer.from(b.data,'base64')}catch{return respond(res,400,{error:'파일 디코딩 실패'})}
+if(buf.length<100||buf.length>5*1024*1024||buf.subarray(0,5).toString()!=='%PDF-')return respond(res,400,{error:'유효한 5MB 이하 PDF를 첨부해 주세요'});
+let pages=[];try{const pdf=(await import('pdf-parse')).default;let page=0;await pdf(buf,{max:100,pagerender:async p=>{const n=++page;const text=await p.getTextContent();let lastY,lines=[];for(const item of text.items){if(lastY!==undefined&&lastY!==item.transform?.[5])lines.push('\n');lines.push(item.str||'');lastY=item.transform?.[5]}pages.push({page:n,text:lines.join(' ').slice(0,16000)});return ''}})}catch(e){return respond(res,422,{error:'PDF 본문 추출 실패. 암호화 또는 손상된 파일인지 확인해 주세요'})}
+if(!pages.length)return respond(res,422,{error:'페이지를 읽을 수 없는 PDF입니다'});
+const uuid=randomUUID(),createdAt=new Date().toISOString(),meta={id:uuid,name:filename,size:buf.length,createdAt,side:'customer',pageCount:pages.length,readablePages:pages.filter(p=>p.text.trim().length>=15).length,status:pages.some(p=>p.text.trim().length<15)?'일부 페이지 텍스트 없음 (스캔 가능성)':'본문 추출 완료'};
+try{await put(prefix+'pdf/'+uuid+'.pdf',buf,{access:'private',addRandomSuffix:false,allowOverwrite:false,contentType:'application/pdf'});await put(prefix+'extracted/'+uuid+'.json',JSON.stringify({pages}),{access:'private',addRandomSuffix:false,allowOverwrite:false,contentType:'application/json'});await put(prefix+'docs/'+uuid+'.json',JSON.stringify(meta),{access:'private',addRandomSuffix:false,allowOverwrite:false,contentType:'application/json'});return respond(res,200,{document:meta})}catch(e){return respond(res,502,{error:'PDF 서버 저장 실패'})}
+}
