@@ -116,7 +116,7 @@ export default async function handler(req,res){
   return res.status(200).json({status:'blocked',reason:'INVALID_PAGE_SEQUENCE'});
  }
  if(selectedPages.length===0)throw Error('EMPTY_PAGE_BATCH');
- const digestAudit=verifyPageDigests(selectedPages);
+ const digestAudit=verifyPageDigests(selectedPages,{requireDigests:true});
  if(!digestAudit.complete){await advanceJob(job,'source_digest_mismatch',{...previous,nextDocument:index,nextPage:pageOffset,failures:digestAudit.failures.slice(0,20)},'blocked','SOURCE_DIGEST_MISMATCH');return res.status(200).json({status:'blocked',reason:'SOURCE_DIGEST_MISMATCH'})}
  const segmented=segmentRecord({scope:'customer',documentId:d.id,pages:selectedPages});
  if(!auditSegments(selectedPages,segmented.segments).complete)throw Error('SEGMENT_AUDIT');
