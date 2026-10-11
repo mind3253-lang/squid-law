@@ -1,0 +1,41 @@
+name: Production public API smoke
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'api/customer-*.js'
+      - 'api/admin-db-health.js'
+      - 'scripts/customer-db-migrate.mjs'
+      - 'vercel.json'
+      - '.github/workflows/production-smoke.yml'
+  workflow_dispatch:
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - name: Wait for deployment propagation
+        run: sleep 35
+      - name: Verify public site and unauthenticated API boundaries
+        shell: bash
+        run: |
+          set -euo pipefail
+          origin='https://squidlaw.co.kr'
+          check() {
+            local path="$1" expected="$2" actual
+            actual=$(curl --silent --show-error --location --max-time 20 --output /dev/null --write-out '%{http_code}' "$origin$path")
+            if [[ "$actual" != "$expected" ]]; then
+              echo "FAIL $path expected $expected got $actual"
+              exit 1
+            fi
+            echo "PASS $path HTTP $actual"
+          }
+          check '/' 200
+          check '/api/customer-auth' 200
+          check '/api/customer-cases' 401
+          check '/api/customer-case?caseId=SL-test000' 401
+          check '/api/customer-analysis-history?caseId=SL-test000' 401
+          check '/api/admin-db-health' 401
+          actual=$(curl --silent --show-error --max-time 20 --output /dev/null --write-out '%{http_code}' --request POST --header 'Content-Type: application/json' --data '{"caseId":"SL-test000","messages":[{"role":"user","content":"test"}]}' "$origin/api/customer-analysis")
+          [[ "$actual" == 401 ]] || { echo "FAIL customer-analysis POST expected 401 got $actual"; exit 1; }
+          echo "PASS customer-analysis POST HTTP 401"

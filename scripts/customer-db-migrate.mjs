@@ -9,9 +9,16 @@ else{
   client=await pool.connect();
   await client.query('BEGIN');
   await client.query(readFileSync(new URL('../db/customer-analysis-leases.sql',import.meta.url),'utf8'));
+  const ping=await client.query('SELECT 1 AS healthy');
+  if(ping.rows[0]?.healthy!==1)throw Error('Database ping failed');
   const check=await client.query("SELECT column_name FROM information_schema.columns WHERE table_schema=current_schema() AND table_name='customer_analysis_leases'");
   const names=new Set(check.rows.map(r=>r.column_name));
-  for(const key of ['customer_key','case_id','request_id','request_hash','owner_token','fencing_token','status','lease_expires_at','last_completed_step','result_id'])if(!names.has(key))throw Error('Missing required column: '+key);
+  for(const key of ['customer_key','case_id','request_id','request_hash','owner_token','fencing_token','status','lease_expires_at','attempt','last_completed_step','result_id','created_at','updated_at'])if(!names.has(key))throw Error('Missing required column: '+key);
+  const constraints=await client.query("SELECT contype,pg_get_constraintdef(oid) AS definition FROM pg_constraint WHERE conrelid='customer_analysis_leases'::regclass");
+  if(!constraints.rows.some(x=>x.contype==='p'&&x.definition.includes('customer_key')&&x.definition.includes('case_id')&&x.definition.includes('request_id')))throw Error('Lease primary key missing');
+  if(!constraints.rows.some(x=>x.contype==='c'&&x.definition.includes('recovery_required')))throw Error('Lease status constraint missing');
+  const index=await client.query("SELECT indexname FROM pg_indexes WHERE schemaname=current_schema() AND tablename='customer_analysis_leases'");
+  if(!index.rows.some(x=>x.indexname==='customer_analysis_leases_expiry'))throw Error('Lease expiry index missing');
   await client.query('COMMIT');
   console.log('Customer lease schema ready (dedicated customer DB)');
  }catch(e){if(client)await client.query('ROLLBACK').catch(()=>{});console.error('Customer schema migration failed:',e.message);process.exitCode=1}
