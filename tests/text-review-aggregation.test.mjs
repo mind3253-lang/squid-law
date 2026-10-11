@@ -40,3 +40,8 @@ test('reject missing final chunk on a page',()=>{
  const changed=outputs.map((o,i)=>i?o:{...o,payload:{...o.payload,results:o.payload.results.map(r=>r.page===3?{...r,parts:2}:r)}});
  assert.throws(()=>aggregateTextReview({caseId:'case',sourceVersion:version,root,documents:docs,outputs:changed}),/TEXT_PAGE_UNIT_COVERAGE_INCOMPLETE/);
 });
+
+test('unexpected persisted batch path must not pass manifest audit',()=>{
+ const extra={path:root+'other-00000000.json',payload:outputs[0].payload};
+ assert.throws(()=>aggregateTextReview({caseId:'case',sourceVersion:version,root,documents:docs,outputs:[...outputs,extra]}),/TEXT_OUTPUT_MANIFEST_MISMATCH/);
+});
