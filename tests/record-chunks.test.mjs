@@ -95,3 +95,10 @@ test('text segment with OCR placeholder status cannot pass',()=>{
  assert.equal(auditSegments(pages,units).complete,true);
  assert.equal(auditSegments(pages,[{...units[0],status:'ocr_required'}]).complete,false);
 });
+
+test('reject empty or malformed extracted chunk',()=>{
+ const pages=[{page:1,text:'original'}];
+ const chunks=segmentRecord({scope:'customer',documentId:'a',pages}).segments;
+ assert.equal(auditSegments(pages,[{...chunks[0],part:0}]).complete,false);
+ assert.equal(auditSegments(pages,[{...chunks[0],status:'unknown'}]).complete,false);
+});
