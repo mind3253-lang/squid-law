@@ -31,23 +31,28 @@ export default async function handler(req,res){
   return res.status(200).json({status:'blocked',reason:'PAGE_EXTRACTION_INCOMPLETE'});
  }
  const corpus=prepareCorpus('customer',[{id:d.id,name:d.name,pageCount:d.pageCount,pages:e.pages}]);
- const units=corpus.units,results=units.map(analyzeUnit),audit=independentlyVerify(units,results);
+ const pageOffset=Number.isSafeInteger(previous.nextPage)&&previous.nextDocument===index?previous.nextPage:0;
+ const selectedPages=e.pages.slice(pageOffset,pageOffset+20);
+ const selected=prepareCorpus('customer',[{id:d.id,name:d.name,pageCount:selectedPages.length,pages:selectedPages.map((p,i)=>({...p,page:i+1}))}]);
+ const units=selected.units.map(u=>({...u,page:selectedPages[u.page-1].page,hash:u.hash}));
+ const results=units.map(analyzeUnit),audit=independentlyVerify(units,results);
  if(!audit.complete){
   await advanceJob(job,'ocr_required',{...previous,nextDocument:index,documentId:d.id,missing:audit.missing.slice(0,100)},'blocked','OCR_REQUIRED');
   return res.status(200).json({status:'blocked',reason:'OCR_REQUIRED'});
  }
- const output='squidlaw/analysis-jobs/'+job.customerKey+'/'+job.caseId+'/'+job.jobId+'/'+d.id+'.json';
- const payload={documentId:d.id,sourceVersion:job.documentVersion,unitCount:units.length,pageCount:d.pageCount,verifiedText:true,visualVerified:false,results};
+ const output='squidlaw/analysis-jobs/'+job.customerKey+'/'+job.caseId+'/'+job.jobId+'/'+d.id+'-'+String(pageOffset).padStart(8,'0')+'.json';
+ const payload={documentId:d.id,sourceVersion:job.documentVersion,unitCount:units.length,pageCount:selectedPages.length,pageStart:pageOffset+1,verifiedText:true,visualVerified:false,results};
  const existing=await load(output);
  if(existing&&existing.sourceVersion!==job.documentVersion)throw Error('RESULT_VERSION_MISMATCH');
  if(!existing)await put(output,JSON.stringify(payload),{access:'private',allowOverwrite:false,addRandomSuffix:false,contentType:'application/json'});
- const checkpoint={nextDocument:index+1,documentCount:docs.length,lastDocumentId:d.id,lastOutput:output,verifiedTextDocuments:index+1};
- if(index+1===docs.length){
+ const finished=pageOffset+selectedPages.length>=d.pageCount;
+ const checkpoint={nextDocument:finished?index+1:index,nextPage:finished?0:pageOffset+selectedPages.length,documentCount:docs.length,lastDocumentId:d.id,lastOutput:output,verifiedTextDocuments:finished?index+1:index};
+ if(finished&&index+1===docs.length){
   await advanceJob(job,'text_review_completed_visual_pending',checkpoint,'blocked','VISUAL_EVIDENCE_NOT_VERIFIED');
   return res.status(200).json({status:'blocked',reason:'VISUAL_EVIDENCE_NOT_VERIFIED',verifiedTextDocuments:docs.length});
  }
  await advanceJob(job,'text_review_checkpoint',checkpoint,'retry');
- return res.status(200).json({status:'retry',processed:index+1,total:docs.length});
+ return res.status(200).json({status:'retry',processedDocuments:checkpoint.verifiedTextDocuments,processedPages:checkpoint.nextPage,totalDocuments:docs.length});
 
  }catch(e){if(job){try{await advanceJob(job,'error',{message:String(e.message||e).slice(0,250)},job.attempts>=job.maxAttempts?'failed':'retry','WORKER_ERROR')}catch{}}return res.status(503).json({error:'WORKER_ERROR'})}
 }
