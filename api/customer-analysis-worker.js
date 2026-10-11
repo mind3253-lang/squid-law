@@ -5,6 +5,7 @@ import {segmentRecord,auditSegments} from '../lib/record-chunks.mjs';
 import {analyzeUnit,independentlyVerify,crosscheckObservations} from '../lib/legal-evidence-review.mjs';
 import {put} from '@vercel/blob';
 import {candidateDocuments,mergeDocumentBoundaryCandidates} from './customer-document-boundaries.js';
+import {extractPdfPages} from './customer-pdf-extract.js';
 import {planVisualEvidence} from '../lib/visual-evidence.mjs';
 import {assertPageBatch,assertBatchManifest} from '../lib/batch-integrity.mjs';
 import {expectedTextReviewOutputs,auditTextReviewOutputs} from '../lib/text-review-manifest.mjs';
