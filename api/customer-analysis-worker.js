@@ -94,11 +94,13 @@ export default async function handler(req,res){
   await put(intermediateReportPath,JSON.stringify(intermediateReport),{access:'private',allowOverwrite:true,addRandomSuffix:false,contentType:'application/json'});
   await put(aggregatePath,JSON.stringify(aggregate),{access:'private',allowOverwrite:true,addRandomSuffix:false,contentType:'application/json'});
   const sourceIndexPath=root+'source-unit-index.json';
-  await put(sourceIndexPath,JSON.stringify({caseId:job.caseId,sourceVersion:job.documentVersion,sources}),{access:'private',allowOverwrite:true,addRandomSuffix:false,contentType:'application/json'});
+  const sourceIndexPayload={caseId:job.caseId,sourceVersion:job.documentVersion,sources};
+  const sourceIndexSha256=createHash('sha256').update(JSON.stringify(sourceIndexPayload)).digest('hex');
+  await put(sourceIndexPath,JSON.stringify(sourceIndexPayload),{access:'private',allowOverwrite:true,addRandomSuffix:false,contentType:'application/json'});
   const partPaths=Array.from({length:Math.ceil(descriptors.length/8)},(_,i)=>root+'finalize-parts/'+String(i*8).padStart(8,'0')+'.json');
   const legalReasoningRequestPath=root+'legal-reasoning-request.json';
   const aggregateSha256=createHash('sha256').update(JSON.stringify(aggregate)).digest('hex');
-  const legalRequest=buildLegalReasoningRequest({caseId:job.caseId,sourceVersion:job.documentVersion,aggregatePath,aggregateSha256,partPaths,partDigests:previous.finalizePartDigests});
+  const legalRequest=buildLegalReasoningRequest({caseId:job.caseId,sourceVersion:job.documentVersion,aggregatePath,aggregateSha256,sourceIndexPath,sourceIndexSha256,partPaths,partDigests:previous.finalizePartDigests});
   await put(legalReasoningRequestPath,JSON.stringify(legalRequest),{access:'private',allowOverwrite:true,addRandomSuffix:false,contentType:'application/json'});
   await put(manifestPath,JSON.stringify({caseId:job.caseId,sourceVersion:job.documentVersion,documents:docs.map(x=>({id:x.id,pageCount:x.pageCount})),outputs:expectedTextReviewOutputs({root,documents:docs}),aggregateSha256,verifiedVisual:false,verifiedLegal:false,analysisComplete:false,pendingStages:ANALYSIS_STAGES.slice(2)}),{access:'private',allowOverwrite:true,addRandomSuffix:false,contentType:'application/json'});
   await advanceJob(job,'text_review_completed_visual_pending',{...previous,textReviewManifest:manifestPath,textReviewAggregate:aggregatePath,textReviewIntermediateReport:intermediateReportPath,legalReasoningRequest:legalReasoningRequestPath,sourceUnitIndex:sourceIndexPath},'blocked','VISUAL_EVIDENCE_NOT_VERIFIED');
