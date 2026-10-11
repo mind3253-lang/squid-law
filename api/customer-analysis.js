@@ -56,7 +56,7 @@ if(reqId){
   if(checkpoint?.completed&&lease.kind==='resume_saving'){await advanceCustomerLease(lease,b.caseId,reqId,'completed','completed',checkpoint.result?.id||null);return send(res,200,{...checkpoint.completed.response,requestId:reqId,status:'completed',reused:true})}
   if(checkpoint?.completed)return send(res,409,{code:'RECOVERY_REQUIRED',error:'DB 완료 상태 확인이 필요합니다.',requestId:reqId});
   if(lease.kind==='resume_saving'&&!checkpoint?.draft)return send(res,409,{code:'RECOVERY_REQUIRED',error:'Draft가 확인되지 않아 AI 재호출을 차단했습니다.',requestId:reqId});
-  if(checkpoint&&!checkpoint.draft)return send(res,409,{error:'이전 분석 실행 상태가 불확실합니다. 중복 AI 호출 방지를 위해 자동 재실행하지 않습니다.',requestId:reqId,status:checkpoint.status,retryable:false});
+  if(checkpoint&&!checkpoint.draft&&lease.kind!=='acquired')return send(res,409,{error:'이전 분석 실행 상태가 불확실합니다. 중복 AI 호출 방지를 위해 자동 재실행하지 않습니다.',requestId:reqId,status:checkpoint.status,retryable:false});
   if(!checkpoint){
    await saveImmutable(paths.initial,{requestId:reqId,caseId:b.caseId,requestHash:hashValue,createdAt:new Date().toISOString()});
    checkpoint=await requestState(user,b.caseId,reqId);
