@@ -34,6 +34,16 @@ export default async function handler(req,res){
   if(buf.length!==size||buf.subarray(0,5).toString()!=='%PDF-')return respond(res,422,{error:'PDF 파일 검증 실패'});
   const sha256=createHash('sha256').update(buf).digest('hex'),existing=(await documents(user,id)).find(d=>d.sha256===sha256);
   if(existing){await Promise.allSettled(paths.map(p=>del(p)));return respond(res,200,{document:existing,duplicate:true})}
+  if(action==='stage'){
+   let totalPages;try{totalPages=await inspectPdfPageCount(buf)}catch{return respond(res,422,{error:'PDF 페이지 수 확인 실패'})}
+   const uuid=randomUUID(),createdAt=new Date().toISOString();
+   const meta={id:uuid,name,sha256,size:buf.length,createdAt,side:'customer',pageCount:totalPages,extractedPages:0,excludedPages:totalPages,readablePages:0,imageOperatorPages:0,unscannedVisualPages:totalPages,visualVerified:false,status:'extraction_pending',extractionNextPage:1};
+   await put(prefix+'pdf/'+uuid+'.pdf',buf,{access:'private',addRandomSuffix:false,allowOverwrite:false,contentType:'application/pdf'});
+   await put(prefix+'docs/'+uuid+'.json',JSON.stringify(meta),{access:'private',addRandomSuffix:false,allowOverwrite:false,contentType:'application/json'});
+   await Promise.allSettled(paths.map(p=>del(p)));
+   return respond(res,202,{document:meta,extractionPending:true});
+  }
+
   let extracted;try{extracted=await extractPdfPages(buf)}catch{return respond(res,422,{error:'PDF 본문 추출 실패. 암호 또는 파일 손상을 확인해 주세요'})}
   const {pages,totalPages}=extracted;for(const page of pages)page.textSha256=createHash('sha256').update(String(page.text||'')).digest('hex');if(!pages.length)return respond(res,422,{error:'PDF 텍스트 추출 실패'});
   const uuid=randomUUID(),createdAt=new Date().toISOString();
