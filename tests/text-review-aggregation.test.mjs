@@ -57,3 +57,14 @@ test('streaming aggregation rejects missing and duplicate page parts',async()=>{
  const loadBatch=async path=>path===outputs[0].path?{...byPath.get(path),results:byPath.get(path).results.slice(1),unitCount:19}:byPath.get(path);
  await assert.rejects(aggregateTextReviewStreaming({caseId:'case',sourceVersion:version,root,documents:docs,loadBatch}),/INCOMPLETE_PERSISTED_PAGE/);
 });
+
+test('10001-page streaming audit never skips the final partial batch',async()=>{
+ const many=[{id:'huge',pageCount:10001}];let loads=0,last='';
+ const result=await aggregateTextReviewStreaming({caseId:'large',sourceVersion:version,root,documents:many,loadBatch:async path=>{
+  loads++;last=path;
+  const offset=Number(path.match(/-(\d{8})\.json$/)[1]),count=Math.min(20,10001-offset);
+  return {documentId:'huge',sourceVersion:version,pageStart:offset+1,pageCount:count,verifiedText:true,visualVerified:false,visualInventoryComplete:false,unitCount:count,results:Array.from({length:count},(_,i)=>({...unit(offset+i+1),documentId:'huge'}))};
+ }});
+ assert.equal(loads,501);assert.equal(last,root+'huge-00010000.json');
+ assert.equal(result.observationCount,10001);assert.equal(result.coverage[0].pages,10001);
+});
