@@ -9,7 +9,7 @@ async function authorized(req){
  if(header.startsWith('Bearer ')&&header.length<8192){
   try{
    const {payload}=await jwtVerify(header.slice(7),githubKeys,{issuer:'https://token.actions.githubusercontent.com',audience:'squidlaw-production-health',algorithms:['RS256']});
-   return payload.repository==='mind3253-lang/squid-law'&&payload.repository_owner==='mind3253-lang'&&payload.ref==='refs/heads/main'&&payload.sub==='repo:mind3253-lang/squid-law:ref:refs/heads/main'&&payload.workflow_ref==='mind3253-lang/squid-law/.github/workflows/production-db-health.yml@refs/heads/main'&&['push','workflow_dispatch'].includes(payload.event_name);
+   return payload.repository==='mind3253-lang/squid-law'&&payload.repository_owner==='mind3253-lang'&&payload.ref==='refs/heads/main'&&typeof payload.sub==='string'&&payload.sub.startsWith('repo:mind3253-lang@')&&payload.sub.includes('/squid-law@')&&payload.sub.endsWith(':ref:refs/heads/main')&&payload.workflow_ref==='mind3253-lang/squid-law/.github/workflows/production-db-health.yml@refs/heads/main'&&['push','workflow_dispatch'].includes(payload.event_name);
   }catch{return false}
  }
  if(!expected||!header.startsWith('Basic ')||header.length>1024)return false;
