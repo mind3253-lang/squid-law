@@ -62,3 +62,16 @@ Wire actual page/image extraction and OCR into the durable worker, move full-fil
 - `lib/case-crosscheck.mjs` detects polarity-based *candidates* across different source documents with a bounded output; semantic contradictions are **not verified**. The mock pipeline includes these candidates and date/amount cross-document matches.
 - New tests cover 338/10,001 page batches, boundary merges and contradictory-pleading candidates.
 - The worker still has no end-to-end finalizer; its blocked visual state is intentional until a real inventory, OCR and semantic audit are wired.
+
+## Subsequent structural work
+- `lib/analysis-stage-gates.mjs` and `lib/analysis-pipeline-state.mjs` enforce ten ordered stages and prevent completion from text-only checkpoints. `lib/analysis-receipts.mjs` supplies deterministic integrity digests (not cryptographic signatures).
+- `lib/legal-reasoning-provider.mjs` creates source-anchored model prompts, rejects invented quotes/pages and refuses oversized contexts rather than truncating. `lib/reasoning-partitions.mjs` partitions long records without dropping units.
+- `lib/legal-audit-provider.mjs` defines a separate reviewer model contract and validates findings. `lib/case-finalizer.mjs` requires complete stage receipts, independent case audit and distinct live provider response IDs. **No actual paid provider calls are implemented by these modules.**
+- `lib/pdf-page-renderer.mjs` defines a bounded rasterization adapter requiring an injected canvas implementation; the concrete production canvas renderer is not yet connected. `lib/visual-processing-plan.mjs` builds gated vision requests from rendered pages, with whole-batch budget checks.
+- `lib/text-review-manifest.mjs` validates that every expected output batch exists. Customer worker now saves the text-review manifest only after output coverage checks.
+- `lib/page-digests.mjs` validates extracted page text against stored SHA-256 hashes. New customer PDF uploads persist these hashes; older uploads remain supported and are identified as legacy.
+- Customer chat UI now labels its answers as *partial-page question responses*, not full-case legal analysis. SKYNET and customer responses expose the actual model ID returned by the API when present. SKYNET PDF batches share the preliminary visual review plan and explicitly mark inventory incomplete.
+- New tests cover all the above contracts; production build is configured to run the full `tests/*.test.mjs` suite.
+
+### Do not confuse contracts with operational completeness
+The new stage state machine, legal model request/response schemas, visual rasterizer adapter and finalizer are **not** yet wired into a complete production background job. A renderer implementation, real vision/OCR, durable per-stage scheduling, independent legal reasoning calls and full-case end-to-end verification remain. Never label these items completed solely because mock tests pass.
