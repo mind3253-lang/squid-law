@@ -82,3 +82,16 @@ test('manifest rejects unsafe document path identifiers',async()=>{
  const {expectedTextReviewOutputs}=await import('../lib/text-review-manifest.mjs');
  for(const id of ['../outside','other/file','',null])assert.throws(()=>expectedTextReviewOutputs({root,documents:[{id,pageCount:1}]}),/INVALID_DOCUMENT_PAGES/);
 });
+
+test('streamed batch loads stay within eight concurrent reads',async()=>{
+ let inflight=0,peak=0;
+ const result=await aggregateTextReviewStreaming({caseId:'bounded',sourceVersion:version,root,documents:[{id:'doc',pageCount:338}],loadBatch:async path=>{
+  inflight++;peak=Math.max(peak,inflight);
+  await Promise.resolve();
+  const offset=Number(path.slice(-13,-5)),count=Math.min(20,338-offset);
+  inflight--;
+  return {documentId:'doc',sourceVersion:version,pageStart:offset+1,pageCount:count,verifiedText:true,visualVerified:false,visualInventoryComplete:false,unitCount:count,results:Array.from({length:count},(_,i)=>unit(offset+i+1))};
+ }});
+ assert.equal(result.observationCount,338);
+ assert.ok(peak<=8&&peak>1);
+});
