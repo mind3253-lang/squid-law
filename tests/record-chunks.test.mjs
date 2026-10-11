@@ -88,3 +88,10 @@ test('segment audit rejects mixed document and invalid original pages',()=>{
  assert.equal(auditSegments([null],a).complete,false);
  assert.equal(auditSegments([],[]).complete,false);
 });
+
+test('text segment with OCR placeholder status cannot pass',()=>{
+ const pages=[{page:1,text:'original'}];
+ const units=segmentRecord({scope:'customer',documentId:'a',pages}).segments;
+ assert.equal(auditSegments(pages,units).complete,true);
+ assert.equal(auditSegments(pages,[{...units[0],status:'ocr_required'}]).complete,false);
+});
