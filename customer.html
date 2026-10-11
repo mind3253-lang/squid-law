@@ -7,7 +7,7 @@
 <link rel="stylesheet" href="site.css">
 <link rel="stylesheet" href="squid-case-sidebar.css">
 <script src="squid-case-sidebar.js" defer></script>
-<script src="squid-case-preview.js" defer></script>
+<script src="squid-case-preview.js" defer></script><script>fetch("/api/customer-auth",{credentials:"same-origin",cache:"no-store"}).then(r=>r.json()).then(d=>{if(!d.authenticated)location.replace("login.html?next="+encodeURIComponent(location.pathname+location.search))}).catch(()=>location.replace("login.html"));</script>
 <style>
 .analysis-clean{min-height:65vh}
 .analysis-clean .analysis-heading{padding:50px 0 28px;border-bottom:1px solid #e5eaf0}
