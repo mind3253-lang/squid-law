@@ -139,3 +139,13 @@ test('boundary candidates merge across extraction batches without dropping pages
  assert.equal(merged.verified,false);
  assert.throws(()=>mergeDocumentBoundaryCandidates({documentId:'source',pageCount:41,batches:batches.slice(0,2)}),/INCOMPLETE_BOUNDARY_COVERAGE/);
 });
+
+test('claim role summary never implies verified legal reasoning',async()=>{
+ const {summarizeClaimRoles}=await import('../lib/text-review-aggregation.mjs');
+ const result=summarizeClaimRoles([{claimCandidates:[{candidateType:'claim'},{candidateType:'rebuttal'},{candidateType:'counterclaim'},{candidateType:'admission'}]}]);
+ assert.equal(result.counts.claim,1);
+ assert.equal(result.counts.rebuttal,1);
+ assert.equal(result.counts.counterclaim,1);
+ assert.equal(result.counts.admission,1);
+ assert.equal(result.verified,false);
+});
