@@ -35,3 +35,9 @@ export async function extractPdfPages(buffer,maxPages=Infinity){
   return {pages,totalPages,startPage:range.startPage,endPage:range.endPage,finished:range.endPage===totalPages};
  }finally{await task.destroy()}
 }
+
+export async function inspectPdfPageCount(buffer){
+ const task=getDocument({data:new Uint8Array(buffer),useSystemFonts:true,disableFontFace:true});
+ try{const pdf=await task.promise;return pdf.numPages}
+ finally{await task.destroy()}
+}
