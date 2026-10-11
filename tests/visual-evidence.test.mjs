@@ -54,3 +54,13 @@ test('visual plan source digest and document identity cannot be forged',()=>{
  assert.equal(validateVisualResult(p,r).complete,true);
  assert.equal(validateVisualResult({...p,pages:[{...p.pages[0],documentId:'other'}]},r).complete,false);
 });
+
+test('PDF image paint operations are inventoried without claiming image verification',async()=>{
+ const {countImagePaintOperations}=await import('../api/customer-pdf-extract.js');
+ const {OPS}=await import('pdfjs-dist/legacy/build/pdf.mjs');
+ assert.equal(countImagePaintOperations({fnArray:[OPS.paintImageXObject,OPS.paintInlineImageXObject,OPS.beginText]}),2);
+ const plan=planVisualEvidence({documentId:'d',pages:[{page:1,text:'텍스트',imageOperatorCount:2}]});
+ assert.equal(plan.pages[0].imageOperatorCount,2);
+ assert.equal(plan.pages[0].requiresVisualReview,true);
+ assert.equal(plan.inventoryComplete,false);
+});
