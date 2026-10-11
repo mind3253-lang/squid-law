@@ -134,7 +134,7 @@ export default async function handler(req,res){
   do{const page=await blob.list({prefix:root,limit:1000,...(resultCursor?{cursor:resultCursor}:{})});actual.push(...page.blobs.filter(x=>/^[^/]+-\d{8}\.json$/.test(x.pathname.slice(root.length))).map(x=>x.pathname));resultCursor=page.hasMore?page.cursor:null}while(resultCursor);
   const outputAudit=auditTextReviewOutputs({expected,actual});
   if(!outputAudit.complete){await advanceJob(job,'text_review_output_incomplete',{...checkpoint,missingOutputs:outputAudit.missing.slice(0,50)},'blocked','TEXT_REVIEW_OUTPUT_INCOMPLETE');return res.status(200).json({status:'blocked',reason:'TEXT_REVIEW_OUTPUT_INCOMPLETE'})}
-  await advanceJob(job,'text_review_finalize_checkpoint',{...checkpoint,finalizeOffset:0,finalizeUnitCount:0},'retry');
+  await advanceJob(job,'text_review_finalize_checkpoint',{...checkpoint,finalizeOffset:0,finalizeUnitCount:0,finalizePartDigests:[]},'retry');
   return res.status(200).json({status:'retry',stage:'text_review_finalize_checkpoint'});
 
  }
