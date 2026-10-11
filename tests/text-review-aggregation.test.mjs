@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {aggregateTextReview} from '../lib/text-review-aggregation.mjs';
+import {aggregateTextReview,aggregateTextReviewStreaming} from '../lib/text-review-aggregation.mjs';
 const version='a'.repeat(64),root='private/job/';
 const docs=[{id:'doc',pageCount:21}];
 const unit=page=>({status:'verified',documentId:'doc',page,part:1,parts:1,hash:'a'.repeat(64),textHash:'b'.repeat(64),claimCandidates:[],observations:[]});
@@ -44,4 +44,16 @@ test('reject missing final chunk on a page',()=>{
 test('unexpected persisted batch path must not pass manifest audit',()=>{
  const extra={path:root+'other-00000000.json',payload:outputs[0].payload};
  assert.throws(()=>aggregateTextReview({caseId:'case',sourceVersion:version,root,documents:docs,outputs:[...outputs,extra]}),/TEXT_OUTPUT_MANIFEST_MISMATCH/);
+});
+
+test('streaming aggregate matches persisted batch coverage',async()=>{
+ const byPath=new Map(outputs.map(o=>[o.path,o.payload]));
+ const streamed=await aggregateTextReviewStreaming({caseId:'case',sourceVersion:version,root,documents:docs,loadBatch:async path=>byPath.get(path)});
+ const original=aggregateTextReview({caseId:'case',sourceVersion:version,root,documents:docs,outputs});
+ assert.deepEqual(streamed,original);
+});
+test('streaming aggregation rejects missing and duplicate page parts',async()=>{
+ const byPath=new Map(outputs.map(o=>[o.path,o.payload]));
+ const loadBatch=async path=>path===outputs[0].path?{...byPath.get(path),results:byPath.get(path).results.slice(1),unitCount:19}:byPath.get(path);
+ await assert.rejects(aggregateTextReviewStreaming({caseId:'case',sourceVersion:version,root,documents:docs,loadBatch}),/INCOMPLETE_PERSISTED_PAGE/);
 });
