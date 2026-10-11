@@ -6,7 +6,7 @@ import {analyzeUnit,independentlyVerify,crosscheckObservations} from '../lib/leg
 import {put} from '@vercel/blob';
 import {candidateDocuments,mergeDocumentBoundaryCandidates} from './customer-document-boundaries.js';
 import {extractPdfPages} from './customer-pdf-extract.js';
-import {planVisualEvidence} from '../lib/visual-evidence.mjs';
+import {planVisualEvidence,buildVisualWorkQueue} from '../lib/visual-evidence.mjs';
 import {assertPageBatch,assertBatchManifest} from '../lib/batch-integrity.mjs';
 import {expectedTextReviewOutputs,auditTextReviewOutputs} from '../lib/text-review-manifest.mjs';
 import {verifyPageDigests} from '../lib/page-digests.mjs';
