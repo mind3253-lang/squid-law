@@ -72,8 +72,9 @@ export default async function handler(req,res){
  if(finished&&index+1===docs.length){
   const root='squidlaw/analysis-jobs/'+job.customerKey+'/'+job.caseId+'/'+job.jobId+'/';
   const expected=expectedTextReviewOutputs({root,documents:docs});
+  const expectedPaths=new Set(expected);
   const actual=[];let resultCursor;
-  do{const page=await blob.list({prefix:root,limit:1000,...(resultCursor?{cursor:resultCursor}:{})});actual.push(...page.blobs.filter(x=>expected.includes(x.pathname)).map(x=>x.pathname));resultCursor=page.hasMore?page.cursor:null}while(resultCursor);
+  do{const page=await blob.list({prefix:root,limit:1000,...(resultCursor?{cursor:resultCursor}:{})});actual.push(...page.blobs.filter(x=>expectedPaths.has(x.pathname)).map(x=>x.pathname));resultCursor=page.hasMore?page.cursor:null}while(resultCursor);
   const outputAudit=auditTextReviewOutputs({expected,actual});
   if(!outputAudit.complete){await advanceJob(job,'text_review_output_incomplete',{...checkpoint,missingOutputs:outputAudit.missing.slice(0,50)},'blocked','TEXT_REVIEW_OUTPUT_INCOMPLETE');return res.status(200).json({status:'blocked',reason:'TEXT_REVIEW_OUTPUT_INCOMPLETE'})}
   // Load the exact persisted batch payloads; a pathname-only audit cannot verify contents.
