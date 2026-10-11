@@ -1,0 +1,4 @@
+import {test} from 'node:test';import {strict as assert} from 'node:assert';import {segmentRecord,auditSegments} from '../lib/record-chunks.mjs';
+test('10001 pages without truncation',()=>{const pages=Array.from({length:10001},(_,i)=>({page:i+1,text:'가'.repeat(i%3?21:21001)}));const r=segmentRecord({scope:'skynet',documentId:'d1',pages});assert.equal(r.pages,10001);assert.equal(r.characters,pages.reduce((n,p)=>n+p.text.length,0));assert.equal(auditSegments(pages,r.segments).complete,true)});
+test('OCR required',()=>{const pages=[{page:1,text:'text'},{page:2,text:''}];const r=segmentRecord({scope:'customer',documentId:'x',pages});assert.equal(r.segments.at(-1).status,'ocr_required');assert.equal(auditSegments(pages,r.segments.filter(x=>x.page!==2)).complete,false)});
+test('duplicate page rejected',()=>assert.throws(()=>segmentRecord({scope:'customer',documentId:'x',pages:[{page:1,text:'a'},{page:1,text:'b'}]})));
