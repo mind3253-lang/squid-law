@@ -1,3 +1,4 @@
+import {customerLeaseStatus} from './customer-analysis-lease-db.js';
 import {guard,respond,readJson,casePrefix} from './customer-case.js';
 import {validRequestId,requestState,publicState} from './customer-request-state.js';
 export default async function handler(req,res){
@@ -10,6 +11,6 @@ export default async function handler(req,res){
   if(!registry||registry.id!==caseId)return respond(res,404,{error:'등록된 사건이 없습니다'});
   const state=await requestState(auth.user,caseId,requestId);
   if(!state)return respond(res,404,{error:'분석 요청 기록 없음'});
-  return respond(res,200,publicState(state));
+  let lease=null;if(process.env.SQUID_CUSTOMER_DATABASE_URL)lease=await customerLeaseStatus(auth.user,caseId,requestId);return respond(res,200,{...publicState(state),status:lease?.status||state.status,lastCompletedStep:lease?.last_completed_step||state.lastCompletedStep,resultId:lease?.result_id||state.resultId,retryable:lease?.status==='completed'?false:state.retryable});
  }catch{return respond(res,502,{error:'분석 상태 조회 실패'})}
 }
