@@ -5,6 +5,8 @@ on:
     paths:
       - 'scripts/production-customer-e2e.mjs'
       - 'tests/customer-pdf-parser.test.mjs'
+      - 'api/customer-pdf-extract.js'
+      - 'api/customer-case.js'
       - '.github/workflows/production-customer-e2e.yml'
   workflow_dispatch:
 jobs:
