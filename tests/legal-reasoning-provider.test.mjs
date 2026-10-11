@@ -10,6 +10,7 @@ test('legal model response cannot invent quote or page number',()=>{
  const claim={id:'c1',type:'claim',statement:'5년 주장',sources:[source]};
  const valid=parseLegalReasoningOutput({units,response:JSON.stringify({propositions:[claim]})});
  assert.equal(valid.accepted,true);assert.equal(valid.semanticVerified,false);
+ assert.equal(parseLegalReasoningOutput({units,response:{propositions:[]}}).accepted,false);
  assert.equal(parseLegalReasoningOutput({units,response:{propositions:[{...claim,sources:[{...source,page:1}]}]}}).accepted,false);
  assert.equal(parseLegalReasoningOutput({units,response:{propositions:[{...claim,sources:[{...source,quote:'10년'}]}]}}).accepted,false);
  assert.equal(parseLegalReasoningOutput({units,response:{mock:true,propositions:[claim]}}).accepted,false);
