@@ -105,14 +105,16 @@ export default async function handler(req,res){
   if(!Number.isSafeInteger(start)||start<1||start>d.pageCount||((start-1)%20)!==0)throw Error('INVALID_EXTRACTION_CHECKPOINT');
   const bytes=await loadBinary(prefix+'pdf/'+d.id+'.pdf');
   if(!bytes||createHash('sha256').update(bytes).digest('hex')!==d.sha256)throw Error('SOURCE_PDF_DIGEST_MISMATCH');
-  const extracted=await extractPdfPages(bytes,{startPage:start,pageCount:20});
-  if(extracted.totalPages!==d.pageCount||extracted.pages.length!==Math.min(20,d.pageCount-start+1))throw Error('PDF_EXTRACTION_PAGE_MISMATCH');
+  const extracted=await extractPdfPages(bytes,{startPage:start,pageCount:100});
+  if(extracted.totalPages!==d.pageCount||extracted.pages.length!==Math.min(100,d.pageCount-start+1))throw Error('PDF_EXTRACTION_PAGE_MISMATCH');
   for(const page of extracted.pages)page.textSha256=createHash('sha256').update(String(page.text||'')).digest('hex');
-  const batchPath=prefix+'extracted/'+d.id+'/batch-'+String(start-1).padStart(8,'0')+'.json';
-  const payload={pages:extracted.pages},old=await load(batchPath);
   const digest=value=>createHash('sha256').update(JSON.stringify(value)).digest('hex');
-  if(old&&digest(old)!==digest(payload))throw Error('EXTRACTION_BATCH_CONFLICT');
-  if(!old)await put(batchPath,JSON.stringify(payload),{access:'private',allowOverwrite:false,addRandomSuffix:false,contentType:'application/json'});
+  for(let i=0;i<extracted.pages.length;i+=20){
+   const batchPath=prefix+'extracted/'+d.id+'/batch-'+String(start-1+i).padStart(8,'0')+'.json';
+   const payload={pages:extracted.pages.slice(i,i+20)},old=await load(batchPath);
+   if(old&&digest(old)!==digest(payload))throw Error('EXTRACTION_BATCH_CONFLICT');
+   if(!old)await put(batchPath,JSON.stringify(payload),{access:'private',allowOverwrite:false,addRandomSuffix:false,contentType:'application/json'});
+  }
   if(!extracted.finished){
    await advanceJob(job,'pdf_extraction_checkpoint',{...previous,nextDocument:index,nextPage:0,extractionNextPage:start+extracted.pages.length},'retry');
    return res.status(200).json({status:'retry',stage:'pdf_extraction_checkpoint',extractedPages:start+extracted.pages.length-1,totalPages:d.pageCount});
