@@ -39,7 +39,7 @@ export async function advanceJob(job,stage,checkpoint,status='running',errorCode
 
 export async function resumeJob(user,caseId,jobId,version){
  return withLeaseDb(async db=>{
-  const r=await db.query("UPDATE customer_analysis_jobs SET status='queued',stage='resume_requested',error_code=NULL,next_run_at=now(),updated_at=now() WHERE customer_key=$1 AND case_id=$2 AND job_id=$3 AND document_version=$4 AND status='blocked' RETURNING *",[key(user),caseId,jobId,version]);
+  const r=await db.query("UPDATE customer_analysis_jobs SET status='queued',stage='resume_requested',error_code=NULL,next_run_at=now(),updated_at=now() WHERE customer_key=$1 AND case_id=$2 AND job_id=$3 AND document_version=$4 AND status='blocked' AND error_code IS DISTINCT FROM 'VISUAL_EVIDENCE_NOT_VERIFIED' RETURNING *",[key(user),caseId,jobId,version]);
   return publicJob(r.rows[0]);
  });
 }
