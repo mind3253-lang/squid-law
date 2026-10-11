@@ -1,0 +1,17 @@
+import {get,list,put} from '@vercel/blob';
+import {randomBytes,scryptSync} from 'node:crypto';
+const admin=req=>{try{const a=String(req.headers.authorization||'');return !!process.env.ADMIN_PASSWORD&&a.startsWith('Basic ')&&Buffer.from(a.slice(6),'base64').toString()==='admin:'+process.env.ADMIN_PASSWORD}catch{return false}};
+const response=(res,n,data)=>res.status(n).setHeader('Cache-Control','no-store').json(data);
+const prefix='squidlaw/users/';
+export default async function handler(req,res){
+if(!admin(req))return response(res,401,{error:'SKYNET 관리자 인증 필요'});
+if(!process.env.BLOB_READ_WRITE_TOKEN)return response(res,503,{error:'회원 저장소 미설정'});
+if(req.method==='GET'){try{let cursor,users=[];do{const page=await list({prefix,limit:100,cursor});for(const f of page.blobs){if(!f.pathname.endsWith('.json'))continue;const x=await get(f.pathname,{access:'private'});if(!x||x.statusCode!==200)continue;let parts=[],n=0;for await(const c of x.stream){n+=c.length;if(n>10000)break;parts.push(Buffer.from(c))}if(n>10000)continue;const u=JSON.parse(Buffer.concat(parts).toString());if(typeof u.id==='string')users.push({id:u.id,createdAt:u.createdAt||null})}cursor=page.hasMore?page.cursor:undefined}while(cursor&&users.length<500);return response(res,200,{users:users.sort((a,b)=>a.id.localeCompare(b.id)),truncated:users.length>=500})}catch(e){return response(res,502,{error:'회원명부 조회 실패'})}}
+if(req.method!=='POST')return response(res,405,{error:'허용되지 않은 요청'});
+const host=req.headers.host,origin=req.headers.origin;if(origin){try{if(new URL(origin).host!==host)return response(res,403,{error:'출처 오류'})}catch{return response(res,403,{error:'출처 오류'})}}
+const ids=['a1','a2','a3'];const password=String(req.body?.password||'');
+if(password.length<10||password.length>128)return response(res,400,{error:'검산 계정 공통 비밀번호는 10자 이상으로 입력해 주세요'});
+const {createHash}=await import('node:crypto');const results=[];
+for(const id of ids){const path=prefix+createHash('sha256').update(id).digest('hex')+'.json';try{const existing=await get(path,{access:'private'}).catch(()=>null);if(existing&&existing.statusCode===200){results.push({id,status:'existing'});continue}const salt=randomBytes(24).toString('hex');const user={id,salt,derived:scryptSync(password,salt,64).toString('hex'),createdAt:new Date().toISOString(),testAccount:true};await put(path,JSON.stringify(user),{access:'private',addRandomSuffix:false,allowOverwrite:false,contentType:'application/json'});results.push({id,status:'created'})}catch(e){results.push({id,status:'error'})}}
+return response(res,200,{results});
+}
