@@ -24,3 +24,13 @@ test('vision adapter builds request without executing paid service',()=>{
  assert.equal(request.metadata.sourcePage,'5');
  assert.equal(estimateVisionBudget({imageCount:829,estimatedInputTokensPerImage:2000,estimatedOutputTokensPerImage:500,inputUsdPerMillion:1,outputUsdPerMillion:4}).estimatedImages,829);
 });
+
+test('duplicate verification rows cannot masquerade as full visual coverage',()=>{
+ const plan=planVisualEvidence({documentId:'doc',pages:[{page:1,text:'A'},{page:2,text:'B'}],images:[{page:1,index:1,sha256:hash}],inventoryComplete:true});
+ const one={page:1,textHash:plan.pages[0].textHash,images:[{index:1,sha256:hash,status:'verified'}]};
+ const two={page:2,textHash:plan.pages[1].textHash,images:[]};
+ const base={documentId:'doc',independentVisualVerified:true,pages:[one,two]};
+ assert.equal(validateVisualResult(plan,base).complete,true);
+ assert.equal(validateVisualResult(plan,{...base,pages:[one,one]}).complete,false);
+ assert.equal(validateVisualResult(plan,{...base,pages:[{...one,images:[one.images[0],one.images[0]]},two]}).complete,false);
+});
