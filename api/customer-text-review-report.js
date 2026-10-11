@@ -12,7 +12,8 @@ export default async function handler(req,res){
  try{
   const job=await getJob(auth.user,caseId,jobId);
   if(!job)return respond(res,404,{error:'작업 없음'});
-  const expected='squidlaw/analysis-jobs/'+auth.user+'/'+caseId+'/'+jobId+'/text-review-intermediate-report.json';
+  const customerKey=casePrefix(auth.user,caseId).split('/')[2];
+  const expected='squidlaw/analysis-jobs/'+customerKey+'/'+caseId+'/'+jobId+'/text-review-intermediate-report.json';
   if(job.checkpoint?.textReviewIntermediateReport!==expected)return respond(res,409,{error:'원문 검증 중간보고서가 아직 생성되지 않았습니다'});
   const result=await get(expected,{access:'private'});
   if(!result||result.statusCode!==200)return respond(res,404,{error:'중간보고서 없음'});
