@@ -39,7 +39,7 @@ export default async function handler(req,res){
   const uuid=randomUUID(),createdAt=new Date().toISOString();
   const meta={id:uuid,name,sha256,size:buf.length,createdAt,side:'customer',pageCount:totalPages,extractedPages:pages.length,excludedPages:Math.max(0,totalPages-pages.length),readablePages:pages.filter(p=>p.text.trim().length>=15).length,status:totalPages>pages.length?'일부 페이지만 추출됨':pages.some(p=>p.text.trim().length<15)?'일부 페이지 텍스트 없음 (스캔 가능성)':'본문 추출 완료'};
   await put(prefix+'pdf/'+uuid+'.pdf',buf,{access:'private',addRandomSuffix:false,allowOverwrite:false,contentType:'application/pdf'});
-  await put(prefix+'extracted/'+uuid+'.json',JSON.stringify({pages}),{access:'private',addRandomSuffix:false,allowOverwrite:false,contentType:'application/json'});
+  const serialized=JSON.stringify({pages});if(Buffer.byteLength(serialized)>16*1024*1024){const batches=[];for(let i=0;i<pages.length;i+=20){const p=prefix+'extracted/'+uuid+'/batch-'+String(i).padStart(8,'0')+'.json';await put(p,JSON.stringify({pages:pages.slice(i,i+20)}),{access:'private',addRandomSuffix:false,allowOverwrite:false,contentType:'application/json'});batches.push(p)}await put(prefix+'extracted/'+uuid+'.json',JSON.stringify({pageCount:totalPages,batches}),{access:'private',addRandomSuffix:false,allowOverwrite:false,contentType:'application/json'})}else await put(prefix+'extracted/'+uuid+'.json',serialized,{access:'private',addRandomSuffix:false,allowOverwrite:false,contentType:'application/json'});
   await put(prefix+'docs/'+uuid+'.json',JSON.stringify(meta),{access:'private',addRandomSuffix:false,allowOverwrite:false,contentType:'application/json'});
   await Promise.allSettled(paths.map(p=>del(p)));
   return respond(res,200,{document:meta});
