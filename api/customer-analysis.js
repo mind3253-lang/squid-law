@@ -31,7 +31,7 @@ let b=req.body;try{if(typeof b==='string')b=JSON.parse(b)}catch{return send(res,
 if(!b||typeof b!=='object'||!Array.isArray(b.messages)||b.messages.length<1||b.messages.length>16||!/^SL-[a-zA-Z0-9-]{5,40}$/.test(String(b.caseId||'')))return send(res,400,{error:'사건 또는 대화 형식 오류'});
 if(b.requestId!==undefined&&!validRequestId(b.requestId))return send(res,400,{error:'분석 요청 ID 오류'});
 if(b.messages.some(m=>!m||!['user','assistant'].includes(m.role)||typeof m.content!=='string'||!m.content.trim()||m.content.length>9000)||b.messages.at(-1).role!=='user')return send(res,400,{error:'대화 내용 오류'});
-const requestHash=createHash('sha256').update(b.messages.at(-1).content).digest('hex');
+const questionHash=createHash('sha256').update(b.messages.at(-1).content).digest('hex');
 const registry=await readJson(casePrefix(user,'_index').replace(/_index\/$/,'')+'registry/'+b.caseId+'.json').catch(()=>null);if(!registry||registry.id!==b.caseId)return send(res,404,{error:'등록된 사건이 없습니다'});
 const reqId=b.requestId||null,hashValue=reqId?hashRequest(b.caseId,b.messages,b.options||{}):null;
 if(!reqId)return send(res,400,{error:'분석 요청 ID가 필요합니다.'});
@@ -53,6 +53,7 @@ if(reqId){
  try{
   checkpoint=await requestState(user,b.caseId,reqId);
   if(checkpoint&&checkpoint.requestHash!==hashValue)return send(res,409,{error:'동일 요청 ID의 입력 내용이 다릅니다'});
+  if(checkpoint?.completed&&lease.kind==='resume_saving'){await advanceCustomerLease(lease,b.caseId,reqId,'completed','completed');return send(res,200,{...checkpoint.completed.response,requestId:reqId,status:'completed',reused:true})}
   if(checkpoint?.completed)return send(res,200,{...checkpoint.completed.response,requestId:reqId,status:'completed',reused:true});
   if(lease.kind==='resume_saving'&&!checkpoint?.draft)return send(res,409,{code:'RECOVERY_REQUIRED',error:'Draft가 확인되지 않아 AI 재호출을 차단했습니다.',requestId:reqId});
   if(checkpoint&&!checkpoint.draft)return send(res,409,{error:'이전 분석 실행 상태가 불확실합니다. 중복 AI 호출 방지를 위해 자동 재실행하지 않습니다.',requestId:reqId,status:checkpoint.status,retryable:false});
