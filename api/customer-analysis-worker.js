@@ -1,7 +1,7 @@
 import {claimJob,advanceJob} from './customer-analysis-jobs-db.js';
 import {get} from '@vercel/blob';
 import {createHash,timingSafeEqual} from 'node:crypto';
-import {prepareCorpus} from '../lib/corpus-coverage.mjs';
+import {segmentRecord,auditSegments} from '../lib/record-chunks.mjs';
 import {analyzeUnit,independentlyVerify} from '../lib/legal-evidence-review.mjs';
 import {put} from '@vercel/blob';
 import {candidateDocuments} from './customer-document-boundaries.js';
@@ -43,8 +43,9 @@ export default async function handler(req,res){
   return res.status(200).json({status:'blocked',reason:'INVALID_PAGE_SEQUENCE'});
  }
  if(selectedPages.length===0)throw Error('EMPTY_PAGE_BATCH');
- const selected=prepareCorpus('customer',[{id:d.id,name:d.name,pageCount:selectedPages.length,pages:selectedPages.map((p,i)=>({...p,page:i+1}))}]);
- const units=selected.units.map(u=>({...u,page:selectedPages[u.page-1].page,hash:u.hash}));
+ const segmented=segmentRecord({scope:'customer',documentId:d.id,pages:selectedPages});
+ if(!auditSegments(selectedPages,segmented.segments).complete)throw Error('SEGMENT_AUDIT');
+ const units=segmented.segments.map(u=>({...u,filename:d.name||''}));
  const results=units.map(analyzeUnit),audit=independentlyVerify(units,results);
  if(!audit.complete){
   await advanceJob(job,'ocr_required',{...previous,nextDocument:index,documentId:d.id,missing:audit.missing.slice(0,100)},'blocked','OCR_REQUIRED');
