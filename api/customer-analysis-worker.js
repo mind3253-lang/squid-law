@@ -15,7 +15,7 @@ export default async function handler(req,res){
  const prefix='squidlaw/cases/'+job.customerKey+'/'+job.caseId+'/';
  const registry=await load('squidlaw/cases/'+job.customerKey+'/registry/'+job.caseId+'.json');
  if(!registry||registry.id!==job.caseId)throw Error('CASE_NOT_FOUND');
- // Do not claim completed until OCR, document boundaries, cross-check and independent verification exist.
+ // Never mark complete before OCR, image evidence, cross-document reasoning and independent verification have passed.
  const blob=(await import('@vercel/blob'));let cursor,paths=[];do{const listing=await blob.list({prefix:prefix+'docs/',limit:1000,...(cursor?{cursor}:{})});paths.push(...listing.blobs.filter(b=>b.pathname.endsWith('.json')).map(b=>b.pathname));cursor=listing.hasMore?listing.cursor:null}while(cursor);
  const meta=[];for(let i=0;i<paths.length;i+=12)meta.push(...await Promise.all(paths.slice(i,i+12).map(p=>load(p))));
  const docs=meta.filter(Boolean).sort((a,b)=>a.id.localeCompare(b.id)),version=createHash('sha256').update(JSON.stringify(docs.map(d=>[d.id,d.sha256,d.pageCount]).sort((a,b)=>a[0].localeCompare(b[0])))).digest('hex');
