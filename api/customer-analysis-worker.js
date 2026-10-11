@@ -105,8 +105,9 @@ export default async function handler(req,res){
   if(!Number.isSafeInteger(start)||start<1||start>d.pageCount||((start-1)%20)!==0)throw Error('INVALID_EXTRACTION_CHECKPOINT');
   const bytes=await loadBinary(prefix+'pdf/'+d.id+'.pdf');
   if(!bytes||createHash('sha256').update(bytes).digest('hex')!==d.sha256)throw Error('SOURCE_PDF_DIGEST_MISMATCH');
-  const extracted=await extractPdfPages(bytes,{startPage:start,pageCount:100});
-  if(extracted.totalPages!==d.pageCount||extracted.pages.length!==Math.min(100,d.pageCount-start+1))throw Error('PDF_EXTRACTION_PAGE_MISMATCH');
+  const extractionWindow=d.size>50*1024*1024?20:d.size>20*1024*1024?40:100;
+  const extracted=await extractPdfPages(bytes,{startPage:start,pageCount:extractionWindow});
+  if(extracted.totalPages!==d.pageCount||extracted.pages.length!==Math.min(extractionWindow,d.pageCount-start+1))throw Error('PDF_EXTRACTION_PAGE_MISMATCH');
   for(const page of extracted.pages)page.textSha256=createHash('sha256').update(String(page.text||'')).digest('hex');
   const digest=value=>createHash('sha256').update(JSON.stringify(value)).digest('hex');
   for(let i=0;i<extracted.pages.length;i+=20){
