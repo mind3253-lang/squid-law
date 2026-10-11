@@ -1,0 +1,16 @@
+import assert from 'node:assert/strict';
+const url=process.env.ACTIONS_ID_TOKEN_REQUEST_URL;
+const credential=process.env.ACTIONS_ID_TOKEN_REQUEST_TOKEN;
+assert.ok(url&&credential,'GitHub OIDC not available');
+const request=new URL(url);
+request.searchParams.set('audience','squidlaw-production-health');
+const tokenResponse=await fetch(request,{headers:{Authorization:'Bearer '+credential},signal:AbortSignal.timeout(15000)});
+assert.equal(tokenResponse.status,200,'OIDC token issuance');
+const token=(await tokenResponse.json()).value;
+assert.ok(typeof token==='string'&&token.length>100);
+const response=await fetch('https://www.squidlaw.co.kr/api/admin-db-health',{headers:{Authorization:'Bearer '+token},signal:AbortSignal.timeout(20000)});
+const data=await response.json();
+console.log('Production DB diagnostic:',JSON.stringify({http:response.status,ok:data.ok,checks:data.checks||null,stage:data.stage||null}));
+assert.equal(response.status,200,'Authenticated production DB health');
+assert.equal(data.ok,true);
+for(const field of ['connection','schema','primaryKey','statusConstraint','readAccess','writeAccess'])assert.equal(data.checks?.[field],true,field);

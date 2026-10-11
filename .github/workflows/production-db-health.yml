@@ -1,0 +1,24 @@
+name: Production Neon OIDC SQL verification
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'api/admin-db-health.js'
+      - 'scripts/production-db-health.mjs'
+      - '.github/workflows/production-db-health.yml'
+      - 'package.json'
+  workflow_dispatch:
+permissions:
+  contents: read
+  id-token: write
+jobs:
+  production-neon:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: sleep 40
+      - run: node scripts/production-db-health.mjs
