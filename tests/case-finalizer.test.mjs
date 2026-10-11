@@ -1,0 +1,20 @@
+import {test} from 'node:test';
+import {strict as assert} from 'node:assert';
+import {createAnalysisReceipt} from '../lib/analysis-receipts.mjs';
+import {ANALYSIS_STAGES,initialPipelineState,advancePipelineState} from '../lib/analysis-pipeline-state.mjs';
+import {caseModel} from '../lib/case-reasoning.mjs';
+import {segmentRecord} from '../lib/record-chunks.mjs';
+import {finalizeCaseAnalysis} from '../lib/case-finalizer.mjs';
+test('finalizer rejects incomplete stages, missing visual verification and missing independent audit',()=>{
+ const version='b'.repeat(64);
+ const units=segmentRecord({scope:'customer',documentId:'d',pages:[{page:1,text:'계약서'}]}).segments;
+ const u=units[0],model=caseModel({caseId:'case',documents:[{id:'d',pageCount:1}],propositions:[{id:'p',type:'fact',statement:'계약서',status:'independently_verified',sources:[{documentId:'d',page:1,part:1,hash:u.hash,quote:'계약서'}]}]});
+ let state=initialPipelineState({caseId:'case',sourceVersion:version});
+ const coverage={d:{complete:true}};
+ const args={units,model,documentCoverage:coverage,visualCoverage:coverage,semanticAudit:{complete:true,modelVersion:model.version,reviewerIndependent:true}};
+ assert.equal(finalizeCaseAnalysis({state,...args}).completed,false);
+ for(const stage of ANALYSIS_STAGES)state=advancePipelineState(state,{stage,checkpoint:{},receipt:createAnalysisReceipt({stage,sourceVersion:version,inputs:[],outputs:[],verified:true})});
+ assert.equal(finalizeCaseAnalysis({state,...args,visualCoverage:{d:{complete:false}}}).completed,false);
+ assert.equal(finalizeCaseAnalysis({state,...args,semanticAudit:null}).completed,false);
+ assert.equal(finalizeCaseAnalysis({state,...args}).completed,true);
+});
