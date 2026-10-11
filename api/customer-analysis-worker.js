@@ -155,6 +155,8 @@ export default async function handler(req,res){
  if(!auditSegments(selectedPages,segmented.segments).complete)throw Error('SEGMENT_AUDIT');
  const units=segmented.segments.map(u=>({...u,filename:d.name||''}));
  const results=units.map(analyzeUnit),audit=independentlyVerify(units,results);
+ const visualQueue=buildVisualWorkQueue({documentId:d.id,pages:selectedPages,sourcePdfPath:prefix+'pdf/'+d.id+'.pdf'});
+ const visualQueuePath='squidlaw/analysis-jobs/'+job.customerKey+'/'+job.caseId+'/'+job.jobId+'/visual-queues/'+d.id+'-'+String(pageOffset).padStart(8,'0')+'.json';
  if(!audit.complete){
   await advanceJob(job,'ocr_required',{...previous,nextDocument:index,documentId:d.id,missing:audit.missing.slice(0,100)},'blocked','OCR_REQUIRED');
   return res.status(200).json({status:'blocked',reason:'OCR_REQUIRED'});
