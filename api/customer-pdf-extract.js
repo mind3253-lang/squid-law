@@ -6,6 +6,11 @@ export function countImagePaintOperations(operatorList){
  const imageOps=new Set([OPS.paintImageXObject,OPS.paintInlineImageXObject,OPS.paintJpegXObject,OPS.paintImageMaskXObject,OPS.paintImageXObjectRepeat,OPS.paintImageMaskXObjectRepeat]);
  return operatorList.fnArray.filter(op=>imageOps.has(op)).length;
 }
+export function resolvePdfPageRange(totalPages,options={}){
+ const startPage=options.startPage??1,pageCount=options.pageCount??totalPages;
+ if(!Number.isSafeInteger(totalPages)||totalPages<1||!Number.isSafeInteger(startPage)||startPage<1||startPage>totalPages||!(pageCount===Infinity||Number.isSafeInteger(pageCount)&&pageCount>0))throw Error('INVALID_PDF_PAGE_RANGE');
+ return {startPage,endPage:Math.min(totalPages,startPage+pageCount-1)};
+}
 export async function extractPdfPages(buffer,maxPages=Infinity){
  const task=getDocument({data:new Uint8Array(buffer),useSystemFonts:true,disableFontFace:true});
  try{
