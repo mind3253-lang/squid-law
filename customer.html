@@ -14,14 +14,39 @@
 .analysis-clean .analysis-heading p{color:#64748b;margin:0;font-size:16px}
 .analysis-clean .analysis-space{min-height:360px}
 @media(max-width:720px){.analysis-clean .analysis-heading{padding:32px 0 22px}.analysis-clean .analysis-space{min-height:280px}}
+
+.precedent-panel{max-width:860px;margin:38px auto 70px;border:1px solid #e2e8f0;border-radius:18px;background:#fff;overflow:hidden}
+.precedent-top{padding:22px 25px;border-bottom:1px solid #e9eef4}.precedent-top h2{font-size:21px;margin:0 0 8px}.precedent-top p{margin:0;color:#64748b;line-height:1.7}
+.precedent-chat{min-height:175px;padding:24px;display:flex;flex-direction:column;gap:14px;background:#fafcfe}
+.precedent-bubble{max-width:94%;padding:14px 17px;border-radius:15px;line-height:1.75;white-space:pre-wrap;font-size:14px;background:#edf3f8;color:#25364a;align-self:flex-start}
+.precedent-bubble.user{background:#153d55;color:#fff;align-self:flex-end}
+.precedent-form{padding:18px 22px;border-top:1px solid #e9eef4}
+.precedent-form label{display:block;font-weight:700;margin-bottom:9px}
+.precedent-form textarea{width:100%;min-height:100px;box-sizing:border-box;padding:12px;border:1px solid #cbd5e1;border-radius:10px;font:inherit;resize:vertical}
+.precedent-actions{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-top:12px;flex-wrap:wrap}
+.precedent-actions small{color:#64748b}.precedent-actions button{border:0;border-radius:10px;padding:11px 18px;background:#153d55;color:#fff;font-weight:700;cursor:pointer}
 </style>
 </head>
 <body>
 <header class="site-header"><nav class="site-nav"><a class="brand" href="index.html">SQUID LAW</a><a href="howto.html">이용방법</a><a href="stories.html">소송이야기</a><a href="community.html">커뮤니티</a><a href="mypage.html">마이페이지</a></nav></header>
 <main class="wrap analysis-clean">
 <section class="analysis-heading"><h1>내 사건 분석</h1><p>사건기록과 증거를 객관적으로 분석하는 공간입니다.</p></section>
-<div class="analysis-space" aria-label="분석 작업 공간"></div>
+<section class="precedent-panel" aria-label="별도 판례검색 신청">
+<div class="precedent-top"><h2>판례검색 · 별도 신청</h2><p>내 사건의 쟁점을 입력하면 관련 판례를 찾아 비교하는 기능입니다. 판례검색 결과는 기본 사건분석 보고서에 포함되지 않습니다.</p></div>
+<div id="precedent-chat" class="precedent-chat" role="log" aria-live="polite"><div class="precedent-bubble">판례검색은 기본 분석과 별도입니다. 신청 내용과 판례 비교 결과는 이 대화 공간에서 확인하도록 설계됩니다.<br>현재는 검색 엔진 연결 전 단계입니다.</div></div>
+<form id="precedent-form" class="precedent-form"><label for="precedent-question">판례검색 신청</label><textarea id="precedent-question" maxlength="3000" placeholder="예: 임대차계약의 기간 변경에 관한 대법원 판례를 찾아줘." required></textarea><div class="precedent-actions"><small>현재 신청 내용은 서버에 전송·저장되지 않습니다.</small><button type="submit">검색 신청 내용 확인</button></div></form>
+</section>
 </main>
 <footer class="site-footer">SQUID LAW · 법은 무료로. 내 사건은 근거로 분석.</footer>
-</body>
+<script>
+(function(){
+ const form=document.getElementById('precedent-form'),chat=document.getElementById('precedent-chat'),input=document.getElementById('precedent-question');
+ form.addEventListener('submit',function(e){
+  e.preventDefault();const q=input.value.trim();if(!q)return;
+  const user=document.createElement('div');user.className='precedent-bubble user';user.textContent=q;chat.appendChild(user);
+  const info=document.createElement('div');info.className='precedent-bubble';info.textContent='신청 내용을 화면에 표시했습니다. 현재 판례검색 서버가 연결되지 않아 실제 판례 조회나 신청 접수는 진행되지 않았습니다. 기본 사건분석 보고서에는 반영되지 않습니다.';chat.appendChild(info);
+  input.value='';chat.scrollTop=chat.scrollHeight;
+ });
+})();
+</script></body>
 </html>
