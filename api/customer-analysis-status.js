@@ -9,8 +9,9 @@ export default async function handler(req,res){
  try{
   const registry=await readJson(casePrefix(auth.user,'_index').replace(/_index\/$/,'')+'registry/'+caseId+'.json');
   if(!registry||registry.id!==caseId)return respond(res,404,{error:'등록된 사건이 없습니다'});
+  if(!process.env.SQUID_CUSTOMER_DATABASE_URL)return respond(res,503,{code:'LEASE_UNAVAILABLE',error:'분석 실행권 저장소가 준비되지 않았습니다'});
   const state=await requestState(auth.user,caseId,requestId);
   if(!state)return respond(res,404,{error:'분석 요청 기록 없음'});
-  let lease=null;if(process.env.SQUID_CUSTOMER_DATABASE_URL)lease=await customerLeaseStatus(auth.user,caseId,requestId);return respond(res,200,{...publicState(state),status:lease?.status||state.status,lastCompletedStep:lease?.last_completed_step||state.lastCompletedStep,resultId:lease?.result_id||state.resultId,retryable:lease?.status==='completed'?false:state.retryable});
- }catch{return respond(res,502,{error:'분석 상태 조회 실패'})}
+  const lease=await customerLeaseStatus(auth.user,caseId,requestId);if(!lease)return respond(res,503,{code:'LEASE_UNAVAILABLE',error:'실행권 기록이 없습니다'});return respond(res,200,{...publicState(state),status:lease?.status||state.status,lastCompletedStep:lease?.last_completed_step||state.lastCompletedStep,resultId:lease?.result_id||state.resultId,retryable:lease.status==='completed'?false:lease.status==='saving'||lease.status==='recovery_required'});
+ }catch{return respond(res,503,{code:'LEASE_UNAVAILABLE',error:'분석 실행권 상태 조회 실패'})}
 }
