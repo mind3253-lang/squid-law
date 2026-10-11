@@ -12,7 +12,7 @@ export async function requestState(user,caseId,id){
  const p=requestPaths(user,caseId,id);
  const [initial,draft,knowledge,result,userMessage,assistantMessage,completed]=await Promise.all([p.initial,p.draft,p.knowledge,p.result,p.userMessage,p.assistantMessage,p.completed].map(path=>readJson(path)));
  if(!initial)return null;
- const lastCompletedStep=completed?'completed':assistantMessage?'assistant_message_saved':userMessage?'user_message_saved':result?'result_saved':knowledge?'knowledge_saved':draft?'draft_saved':'pending';
- return {requestId:id,caseId,requestHash:initial.requestHash,createdAt:initial.createdAt,updatedAt:completed?.createdAt||draft?.createdAt||initial.createdAt,status:completed?'completed':draft?'saving':'pending',lastCompletedStep,resultId:result?.id||null,retryable:!completed,hasDraft:!!draft,completed,draft,knowledge,result,userMessage,assistantMessage};
+ const lastCompletedStep=completed?'completed':result?'result_saved':knowledge?'knowledge_saved':assistantMessage?'assistant_message_saved':userMessage?'user_message_saved':draft?'draft_saved':'pending';
+ return {requestId:id,caseId,requestHash:initial.requestHash,createdAt:initial.createdAt,updatedAt:completed?.createdAt||draft?.createdAt||initial.createdAt,status:completed?'completed':draft?'saving':'pending',lastCompletedStep,resultId:result?.id||null,retryable:!completed&&!!draft,hasDraft:!!draft,completed,draft,knowledge,result,userMessage,assistantMessage};
 }
 export function publicState(s){return {requestId:s.requestId,status:s.status,lastCompletedStep:s.lastCompletedStep,resultId:s.resultId,retryable:s.retryable,createdAt:s.createdAt,updatedAt:s.updatedAt}}
