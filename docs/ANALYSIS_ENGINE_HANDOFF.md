@@ -75,3 +75,10 @@ Wire actual page/image extraction and OCR into the durable worker, move full-fil
 
 ### Do not confuse contracts with operational completeness
 The new stage state machine, legal model request/response schemas, visual rasterizer adapter and finalizer are **not** yet wired into a complete production background job. A renderer implementation, real vision/OCR, durable per-stage scheduling, independent legal reasoning calls and full-case end-to-end verification remain. Never label these items completed solely because mock tests pass.
+
+## Latest verification gates and local fixture checks
+- Visual results now require `inventoryComplete:true` and `independentVisualVerified:true`; the default customer/SKYNET plans have incomplete inventories and must remain blocked. Mock pipeline tests explicitly inject inventory and visual review responses.
+- Empty legal propositions, fabricated citations, conflicting hashes for the same source location and serialized mock provider results are rejected.
+- A local run against the 338-page fixture reconfirmed 338 page segments, 257,537 characters and 17 batches with no missing pages. Separate local PDF image enumeration found 829 image objects across all 338 pages; **no OCR or semantic visual review was performed**. A 10,001-page synthetic run covered all pages in 501 batches.
+- The customer worker now verifies stored per-page text hashes when present, checks every output batch, and stores a text review manifest with explicit pending stages. The customer UI distinguishes a limited-page chat response from full-case analysis.
+- The visual renderer is an injectable adapter without a concrete production canvas factory. The legal reasoning and independent audit modules are API contracts without real paid model calls. Actual operational quality is unverified.
