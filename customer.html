@@ -25,6 +25,18 @@
 .precedent-form textarea{width:100%;min-height:100px;box-sizing:border-box;padding:12px;border:1px solid #cbd5e1;border-radius:10px;font:inherit;resize:vertical}
 .precedent-actions{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-top:12px;flex-wrap:wrap}
 .precedent-actions small{color:#64748b}.precedent-actions button{border:0;border-radius:10px;padding:11px 18px;background:#153d55;color:#fff;font-weight:700;cursor:pointer}
+
+.precedent-promo{max-width:1120px;margin:48px auto 66px;padding:52px 54px;background:#eef2f7;border-radius:28px;display:grid;grid-template-columns:minmax(0,1.4fr) minmax(280px,.85fr);align-items:center;gap:46px}
+.precedent-promo .promo-kicker{font-size:12px;font-weight:800;letter-spacing:.15em;color:#7b879a;margin:0 0 16px}
+.precedent-promo h2{font-size:clamp(29px,3.5vw,42px);line-height:1.32;letter-spacing:-.045em;color:#17233b;margin:0 0 18px}
+.precedent-promo .promo-lead{color:#64748b;font-size:16px;line-height:1.85;margin:0}
+.precedent-promo .promo-side{background:#fff;border-radius:20px;padding:30px;box-shadow:0 12px 34px #23334d0d}
+.precedent-promo .promo-side .promo-label{font-size:14px;margin:0 0 20px}
+.precedent-promo .promo-side h3{font-size:19px;margin:0 0 16px;color:#17233b}
+.precedent-promo .promo-side p{color:#64748b;line-height:1.8;margin:0 0 18px}
+.precedent-promo .promo-side a{display:inline-block;background:#172033;color:#fff;text-decoration:none;font-weight:800;padding:11px 17px;border-radius:10px}
+.precedent-promo .promo-foot{font-size:13px;background:#f1f4f8;border-radius:10px;padding:12px;margin-top:14px;color:#64748b}
+@media(max-width:760px){.precedent-promo{grid-template-columns:1fr;padding:30px 23px;gap:24px;margin:35px auto}.precedent-promo .promo-side{padding:23px}}
 </style>
 </head>
 <body>
@@ -35,6 +47,10 @@
 <div class="precedent-top"><h2>판례검색 · 별도 신청</h2><p>내 사건의 쟁점을 입력하면 관련 판례를 찾아 비교하는 기능입니다. 판례검색 결과는 기본 사건분석 보고서에 포함되지 않습니다.</p></div>
 <div id="precedent-chat" class="precedent-chat" role="log" aria-live="polite"><div class="precedent-bubble">판례검색은 기본 분석과 별도입니다. 신청 내용과 판례 비교 결과는 이 대화 공간에서 확인하도록 설계됩니다.<br>현재는 검색 엔진 연결 전 단계입니다.</div></div>
 <form id="precedent-form" class="precedent-form"><label for="precedent-question">판례검색 신청</label><textarea id="precedent-question" maxlength="3000" placeholder="예: 임대차계약의 기간 변경에 관한 대법원 판례를 찾아줘." required></textarea><div class="precedent-actions"><small>현재 신청 내용은 서버에 전송·저장되지 않습니다.</small><button type="submit">검색 신청 내용 확인</button></div></form>
+</section>
+<section class="precedent-promo" aria-label="판례검색 서비스 안내">
+<div><p class="promo-kicker">CASE-BASED PRECEDENT SEARCH</p><h2>판례 10개보다,<br>내 사건에 맞는 판례 하나.</h2><p class="promo-lead">판례를 단순히 나열하지 않습니다. 내 사건의 쟁점을 기준으로 관련 판례의 법리를 살펴보고, 사건과 일치하는 부분과 다른 부분을 비교하는 서비스를 준비하고 있습니다.</p></div>
+<div class="promo-side"><p class="promo-label">내 사건을 위한 별도 서비스</p><h3>판례검색, 필요한 때 신청하세요.</h3><p>기본 사건분석은 증거와 사실관계에 집중합니다. 판례검색은 별도로 신청하며, 결과는 채팅에서 확인하도록 구성합니다.</p><a href="#precedent-form">판례검색 신청 화면 보기</a><div class="promo-foot">현재 판례검색 엔진 연결 준비 중 · 기본 분석 보고서에는 포함되지 않습니다.</div></div>
 </section>
 </main>
 <footer class="site-footer">SQUID LAW · 법은 무료로. 내 사건은 근거로 분석.</footer>
