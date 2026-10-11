@@ -10,7 +10,8 @@ import {assertPageBatch,assertBatchManifest} from '../lib/batch-integrity.mjs';
 import {expectedTextReviewOutputs,auditTextReviewOutputs} from '../lib/text-review-manifest.mjs';
 import {verifyPageDigests} from '../lib/page-digests.mjs';
 import {ANALYSIS_STAGES} from '../lib/analysis-pipeline-state.mjs';
-import {aggregateTextReviewStreaming} from '../lib/text-review-aggregation.mjs';
+import {validatePersistedBatch} from '../lib/text-review-aggregation.mjs';
+import {detectOpposingStatements} from '../lib/case-crosscheck.mjs';
 const eq=(a,b)=>{const x=Buffer.from(a||''),y=Buffer.from(b||'');return x.length===y.length&&timingSafeEqual(x,y)};
 async function load(path){const r=await get(path,{access:'private'});if(!r||r.statusCode!==200)return null;let size=0,parts=[];for await(const chunk of r.stream){size+=chunk.length;if(size>32*1024*1024)throw Error('BLOB_TOO_LARGE');parts.push(Buffer.from(chunk))}return JSON.parse(Buffer.concat(parts).toString())}
 export default async function handler(req,res){
