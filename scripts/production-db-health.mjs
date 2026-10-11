@@ -8,6 +8,8 @@ const tokenResponse=await fetch(request,{headers:{Authorization:'Bearer '+creden
 assert.equal(tokenResponse.status,200,'OIDC token issuance');
 const token=(await tokenResponse.json()).value;
 assert.ok(typeof token==='string'&&token.length>100);
+const claims=JSON.parse(Buffer.from(token.split('.')[1],'base64url').toString());
+console.log('GitHub OIDC claim metadata:',JSON.stringify({iss:claims.iss,aud:claims.aud,repository:claims.repository,repository_owner:claims.repository_owner,ref:claims.ref,sub:claims.sub,workflow_ref:claims.workflow_ref,event_name:claims.event_name}));
 const response=await fetch('https://www.squidlaw.co.kr/api/admin-db-health',{headers:{Authorization:'Bearer '+token},signal:AbortSignal.timeout(20000)});
 const data=await response.json();
 console.log('Production DB diagnostic:',JSON.stringify({http:response.status,ok:data.ok,checks:data.checks||null,stage:data.stage||null}));
