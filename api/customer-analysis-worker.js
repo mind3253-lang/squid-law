@@ -32,6 +32,7 @@ export default async function handler(req,res){
  if(version!==job.documentVersion){await advanceJob(job,'source_changed',{expected:job.documentVersion,actual:version},'blocked','SOURCE_VERSION_CHANGED');return res.status(200).json({status:'blocked',reason:'SOURCE_VERSION_CHANGED'})}
 
  const previous=job.checkpoint||{},index=Number.isSafeInteger(previous.nextDocument)?previous.nextDocument:0;
+ if(index<0||index>docs.length)throw Error('INVALID_DOCUMENT_CHECKPOINT');
  if(index>=docs.length){
   if(!previous.textReviewManifest||!previous.textReviewAggregate||!(await load(previous.textReviewManifest))||!(await load(previous.textReviewAggregate))){
    await advanceJob(job,'text_review_checkpoint_incomplete',{...previous,documentCount:docs.length},'blocked','TEXT_REVIEW_AGGREGATION_MISSING');
