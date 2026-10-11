@@ -1,0 +1,19 @@
+import {guard,respond,readJson,documents,casePrefix} from './customer-case.js';
+import {enqueueJob,getJob,documentVersion} from './customer-analysis-jobs-db.js';
+const idOk=id=>/^SL-[a-zA-Z0-9-]{5,40}$/.test(id);
+export default async function handler(req,res){
+ const a=guard(req);if(a.error)return respond(res,a.status,{error:a.error});
+ const caseId=String(req.query?.caseId||'');if(!idOk(caseId))return respond(res,400,{error:'사건 ID 오류'});
+ const registry=await readJson(casePrefix(a.user,'_index').replace(/_index\/$/,'')+'registry/'+caseId+'.json').catch(()=>null);
+ if(!registry||registry.id!==caseId)return respond(res,404,{error:'등록된 사건이 없습니다'});
+ if(req.method==='GET'){
+  const jobId=String(req.query?.jobId||'');if(!/^[0-9a-f-]{36}$/.test(jobId))return respond(res,400,{error:'작업 ID 오류'});
+  try{const job=await getJob(a.user,caseId,jobId);return job?respond(res,200,{job}):respond(res,404,{error:'작업 없음'})}catch{return respond(res,503,{error:'작업 상태 저장소 오류'})}
+ }
+ if(req.method!=='POST')return respond(res,405,{error:'GET/POST만 허용'});
+ let b=req.body;try{if(typeof b==='string')b=JSON.parse(b)}catch{return respond(res,400,{error:'요청 형식 오류'})}
+ if(b?.action!=='approve-analysis'||b?.approved!==true)return respond(res,400,{error:'고객의 명시적 전체 분석 승인이 필요합니다'});
+ try{const docs=await documents(a.user,caseId);if(!docs.length)return respond(res,409,{error:'분석할 문서가 없습니다'});
+ const job=await enqueueJob(a.user,caseId,documentVersion(docs));return respond(res,202,{job,notice:'분석 요청이 저장되었습니다. 실행 워커 활성화 여부는 별도로 확인해야 합니다.'})}
+ catch{return respond(res,503,{error:'분석 작업 등록 실패'})}
+}
