@@ -68,3 +68,12 @@ test('10001-page streaming audit never skips the final partial batch',async()=>{
  assert.equal(loads,501);assert.equal(last,root+'huge-00010000.json');
  assert.equal(result.observationCount,10001);assert.equal(result.coverage[0].pages,10001);
 });
+
+test('cross-document opposing claims remain unverified candidates',async()=>{
+ const {detectOpposingStatements}=await import('../lib/case-crosscheck.mjs');
+ const rows=[{claimCandidates:[{id:'one',text:'피고는 지급하였다 인정',terms:['지급'],source:{documentId:'a',page:1}}]},{claimCandidates:[{id:'two',text:'피고는 지급하지 않았다',terms:['지급'],source:{documentId:'b',page:2}}]}];
+ const audit=detectOpposingStatements(rows);
+ assert.equal(audit.candidates.length,1);
+ assert.equal(audit.verified,false);
+ assert.equal(audit.candidates[0].first.source.documentId,'a');
+});
