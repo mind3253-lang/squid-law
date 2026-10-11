@@ -20,7 +20,8 @@ export async function acquireCustomerLease(user,caseId,requestId,requestHash){
      const renewed=await client.query("UPDATE customer_analysis_leases SET owner_token=$4,fencing_token=fencing_token+1,lease_expires_at=now()+interval '120 seconds',updated_at=now() WHERE customer_key=$1 AND case_id=$2 AND request_id=$3 RETURNING fencing_token",[key,caseId,requestId,ownerToken]);
      await client.query('COMMIT');return {kind:'resume_saving',ownerToken,fencingToken:String(renewed.rows[0].fencing_token),customerKey:key};
     }
-    await client.query('COMMIT');return {kind:row.lease_expires_at&&new Date(row.lease_expires_at)<=new Date()?'recovery_required':'in_progress',status:row.status}
+    if(row.lease_expires_at&&new Date(row.lease_expires_at)<=new Date()){await client.query("UPDATE customer_analysis_leases SET status='recovery_required',updated_at=now() WHERE customer_key=$1 AND case_id=$2 AND request_id=$3",[key,caseId,requestId]);await client.query('COMMIT');return {kind:'recovery_required',status:'recovery_required'}}
+    await client.query('COMMIT');return {kind:'in_progress',status:row.status}
    }
    if(row.attempt>0){await client.query('COMMIT');return {kind:'recovery_required'}}
    const update=await client.query("UPDATE customer_analysis_leases SET owner_token=$4,fencing_token=fencing_token+1,attempt=attempt+1,status='processing',lease_expires_at=now()+interval '120 seconds',updated_at=now() WHERE customer_key=$1 AND case_id=$2 AND request_id=$3 RETURNING fencing_token",[key,caseId,requestId,ownerToken]);
