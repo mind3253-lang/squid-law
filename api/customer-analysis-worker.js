@@ -34,6 +34,7 @@ export default async function handler(req,res){
  const pageOffset=Number.isSafeInteger(previous.nextPage)&&previous.nextDocument===index?previous.nextPage:0;
  const batchIndex=Math.floor(pageOffset/20);
  const batchPath=Array.isArray(e.pages)?null:e.batches[batchIndex];
+ if(!Array.isArray(e.pages)&&typeof batchPath!=='string')throw Error('MISSING_EXTRACTION_BATCH');
  if(batchPath&&(!batchPath.startsWith(prefix+'extracted/'+d.id+'/')||!batchPath.endsWith('.json')))throw Error('INVALID_EXTRACTION_PATH');
  const batch=Array.isArray(e.pages)?null:await load(batchPath);
  const selectedPages=Array.isArray(e.pages)?e.pages.slice(pageOffset,pageOffset+20):batch?.pages;
