@@ -3,7 +3,7 @@ import {randomBytes} from 'node:crypto';
 const origin='https://www.squidlaw.co.kr';
 const id=()=>('ci'+randomBytes(8).toString('hex')).slice(0,24);
 const password=()=>randomBytes(24).toString('base64url');
-function makePdf(){
+export function makePdf(){
  const stream='BT /F1 12 Tf 72 720 Td (SQUIDLAW TEST EVIDENCE FOR ISOLATION) Tj ET';
  const objects=[
  '<< /Type /Catalog /Pages 2 0 R >>',
@@ -27,6 +27,7 @@ async function request(path,{method='GET',cookie='',body}={}){
  const data=(res.headers.get('content-type')||'').includes('application/json')?await res.json():null;
  return {status:res.status,data,cookie:res.headers.get('set-cookie')?.split(';')[0]||'',res};
 }
+if(process.env.SQUID_TEST_PDF_ONLY!=='true'){
 const a={id:id(),password:password()},b={id:id(),password:password()};
 async function register(u){const r=await request('/api/customer-auth',{method:'POST',body:{action:'register',...u}});assert.equal(r.status,200,'registration');assert.ok(r.cookie.startsWith('squid_session='));u.cookie=r.cookie}
 await register(a);await register(b);
@@ -46,3 +47,5 @@ r=await request('/api/customer-auth',{method:'POST',cookie:a.cookie,body:{action
 r=await request('/api/customer-auth',{cookie:r.cookie});assert.equal(r.data.authenticated,false,'logout');
 r=await request('/api/customer-auth',{method:'POST',body:{action:'login',...a}});assert.equal(r.status,200,'relogin');
 console.log('PASS Production customer registration, login, logout, case isolation, PDF upload/readback, history isolation. Synthetic CI-only records created.');
+
+}
