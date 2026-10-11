@@ -77,7 +77,11 @@ export default async function handler(req,res){
   const outputAudit=auditTextReviewOutputs({expected,actual});
   if(!outputAudit.complete){await advanceJob(job,'text_review_output_incomplete',{...checkpoint,missingOutputs:outputAudit.missing.slice(0,50)},'blocked','TEXT_REVIEW_OUTPUT_INCOMPLETE');return res.status(200).json({status:'blocked',reason:'TEXT_REVIEW_OUTPUT_INCOMPLETE'})}
   // Load the exact persisted batch payloads; a pathname-only audit cannot verify contents.
-  const persisted=await Promise.all(expected.map(async path=>({path,payload:await load(path)})));
+  const persisted=[];
+  for(let offset=0;offset<expected.length;offset+=8){
+   const group=await Promise.all(expected.slice(offset,offset+8).map(async path=>({path,payload:await load(path)})));
+   persisted.push(...group);
+  }
   let aggregate;
   try{aggregate=aggregateTextReview({caseId:job.caseId,sourceVersion:job.documentVersion,root,documents:docs,outputs:persisted})}
   catch{await advanceJob(job,'text_review_content_invalid',{...checkpoint},'blocked','TEXT_REVIEW_CONTENT_INVALID');return res.status(200).json({status:'blocked',reason:'TEXT_REVIEW_CONTENT_INVALID'})}
