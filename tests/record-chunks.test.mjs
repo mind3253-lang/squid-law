@@ -36,3 +36,10 @@ test('10001 pages partition and resume with no page loss',async()=>{
  assert.deepEqual(batches.flatMap(b=>b.pages.map(p=>p.page)),pages.map(p=>p.page));
  assert.equal(batches.at(-1).offset,10000);
 });
+
+test('OCR-required page never counts as complete text coverage',async()=>{
+ const {prepareCorpus}=await import('../lib/corpus-coverage.mjs');
+ const corpus=prepareCorpus('customer',[{id:'scan',pageCount:2,pages:[{page:1,text:'법률 원문'},{page:2,text:''}]}]);
+ assert.equal(corpus.completeTextCoverage,false);
+ assert.equal(corpus.completeVisualCoverage,false);
+});
