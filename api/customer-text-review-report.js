@@ -18,7 +18,7 @@ export default async function handler(req,res){
   const result=await get(expected,{access:'private'});
   if(!result||result.statusCode!==200)return respond(res,404,{error:'중간보고서 없음'});
   const chunks=[];let size=0;
-  for await(const chunk of result.stream){size+=chunk.length;if(size>8*1024*1024)return respond(res,413,{error:'보고서 용량 초과'});chunks.push(Buffer.from(chunk))}
+  for await(const chunk of result.stream){size+=chunk.length;if(size>32*1024*1024)return respond(res,413,{error:'보고서 용량 초과'});chunks.push(Buffer.from(chunk))}
   const report=JSON.parse(Buffer.concat(chunks).toString('utf8'));
   if(report.caseId!==caseId||report.sourceVersion!==job.documentVersion||report.reportType!=='text_review_only'||report.notForCourtSubmission!==true)return respond(res,409,{error:'보고서 원본 검증 실패'});
   return respond(res,200,{report});
