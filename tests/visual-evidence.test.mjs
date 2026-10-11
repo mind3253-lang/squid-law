@@ -80,3 +80,32 @@ test('visual plan refuses tampered image operator count',async()=>{
  assert.equal(validateVisualResult(plan,result).complete,true);
  assert.equal(validateVisualResult({...plan,pages:[{...plan.pages[0],imageOperatorCount:3}]},result).complete,false);
 });
+
+test('PDF range extraction preserves absolute page numbers on a real three-page PDF',async()=>{
+ const {extractPdfPages}=await import('../api/customer-pdf-extract.js');
+ const objects=[
+  '<< /Type /Catalog /Pages 2 0 R >>',
+  '<< /Type /Pages /Kids [3 0 R 5 0 R 7 0 R] /Count 3 >>',
+  '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 9 0 R >> >> /Contents 4 0 R >>',
+  null,
+  '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 9 0 R >> >> /Contents 6 0 R >>',
+  null,
+  '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 9 0 R >> >> /Contents 8 0 R >>',
+  null,
+  '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>'
+ ];
+ for(const [index,label] of [[3,'First'],[5,'Second'],[7,'Third']]){
+  const stream='BT /F1 12 Tf 72 720 Td ('+label+') Tj ET';
+  objects[index]='<< /Length '+Buffer.byteLength(stream)+' >>\nstream\n'+stream+'\nendstream';
+ }
+ let pdf='%PDF-1.4\n';const offsets=[0];
+ for(let i=0;i<objects.length;i++){offsets.push(Buffer.byteLength(pdf));pdf+=(i+1)+' 0 obj\n'+objects[i]+'\nendobj\n'}
+ const xref=Buffer.byteLength(pdf);pdf+='xref\n0 '+(objects.length+1)+'\n0000000000 65535 f \n';
+ for(let i=1;i<offsets.length;i++)pdf+=String(offsets[i]).padStart(10,'0')+' 00000 n \n';
+ pdf+='trailer\n<< /Size '+(objects.length+1)+' /Root 1 0 R >>\nstartxref\n'+xref+'\n%%EOF';
+ const result=await extractPdfPages(Buffer.from(pdf),{startPage:2,pageCount:1});
+ assert.equal(result.totalPages,3);
+ assert.deepEqual(result.pages.map(x=>x.page),[2]);
+ assert.match(result.pages[0].text,/Second/);
+ assert.equal(result.finished,false);
+});
