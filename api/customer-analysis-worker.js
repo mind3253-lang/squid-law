@@ -4,7 +4,7 @@ import {createHash,timingSafeEqual} from 'node:crypto';
 import {segmentRecord,auditSegments} from '../lib/record-chunks.mjs';
 import {analyzeUnit,independentlyVerify,crosscheckObservations} from '../lib/legal-evidence-review.mjs';
 import {put} from '@vercel/blob';
-import {candidateDocuments} from './customer-document-boundaries.js';
+import {candidateDocuments,mergeDocumentBoundaryCandidates} from './customer-document-boundaries.js';
 import {planVisualEvidence} from '../lib/visual-evidence.mjs';
 import {assertPageBatch,assertBatchManifest} from '../lib/batch-integrity.mjs';
 import {expectedTextReviewOutputs,auditTextReviewOutputs} from '../lib/text-review-manifest.mjs';
@@ -49,16 +49,17 @@ export default async function handler(req,res){
    for(let round=0;round<8&&cursor<descriptors.length;round++){
     const selected=descriptors.slice(cursor,cursor+8);
     const batches=await Promise.all(selected.map(x=>load(root+x.documentId+'-'+String(x.start).padStart(8,'0')+'.json')));
-    const claims=[],observations=[];let count=0;
+    const claims=[],observations=[],boundaries=[];let count=0;
     for(let i=0;i<selected.length;i++){
      const x=selected[i],verified=validatePersistedBatch({batch:batches[i],documentId:x.documentId,sourceVersion:job.documentVersion,pageStart:x.start+1,pageCount:x.count});
      count+=verified.unitCount;
      for(const claim of verified.claimResults)claims.push(claim);
      for(const observation of verified.observationResults)observations.push(observation);
+     boundaries.push({documentId:x.documentId,sections:batches[i].documentBoundaryCandidates?.sections});
     }
     if(digests.length!==Math.ceil(cursor/8))throw Error('INVALID_FINALIZATION_DIGEST_CHECKPOINT');
     const partPath=root+'finalize-parts/'+String(cursor).padStart(8,'0')+'.json';
-    const part={sourceVersion:job.documentVersion,offset:cursor,batchCount:selected.length,unitCount:count,claims,observations};
+    const part={sourceVersion:job.documentVersion,offset:cursor,batchCount:selected.length,unitCount:count,claims,observations,boundaries};
     const old=await load(partPath);
     if(old&&hash(old)!==hash(part))throw Error('FINALIZATION_PART_CONFLICT');
     if(!old)await put(partPath,JSON.stringify(part),{access:'private',allowOverwrite:false,addRandomSuffix:false,contentType:'application/json'});
@@ -68,7 +69,7 @@ export default async function handler(req,res){
    return res.status(200).json({status:'retry',stage:'text_review_finalize_checkpoint',verifiedBatches:cursor,totalBatches:descriptors.length});
   }
   if(!Array.isArray(previous.finalizePartDigests)||previous.finalizePartDigests.length!==Math.ceil(descriptors.length/8))throw Error('FINALIZATION_DIGEST_COUNT_MISMATCH');
-  const claims=[],observations=[];let total=0;
+  const claims=[],observations=[],boundaries=[];let total=0;
   for(let start=0;start<descriptors.length;start+=8){
    const part=await load(root+'finalize-parts/'+String(start).padStart(8,'0')+'.json');
    if(!part)throw Error('FINALIZATION_PART_MISSING');
@@ -76,9 +77,11 @@ export default async function handler(req,res){
    total+=part.unitCount;
    for(const claim of part.claims)claims.push(claim);
    for(const observation of part.observations||[])observations.push(observation);
+   for(const boundary of part.boundaries||[])boundaries.push(boundary);
   }
   if(total!==previous.finalizeUnitCount)throw Error('FINALIZATION_COUNT_MISMATCH');
-  const aggregate={caseId:job.caseId,sourceVersion:job.documentVersion,coverage:docs.map(d=>({documentId:d.id,pages:d.pageCount,textBatchCount:Math.ceil(d.pageCount/20)})),observationCount:total,opposingStatementCandidates:detectOpposingStatements(claims),crossDocumentEvidenceLinks:crosscheckObservations(observations),verifiedLegal:false,verifiedVisual:false,status:'awaiting_visual_and_semantic_review'};
+  const documentBoundaryCandidates=docs.map(d=>mergeDocumentBoundaryCandidates({documentId:d.id,pageCount:d.pageCount,batches:boundaries.filter(x=>x.documentId===d.id)}));
+  const aggregate={caseId:job.caseId,sourceVersion:job.documentVersion,coverage:docs.map(d=>({documentId:d.id,pages:d.pageCount,textBatchCount:Math.ceil(d.pageCount/20)})),observationCount:total,opposingStatementCandidates:detectOpposingStatements(claims),crossDocumentEvidenceLinks:crosscheckObservations(observations),documentBoundaryCandidates,verifiedLegal:false,verifiedVisual:false,status:'awaiting_visual_and_semantic_review'};
   const aggregatePath=root+'text-review-aggregate.json',manifestPath=root+'text-review-manifest.json';
   await put(aggregatePath,JSON.stringify(aggregate),{access:'private',allowOverwrite:true,addRandomSuffix:false,contentType:'application/json'});
   await put(manifestPath,JSON.stringify({caseId:job.caseId,sourceVersion:job.documentVersion,documents:docs.map(x=>({id:x.id,pageCount:x.pageCount})),outputs:expectedTextReviewOutputs({root,documents:docs}),verifiedVisual:false,verifiedLegal:false,analysisComplete:false,pendingStages:ANALYSIS_STAGES.slice(2)}),{access:'private',allowOverwrite:true,addRandomSuffix:false,contentType:'application/json'});
