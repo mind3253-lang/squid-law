@@ -41,7 +41,7 @@ export default async function handler(req,res){
  if(!registry||registry.id!==job.caseId)throw Error('CASE_NOT_FOUND');
  // Never mark complete before OCR, image evidence, cross-document reasoning and independent verification have passed.
  const blob=(await import('@vercel/blob'));let cursor,paths=[];do{const listing=await blob.list({prefix:prefix+'docs/',limit:1000,...(cursor?{cursor}:{})});paths.push(...listing.blobs.filter(b=>b.pathname.endsWith('.json')).map(b=>b.pathname));cursor=listing.hasMore?listing.cursor:null}while(cursor);
- const meta=[];for(let i=0;i<paths.length;i+=12)meta.push(...await Promise.all(paths.slice(i,i+12).map(p=>load(p))));
+ const meta=[];for(let i=0;i<paths.length;i+=24)meta.push(...await Promise.all(paths.slice(i,i+24).map(p=>load(p))));
  if(meta.some(x=>!x))throw Error('DOCUMENT_METADATA_MISSING');
  if(meta.some(x=>!x.id||!Number.isSafeInteger(x.pageCount)||x.pageCount<1||!/^[a-f0-9]{64}$/.test(x.sha256||'')))throw Error('DOCUMENT_METADATA_INVALID');
  if(new Set(meta.map(x=>x.id)).size!==meta.length)throw Error('DUPLICATE_DOCUMENT_METADATA');
