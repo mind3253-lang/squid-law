@@ -240,6 +240,16 @@ export default async function handler(req,res){
  let verifiedPages=selectedPages;
  let digestAudit=verifyPageDigests(verifiedPages,{requireDigests:true});
  if(!digestAudit.complete&&digestAudit.failures.every(f=>f.reason==='MISSING_TEXT_HASH'||f.reason==='MISSING_VISUAL_OPERATOR_DIGEST')){
+  const cached=await load(prefix+'verified/'+d.id+'/batch-'+String(pageOffset).padStart(8,'0')+'.json');
+  if(cached){
+   if(cached.documentId!==d.id||cached.sourcePdfSha256!==d.sha256||!Array.isArray(cached.pages)||cached.pages.length!==selectedPages.length)throw Error('VERIFIED_CACHE_SOURCE_MISMATCH');
+   if(!selectedPages.every((p,i)=>p.page===cached.pages[i].page&&String(p.text??'')===String(cached.pages[i].text??'')))throw Error('VERIFIED_CACHE_TEXT_MISMATCH');
+   const cachedAudit=verifyPageDigests(cached.pages,{requireDigests:true});
+   if(!cachedAudit.complete)throw Error('VERIFIED_CACHE_DIGEST_MISMATCH');
+   verifiedPages=cached.pages;digestAudit=cachedAudit;
+  }
+ }
+ if(!digestAudit.complete&&digestAudit.failures.every(f=>f.reason==='MISSING_TEXT_HASH'||f.reason==='MISSING_VISUAL_OPERATOR_DIGEST')){
   const source=await loadBinary(prefix+'pdf/'+d.id+'.pdf');
   if(!source||createHash('sha256').update(source).digest('hex')!==d.sha256)throw Error('SOURCE_PDF_DIGEST_MISMATCH');
   const regenerated=await extractPdfPages(source,{startPage:pageOffset+1,pageCount:selectedPages.length});
