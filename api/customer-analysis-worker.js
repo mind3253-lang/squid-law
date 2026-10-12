@@ -175,8 +175,8 @@ export default async function handler(req,res){
   if(!process.env.OPENAI_API_KEY){await advanceJob(job,'semantic_api_missing',previous,'blocked','OPENAI_API_KEY_MISSING');return res.status(200).json({status:'blocked'})}
   const sources=[];
   for(const d of docs)for(let start=0;start<d.pageCount;start+=20){
-   const batch=await load(prefix+'extracted/'+d.id+'/batch-'+String(start).padStart(8,'0')+'.json');
-   if(!batch?.pages)throw Error('SEMANTIC_SOURCE_MISSING');
+   const batch=await load(prefix+'verified/'+d.id+'/batch-'+String(start).padStart(8,'0')+'.json');
+   if(!batch?.pages||batch.documentId!==d.id||batch.sourcePdfSha256!==d.sha256)throw Error('SEMANTIC_VERIFIED_SOURCE_MISSING');
    for(const u of segmentRecord({scope:'customer',documentId:d.id,pages:batch.pages}).segments)sources.push({documentId:d.id,page:u.page,part:u.part,hash:u.hash,text:u.text});
   }
   const cursor=previous.semanticAuditCursor||0;
