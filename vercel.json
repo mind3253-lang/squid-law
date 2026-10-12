@@ -29,6 +29,10 @@
       "destination": "/api/skynet-worker-step"
     },
     {
+      "source": "/admin/skynet-plan-job",
+      "destination": "/api/skynet-plan-job"
+    },
+    {
       "source": "/admin/skynet-plan",
       "destination": "/api/skynet-plan"
     },
