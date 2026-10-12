@@ -182,7 +182,7 @@ export default async function handler(req,res){
    await advanceJob(job,'visual_provider_checkpoint',{...previous,visualDocIndex:next+1,visualProviderLastOutput:outputPath},'retry');
    return res.status(200).json({status:'retry',stage:'visual_provider_checkpoint',processedDocuments:next+1,totalDocuments:docs.length});
   }
-  await advanceJob(job,'visual_independent_audit_pending',{...previous,visualProviderCompleted:true},'blocked','INDEPENDENT_VISUAL_AUDIT_PENDING');
+  await advanceJob(job,'visual_independent_audit_pending',{...previous,visualProviderCompleted:true,phase:'verify'},'blocked','INDEPENDENT_VISUAL_AUDIT_PENDING');
   return res.status(200).json({status:'blocked',reason:'INDEPENDENT_VISUAL_AUDIT_PENDING'});
  }
  if(index===docs.length&&extractionOnly){
