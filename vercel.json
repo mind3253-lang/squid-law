@@ -1,6 +1,10 @@
 {
   "rewrites": [
     {
+      "source": "/admin/skynet-jobs",
+      "destination": "/api/skynet-jobs"
+    },
+    {
       "source": "/admin/skynet-chat",
       "destination": "/api/skynet-chat"
     },
