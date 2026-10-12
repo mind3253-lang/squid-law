@@ -250,6 +250,7 @@ export default async function handler(req,res){
    await advanceJob(job,'visual_provider_checkpoint',{...previous,visualDocIndex:next+1,visualWindowStartPage:1},'retry');
    return res.status(200).json({status:'retry',stage:'visual_provider_checkpoint',processedDocuments:next+1,totalDocuments:docs.length});
   }
+  if(!previous.visualSourceCoveragePassed){
   const auditFailures=[];
   for(const doc of docs){
    const outputPath='squidlaw/analysis-jobs/'+job.customerKey+'/'+job.caseId+'/'+job.jobId+'/visual-provider/'+doc.id+'.json';
@@ -266,6 +267,9 @@ export default async function handler(req,res){
   if(auditFailures.length){
    await advanceJob(job,'visual_source_audit_failed',{...previous,visualAuditFailures:auditFailures},'blocked','VISUAL_SOURCE_AUDIT_FAILED');
    return res.status(200).json({status:'blocked',reason:'VISUAL_SOURCE_AUDIT_FAILED',failedDocuments:auditFailures.length});
+  }
+  await advanceJob(job,'visual_source_coverage_completed',{...previous,visualSourceCoveragePassed:true},'retry');
+  return res.status(200).json({status:'retry',stage:'visual_source_coverage_completed'});
   }
   const auditIndex=previous.visualAuditDocIndex||0;
   if(auditIndex<docs.length){
