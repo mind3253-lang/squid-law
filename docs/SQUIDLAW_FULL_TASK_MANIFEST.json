@@ -81,9 +81,10 @@
       "implementation": "unknown_or_partial",
       "acceptance": "관련 코드 조사 + 안전한 회귀 테스트 + 실제 경로 검증 + 결과 증거 기록; 고객 데이터 삭제/재처리 금지",
       "evidence": [
-        "api/customer-analysis-worker.js catch returns res.status(503).json({error:'WORKER_ERROR'})"
+        "api/customer-analysis-worker.js catch returns res.status(503).json({error:'WORKER_ERROR'})",
+        "api/customer-analysis-worker.js catch now returns structured error code and preserves lastFailedStage in checkpoint, commit f70bf64; frontend still needs safe JSON handling"
       ],
-      "checkpoint": "Observed frontend Unexpected token A screenshot; worker catch returns JSON 503 {error:WORKER_ERROR}, so root non-JSON response likely from another HTTP path or platform error; identify endpoint and status from logs before asserting",
+      "checkpoint": "Worker error diagnostics coded; locate UI request parsing next; production cause still unverified.",
       "blockedReason": null,
       "dependencies": []
     },
@@ -107,12 +108,14 @@
       "priority": "P0",
       "title": "기존 338페이지 체크포인트부터 중복 없이 재개",
       "codeLocations": "api/customer-analysis-worker.js; api/customer-analysis-jobs-db.js",
-      "status": "blocked",
+      "status": "implemented",
       "implementation": "unknown_or_partial",
       "acceptance": "관련 코드 조사 + 안전한 회귀 테스트 + 실제 경로 검증 + 결과 증거 기록; 고객 데이터 삭제/재처리 금지",
-      "evidence": [],
-      "checkpoint": "resumeJob exists in api/customer-analysis-jobs-db.js; no live job mutation performed",
-      "blockedReason": "Must read existing live job and checkpoint and confirm no duplicate/overwrite before initiating resume",
+      "evidence": [
+        "api/customer-analysis-jobs-db.js resumeJob SQL updated in e089c4b"
+      ],
+      "checkpoint": "Explicit resumeJob now accepts blocked or failed jobs, resets retry attempts and preserves checkpoint, commit e089c4b. Live 338-page job not resumed; requires later integrated verification.",
+      "blockedReason": null,
       "dependencies": []
     },
     {
@@ -581,15 +584,16 @@
   "lastExecution": {
     "date": "2026-10-12",
     "scope": "LAW-001..LAW-013",
-    "phase": "source_audit",
-    "latestInspectedCommit": "bf5ece30",
-    "nextActions": [
-      "Inspect job and worker lease/retry semantics with tests",
-      "Find client fetch JSON parsing code and implement safe nonJSON error handling",
-      "Trace report retrieval endpoint and gate",
-      "Do not restart live 338-page job before checkpoint is verified"
+    "mode": "implementation_first_then_batch_validation",
+    "commits": [
+      "f70bf647c709f653074cb33712e127277abd35be",
+      "e089c4bf22100cbf04a803d6c17a0bfe77eac5b6"
     ],
-    "verifiedCount": 0,
-    "notes": "No production job accessed; no source code fix yet. Investigation is not implementation or E2E validation."
+    "nextActions": [
+      "Implement frontend safe response parsing and stage separation",
+      "Implement retry/worker hardening and document pipeline improvements",
+      "Batch test and production verification only after implementation tranche"
+    ],
+    "note": "User explicitly prioritizes coding across tasks before consolidated verification. Never mark verified until later batch acceptance."
   }
 }
