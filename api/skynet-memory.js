@@ -4,7 +4,7 @@ import {put,list,get} from '@vercel/blob';
 import {randomUUID} from 'node:crypto';
 import {autosaveId} from '../lib/skynet-autosave-id.mjs';
 const prefix='skynet/memory/';
-const send=(res,code,data)=>res.status(code).setHeader('Cache-Control','no-store').json(data);
+const send=(res,code,data)=>res.status(code).setHeader('Cache-Control','no-store').setHeader('X-Content-Type-Options','nosniff').json(data);
 const authorized=req=>{try{const h=String(req.headers.authorization||'');return !!process.env.ADMIN_PASSWORD&&h.startsWith('Basic ')&&Buffer.from(h.slice(6),'base64').toString()==='admin:'+process.env.ADMIN_PASSWORD}catch{return false}};
 export default async function handler(req,res){
  if(!authorized(req))return send(res,401,{error:'관리자 인증 필요'});
