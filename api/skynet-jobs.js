@@ -1,7 +1,7 @@
 import {randomUUID} from 'node:crypto';
 import {isSkynetAdmin} from '../lib/skynet-job-api-auth.mjs';
 import {validateJobInput} from '../lib/skynet-job-validation.mjs';
-import {loadJob,saveJob,listJobs} from '../lib/skynet-job-store.mjs';
+import {readJob as loadJob,writeJob as saveJob,readJobs as listJobs} from '../lib/skynet-job-store-router.mjs';
 import {transitionJob} from '../lib/skynet-job-state.mjs';
 import {appendJobEvent} from '../lib/skynet-job-events.mjs';
 import {jobReport} from '../lib/skynet-job-report.mjs';
