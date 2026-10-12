@@ -89,8 +89,13 @@ export default async function handler(req,res){
   }
   if(!Array.isArray(previous.finalizePartDigests)||previous.finalizePartDigests.length!==Math.ceil(descriptors.length/8))throw Error('FINALIZATION_DIGEST_COUNT_MISMATCH');
   const claims=[],observations=[],boundaries=[],sources=[];let total=0;
-  for(let start=0;start<descriptors.length;start+=8){
-   const part=await load(root+'finalize-parts/'+String(start).padStart(8,'0')+'.json');
+  const partOffsets=Array.from({length:Math.ceil(descriptors.length/8)},(_,i)=>i*8);
+  const finalizedParts=[];
+  for(let i=0;i<partOffsets.length;i+=12){
+   finalizedParts.push(...await Promise.all(partOffsets.slice(i,i+12).map(start=>load(root+'finalize-parts/'+String(start).padStart(8,'0')+'.json'))));
+  }
+  for(let i=0;i<partOffsets.length;i++){
+   const start=partOffsets[i],part=finalizedParts[i];
    if(!part)throw Error('FINALIZATION_PART_MISSING');
    validateFinalizationPart(part,{sourceVersion:job.documentVersion,offset:start,batchCount:Math.min(8,descriptors.length-start),sha256:previous.finalizePartDigests[Math.floor(start/8)]});
    total+=part.unitCount;
