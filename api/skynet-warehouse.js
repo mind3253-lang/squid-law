@@ -24,6 +24,8 @@ export default async function handler(req,res){
    const chunks=await scan('skynet/uploads/'+batch+'/',101);
    if(chunks.length!==parts||chunks.reduce((n,f)=>n+f.size,0)!==size||Array.from({length:parts},(_,i)=>'skynet/uploads/'+batch+'/'+String(i).padStart(5,'0')+'.bin').some(p=>!chunks.some(c=>c.pathname===p)))return send(res,409,{error:'원본 업로드 확인 실패'});
    const hash=await contentHash(chunks);
+   const registered=await scan('skynet/warehouse/');
+   for(const f of registered){const existing=await readJson(f.pathname).catch(()=>null);if(existing?.hash===hash&&existing.batch!==batch)return send(res,200,{ok:true,duplicate:true,canonicalBatch:existing.batch,hash});}
    const path='skynet/warehouse/'+batch+'.json';
    const old=await get(path,{access:'private'}).catch(()=>null);
    if(old?.statusCode===200){
