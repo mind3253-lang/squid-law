@@ -48,7 +48,7 @@ export default async function handler(req,res){
    if(body.taskId&&body.taskPatch){if(!body.taskPatch||typeof body.taskPatch!=='object'||Array.isArray(body.taskPatch))return res.status(400).json({error:'INVALID_TASK_PATCH'});if(current.status!=='running'||current.owner!==body.owner||(!Number.isFinite(Date.parse(current.leaseUntil))||Date.parse(current.leaseUntil)<=Date.now()))return res.status(409).json({error:'OWNER_MISMATCH'});if(body.taskPatch.status&&!['todo','in_progress','blocked','implemented','verified','failed'].includes(body.taskPatch.status))return res.status(400).json({error:'INVALID_TASK_STATUS'});if(body.taskPatch.status==='verified'&&(!Array.isArray(body.taskPatch.evidence)||body.taskPatch.evidence.length===0))return res.status(400).json({error:'TASK_EVIDENCE_REQUIRED'});const job=checkpointTask(current,body.taskId,body.taskPatch);await saveJob(job,{expectedRevision:current.revision});return res.status(200).json({ok:true,job});}
    const next=body.status==='queued'&&current.status==='running'&&body.recover===true?recoverJob(current):body.status==='running'?claimJob(current,body.owner):transitionJob(current,body?.status,{checkpoint:body?.checkpoint,reason:body?.reason,owner:body?.owner});
    const job=appendJobEvent(next,'status-changed',{from:current.status,to:next.status});
-   await saveJob(job);return res.status(200).json({ok:true,job,updatedAt:job.updatedAt});
+   await saveJob(job,{expectedRevision:current.revision});return res.status(200).json({ok:true,job,updatedAt:job.updatedAt});
   }
   res.setHeader('Allow','GET, POST, PATCH');return res.status(405).json({error:'METHOD_NOT_ALLOWED'});
  }catch(e){return res.status(e instanceof SyntaxError?400:422).json({error:String(e.message||'INVALID_REQUEST').slice(0,100)})}
