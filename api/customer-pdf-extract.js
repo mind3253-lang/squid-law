@@ -30,7 +30,7 @@ export async function extractPdfPages(buffer,maxPages=Infinity){
    let imageOperatorCount=null,visualInventoryStatus='operator_scan_failed';
    try{imageOperatorCount=countImagePaintOperations(await page.getOperatorList());visualInventoryStatus='operator_scan_unverified'}catch{}
    const visualOperatorDigest=createHash('sha256').update(JSON.stringify([n,imageOperatorCount,visualInventoryStatus])).digest('hex');
-   pages.push({page:n,text:lines.join(' ').replace(/ *\n */g,'\n'),imageOperatorCount,visualInventoryStatus,visualOperatorDigest});
+   pages.push({page:n,text:lines.join(' '),imageOperatorCount,visualInventoryStatus,visualOperatorDigest});
    page.cleanup();
   }
   return {pages,totalPages,startPage:range.startPage,endPage:range.endPage,finished:range.endPage===totalPages};
