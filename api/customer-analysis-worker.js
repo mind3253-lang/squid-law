@@ -269,20 +269,39 @@ export default async function handler(req,res){
    const doc=docs[auditIndex];
    const root='squidlaw/analysis-jobs/'+job.customerKey+'/'+job.caseId+'/'+job.jobId+'/visual-provider/';
    const primary=await load(root+doc.id+'.json');
-   const auditPath=root+doc.id+'-independent.json';
-   let independent=await load(auditPath);
-   if(!independent){
-    const bytes=await loadBinary(prefix+'pdf/'+doc.id+'.pdf');
-    if(!bytes||createHash('sha256').update(bytes).digest('hex')!==doc.sha256)throw Error('VISUAL_AUDIT_PDF_SOURCE_MISMATCH');
-    independent=await analyzePdfVisualEvidence({documentId:doc.id,pdfBytes:bytes,apiKey:process.env.OPENAI_API_KEY,model:process.env.SQUIDLAW_VISION_MODEL||'gpt-4.1-mini',auditOf:primary});
-    await put(auditPath,JSON.stringify(independent),{access:'private',allowOverwrite:false,addRandomSuffix:false,contentType:'application/json'});
+   const startPage=previous.visualAuditWindowStartPage||1;
+   if(startPage<=doc.pageCount){
+    const auditPath=root+doc.id+'-independent-window-'+String(startPage).padStart(8,'0')+'.json';
+    let independent=await load(auditPath);
+    if(!independent){
+     const bytes=await loadBinary(prefix+'pdf/'+doc.id+'.pdf');
+     if(!bytes||createHash('sha256').update(bytes).digest('hex')!==doc.sha256)throw Error('VISUAL_AUDIT_PDF_SOURCE_MISMATCH');
+     const window=await splitPdfVisualWindow({pdfBytes:bytes,startPage,pageCount:12});
+     const originalWindow=await load(root+doc.id+'-window-'+String(startPage).padStart(8,'0')+'.json');
+     if(!originalWindow)throw Error('VISUAL_PRIMARY_WINDOW_MISSING');
+     independent=await analyzePdfVisualEvidence({documentId:doc.id,pdfBytes:window.bytes,apiKey:process.env.OPENAI_API_KEY,model:process.env.SQUIDLAW_VISION_MODEL||'gpt-4.1-mini',auditOf:originalWindow,pageOffset:startPage-1,originalPdfSha256:doc.sha256});
+     await put(auditPath,JSON.stringify(independent),{access:'private',allowOverwrite:false,addRandomSuffix:false,contentType:'application/json'});
+    }
+    await advanceJob(job,'visual_independent_window_checkpoint',{...previous,visualAuditDocIndex:auditIndex,visualAuditWindowStartPage:startPage+12},'retry');
+    return res.status(200).json({status:'retry',stage:'visual_independent_window_checkpoint'});
    }
-   const comparison=compareIndependentVisualPass({primary,secondary:independent,pageCount:doc.pageCount});
+   const windows=[];
+   for(let page=1;page<=doc.pageCount;page+=12){
+    const output=await load(root+doc.id+'-independent-window-'+String(page).padStart(8,'0')+'.json');
+    if(!output)throw Error('VISUAL_INDEPENDENT_WINDOW_MISSING');
+    windows.push(output);
+   }
+   const merged={...mergeVisualWindows({documentId:doc.id,sourcePdfSha256:doc.sha256,pageCount:doc.pageCount,windows}),auditPass:true};
+   const auditPath=root+doc.id+'-independent.json';
+   const old=await load(auditPath);
+   if(old&&JSON.stringify(old)!==JSON.stringify(merged))throw Error('VISUAL_INDEPENDENT_MERGE_CONFLICT');
+   if(!old)await put(auditPath,JSON.stringify(merged),{access:'private',allowOverwrite:false,addRandomSuffix:false,contentType:'application/json'});
+   const comparison=compareIndependentVisualPass({primary,secondary:merged,pageCount:doc.pageCount});
    if(!comparison.complete){
     await advanceJob(job,'visual_independent_audit_failed',{...previous,visualAuditDocIndex:auditIndex,visualAuditFailures:[{documentId:doc.id,failures:comparison.failures.slice(0,25)}]},'blocked','INDEPENDENT_VISUAL_AUDIT_FAILED');
     return res.status(200).json({status:'blocked',reason:'INDEPENDENT_VISUAL_AUDIT_FAILED'});
    }
-   await advanceJob(job,'visual_independent_audit_checkpoint',{...previous,visualAuditDocIndex:auditIndex+1},'retry');
+   await advanceJob(job,'visual_independent_audit_checkpoint',{...previous,visualAuditDocIndex:auditIndex+1,visualAuditWindowStartPage:1},'retry');
    return res.status(200).json({status:'retry',stage:'visual_independent_audit_checkpoint'});
   }
   const visualReview={verified:true,independentAuditVerified:true,sourceVersion:job.documentVersion,verifiedDocumentCount:docs.length};
