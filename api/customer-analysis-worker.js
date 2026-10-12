@@ -183,10 +183,13 @@ export default async function handler(req,res){
   if(!task)throw Error('INVALID_LEGAL_TASK');
   const cursor=previous.legalCursor||0;
   const units=[];
-  // Rehydrate only the requested source window from original extracted text.
-  for(const d of docs){
-   for(let start=0;start<d.pageCount;start+=20){
-    const extracted=await load(prefix+'verified/'+d.id+'/batch-'+String(start).padStart(8,'0')+'.json');
+  // Read immutable verified batches concurrently, preserving document/page order and source hashes.
+  const batchRefs=docs.flatMap(d=>Array.from({length:Math.ceil(d.pageCount/20)},(_,i)=>({d,start:i*20})));
+  for(let i=0;i<batchRefs.length;i+=12){
+   const selected=batchRefs.slice(i,i+12);
+   const batches=await Promise.all(selected.map(({d,start})=>load(prefix+'verified/'+d.id+'/batch-'+String(start).padStart(8,'0')+'.json')));
+   for(let j=0;j<selected.length;j++){
+    const {d}=selected[j],extracted=batches[j];
     if(!extracted?.pages)throw Error('LEGAL_SOURCE_TEXT_MISSING');
     const segments=segmentRecord({scope:'customer',documentId:d.id,pages:extracted.pages}).segments;
     for(const u of segments)if(u.part>0)units.push({documentId:d.id,page:u.page,part:u.part,hash:u.hash,text:u.text});
