@@ -143,11 +143,14 @@ export default async function handler(req,res){
   }
   const indexed=new Map(sourceIndex.sources.map(x=>[x.documentId+':'+x.page+':'+x.part,x.hash]));
   if(units.length!==sourceIndex.sources.length||units.some(u=>indexed.get(u.documentId+':'+u.page+':'+u.part)!==u.hash))throw Error('LEGAL_SOURCE_REHYDRATION_MISMATCH');
-  const part=await analyzeLegalWindow({request:authorized,sourceUnits:units,cursor,task,apiKey:process.env.OPENAI_API_KEY,model:process.env.SQUIDLAW_LEGAL_MODEL||'gpt-5.4'});
   const path=root+'legal-windows/'+String(previous.legalTaskIndex||0).padStart(2,'0')+'-'+String(cursor).padStart(8,'0')+'.json';
-  const existing=await load(path);
-  if(existing&&JSON.stringify(existing)!==JSON.stringify(part))throw Error('LEGAL_WINDOW_CONFLICT');
-  if(!existing)await put(path,JSON.stringify(part),{access:'private',allowOverwrite:false,addRandomSuffix:false,contentType:'application/json'});
+  let part=await load(path);
+  if(part){
+   if(part.caseId!==job.caseId||part.sourceVersion!==job.documentVersion||part.task!==task||part.cursor!==cursor||part.sourceAudit?.complete!==true)throw Error('LEGAL_WINDOW_CACHE_INVALID');
+  }else{
+   part=await analyzeLegalWindow({request:authorized,sourceUnits:units,cursor,task,apiKey:process.env.OPENAI_API_KEY,model:process.env.SQUIDLAW_LEGAL_MODEL||'gpt-5.4'});
+   await put(path,JSON.stringify(part),{access:'private',allowOverwrite:false,addRandomSuffix:false,contentType:'application/json'});
+  }
   const paths=[...(previous.legalWindowPaths||[]),path];
   const nextTask=part.complete?(previous.legalTaskIndex||0)+1:(previous.legalTaskIndex||0);
   const nextCursor=part.complete?0:part.nextCursor;
