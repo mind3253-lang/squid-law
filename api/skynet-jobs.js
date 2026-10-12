@@ -8,6 +8,7 @@ import {jobReport} from '../lib/skynet-job-report.mjs';
 import {latestEvents} from '../lib/skynet-job-history.mjs';
 import {scheduleNext} from '../lib/skynet-job-scheduler.mjs';
 import {validatePlan} from '../lib/skynet-job-plan.mjs';
+import {leaseJob} from '../lib/skynet-job-lease.mjs';
 export default async function handler(req,res){
  res.setHeader('Cache-Control','no-store');res.setHeader('X-Content-Type-Options','nosniff');res.setHeader('Vary','Authorization');
  if(Number(req.headers['content-length'])>30000)return res.status(413).json({error:'PAYLOAD_TOO_LARGE'});
@@ -37,7 +38,7 @@ export default async function handler(req,res){
    if(typeof body.reason==='string'&&body.reason.length>1000)return res.status(400).json({error:'REASON_TOO_LONG'});
    if(typeof body.status!=='string')return res.status(400).json({error:'STATUS_REQUIRED'});
    const next=transitionJob(current,body?.status,{checkpoint:body?.checkpoint,reason:body?.reason,owner:body?.owner});
-   const job=appendJobEvent(next,'status-changed',{from:current.status,to:next.status});
+   const job=appendJobEvent(next.status==='running'?leaseJob(next,body.owner):next,'status-changed',{from:current.status,to:next.status});
    await saveJob(job);return res.status(200).json({ok:true,job,updatedAt:job.updatedAt});
   }
   res.setHeader('Allow','GET, POST, PATCH');return res.status(405).json({error:'METHOD_NOT_ALLOWED'});
