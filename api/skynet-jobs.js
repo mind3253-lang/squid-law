@@ -21,6 +21,7 @@ export default async function handler(req,res){
  try{
   const id=String(req.query?.id||'');
   if(req.method==='GET'){
+   if(!id&&req.query?.view==='tools')return res.status(200).json({tools:availableTools()});
    if(!id)return res.status(200).json(await listJobs());
    if(!/^[a-zA-Z0-9_-]{8,80}$/.test(id))return res.status(400).json({error:'INVALID_JOB_ID'});
    const job=await loadJob(id);return job?res.status(200).json(req.query?.view==='report'?{report:{...jobReport(job),schedule:scheduleNext(job.tasks||[])}}:req.query?.view==='events'?{events:latestEvents(job)}:req.query?.view==='resume'?{resume:resumePoint(job)}:{job}):res.status(404).json({error:'NOT_FOUND'});
