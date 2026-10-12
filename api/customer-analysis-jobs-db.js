@@ -2,7 +2,7 @@ import {createHash,randomUUID} from 'node:crypto';
 import {withLeaseDb} from './customer-analysis-lease-db.js';
 import {assertCompletionTransition} from '../lib/analysis-stage-gates.mjs';
 const key=user=>createHash('sha256').update(user).digest('hex');
-const publicJob=r=>r&&({jobId:r.job_id,caseId:r.case_id,documentVersion:r.document_version,status:r.status,stage:r.stage,checkpoint:r.checkpoint,attempts:r.attempts,maxAttempts:r.max_attempts,errorCode:r.error_code,updatedAt:r.updated_at});
+const publicJob=r=>r&&({jobId:r.job_id,caseId:r.case_id,documentVersion:r.document_version,status:r.status,stage:r.stage,checkpoint:r.checkpoint,attempts:r.attempts,maxAttempts:r.max_attempts,errorCode:r.error_code,updatedAt:r.updated_at,createdAt:r.created_at});
 export const documentVersion=docs=>createHash('sha256').update(JSON.stringify([...docs].map(d=>[d.id,d.sha256,d.pageCount]).sort((a,b)=>a[0].localeCompare(b[0])))).digest('hex');
 export async function enqueueJob(user,caseId,version){
  return withLeaseDb(async db=>{
@@ -41,5 +41,16 @@ export async function resumeJob(user,caseId,jobId,version){
  return withLeaseDb(async db=>{
   const r=await db.query("UPDATE customer_analysis_jobs SET status='queued',stage='resume_requested',error_code=NULL,next_run_at=now(),updated_at=now() WHERE customer_key=$1 AND case_id=$2 AND job_id=$3 AND document_version=$4 AND status='blocked' AND error_code IS DISTINCT FROM 'VISUAL_EVIDENCE_NOT_VERIFIED' RETURNING *",[key(user),caseId,jobId,version]);
   return publicJob(r.rows[0]);
+ });
+}
+
+export async function queueSnapshot(user,caseId,id){
+ return withLeaseDb(async db=>{
+  const r=await db.query(`WITH target AS (SELECT created_at FROM customer_analysis_jobs WHERE customer_key=$1 AND case_id=$2 AND job_id=$3),
+  earlier AS (SELECT count(*)::integer AS ahead FROM customer_analysis_jobs j,target t WHERE j.status IN ('queued','retry','running') AND (j.created_at,j.job_id)<(t.created_at,$3::uuid)),
+  running AS (SELECT count(*)::integer AS active FROM customer_analysis_jobs WHERE status='running' AND lease_expires_at>now()),
+  history AS (SELECT count(*)::integer AS completed,avg(extract(epoch FROM updated_at-created_at))::float AS avg_seconds FROM (SELECT created_at,updated_at FROM customer_analysis_jobs WHERE status='completed' ORDER BY updated_at DESC LIMIT 30) x)
+  SELECT earlier.ahead,running.active,history.completed,history.avg_seconds FROM earlier,running,history`,[key(user),caseId,id]);
+  const v=r.rows[0];return {ahead:v.ahead,position:v.ahead+1,active:v.active,estimatedStartSeconds:v.completed>=3&&v.avg_seconds>0?Math.ceil(v.ahead*v.avg_seconds):null,estimateBasis:v.completed};
  });
 }
