@@ -4,6 +4,8 @@ const MAX=1024*1024*100;
 export default async function handler(req,res){
  res.setHeader('Cache-Control','no-store');res.setHeader('X-Content-Type-Options','nosniff');
  const reply=(code,obj)=>res.status(code).json(obj);
+ const auth=String(req.headers.authorization||'');let authorized=false;try{authorized=!!process.env.ADMIN_PASSWORD&&auth.startsWith('Basic ')&&Buffer.from(auth.slice(6),'base64').toString()==='admin:'+process.env.ADMIN_PASSWORD}catch{}
+ if(!authorized)return reply(401,{error:'관리자 인증 필요'});
  if(!process.env.BLOB_READ_WRITE_TOKEN)return reply(503,{error:'비공개 저장소 연결 필요'});
  if(req.method==='GET'){
   if(req.query?.path){
