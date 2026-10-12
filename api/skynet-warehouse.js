@@ -1,4 +1,4 @@
-import {list,get,put} from '@vercel/blob';
+import {list,get,put,del} from '@vercel/blob';
 import {createHash} from 'node:crypto';
 const auth=req=>{try{return !!process.env.ADMIN_PASSWORD&&String(req.headers.authorization||'').startsWith('Basic ')&&Buffer.from(String(req.headers.authorization).slice(6),'base64').toString()==='admin:'+process.env.ADMIN_PASSWORD}catch{return false}};
 async function readJson(path){const file=await get(path,{access:'private'});if(!file||file.statusCode!==200)return null;const chunks=[];let size=0;for await(const c of file.stream){size+=c.length;if(size>1024*1024)return null;chunks.push(c)}return JSON.parse(Buffer.concat(chunks).toString('utf8'))}
@@ -38,6 +38,21 @@ export default async function handler(req,res){
    await put(path,JSON.stringify({batch,name,parts,size,hash,uploadedAt:chunks.map(c=>c.uploadedAt).sort()[0]}),{access:'private',addRandomSuffix:false,allowOverwrite:false,contentType:'application/json'});
    return send(res,200,{ok:true});
   }
+  if(req.method==='PUT'){
+   const uploads=await scan('skynet/uploads/');
+   const manifests=await scan('skynet/warehouse/');
+   const names=new Map();
+   for(const m of manifests){const x=await readJson(m.pathname).catch(()=>null);if(x?.batch)names.set(x.batch,x)}
+   const groups=new Map();
+   for(const file of uploads){const m=file.pathname.match(/^skynet\/uploads\/([^/]+)\/(\d{5})\.bin$/);if(!m)continue;if(!groups.has(m[1]))groups.set(m[1],[]);groups.get(m[1]).push(file)}
+   const verified=[];
+   for(const [batch,parts] of groups){const ordered=parts.sort((a,b)=>a.pathname.localeCompare(b.pathname));if(ordered.some((x,i)=>!x.pathname.endsWith('/'+String(i).padStart(5,'0')+'.bin')))continue;verified.push({batch,parts:ordered,hash:await contentHash(ordered),date:String(ordered[0].uploadedAt||''),name:names.get(batch)})}
+   const byHash=new Map();for(const item of verified){if(!byHash.has(item.hash))byHash.set(item.hash,[]);byHash.get(item.hash).push(item)}
+   const duplicateGroups=[...byHash.values()].filter(g=>g.length>1);
+   let deleted=0,failed=0;const failures=[];
+   for(const group of duplicateGroups){group.sort((a,b)=>Number(!!b.name)-Number(!!a.name)||a.date.localeCompare(b.date));const keep=group[0];for(const extra of group.slice(1)){try{await del(extra.parts.map(x=>x.pathname));if(extra.name)await del('skynet/warehouse/'+extra.batch+'.json');deleted++}catch(e){failed++;failures.push(extra.batch+': '+String(e.message).slice(0,90))}}}
+   return send(res,failed?207:200,{ok:failed===0,scanned:verified.length,duplicateGroups:duplicateGroups.length,deleted,failed,failures});
+  }
   if(req.method!=='GET')return send(res,405,{error:'GET/POST only'});
   const [manifests,documents,memories,uploads]=await Promise.all([scan('skynet/warehouse/'),scan('skynet/documents/'),scan('skynet/memory/'),scan('skynet/uploads/')]);
   const items=[],known=new Set(),seenHashes=new Set();
@@ -70,12 +85,12 @@ export default async function handler(req,res){
   }
   // Only exact verified content identities are eligible for deduplication.
   // Legacy uploads lacking a per-batch hash remain visible until verified.
-  const seenHashes=new Set(),unique=[];
+  const processedHashes=new Set(),unique=[];
   for(const item of items){
    const hashes=documentHashes.get(item.name);
    const hash=hashes?.size===1?[...hashes][0]:null;
-   if(item.source==='processed'&&hash&&seenHashes.has(hash))continue;
-   if(item.source==='processed'&&hash)seenHashes.add(hash);
+   if(item.source==='processed'&&hash&&processedHashes.has(hash))continue;
+   if(item.source==='processed'&&hash)processedHashes.add(hash);
    unique.push(item);
   }
   items.length=0;items.push(...unique);
