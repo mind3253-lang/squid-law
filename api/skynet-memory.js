@@ -49,5 +49,5 @@ export default async function handler(req,res){
   if(existing?.statusCode===200)return send(res,200,{ok:true,duplicate:true});
   const sourceData={messages:messages.map(m=>({role:m.role,content:m.content})),savedAt:new Date().toISOString()};await put(pathname,JSON.stringify(sourceData),{access:'private',allowOverwrite:false,addRandomSuffix:false,contentType:'application/json'});try{await indexSource(pathname,sourceData)}catch(e){console.error('Search index deferred',String(e.message).slice(0,120))}
   return send(res,200,{ok:true});
- }catch(e){return send(res,502,{error:'기억 저장 실패',detail:String(e?.message||'').slice(0,120)})}
+ }catch(e){if(/already exists|conflict/i.test(String(e?.message||'')))return send(res,200,{ok:true,duplicate:true});return send(res,502,{error:'기억 저장 실패'})}
 }
