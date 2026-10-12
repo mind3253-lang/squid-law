@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
-import {parseAnalysisResponse,analysisProgress,AnalysisResponseError} from '../lib/customer-analysis-response.mjs';
+import {parseAnalysisResponse,analysisProgress,AnalysisResponseError,requestAnalysisJson} from '../lib/customer-analysis-response.mjs';
 import {auditFinalizationCheckpoint,auditFinalizationParts} from '../lib/finalization-checkpoint.mjs';
 import {auditSourceDocuments,auditPageCoverage} from '../lib/customer-source-ingest-audit.mjs';
 const hash=v=>createHash('sha256').update(JSON.stringify(v)).digest('hex');
@@ -29,4 +29,13 @@ test('document metadata rejects duplicate payloads',()=>{
  const doc={id:'a',pageCount:338,sizeBytes:100,sha256:'a'.repeat(64)};
  assert.equal(auditSourceDocuments([doc]).totalPages,338);
  assert.throws(()=>auditSourceDocuments([doc,{...doc,id:'b'}]));
+});
+
+test('request wrapper handles successful JSON and invalid gateway output',async()=>{
+ const ok=await requestAnalysisJson('/api/test',{fetchImpl:async()=>({ok:true,status:200,text:async()=>JSON.stringify({status:'retry'})})});
+ assert.equal(ok.status,'retry');
+ await assert.rejects(requestAnalysisJson('/api/test',{fetchImpl:async()=>({ok:false,status:502,text:async()=>'<html>Bad gateway</html>'})}),e=>e.code==='NON_JSON_SERVER_RESPONSE'&&e.status===502);
+});
+test('request wrapper normalizes transport failure',async()=>{
+ await assert.rejects(requestAnalysisJson('/api/test',{fetchImpl:async()=>{throw Error('private network detail')}}),e=>e.code==='ANALYSIS_NETWORK_ERROR'&&!e.message.includes('private'));
 });
