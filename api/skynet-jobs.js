@@ -23,7 +23,7 @@ export default async function handler(req,res){
    await saveJob(job,{overwrite:false});return res.status(201).json({job});
   }
   if(req.method==='PATCH'){
-   if(!id)return res.status(400).json({error:'ID_REQUIRED'});
+   if(!/^[a-zA-Z0-9_-]{8,80}$/.test(id))return res.status(400).json({error:'INVALID_JOB_ID'});
    const body=typeof req.body==='string'?JSON.parse(req.body):req.body;
    if(!body||typeof body!=='object'||Array.isArray(body))return res.status(400).json({error:'INVALID_BODY'});
    const current=await loadJob(id);if(!current)return res.status(404).json({error:'NOT_FOUND'});
