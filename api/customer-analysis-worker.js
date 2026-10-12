@@ -16,6 +16,7 @@ import {buildTextReviewReport} from '../lib/text-review-report.mjs';
 import {auditSourceUnitIndex} from '../lib/legal-reasoning-audit.mjs';
 import {buildVisualReferenceManifest} from '../lib/source-continuity.mjs';
 import {analyzeLegalWindow} from '../lib/gpt-legal-orchestrator.mjs';
+import {analyzePdfVisualEvidence} from '../lib/openai-vision-provider.mjs';
 import {buildLegalCustomerReport} from '../lib/legal-customer-report.mjs';
 import {validatePersistedBatch,finalizationDescriptors,validateFinalizationPart,summarizeClaimRoles} from '../lib/text-review-aggregation.mjs';
 import {detectOpposingStatements} from '../lib/case-crosscheck.mjs';
@@ -110,8 +111,8 @@ export default async function handler(req,res){
   const legalRequest=buildLegalReasoningRequest({caseId:job.caseId,sourceVersion:job.documentVersion,aggregatePath,aggregateSha256,sourceIndexPath,sourceIndexSha256,partPaths,partDigests:previous.finalizePartDigests});
   await put(legalReasoningRequestPath,JSON.stringify(legalRequest),{access:'private',allowOverwrite:true,addRandomSuffix:false,contentType:'application/json'});
   await put(manifestPath,JSON.stringify({caseId:job.caseId,sourceVersion:job.documentVersion,documents:docs.map(x=>({id:x.id,pageCount:x.pageCount})),outputs:expectedTextReviewOutputs({root,documents:docs}),aggregateSha256,verifiedVisual:false,verifiedLegal:false,analysisComplete:false,pendingStages:ANALYSIS_STAGES.slice(2)}),{access:'private',allowOverwrite:true,addRandomSuffix:false,contentType:'application/json'});
-  await advanceJob(job,'text_review_completed_visual_pending',{...previous,phase:'verify',textReviewManifest:manifestPath,textReviewAggregate:aggregatePath,textReviewIntermediateReport:intermediateReportPath,legalReasoningRequest:legalReasoningRequestPath,sourceUnitIndex:sourceIndexPath},'blocked','VISUAL_EVIDENCE_NOT_VERIFIED');
-  return res.status(200).json({status:'blocked',reason:'VISUAL_EVIDENCE_NOT_VERIFIED',verifiedTextDocuments:docs.length});
+  await advanceJob(job,'text_review_completed_visual_pending',{...previous,phase:'verify',textReviewManifest:manifestPath,textReviewAggregate:aggregatePath,textReviewIntermediateReport:intermediateReportPath,legalReasoningRequest:legalReasoningRequestPath,sourceUnitIndex:sourceIndexPath},'retry');
+  return res.status(200).json({status:'retry',stage:'text_review_completed_visual_pending',verifiedTextDocuments:docs.length});
  }
  if(index>=docs.length&&previous.visualReview?.verified===true&&previous.visualReview?.independentAuditVerified===true&&previous.visualReview?.sourceVersion===job.documentVersion&&previous.legalReasoningRequest&&previous.sourceUnitIndex){
   const root='squidlaw/analysis-jobs/'+job.customerKey+'/'+job.caseId+'/'+job.jobId+'/';
@@ -158,6 +159,28 @@ export default async function handler(req,res){
   await put(reportPath,JSON.stringify(report),{access:'private',allowOverwrite:true,addRandomSuffix:false,contentType:'application/json'});
   await advanceJob(job,'legal_reasoning_independent_review_pending',{...previous,legalTaskIndex:nextTask,legalCursor:0,legalWindowPaths:paths,legalCustomerReport:reportPath},'blocked','INDEPENDENT_SEMANTIC_AUDIT_PENDING');
   return res.status(200).json({status:'blocked',reason:'INDEPENDENT_SEMANTIC_AUDIT_PENDING'});
+ }
+ if(index===docs.length&&previous.phase==='verify'&&previous.textReviewManifest&&!previous.visualReview?.independentAuditVerified){
+  if(!process.env.OPENAI_API_KEY){
+   await advanceJob(job,'visual_api_key_missing',previous,'blocked','OPENAI_API_KEY_MISSING');
+   return res.status(200).json({status:'blocked',reason:'OPENAI_API_KEY_MISSING'});
+  }
+  const next=previous.visualDocIndex||0;
+  if(next<docs.length){
+   const doc=docs[next];
+   const outputPath='squidlaw/analysis-jobs/'+job.customerKey+'/'+job.caseId+'/'+job.jobId+'/visual-provider/'+doc.id+'.json';
+   let output=await load(outputPath);
+   if(!output){
+    const bytes=await loadBinary(prefix+'pdf/'+doc.id+'.pdf');
+    if(!bytes||createHash('sha256').update(bytes).digest('hex')!==doc.sha256)throw Error('VISUAL_SOURCE_PDF_DIGEST_MISMATCH');
+    output=await analyzePdfVisualEvidence({documentId:doc.id,pdfBytes:bytes,apiKey:process.env.OPENAI_API_KEY,model:process.env.SQUIDLAW_VISION_MODEL||'gpt-4.1-mini'});
+    await put(outputPath,JSON.stringify(output),{access:'private',allowOverwrite:false,addRandomSuffix:false,contentType:'application/json'});
+   }
+   await advanceJob(job,'visual_provider_checkpoint',{...previous,visualDocIndex:next+1,visualProviderLastOutput:outputPath},'retry');
+   return res.status(200).json({status:'retry',stage:'visual_provider_checkpoint',processedDocuments:next+1,totalDocuments:docs.length});
+  }
+  await advanceJob(job,'visual_independent_audit_pending',{...previous,visualProviderCompleted:true},'blocked','INDEPENDENT_VISUAL_AUDIT_PENDING');
+  return res.status(200).json({status:'blocked',reason:'INDEPENDENT_VISUAL_AUDIT_PENDING'});
  }
  if(index===docs.length&&extractionOnly){
   await advanceJob(job,'source_collection_completed',{phase:'analyze',nextDocument:0,nextPage:0,documentCount:docs.length,collectionCompletedAt:new Date().toISOString()},'retry');
