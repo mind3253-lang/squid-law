@@ -526,7 +526,7 @@ export default async function handler(req,res){
   const verifiedPath=prefix+'verified/'+d.id+'/batch-'+String(pageOffset).padStart(8,'0')+'.json';
   const oldVerified=await load(verifiedPath);
   if(oldVerified){
-   if(JSON.stringify(oldVerified.pages)!==JSON.stringify(verifiedPages))throw Error('VERIFIED_PAGE_CONFLICT');
+   if(oldVerified.sourcePdfSha256!==d.sha256||oldVerified.documentId!==d.id||JSON.stringify(oldVerified.pages)!==JSON.stringify(verifiedPages))throw Error('VERIFIED_PAGE_CONFLICT');
   }else await put(verifiedPath,JSON.stringify({documentId:d.id,sourcePdfSha256:d.sha256,pages:verifiedPages}),{access:'private',allowOverwrite:false,addRandomSuffix:false,contentType:'application/json'});
  }
  const segmented=segmentRecord({scope:'customer',documentId:d.id,pages:verifiedPages});
