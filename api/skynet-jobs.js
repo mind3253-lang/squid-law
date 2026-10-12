@@ -24,6 +24,7 @@ export default async function handler(req,res){
   if(req.method==='PATCH'){
    if(!id)return res.status(400).json({error:'ID_REQUIRED'});
    const body=typeof req.body==='string'?JSON.parse(req.body):req.body;
+   if(!body||typeof body!=='object'||Array.isArray(body))return res.status(400).json({error:'INVALID_BODY'});
    const current=await loadJob(id);if(!current)return res.status(404).json({error:'NOT_FOUND'});
    const next=transitionJob(current,body?.status,{checkpoint:body?.checkpoint,reason:body?.reason,owner:body?.owner});
    const job=appendJobEvent(next,'status-changed',{from:current.status,to:next.status});
