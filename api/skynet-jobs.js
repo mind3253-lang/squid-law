@@ -4,6 +4,7 @@ import {validateJobInput} from '../lib/skynet-job-validation.mjs';
 import {loadJob,saveJob,listJobs} from '../lib/skynet-job-store.mjs';
 import {transitionJob} from '../lib/skynet-job-state.mjs';
 import {appendJobEvent} from '../lib/skynet-job-events.mjs';
+import {jobReport} from '../lib/skynet-job-report.mjs';
 export default async function handler(req,res){
  res.setHeader('Cache-Control','no-store');res.setHeader('X-Content-Type-Options','nosniff');res.setHeader('Vary','Authorization');
  if(Number(req.headers['content-length'])>30000)return res.status(413).json({error:'PAYLOAD_TOO_LARGE'});
@@ -14,7 +15,7 @@ export default async function handler(req,res){
   if(req.method==='GET'){
    if(!id)return res.status(200).json(await listJobs());
    if(!/^[a-zA-Z0-9_-]{8,80}$/.test(id))return res.status(400).json({error:'INVALID_JOB_ID'});
-   const job=await loadJob(id);return job?res.status(200).json({job}):res.status(404).json({error:'NOT_FOUND'});
+   const job=await loadJob(id);return job?res.status(200).json(req.query?.view==='report'?{report:jobReport(job)}:{job}):res.status(404).json({error:'NOT_FOUND'});
   }
   if(req.method==='POST'){
    const body=typeof req.body==='string'?JSON.parse(req.body):req.body;
