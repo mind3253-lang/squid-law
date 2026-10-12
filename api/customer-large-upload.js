@@ -29,7 +29,7 @@ export default async function handler(req,res){
   const name=String(b?.name||'').replace(/[\\/\x00-\x1f]/g,'').slice(0,140),total=Number(b?.total),size=Number(b?.size);
   if(!/\.pdf$/i.test(name)||!Number.isInteger(total)||total<1||total>100||!Number.isInteger(size)||size<100||size>MAX||total!==Math.ceil(size/CHUNK))return respond(res,400,{error:'PDF 또는 용량 정보 오류'});
   const paths=Array.from({length:total},(_,i)=>root+i+'.part');
-  const buffers=[];for(const path of paths)buffers.push(await bytes(path));
+  const buffers=[];for(let i=0;i<paths.length;i+=6){buffers.push(...await Promise.all(paths.slice(i,i+6).map(bytes)))}
   const buf=Buffer.concat(buffers);
   if(buf.length!==size||buf.subarray(0,5).toString()!=='%PDF-')return respond(res,422,{error:'PDF 파일 검증 실패'});
   const sha256=createHash('sha256').update(buf).digest('hex'),existing=(await documents(user,id)).find(d=>d.sha256===sha256);
@@ -44,7 +44,7 @@ export default async function handler(req,res){
    return respond(res,202,{document:meta,extractionPending:true});
   }
 
-  let extracted;try{extracted=await extractPdfPages(buf)}catch{return respond(res,422,{error:'PDF 본문 추출 실패. 암호 또는 파일 손상을 확인해 주세요'})}
+  let extracted;try{extracted=await extractPdfPages(buf,{fastTextOnly:true})}catch{return respond(res,422,{error:'PDF 본문 추출 실패. 암호 또는 파일 손상을 확인해 주세요'})}
   const {pages,totalPages}=extracted;for(const page of pages)page.textSha256=createHash('sha256').update(String(page.text||'')).digest('hex');if(!pages.length)return respond(res,422,{error:'PDF 텍스트 추출 실패'});
   const uuid=randomUUID(),createdAt=new Date().toISOString();
   const meta={id:uuid,name,sha256,size:buf.length,createdAt,side:'customer',pageCount:totalPages,extractedPages:pages.length,excludedPages:Math.max(0,totalPages-pages.length),readablePages:pages.filter(p=>p.text.trim().length>=15).length,imageOperatorPages:pages.filter(p=>p.imageOperatorCount>0).length,unscannedVisualPages:pages.filter(p=>p.imageOperatorCount===null).length,visualVerified:false,status:totalPages>pages.length?'일부 페이지만 추출됨':pages.some(p=>p.text.trim().length<15)?'일부 페이지 텍스트 없음 (스캔 가능성)':'본문 추출 완료'};
