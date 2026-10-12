@@ -180,7 +180,7 @@ export default async function handler(req,res){
   // Rehydrate only the requested source window from original extracted text.
   for(const d of docs){
    for(let start=0;start<d.pageCount;start+=20){
-    const extracted=await load(prefix+'extracted/'+d.id+'/batch-'+String(start).padStart(8,'0')+'.json');
+    const extracted=await load(prefix+'verified/'+d.id+'/batch-'+String(start).padStart(8,'0')+'.json');
     if(!extracted?.pages)throw Error('LEGAL_SOURCE_TEXT_MISSING');
     const segments=segmentRecord({scope:'customer',documentId:d.id,pages:extracted.pages}).segments;
     for(const u of segments)if(u.part>0)units.push({documentId:d.id,page:u.page,part:u.part,hash:u.hash,text:u.text});
@@ -251,7 +251,9 @@ export default async function handler(req,res){
    if(batch)verifiedBatches.push(batch);
   }
   const textAudit=auditVerifiedTextPages({documents:docs,verifiedBatches});
-  const boundaryAudit=auditDocumentBoundaryEvidence({documents:docs,aggregate});
+  const verifiedBoundaries=[];
+  for(const doc of docs)verifiedBoundaries.push(await load(root+'boundary-audit/'+doc.id+'-verified.json'));
+  const boundaryAudit=auditDocumentBoundaryEvidence({documents:docs,aggregate:{documentBoundaryCandidates:verifiedBoundaries}});
   const completion=reconcileAnalysisCompletion({sourceVersion:job.documentVersion,documents:docs,sourceIndex:indexData,aggregate,report,visualReview:previous.visualReview,semanticAuditPassed:true,visualAudits,ocrVerified:textAudit.verified,boundariesVerified:boundaryAudit.verified});
   completion.failures.push(...textAudit.failures.slice(0,50),...boundaryAudit.failures.slice(0,50));
   const finalPath=root+'completion-reconciliation.json';
