@@ -226,6 +226,10 @@ export default async function handler(req,res){
   const report=await load(previous.legalCustomerReport);
   if(!report||report.sourceVersion!==job.documentVersion)throw Error('SEMANTIC_REPORT_SOURCE_MISMATCH');
   if(!process.env.OPENAI_API_KEY){await advanceJob(job,'semantic_api_missing',previous,'blocked','OPENAI_API_KEY_MISSING');return res.status(200).json({status:'blocked'})}
+  const cursor=previous.semanticAuditCursor||0;
+  const size=8;
+  const findings=report.findings.slice(cursor,cursor+size);
+  if(findings.length){
   const sources=[];
   const semanticBatchRefs=docs.flatMap(d=>Array.from({length:Math.ceil(d.pageCount/20)},(_,i)=>({d,start:i*20})));
   for(let i=0;i<semanticBatchRefs.length;i+=12){
@@ -237,10 +241,6 @@ export default async function handler(req,res){
     for(const u of segmentRecord({scope:'customer',documentId:d.id,pages:batch.pages}).segments)sources.push({documentId:d.id,page:u.page,part:u.part,hash:u.hash,text:u.text});
    }
   }
-  const cursor=previous.semanticAuditCursor||0;
-  const size=8;
-  const findings=report.findings.slice(cursor,cursor+size);
-  if(findings.length){
    const request=buildSemanticReviewRequest({caseId:job.caseId,sourceVersion:job.documentVersion,findings,sourceUnits:sources,model:process.env.SQUIDLAW_LEGAL_MODEL||'gpt-5.4'});
    const path=root+'semantic-audit/'+String(cursor).padStart(8,'0')+'.json';
    let result=await load(path);
