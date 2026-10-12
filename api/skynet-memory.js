@@ -42,6 +42,22 @@ export default async function handler(req,res){
  if(req.method!=='POST')return send(res,405,{error:'허용되지 않은 요청'});
  const body=typeof req.body==='string'?(()=>{try{return JSON.parse(req.body)}catch{return null}})():req.body;
  const messages=body?.messages;
+ if(body?.action==='save-turn'){
+  const role=String(body.role||'');
+  const content=String(body.content||'');
+  const turnId=String(body.turnId||'');
+  if(!['user','assistant'].includes(role)||!content.trim()||content.length>12000||!/^[a-zA-Z0-9_-]{12,100}$/.test(turnId))return send(res,400,{error:'대화 저장 형식 오류'});
+  try{
+   const pathname=prefix+'turns/'+turnId+'/'+role+'.json';
+   const existing=await get(pathname,{access:'private'});
+   if(existing?.statusCode===200)return send(res,200,{ok:true,duplicate:true});
+   const saved={messages:[{role,content}],turnId,savedAt:new Date().toISOString()};
+   await put(pathname,JSON.stringify(saved),{access:'private',addRandomSuffix:false,allowOverwrite:false,contentType:'application/json'});
+   try{await indexSource(pathname,saved)}catch(e){console.error('Turn indexing deferred',String(e.message).slice(0,120))}
+   return send(res,200,{ok:true,role});
+  }catch(e){if(/already exists|conflict/i.test(String(e.message)))return send(res,200,{ok:true,duplicate:true});return send(res,502,{error:'대화 저장 실패'})}
+ }
+
  if(!Array.isArray(messages)||messages.length!==2||messages[0]?.role!=='user'||messages[1]?.role!=='assistant'||messages.some(m=>typeof m.content!=='string'||!m.content.trim()||m.content.length>12000))return send(res,400,{error:'기억 형식 오류'});
  try{
   const pathname=prefix+'pairs/'+autosaveId(messages)+'.json';
