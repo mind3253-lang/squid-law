@@ -26,8 +26,22 @@ export default async function handler(req,res){
   for(let i=0;i<documents.length;i+=15){const part=await Promise.all(documents.slice(i,i+15).map(async f=>{try{return {d:await readJson(f.pathname),f}}catch{return null}}));for(const x of part)if(x?.d?.name){const d=x.d;if(!items.some(y=>y.name===d.name)){items.push({name:d.name,uploadedAt:d.createdAt||x.f.uploadedAt,size:null,type:d.name.split('.').pop().toUpperCase(),source:'processed',id:x.f.pathname})}}}
   // Legacy chat records may contain original filenames even when extraction failed.
   for(let i=0;i<memories.length;i+=15){const part=await Promise.all(memories.slice(i,i+15).map(async f=>{try{return {d:await readJson(f.pathname),f}}catch{return null}}));for(const x of part)for(const m of x?.d?.messages||[]){const match=String(m.content||'').match(/^📎\s+(.+?)\s+·\s+(?:서버 저장 완료|서버 보관 완료|원본 저장 완료|검색 기억 등록 완료)/);if(match&&!items.some(y=>y.name===match[1]))items.push({name:match[1],uploadedAt:x.d.savedAt||x.f.uploadedAt,size:null,type:match[1].split('.').pop().toUpperCase(),source:'history',id:x.f.pathname})}}
-  const uploadBatches=new Map();for(const file of uploads){const m=file.pathname.match(/^skynet\/uploads\/([^/]+)\/\d{5}\.bin$/);if(!m)continue;const key=m[1];if(!uploadBatches.has(key))uploadBatches.set(key,{count:0,size:0,uploadedAt:file.uploadedAt});const v=uploadBatches.get(key);v.count++;v.size+=file.size;}
-  const unidentified=[...uploadBatches.entries()].filter(([batch])=>!known.has(batch));
+  const uploadBatches=new Map();
+  for(const file of uploads){
+   const m=file.pathname.match(/^skynet\/uploads\/([^/]+)\/(\d{5})\.bin$/);
+   if(!m)continue;
+   const batch=m[1],part=Number(m[2]);
+   if(!uploadBatches.has(batch))uploadBatches.set(batch,{count:0,size:0,uploadedAt:file.uploadedAt,parts:new Set()});
+   const v=uploadBatches.get(batch);v.count++;v.size+=file.size;v.parts.add(part);
+   if(String(file.uploadedAt||'')<String(v.uploadedAt||''))v.uploadedAt=file.uploadedAt;
+  }
+  for(const [batch,v] of uploadBatches){
+   if(known.has(batch))continue;
+   const matching=items.find(x=>x.batch===batch);
+   if(matching)continue;
+   items.push({name:'원본 파일 · 이름 미확인 ('+batch.slice(0,8)+')',uploadedAt:v.uploadedAt,size:v.size,type:'미확인',source:'unidentified',id:batch,parts:v.count});
+  }
+  const unidentified=[...uploadBatches.keys()].filter(batch=>!known.has(batch));
   items.sort((a,b)=>String(b.uploadedAt||'').localeCompare(String(a.uploadedAt||'')));
   return send(res,200,{items,total:items.length,originalChunkCount:uploads.length,originalBatchCount:uploadBatches.size,unidentifiedBatchCount:unidentified.length,scope:'warehouse_documents_and_history',note:'과거 파일 중 원본 파일명 기록이 없는 업로드는 식별 불가'});
  }catch(e){return send(res,502,{error:'자료창고 조회 실패',detail:String(e.message).slice(0,150)})}
