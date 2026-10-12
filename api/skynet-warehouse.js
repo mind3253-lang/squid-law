@@ -7,7 +7,7 @@ export default async function handler(req,res){
  if(req.method!=='GET')return res.status(405).json({error:'GET only'});
  try{
   const blobs=[];let cursor;
-  do{const page=await list({prefix:'skynet/documents/',limit:1000,...(cursor?{cursor}:{})});blobs.push(...page.blobs.filter(b=>/^skynet\\/documents\\/[a-f0-9]{64}\\.json$/.test(b.pathname)));cursor=page.hasMore?page.cursor:undefined}while(cursor&&blobs.length<10000);
+  do{const page=await list({prefix:'skynet/documents/',limit:1000,...(cursor?{cursor}:{})});blobs.push(...page.blobs.filter(b=>b.pathname.startsWith('skynet/documents/')&&b.pathname.endsWith('.json')&&b.pathname.length===('skynet/documents/'.length+64+5)));cursor=page.hasMore?page.cursor:undefined}while(cursor&&blobs.length<10000);
   const items=[];
   for(let i=0;i<blobs.length;i+=12){const part=await Promise.all(blobs.slice(i,i+12).map(async b=>{try{const data=await readJson(b.pathname);if(!data||typeof data.name!=='string'||!data.name.trim())return null;return {name:data.name,uploadedAt:data.createdAt||b.uploadedAt||null,size:null,type:data.name.split('.').pop().toUpperCase(),source:'document',id:b.pathname}}catch{return null}}));items.push(...part.filter(Boolean))}
   items.sort((a,b)=>String(b.uploadedAt||'').localeCompare(String(a.uploadedAt||'')));
