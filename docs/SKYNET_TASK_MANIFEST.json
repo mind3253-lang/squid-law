@@ -1,0 +1,294 @@
+{
+  "schemaVersion": 1,
+  "project": "SQUIDLAW/SKYNET",
+  "repository": "mind3253-lang/squid-law",
+  "branch": "main",
+  "updatedAt": "2026-10-12",
+  "principlesDocument": "docs/SKYNET_CONTINUITY_AND_IMPLEMENTATION.md",
+  "executionInstructions": "docs/SKYNET_RESUME_COMMAND.md",
+  "stateSemantics": {
+    "todo": "not started or not yet verified",
+    "in_progress": "work started with durable checkpoint",
+    "blocked": "cannot proceed; record concrete blocker",
+    "implemented": "code exists but acceptance not yet verified",
+    "verified": "acceptance evidence recorded; skip unless regression or stale",
+    "failed": "attempt failed; retry from checkpoint"
+  },
+  "important": "Do not mark verified based on code presence, commit, mock test or Vercel READY alone. Never auto-run without an invoked session or configured persistent worker.",
+  "tasks": [
+    {
+      "id": "SKY-001",
+      "priority": "P0",
+      "title": "Audit SKYNET UI endpoints and all API authentication paths",
+      "acceptance": "Review browser callers, headers, upload/memory flows; add auth regression tests; no consent prompt for automatic saves",
+      "status": "todo",
+      "evidence": [],
+      "checkpoint": null,
+      "blockedReason": null,
+      "dependsOn": []
+    },
+    {
+      "id": "SKY-002",
+      "priority": "P0",
+      "title": "Verify automatic conversation save and reload",
+      "acceptance": "Locate agreed message-count trigger; test batching, duplicates, reconnect, new session, retry, and history pagination",
+      "status": "todo",
+      "evidence": [],
+      "checkpoint": null,
+      "blockedReason": null,
+      "dependsOn": []
+    },
+    {
+      "id": "SKY-003",
+      "priority": "P0",
+      "title": "Verify live OpenAI model and API compatibility",
+      "acceptance": "Make authorized real request; verify returned model, errors, token usage, supported parameters; never assume model string implies availability",
+      "status": "todo",
+      "evidence": [],
+      "checkpoint": null,
+      "blockedReason": null,
+      "dependsOn": []
+    },
+    {
+      "id": "SKY-004",
+      "priority": "P0",
+      "title": "Verify deployed production revision",
+      "acceptance": "Ensure latest main commit deployed READY, check logs and production smoke tests, distinguish READY from runtime success",
+      "status": "todo",
+      "evidence": [],
+      "checkpoint": null,
+      "blockedReason": null,
+      "dependsOn": []
+    },
+    {
+      "id": "SKY-005",
+      "priority": "P1",
+      "title": "Inventory OpenAI model and tool capabilities",
+      "acceptance": "Document current available API tools, multimodal, file, retrieval, browsing, code/computer execution, limits, and product-only unavailable features; do not cherry-pick a tiny subset",
+      "status": "todo",
+      "evidence": [],
+      "checkpoint": null,
+      "blockedReason": null,
+      "dependsOn": []
+    },
+    {
+      "id": "SKY-006",
+      "priority": "P1",
+      "title": "Build unified SKYNET tool registry and policy",
+      "acceptance": "Implement typed tool definitions, per-tool scopes, approval for destructive actions, audit trail, safe credential handling",
+      "status": "todo",
+      "evidence": [],
+      "checkpoint": null,
+      "blockedReason": null,
+      "dependsOn": []
+    },
+    {
+      "id": "SKY-007",
+      "priority": "P1",
+      "title": "Connect GitHub repository tools",
+      "acceptance": "Read tree/files, search, patch, commit, diff, PR and tests with permissions, safeguards and provenance",
+      "status": "todo",
+      "evidence": [],
+      "checkpoint": null,
+      "blockedReason": null,
+      "dependsOn": []
+    },
+    {
+      "id": "SKY-008",
+      "priority": "P1",
+      "title": "Connect Vercel deployment tools",
+      "acceptance": "Inspect project, deployment status, logs, env names without secret exposure, deploy/redeploy under permissions",
+      "status": "todo",
+      "evidence": [],
+      "checkpoint": null,
+      "blockedReason": null,
+      "dependsOn": []
+    },
+    {
+      "id": "SKY-009",
+      "priority": "P1",
+      "title": "Connect research and file analysis tools",
+      "acceptance": "Web research with citations, document parsing, PDFs/images/OCR, structured exports, independent provenance verification",
+      "status": "todo",
+      "evidence": [],
+      "checkpoint": null,
+      "blockedReason": null,
+      "dependsOn": []
+    },
+    {
+      "id": "SKY-010",
+      "priority": "P1",
+      "title": "Implement durable job state machine",
+      "acceptance": "Persist queued/running/blocked/completed/failed/cancelled, job ID, owner, plan, dependencies, tool events, checkpoints and artifacts",
+      "status": "todo",
+      "evidence": [],
+      "checkpoint": null,
+      "blockedReason": null,
+      "dependsOn": []
+    },
+    {
+      "id": "SKY-011",
+      "priority": "P1",
+      "title": "Implement resumable execution worker",
+      "acceptance": "Bounded job slices, lease/idempotency, retries/backoff, restart recovery; avoid long single HTTP requests and accidental duplicate commits",
+      "status": "todo",
+      "evidence": [],
+      "checkpoint": null,
+      "blockedReason": null,
+      "dependsOn": []
+    },
+    {
+      "id": "SKY-012",
+      "priority": "P1",
+      "title": "Implement continue-unfinished-only scheduler",
+      "acceptance": "On invocation compare current repo/deploy with manifest, skip only verified tasks, resume partial tasks from checkpoint, detect stale state",
+      "status": "todo",
+      "evidence": [],
+      "checkpoint": null,
+      "blockedReason": null,
+      "dependsOn": []
+    },
+    {
+      "id": "SKY-013",
+      "priority": "P1",
+      "title": "Implement completion-oriented reporting",
+      "acceptance": "Suppress per-commit/per-10-second chatter, expose optional progress, report when completed or blocked",
+      "status": "todo",
+      "evidence": [],
+      "checkpoint": null,
+      "blockedReason": null,
+      "dependsOn": []
+    },
+    {
+      "id": "SKY-014",
+      "priority": "P1",
+      "title": "Implement persistent cross-chat project memory",
+      "acceptance": "Index source-bound messages, decisions, tasks, file metadata and links; retrieve by project/case and chronology; prevent mixing cases",
+      "status": "todo",
+      "evidence": [],
+      "checkpoint": null,
+      "blockedReason": null,
+      "dependsOn": []
+    },
+    {
+      "id": "SKY-015",
+      "priority": "P1",
+      "title": "Verify ChatGPT archive import end to end",
+      "acceptance": "Real ZIP/JSON upload chunks, dedupe, indexing, search, resumable ingestion, no destructive overwrites",
+      "status": "todo",
+      "evidence": [],
+      "checkpoint": null,
+      "blockedReason": null,
+      "dependsOn": []
+    },
+    {
+      "id": "SKY-016",
+      "priority": "P1",
+      "title": "Verify legal document multimodal pipeline",
+      "acceptance": "PDF pages, scans, DOCX/XLSX/images, evidence anchors and page-level provenance; no invented citations",
+      "status": "todo",
+      "evidence": [],
+      "checkpoint": null,
+      "blockedReason": null,
+      "dependsOn": []
+    },
+    {
+      "id": "SKY-017",
+      "priority": "P1",
+      "title": "Implement token usage and cost ledger",
+      "acceptance": "Record model, prompt/output tokens, estimates vs billed values, timestamps, job ID, budget controls",
+      "status": "todo",
+      "evidence": [],
+      "checkpoint": null,
+      "blockedReason": null,
+      "dependsOn": []
+    },
+    {
+      "id": "SKY-018",
+      "priority": "P1",
+      "title": "Refine SKYNET persona and UX",
+      "acceptance": "Natural Korean casual voice, concise conversational answers, long technical outputs when needed; user-configurable profile; no canned chatbot tone",
+      "status": "todo",
+      "evidence": [],
+      "checkpoint": null,
+      "blockedReason": null,
+      "dependsOn": []
+    },
+    {
+      "id": "SKY-019",
+      "priority": "P2",
+      "title": "Expand full available API tool integration",
+      "acceptance": "Integrate additional supported modalities/tools after inventory; document unavailable product-only features accurately",
+      "status": "todo",
+      "evidence": [],
+      "checkpoint": null,
+      "blockedReason": null,
+      "dependsOn": []
+    },
+    {
+      "id": "SKY-020",
+      "priority": "P2",
+      "title": "Production security and reliability tests",
+      "acceptance": "Auth/unauth tests, upload abuse, secret leakage, recovery, concurrency, rate limits, error handling, customer data preservation",
+      "status": "todo",
+      "evidence": [],
+      "checkpoint": null,
+      "blockedReason": null,
+      "dependsOn": []
+    },
+    {
+      "id": "SKY-021",
+      "priority": "P2",
+      "title": "End-to-end autonomous development acceptance",
+      "acceptance": "Real task: investigate, edit, test, commit, verify deployment, recover after forced interruption, final consolidated report",
+      "status": "todo",
+      "evidence": [],
+      "checkpoint": null,
+      "blockedReason": null,
+      "dependsOn": []
+    },
+    {
+      "id": "SKY-022",
+      "priority": "P2",
+      "title": "Final handoff and documentation",
+      "acceptance": "Update instructions, manifest, verified acceptance evidence and outstanding gaps for next chat without reexplaining decisions",
+      "status": "todo",
+      "evidence": [],
+      "checkpoint": null,
+      "blockedReason": null,
+      "dependsOn": []
+    }
+  ],
+  "knownImplementedUnverified": [
+    {
+      "files": [
+        "api/skynet-memory.js",
+        "api/skynet-archive.js"
+      ],
+      "commits": [
+        "5630a3a",
+        "b53b235"
+      ],
+      "note": "Admin authentication added; browser integration and runtime acceptance unverified"
+    },
+    {
+      "files": [
+        "api/skynet-chat.js"
+      ],
+      "commits": [
+        "67f2c8d",
+        "f9cad75"
+      ],
+      "note": "Persona, 90s timeout, 5000 tokens, usage fields; real model call unverified"
+    },
+    {
+      "files": [
+        "docs/SKYNET_CONTINUITY_AND_IMPLEMENTATION.md"
+      ],
+      "commits": [
+        "b823125"
+      ],
+      "note": "Product contract persisted"
+    }
+  ]
+}
