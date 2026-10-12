@@ -10,6 +10,7 @@ import {scheduleNext} from '../lib/skynet-job-scheduler.mjs';
 import {validatePlan} from '../lib/skynet-job-plan.mjs';
 import {leaseJob} from '../lib/skynet-job-lease.mjs';
 import {resumePoint} from '../lib/skynet-worker-resume.mjs';
+import {availableTools} from '../lib/skynet-worker-tool-registry.mjs';
 import {claimJob} from '../lib/skynet-worker-claim.mjs';
 import {recoverJob} from '../lib/skynet-worker-recovery.mjs';
 import {checkpointTask} from '../lib/skynet-worker-core.mjs';
