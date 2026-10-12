@@ -201,6 +201,7 @@ export default async function handler(req,res){
   let part=await load(path);
   if(part){
    if(part.caseId!==job.caseId||part.sourceVersion!==job.documentVersion||part.task!==task||part.cursor!==cursor||part.sourceAudit?.complete!==true)throw Error('LEGAL_WINDOW_CACHE_INVALID');
+   if(task==='claims_and_rebuttals'&&part.reviewAudit?.complete!==true)throw Error('LEGAL_WINDOW_CACHE_REQUIRES_SOURCE_READ_RECEIPTS');
   }else{
    part=await analyzeLegalWindow({request:authorized,sourceUnits:units,cursor,task,apiKey:process.env.OPENAI_API_KEY,model:process.env.SQUIDLAW_LEGAL_MODEL||'gpt-5.4'});
    await put(path,JSON.stringify(part),{access:'private',allowOverwrite:false,addRandomSuffix:false,contentType:'application/json'});
@@ -215,7 +216,7 @@ export default async function handler(req,res){
   const windows=await Promise.all(paths.map(p=>load(p)));
   // Each task restarts its cursor; build a report per task and keep all outputs as unverified.
   const reports=authorized.requestedTasks.map(t=>buildLegalCustomerReport({request:authorized,windows:windows.filter(w=>w.task===t),sourceIndex:sourceIndex.sources}));
-  const report={...reports[0],findings:reports.flatMap(r=>r.findings),uncertainties:reports.flatMap(r=>r.uncertainties),issues:[...new Set(reports.flatMap(r=>r.issues))],sourceCoverage:{tasks:reports.length,processedUnits:units.length},status:'draft_pending_verification',notForCourtSubmission:true,legalConclusionAvailable:false,independentSemanticAuditPassed:false};
+  const report={...reports[0],findings:reports.flatMap(r=>r.findings),uncertainties:reports.flatMap(r=>r.uncertainties),issues:[...new Set(reports.flatMap(r=>r.issues))],sourceCoverage:{tasks:reports.length,processedUnits:units.length},sourceReviewCoverage:reports.find(r=>r.sourceReviewCoverage?.task==='claims_and_rebuttals')?.sourceReviewCoverage||{complete:false,reviewedUnits:0,totalUnits:units.length},status:'draft_pending_verification',notForCourtSubmission:true,legalConclusionAvailable:false,independentSemanticAuditPassed:false};
   const reportPath=root+'legal-customer-report.json';
   await put(reportPath,JSON.stringify(report),{access:'private',allowOverwrite:true,addRandomSuffix:false,contentType:'application/json'});
   await advanceJob(job,'legal_reasoning_independent_review_pending',{...previous,legalTaskIndex:nextTask,legalCursor:0,legalWindowPaths:paths,legalCustomerReport:reportPath},'retry');
