@@ -1,4 +1,5 @@
 import {randomUUID} from 'node:crypto';
+import {atomicJobsEnabled} from '../lib/skynet-job-store-router.mjs';
 import {isSkynetAdmin} from '../lib/skynet-job-api-auth.mjs';
 import {validateJobInput} from '../lib/skynet-job-validation.mjs';
 import {readJob as loadJob,writeJob as saveJob,readJobs as listJobs} from '../lib/skynet-job-store-router.mjs';
@@ -19,7 +20,7 @@ export default async function handler(req,res){
  res.setHeader('Cache-Control','no-store');res.setHeader('X-Content-Type-Options','nosniff');res.setHeader('Vary','Authorization');
  if(Number(req.headers['content-length'])>30000)return res.status(413).json({error:'PAYLOAD_TOO_LARGE'});
  if(!isSkynetAdmin(req))return res.status(401).json({error:'ADMIN_REQUIRED'});
- if(!process.env.BLOB_READ_WRITE_TOKEN)return res.status(503).json({error:'STORAGE_REQUIRED'});
+ if(!atomicJobsEnabled()&&!process.env.BLOB_READ_WRITE_TOKEN)return res.status(503).json({error:'STORAGE_REQUIRED'});
  try{
   const id=String(req.query?.id||'');
   if(req.method==='GET'){
