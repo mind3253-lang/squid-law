@@ -9,6 +9,7 @@ import {latestEvents} from '../lib/skynet-job-history.mjs';
 import {scheduleNext} from '../lib/skynet-job-scheduler.mjs';
 import {validatePlan} from '../lib/skynet-job-plan.mjs';
 import {leaseJob} from '../lib/skynet-job-lease.mjs';
+import {resumePoint} from '../lib/skynet-worker-resume.mjs';
 import {claimJob} from '../lib/skynet-worker-claim.mjs';
 import {recoverJob} from '../lib/skynet-worker-recovery.mjs';
 import {checkpointTask} from '../lib/skynet-worker-core.mjs';
@@ -22,7 +23,7 @@ export default async function handler(req,res){
   if(req.method==='GET'){
    if(!id)return res.status(200).json(await listJobs());
    if(!/^[a-zA-Z0-9_-]{8,80}$/.test(id))return res.status(400).json({error:'INVALID_JOB_ID'});
-   const job=await loadJob(id);return job?res.status(200).json(req.query?.view==='report'?{report:{...jobReport(job),schedule:scheduleNext(job.tasks||[])}}:req.query?.view==='events'?{events:latestEvents(job)}:{job}):res.status(404).json({error:'NOT_FOUND'});
+   const job=await loadJob(id);return job?res.status(200).json(req.query?.view==='report'?{report:{...jobReport(job),schedule:scheduleNext(job.tasks||[])}}:req.query?.view==='events'?{events:latestEvents(job)}:req.query?.view==='resume'?{resume:resumePoint(job)}:{job}):res.status(404).json({error:'NOT_FOUND'});
   }
   if(req.method==='POST'){
    const body=typeof req.body==='string'?JSON.parse(req.body):req.body;
