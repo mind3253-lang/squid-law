@@ -45,7 +45,7 @@ export default async function handler(req,res){
  const index=previous.nextDocument??0;
  if(index<0||index>docs.length)throw Error('INVALID_DOCUMENT_CHECKPOINT');
  if(index===docs.length&&previous.nextPage!==0&&previous.nextPage!==undefined)throw Error('INVALID_TERMINAL_PAGE_CHECKPOINT');
- if(index===docs.length&&Number.isSafeInteger(previous.finalizeOffset)){
+ if(index===docs.length&&Number.isSafeInteger(previous.finalizeOffset)&&!previous.textReviewManifest){
   const root='squidlaw/analysis-jobs/'+job.customerKey+'/'+job.caseId+'/'+job.jobId+'/';
   const descriptors=finalizationDescriptors(docs);
   const offset=previous.finalizeOffset;
