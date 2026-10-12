@@ -200,6 +200,8 @@ export default async function handler(req,res){
    await advanceJob(job,'visual_source_audit_failed',{...previous,visualAuditFailures:auditFailures},'blocked','VISUAL_SOURCE_AUDIT_FAILED');
    return res.status(200).json({status:'blocked',reason:'VISUAL_SOURCE_AUDIT_FAILED',failedDocuments:auditFailures.length});
   }
+  // Source coverage is a prerequisite, not an independent visual meaning audit.
+  // Do not authorize legal reasoning until an independent source-backed review exists.
   await advanceJob(job,'visual_independent_audit_pending',{...previous,visualProviderCompleted:true,phase:'verify'},'blocked','INDEPENDENT_VISUAL_AUDIT_PENDING');
   return res.status(200).json({status:'blocked',reason:'INDEPENDENT_VISUAL_AUDIT_PENDING'});
  }
