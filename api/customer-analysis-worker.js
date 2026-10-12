@@ -227,10 +227,15 @@ export default async function handler(req,res){
   if(!report||report.sourceVersion!==job.documentVersion)throw Error('SEMANTIC_REPORT_SOURCE_MISMATCH');
   if(!process.env.OPENAI_API_KEY){await advanceJob(job,'semantic_api_missing',previous,'blocked','OPENAI_API_KEY_MISSING');return res.status(200).json({status:'blocked'})}
   const sources=[];
-  for(const d of docs)for(let start=0;start<d.pageCount;start+=20){
-   const batch=await load(prefix+'verified/'+d.id+'/batch-'+String(start).padStart(8,'0')+'.json');
-   if(!batch?.pages||batch.documentId!==d.id||batch.sourcePdfSha256!==d.sha256)throw Error('SEMANTIC_VERIFIED_SOURCE_MISSING');
-   for(const u of segmentRecord({scope:'customer',documentId:d.id,pages:batch.pages}).segments)sources.push({documentId:d.id,page:u.page,part:u.part,hash:u.hash,text:u.text});
+  const semanticBatchRefs=docs.flatMap(d=>Array.from({length:Math.ceil(d.pageCount/20)},(_,i)=>({d,start:i*20})));
+  for(let i=0;i<semanticBatchRefs.length;i+=12){
+   const selected=semanticBatchRefs.slice(i,i+12);
+   const batches=await Promise.all(selected.map(({d,start})=>load(prefix+'verified/'+d.id+'/batch-'+String(start).padStart(8,'0')+'.json')));
+   for(let j=0;j<selected.length;j++){
+    const {d}=selected[j],batch=batches[j];
+    if(!batch?.pages||batch.documentId!==d.id||batch.sourcePdfSha256!==d.sha256)throw Error('SEMANTIC_VERIFIED_SOURCE_MISSING');
+    for(const u of segmentRecord({scope:'customer',documentId:d.id,pages:batch.pages}).segments)sources.push({documentId:d.id,page:u.page,part:u.part,hash:u.hash,text:u.text});
+   }
   }
   const cursor=previous.semanticAuditCursor||0;
   const size=8;
