@@ -247,21 +247,21 @@ export default async function handler(req,res){
  }
  if(!digestAudit.complete){await advanceJob(job,'source_digest_mismatch',{...previous,nextDocument:index,nextPage:pageOffset,failures:digestAudit.failures.slice(0,20)},'blocked','SOURCE_DIGEST_MISMATCH');return res.status(200).json({status:'blocked',reason:'SOURCE_DIGEST_MISMATCH'})}
  const segmented=segmentRecord({scope:'customer',documentId:d.id,pages:verifiedPages});
- if(!auditSegments(selectedPages,segmented.segments).complete)throw Error('SEGMENT_AUDIT');
+ if(!auditSegments(verifiedPages,segmented.segments).complete)throw Error('SEGMENT_AUDIT');
  const units=segmented.segments.map(u=>({...u,filename:d.name||''}));
  const results=units.map(analyzeUnit),audit=independentlyVerify(units,results);
- const visualQueue=buildVisualWorkQueue({documentId:d.id,pages:selectedPages,sourcePdfPath:prefix+'pdf/'+d.id+'.pdf'});
+ const visualQueue=buildVisualWorkQueue({documentId:d.id,pages:verifiedPages,sourcePdfPath:prefix+'pdf/'+d.id+'.pdf'});
  const visualQueuePath='squidlaw/analysis-jobs/'+job.customerKey+'/'+job.caseId+'/'+job.jobId+'/visual-queues/'+d.id+'-'+String(pageOffset).padStart(8,'0')+'.json';
- const visualReferences=buildVisualReferenceManifest({caseId:job.caseId,sourceVersion:job.documentVersion,documentId:d.id,sourcePdfSha256:d.sha256,pages:selectedPages.map(p=>({...p,textPresent:!!String(p.text||'').trim()}))});
+ const visualReferences=buildVisualReferenceManifest({caseId:job.caseId,sourceVersion:job.documentVersion,documentId:d.id,sourcePdfSha256:d.sha256,pages:verifiedPages.map(p=>({...p,textPresent:!!String(p.text||'').trim()}))});
  if(!audit.complete){
   await put(visualQueuePath,JSON.stringify({...visualQueue,sourceVersion:job.documentVersion,visualReferences}),{access:'private',allowOverwrite:true,addRandomSuffix:false,contentType:'application/json'});
   await advanceJob(job,'ocr_required',{...previous,nextDocument:index,documentId:d.id,missing:audit.missing.slice(0,100)},'blocked','OCR_REQUIRED');
   return res.status(200).json({status:'blocked',reason:'OCR_REQUIRED'});
  }
  const output='squidlaw/analysis-jobs/'+job.customerKey+'/'+job.caseId+'/'+job.jobId+'/'+d.id+'-'+String(pageOffset).padStart(8,'0')+'.json';
- const visualPlan=planVisualEvidence({documentId:d.id,pages:selectedPages,images:[]});
+ const visualPlan=planVisualEvidence({documentId:d.id,pages:verifiedPages,images:[]});
  if(visualQueue.taskCount)await put(visualQueuePath,JSON.stringify({...visualQueue,sourceVersion:job.documentVersion,visualReferences}),{access:'private',allowOverwrite:true,addRandomSuffix:false,contentType:'application/json'});
- const payload={documentId:d.id,sourceVersion:job.documentVersion,unitCount:units.length,pageCount:selectedPages.length,pageStart:pageOffset+1,verifiedText:true,visualVerified:false,visualPlan,visualWorkQueuePath:visualQueue.taskCount?visualQueuePath:null,visualInventoryComplete:false,documentBoundaryCandidates:candidateDocuments(selectedPages.map(p=>({...p,documentId:d.id,filename:d.name}))),results};
+ const payload={documentId:d.id,sourceVersion:job.documentVersion,unitCount:units.length,pageCount:verifiedPages.length,pageStart:pageOffset+1,verifiedText:true,visualVerified:false,visualPlan,visualWorkQueuePath:visualQueue.taskCount?visualQueuePath:null,visualInventoryComplete:false,documentBoundaryCandidates:candidateDocuments(verifiedPages.map(p=>({...p,documentId:d.id,filename:d.name}))),results};
  const existing=await load(output);
  if(existing){
   if(existing.sourceVersion!==job.documentVersion)throw Error('RESULT_VERSION_MISMATCH');
@@ -272,7 +272,7 @@ export default async function handler(req,res){
   }
  }else await put(output,JSON.stringify(payload),{access:'private',allowOverwrite:false,addRandomSuffix:false,contentType:'application/json'});
  const finished=batchIntegrity.finished;
- const checkpoint={nextDocument:finished?index+1:index,nextPage:finished?0:pageOffset+selectedPages.length,documentCount:docs.length,lastDocumentId:d.id,lastOutput:output,verifiedTextDocuments:finished?index+1:index,errorAttempts:0};
+ const checkpoint={nextDocument:finished?index+1:index,nextPage:finished?0:pageOffset+verifiedPages.length,documentCount:docs.length,lastDocumentId:d.id,lastOutput:output,verifiedTextDocuments:finished?index+1:index,errorAttempts:0};
  if(finished&&index+1===docs.length){
   const root='squidlaw/analysis-jobs/'+job.customerKey+'/'+job.caseId+'/'+job.jobId+'/';
   const expected=expectedTextReviewOutputs({root,documents:docs});
