@@ -90,3 +90,19 @@ header h1{font-size:18px;margin:0;line-height:1.3}
 
 /* Read-only document warehouse */
 #skynetWarehouse .skynetWarehouseTable{width:100%;border-collapse:collapse;font-size:14px;background:#fff}#skynetWarehouse .skynetWarehouseTable th,#skynetWarehouse .skynetWarehouseTable td{padding:11px 12px;text-align:left;border-bottom:1px solid #e5e7eb;overflow-wrap:anywhere}#skynetWarehouse .skynetWarehouseTable th{background:#f6f8fb;font-weight:600}#skynetWarehouse .skynetWarehouseTable td:first-child{width:65%}
+
+/* Collapsed rail: icons only, no clipped category labels */
+#skynetSidebar #skynetSidebarCategories{padding-left:0!important}
+#skynetSidebar .skynetMemoryNavItem{display:flex;align-items:center;gap:12px;min-height:43px;padding:0 10px!important;border-radius:9px;box-sizing:border-box}
+#skynetSidebar .skynetMemoryNavItem svg{width:20px;height:20px;min-width:20px;flex-shrink:0;color:#707781}
+#skynetSidebar .skynetMemoryNavText{display:inline-block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px}
+#skynetSidebar .skynetToolLink svg{flex-shrink:0}
+#skynetSidebar:not(.open) #skynetSidebarPanel{padding:4px 7px!important;overflow-x:hidden}
+#skynetSidebar:not(.open) .skynetMemoryNavText,#skynetSidebar:not(.open) .skynetToolText{display:none!important}
+#skynetSidebar:not(.open) .skynetMemoryNavItem{justify-content:center;padding:0!important;width:43px;min-width:43px}
+#skynetSidebar:not(.open) .skynetMemoryNavItem svg{margin:0}
+#skynetSidebar:not(.open) .skynetToolLink{width:43px;min-width:43px;justify-content:center;padding:0!important}
+#skynetSidebar:not(.open) .skynetToolLink .skynetToolIcon{margin:0}
+#skynetSidebar:not(.open) #skynetSidebarCategories{width:43px}
+#skynetSidebar:not(.open) #skynetSidebarPanel .skynetToolLink:not(button){overflow:hidden}
+#skynetSidebar .skynetMemoryNavItem:hover{background:#e9eaed}
