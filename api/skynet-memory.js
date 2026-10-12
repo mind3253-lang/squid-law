@@ -19,7 +19,7 @@ export default async function handler(req,res){
     cursor=page.hasMore?page.cursor:undefined;
    }while(cursor&&files.length<5000);
    files.sort((a,b)=>String(a.uploadedAt||'').localeCompare(String(b.uploadedAt||'')));
-   const q=String(req.query?.q||'').trim().slice(0,120);const historyPage=req.query?.page===undefined?null:Number(req.query.page);if(historyPage!==null&&(!Number.isSafeInteger(historyPage)||historyPage<0||historyPage>100000))return send(res,400,{error:'페이지 오류'});const selected=historyPage!==null?files.slice(Math.max(0,files.length-(historyPage+1)*40),files.length-historyPage*40):q?files.slice(-500):files.slice(-40);
+   const q=String(req.query?.q||'').trim().slice(0,120);const historyPage=req.query?.page===undefined?null:Number(req.query.page);if(historyPage!==null&&(!Number.isSafeInteger(historyPage)||historyPage<0||historyPage>100000))return send(res,400,{error:'페이지 오류'});const selected=historyPage!==null?files.slice(Math.max(0,files.length-(historyPage+1)*40),Math.max(0,files.length-historyPage*40)):q?files.slice(-500):files.slice(-40);
    const groups=[];
    for(let i=0;i<selected.length;i+=8){
     const batch=await Promise.all(selected.slice(i,i+8).map(async file=>{
