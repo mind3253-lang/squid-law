@@ -116,7 +116,7 @@ export default async function handler(req,res){
   await advanceJob(job,'text_review_completed_visual_pending',{...previous,phase:'verify',textReviewManifest:manifestPath,textReviewAggregate:aggregatePath,textReviewIntermediateReport:intermediateReportPath,legalReasoningRequest:legalReasoningRequestPath,sourceUnitIndex:sourceIndexPath},'retry');
   return res.status(200).json({status:'retry',stage:'text_review_completed_visual_pending',verifiedTextDocuments:docs.length});
  }
- if(index>=docs.length&&previous.visualReview?.verified===true&&previous.visualReview?.independentAuditVerified===true&&previous.visualReview?.sourceVersion===job.documentVersion&&previous.legalReasoningRequest&&previous.sourceUnitIndex){
+ if(index>=docs.length&&!previous.legalCustomerReport&&previous.visualReview?.verified===true&&previous.visualReview?.independentAuditVerified===true&&previous.visualReview?.sourceVersion===job.documentVersion&&previous.legalReasoningRequest&&previous.sourceUnitIndex){
   const root='squidlaw/analysis-jobs/'+job.customerKey+'/'+job.caseId+'/'+job.jobId+'/';
   const request=await load(previous.legalReasoningRequest);
   const sourceIndex=await load(previous.sourceUnitIndex);
