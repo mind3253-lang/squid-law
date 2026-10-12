@@ -29,7 +29,7 @@ export default async function handler(req,res){
    const current=await loadJob(id);if(!current)return res.status(404).json({error:'NOT_FOUND'});
    const next=transitionJob(current,body?.status,{checkpoint:body?.checkpoint,reason:body?.reason,owner:body?.owner});
    const job=appendJobEvent(next,'status-changed',{from:current.status,to:next.status});
-   await saveJob(job);return res.status(200).json({job});
+   await saveJob(job);return res.status(200).json({ok:true,job});
   }
   res.setHeader('Allow','GET, POST, PATCH');return res.status(405).json({error:'METHOD_NOT_ALLOWED'});
  }catch(e){return res.status(400).json({error:String(e.message||'INVALID_REQUEST').slice(0,100)})}
