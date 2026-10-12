@@ -17,6 +17,10 @@
       "destination": "/api/skynet-write-approve"
     },
     {
+      "source": "/admin/skynet-write-run",
+      "destination": "/api/skynet-write-run"
+    },
+    {
       "source": "/admin/skynet-chat",
       "destination": "/api/skynet-chat"
     },
