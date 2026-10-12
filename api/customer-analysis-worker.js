@@ -267,8 +267,8 @@ export default async function handler(req,res){
    const providerResult=await load(outputPath);
    const extractedPages=[];
    for(let start=0;start<doc.pageCount;start+=20){
-    const batch=await load(prefix+'extracted/'+doc.id+'/batch-'+String(start).padStart(8,'0')+'.json');
-    if(!batch?.pages)throw Error('VISUAL_AUDIT_EXTRACTED_BATCH_MISSING');
+    const batch=await load(prefix+'verified/'+doc.id+'/batch-'+String(start).padStart(8,'0')+'.json');
+    if(!batch?.pages||batch.documentId!==doc.id||batch.sourcePdfSha256!==doc.sha256)throw Error('VISUAL_AUDIT_VERIFIED_BATCH_MISSING');
     extractedPages.push(...batch.pages);
    }
    const audit=auditVisualProviderCoverage({documentId:doc.id,sourcePdfSha256:doc.sha256,pageCount:doc.pageCount,providerResult,extractedPages});
