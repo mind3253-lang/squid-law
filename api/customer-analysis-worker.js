@@ -197,7 +197,7 @@ export default async function handler(req,res){
   }
   const indexed=new Map(sourceIndex.sources.map(x=>[x.documentId+':'+x.page+':'+x.part,x.hash]));
   if(units.length!==sourceIndex.sources.length||units.some(u=>indexed.get(u.documentId+':'+u.page+':'+u.part)!==u.hash))throw Error('LEGAL_SOURCE_REHYDRATION_MISMATCH');
-  const path=root+'legal-windows/'+String(previous.legalTaskIndex||0).padStart(2,'0')+'-'+String(cursor).padStart(8,'0')+'.json';
+  const path=root+'legal-windows/'+String(previous.legalTaskIndex||0).padStart(2,'0')+'-'+String(cursor).padStart(8,'0')+(task==='claims_and_rebuttals'?'-read-receipts-v1':'')+'.json';
   let part=await load(path);
   if(part){
    if(part.caseId!==job.caseId||part.sourceVersion!==job.documentVersion||part.task!==task||part.cursor!==cursor||part.sourceAudit?.complete!==true)throw Error('LEGAL_WINDOW_CACHE_INVALID');
@@ -585,5 +585,5 @@ export default async function handler(req,res){
  await advanceJob(job,'text_review_checkpoint',checkpoint,'retry');
  return res.status(200).json({status:'retry',processedDocuments:checkpoint.verifiedTextDocuments,processedPages:checkpoint.nextPage,totalDocuments:docs.length});
 
- }catch(e){const diagnostic=String(e?.message||e||'UNKNOWN').slice(0,160);const safeCode=/^[A-Z][A-Z0-9_]{2,100}$/.test(diagnostic)?diagnostic:'WORKER_ERROR';if(job){try{await advanceJob(job,'error',{...(job.checkpoint||{}),errorAttempts:Number(job.checkpoint?.errorAttempts||0)+1,lastFailedStage:job.stage||null,lastFailureCode:safeCode,lastFailureAt:new Date().toISOString(),message:diagnostic},(Number(job.attempts||0)+1)>=job.maxAttempts?'failed':'retry',safeCode)}catch{}}return res.status(503).json({error:safeCode,status:'retry_or_failed',retryable:!!job&&Number(job.attempts||0)+1<Number(job.maxAttempts||0)})}
+ }catch(e){const diagnostic=String(e?.message||e||'UNKNOWN').slice(0,160);const safeCode=diagnostic.startsWith('GPT_LEGAL_SOURCE_REVIEW_FAILED:')?'SOURCE_READ_REVIEW_FAILED':/^[A-Z][A-Z0-9_]{2,100}$/.test(diagnostic)?diagnostic:'WORKER_ERROR';if(job){try{await advanceJob(job,'error',{...(job.checkpoint||{}),errorAttempts:Number(job.checkpoint?.errorAttempts||0)+1,lastFailedStage:job.stage||null,lastFailureCode:safeCode,lastFailureAt:new Date().toISOString(),message:diagnostic},(Number(job.attempts||0)+1)>=job.maxAttempts?'failed':'retry',safeCode)}catch{}}return res.status(503).json({error:safeCode,status:'retry_or_failed',retryable:!!job&&Number(job.attempts||0)+1<Number(job.maxAttempts||0)})}
 }
