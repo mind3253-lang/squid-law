@@ -310,10 +310,6 @@ export default async function handler(req,res){
   const visualReview={verified:true,independentAuditVerified:true,sourceVersion:job.documentVersion,verifiedDocumentCount:docs.length};
   await advanceJob(job,'visual_independent_audit_completed',{...previous,visualReview},'retry');
   return res.status(200).json({status:'retry',stage:'visual_independent_audit_completed'});
-  // Source coverage is a prerequisite, not an independent visual meaning audit.
-  // Do not authorize legal reasoning until an independent source-backed review exists.
-  await advanceJob(job,'visual_independent_audit_pending',{...previous,visualProviderCompleted:true,phase:'verify'},'blocked','INDEPENDENT_VISUAL_AUDIT_PENDING');
-  return res.status(200).json({status:'blocked',reason:'INDEPENDENT_VISUAL_AUDIT_PENDING'});
  }
  if(index===docs.length&&extractionOnly){
   await advanceJob(job,'source_collection_completed',{phase:'analyze',nextDocument:0,nextPage:0,documentCount:docs.length,collectionCompletedAt:new Date().toISOString()},'retry');
