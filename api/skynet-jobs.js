@@ -32,7 +32,7 @@ export default async function handler(req,res){
    const body=typeof req.body==='string'?JSON.parse(req.body):req.body;
    if(!body||typeof body!=='object'||Array.isArray(body))return res.status(400).json({error:'INVALID_BODY'});
    const current=await loadJob(id);if(!current)return res.status(404).json({error:'NOT_FOUND'});
-   if(body.status==='running'&&(!body.owner||typeof body.owner!=='string'))return res.status(400).json({error:'OWNER_REQUIRED'});
+   if(body.status==='running'&&(!/^[a-zA-Z0-9_-]{1,80}$/.test(body.owner||'')))return res.status(400).json({error:'OWNER_REQUIRED'});
    if(typeof body.status!=='string')return res.status(400).json({error:'STATUS_REQUIRED'});
    const next=transitionJob(current,body?.status,{checkpoint:body?.checkpoint,reason:body?.reason,owner:body?.owner});
    const job=appendJobEvent(next,'status-changed',{from:current.status,to:next.status});
