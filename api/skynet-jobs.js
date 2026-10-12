@@ -6,6 +6,7 @@ import {transitionJob} from '../lib/skynet-job-state.mjs';
 import {appendJobEvent} from '../lib/skynet-job-events.mjs';
 export default async function handler(req,res){
  res.setHeader('Cache-Control','no-store');res.setHeader('Vary','Authorization');
+ if(Number(req.headers['content-length'])>30000)return res.status(413).json({error:'PAYLOAD_TOO_LARGE'});
  if(!isSkynetAdmin(req))return res.status(401).json({error:'ADMIN_REQUIRED'});
  if(!process.env.BLOB_READ_WRITE_TOKEN)return res.status(503).json({error:'STORAGE_REQUIRED'});
  try{
