@@ -9,6 +9,10 @@
       "destination": "/api/skynet-tool-run"
     },
     {
+      "source": "/admin/skynet-write-lock",
+      "destination": "/api/skynet-write-lock"
+    },
+    {
       "source": "/admin/skynet-chat",
       "destination": "/api/skynet-chat"
     },
