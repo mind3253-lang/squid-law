@@ -1,0 +1,21 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {stageProposalBatch,reconcileProposalBatch,batchProgress} from '../lib/skynet-code-proposal-batch.mjs';
+import {finalizeProposalBatch} from '../lib/skynet-code-proposal-batch-finalize.mjs';
+import {verifyProposalBatch} from '../lib/skynet-code-proposal-batch-verify.mjs';
+const sha='a'.repeat(40),commit='b'.repeat(40);
+const args={owner:'example',repo:'app',branch:'main',path:'lib/example.js',content:'export default 1;',sha,message:'Update example'};
+const job={id:'example-job',status:'running',scopes:['repository:write'],writeTargets:{repository:'example/app',branch:'main'},tasks:[{id:'task',status:'in_progress',priority:'P0',dependsOn:[]}],operations:{}};
+test('stages and reconciles a single approved-write receipt without invoking a write',()=>{
+ const staged=stageProposalBatch(job,{taskId:'task',proposals:[{tool:'github.commit',args}]});
+ const key=staged.codeProposalBatch.items[0].key;
+ assert.equal(batchProgress(staged).pendingApproval,1);
+ const done={...staged,operations:{[key]:{status:'completed',result:{ok:true,sha:commit}}}};
+ const reconciled=reconcileProposalBatch(done);
+ assert.equal(batchProgress(reconciled).committed,1);
+ const implemented=finalizeProposalBatch(reconciled);
+ assert.equal(implemented.tasks[0].status,'implemented');
+ const verified=verifyProposalBatch(implemented,'task');
+ assert.equal(verified.tasks[0].status,'verified');
+});
+test('rejects duplicate target paths',()=>assert.throws(()=>stageProposalBatch(job,{taskId:'task',proposals:[{tool:'github.commit',args},{tool:'github.commit',args}]}),/DUPLICATE/));
+test('refuses to reconcile absent write receipt',()=>{const staged=stageProposalBatch(job,{taskId:'task',proposals:[{tool:'github.commit',args}]});assert.throws(()=>finalizeProposalBatch(staged),/BATCH_NOT_COMMITTED/)});

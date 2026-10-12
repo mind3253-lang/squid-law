@@ -1,0 +1,4 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {appendCodingTask,enableCodingScope} from '../lib/skynet-code-task.mjs';
+const base={id:'job-12345678',status:'queued',scopes:['repository:read'],writeTargets:{repository:'example/app',branch:'main'},tasks:[{id:'inspect',status:'verified',evidence:['read'],dependsOn:[]}]};
+test('explicit coding scope targets only the job repository',()=>{const scoped=enableCodingScope(base,{repository:'example/app',branch:'main'});assert.ok(scoped.scopes.includes('repository:write'));assert.throws(()=>enableCodingScope(base,{repository:'other/app',branch:'main'}),/TARGET/)});
+test('coding task can depend on completed inspection',()=>{const job=appendCodingTask(base,{id:'coding',title:'Implement the requested change',dependsOn:['inspect']});assert.equal(job.tasks.at(-1).kind,'coding')});

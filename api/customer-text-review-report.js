@@ -7,7 +7,7 @@ export default async function handler(req,res){
  const auth=guard(req);if(auth.error)return respond(res,auth.status,{error:auth.error});
  const caseId=String(req.query?.caseId||''),jobId=String(req.query?.jobId||'');
  if(!/^SL-[A-Za-z0-9-]{5,40}$/.test(caseId)||!/^[0-9a-f-]{36}$/.test(jobId))return respond(res,400,{error:'사건 또는 작업 ID 오류'});
- const registry=await readJson(casePrefix(auth.user,'_index').replace(/_index\\/$/,'')+'registry/'+caseId+'.json').catch(()=>null);
+ const registry=await readJson(casePrefix(auth.user,'_index').replace(/_index\/$/,'')+'registry/'+caseId+'.json').catch(()=>null);
  if(!registry||registry.id!==caseId)return respond(res,404,{error:'사건 없음'});
  try{
   const job=await getJob(auth.user,caseId,jobId);

@@ -1,0 +1,4 @@
+import {isSkynetAdmin} from '../lib/skynet-job-api-auth.mjs';
+import {readJob,requireAtomicJobs} from '../lib/skynet-job-store-router.mjs';
+import {batchProgress} from '../lib/skynet-code-proposal-batch.mjs';
+export default async function handler(req,res){res.setHeader('Cache-Control','no-store');if(!isSkynetAdmin(req))return res.status(401).json({error:'ADMIN_REQUIRED'});if(req.method!=='GET')return res.status(405).json({error:'GET_REQUIRED'});try{requireAtomicJobs();const id=String(req.query?.jobId||'');if(!/^[\w-]{8,80}$/.test(id))throw Error('INVALID_JOB_ID');const job=await readJob(id);if(!job)return res.status(404).json({error:'JOB_NOT_FOUND'});return res.status(200).json({jobId:id,batch:batchProgress(job)})}catch(e){return res.status(422).json({error:String(e.message).slice(0,100)})}}

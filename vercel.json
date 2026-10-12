@@ -1,6 +1,74 @@
 {
   "rewrites": [
     {
+      "source": "/admin/skynet-code-lease",
+      "destination": "/api/skynet-code-lease"
+    },
+    {
+      "source": "/admin/skynet-code-repair",
+      "destination": "/api/skynet-code-repair"
+    },
+    {
+      "source": "/admin/skynet-code-targets",
+      "destination": "/api/skynet-code-targets"
+    },
+    {
+      "source": "/admin/skynet-code-deployment-status",
+      "destination": "/api/skynet-code-deployment-status"
+    },
+    {
+      "source": "/admin/skynet-code-proposal-diff",
+      "destination": "/api/skynet-code-proposal-diff"
+    },
+    {
+      "source": "/admin/skynet-code-deployment-enable",
+      "destination": "/api/skynet-code-deployment-enable"
+    },
+    {
+      "source": "/admin/skynet-code-deployment",
+      "destination": "/api/skynet-code-deployment"
+    },
+    {
+      "source": "/admin/skynet-code-task",
+      "destination": "/api/skynet-code-task"
+    },
+    {
+      "source": "/admin/skynet-code-proposal-batch-actions",
+      "destination": "/api/skynet-code-proposal-batch-actions"
+    },
+    {
+      "source": "/admin/skynet-code-proposal-batch-verify",
+      "destination": "/api/skynet-code-proposal-batch-verify"
+    },
+    {
+      "source": "/admin/skynet-code-proposal-batch-reconcile",
+      "destination": "/api/skynet-code-proposal-batch-reconcile"
+    },
+    {
+      "source": "/admin/skynet-code-proposal-batch-status",
+      "destination": "/api/skynet-code-proposal-batch-status"
+    },
+    {
+      "source": "/admin/skynet-code-proposal-batch",
+      "destination": "/api/skynet-code-proposal-batch"
+    },
+    {
+      "source": "/admin/skynet-code-proposal-verify",
+      "destination": "/api/skynet-code-proposal-verify"
+    },
+    {
+      "source": "/admin/skynet-code-proposal-reconcile",
+      "destination": "/api/skynet-code-proposal-reconcile"
+    },
+    {
+      "source": "/admin/skynet-code-proposal-status",
+      "destination": "/api/skynet-code-proposal-status"
+    },
+    {
+      "source": "/admin/skynet-code-proposal",
+      "destination": "/api/skynet-code-proposal"
+    },
+    {
       "source": "/admin/skynet-jobs",
       "destination": "/api/skynet-jobs"
     },
