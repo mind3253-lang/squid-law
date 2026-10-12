@@ -40,3 +40,9 @@ SQUIDLAW 내부 관리자 AI **SKYNET**을 ChatGPT API에서 실제 제공되는
 - 법률 엔진 338페이지 원문 검증 100% 후 70분 소요·보고서 미생성·비JSON 파싱 오류가 보고됨.
 - 별도 영구 복구 명령서: `docs/SQUIDLAW_338PAGE_INCIDENT_AND_RESUME.md`.
 - SKYNET 개발과 법률 엔진 복구를 혼동하지 말고, 각 문서의 검증 완료 항목만 제외하고 재개한다. 기존 고객 데이터 및 체크포인트 삭제 금지.
+
+## SQUIDLAW 전체 개발 작업표
+- 법률 엔진의 **38개 고유 작업**: `docs/SQUIDLAW_FULL_TASK_MANIFEST.json`.
+- 이어서 실행할 명령: `docs/SQUIDLAW_FULL_RESUME_COMMAND.md`.
+- 기존 338페이지 실운영 장애 기록: `docs/SQUIDLAW_338PAGE_INCIDENT_AND_RESUME.md`.
+- 다음 방은 스카이넷 22개, 스키드로우 38개를 별도 상태로 관리하고 검증 완료한 항목만 제외한다.
