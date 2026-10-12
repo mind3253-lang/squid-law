@@ -60,14 +60,15 @@
       "title": "finalizeOffset·part digest 집계 재개 오류 조사",
       "codeLocations": "api/customer-analysis-worker.js; lib/text-review-aggregation.mjs",
       "status": "in_progress",
-      "implementation": "unknown_or_partial",
+      "implementation": "partial",
       "acceptance": "관련 코드 조사 + 안전한 회귀 테스트 + 실제 경로 검증 + 결과 증거 기록; 고객 데이터 삭제/재처리 금지",
       "evidence": [
         "Code path: worker finalization at index>=docs.length and previous.finalizeOffset integer",
         "Finalization persists finalize-parts/<offset>.json and finalizePartDigests; checks FINALIZATION_DIGEST_COUNT_MISMATCH, FINALIZATION_PART_MISSING, FINALIZATION_COUNT_MISMATCH",
-        "Jobs claim lease 90s; retry scheduling 2s but Vercel cron every 5min. Check for lease expiry on long worker runs."
+        "Jobs claim lease 90s; retry scheduling 2s but Vercel cron every 5min. Check for lease expiry on long worker runs.",
+        "Worker now checks finalize offset/digest count and count consistency via lib/finalization-checkpoint.mjs; commit 7894ed9."
       ],
-      "checkpoint": "Inspected api/customer-analysis-worker.js finalization branch, api/customer-analysis-jobs-db.js and lib/text-review-aggregation.mjs. Checkpoint increments finalizeOffset by 8 descriptor batches per part; validates stored part hashes and source count; needs runtime/error reproduction and regression tests",
+      "checkpoint": "Worker now checks finalize offset/digest count and count consistency via lib/finalization-checkpoint.mjs; commit 7894ed9. Batch tests and production evidence pending.",
       "blockedReason": null,
       "dependencies": []
     },
@@ -184,11 +185,13 @@
       "priority": "P1",
       "title": "파일 업로드·용량·중복·원본 무결성 검사",
       "codeLocations": "고객 문서 API",
-      "status": "todo",
-      "implementation": "unknown_or_partial",
+      "status": "in_progress",
+      "implementation": "partial",
       "acceptance": "관련 코드 조사 + 안전한 회귀 테스트 + 실제 경로 검증 + 결과 증거 기록; 고객 데이터 삭제/재처리 금지",
-      "evidence": [],
-      "checkpoint": null,
+      "evidence": [
+        "Read-only source metadata and duplicate-content checks added in lib/customer-source-ingest-audit.mjs; not wired to upload API."
+      ],
+      "checkpoint": "Read-only source metadata and duplicate-content checks added in lib/customer-source-ingest-audit.mjs; not wired to upload API. Batch tests and production evidence pending.",
       "blockedReason": null,
       "dependencies": []
     },
@@ -198,11 +201,13 @@
       "priority": "P1",
       "title": "PDF 338페이지 대용량 페이지 추출·누락 방지",
       "codeLocations": "api/customer-pdf-extract.js",
-      "status": "todo",
-      "implementation": "unknown_or_partial",
+      "status": "in_progress",
+      "implementation": "partial",
       "acceptance": "관련 코드 조사 + 안전한 회귀 테스트 + 실제 경로 검증 + 결과 증거 기록; 고객 데이터 삭제/재처리 금지",
-      "evidence": [],
-      "checkpoint": null,
+      "evidence": [
+        "338+ page exact coverage audit implemented in shared utility; extraction API integration pending."
+      ],
+      "checkpoint": "338+ page exact coverage audit implemented in shared utility; extraction API integration pending. Batch tests and production evidence pending.",
       "blockedReason": null,
       "dependencies": []
     },
@@ -212,11 +217,13 @@
       "priority": "P1",
       "title": "원문 페이지 digest·배치 무결성 검증",
       "codeLocations": "lib/page-digests.mjs; lib/batch-integrity.mjs",
-      "status": "todo",
-      "implementation": "unknown_or_partial",
+      "status": "in_progress",
+      "implementation": "partial",
       "acceptance": "관련 코드 조사 + 안전한 회귀 테스트 + 실제 경로 검증 + 결과 증거 기록; 고객 데이터 삭제/재처리 금지",
-      "evidence": [],
-      "checkpoint": null,
+      "evidence": [
+        "Checkpoint part digest and source metadata SHA-256 guards implemented; runtime wiring partial."
+      ],
+      "checkpoint": "Checkpoint part digest and source metadata SHA-256 guards implemented; runtime wiring partial. Batch tests and production evidence pending.",
       "blockedReason": null,
       "dependencies": []
     },
@@ -226,11 +233,13 @@
       "priority": "P1",
       "title": "스캔 PDF·이미지 시각 목록·페이지 대응",
       "codeLocations": "lib/visual-evidence.mjs; lib/pdf-visual-windows.mjs",
-      "status": "todo",
-      "implementation": "unknown_or_partial",
+      "status": "in_progress",
+      "implementation": "partial",
       "acceptance": "관련 코드 조사 + 안전한 회귀 테스트 + 실제 경로 검증 + 결과 증거 기록; 고객 데이터 삭제/재처리 금지",
-      "evidence": [],
-      "checkpoint": null,
+      "evidence": [
+        "Page coverage audit supports visual page inventory consistency; visual pipeline wiring pending."
+      ],
+      "checkpoint": "Page coverage audit supports visual page inventory consistency; visual pipeline wiring pending. Batch tests and production evidence pending.",
       "blockedReason": null,
       "dependencies": []
     },
@@ -592,12 +601,16 @@
     "commits": [
       "f70bf647c709f653074cb33712e127277abd35be",
       "e089c4bf22100cbf04a803d6c17a0bfe77eac5b6",
-      "2b61f11d28a76d4cf742f09dce519fdd46c7c4c3"
+      "2b61f11d28a76d4cf742f09dce519fdd46c7c4c3",
+      "14d646468332a2a0329926893e430ec54c280ea0",
+      "dc316e731bc06aa6baca7f05420d3189c3736b2d",
+      "08f2e4322bceb439d34efafc8f0d7cec386015e4",
+      "7894ed9fedd9fc9b8b0caa36e3c77ac7471186f2"
     ],
     "nextActions": [
-      "Wire response parser into customer analysis fetch call sites",
-      "Connect distinct source verification and analysis completion UI",
-      "Continue LAW-002..LAW-013 implementation before batch verification"
+      "Wire customer API call sites to shared response parser",
+      "Wire source ingestion and page coverage guards into upload/extraction flows",
+      "Finish remaining LAW-001..013 code and consolidated runtime verification"
     ],
     "note": "User explicitly prioritizes coding across tasks before consolidated verification. Never mark verified until later batch acceptance."
   }
