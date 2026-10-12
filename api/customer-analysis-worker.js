@@ -176,6 +176,9 @@ export default async function handler(req,res){
     output=await analyzePdfVisualEvidence({documentId:doc.id,pdfBytes:bytes,apiKey:process.env.OPENAI_API_KEY,model:process.env.SQUIDLAW_VISION_MODEL||'gpt-4.1-mini'});
     await put(outputPath,JSON.stringify(output),{access:'private',allowOverwrite:false,addRandomSuffix:false,contentType:'application/json'});
    }
+   if(output.sourcePdfSha256!==doc.sha256||output.documentId!==doc.id||!Array.isArray(output.observations?.pageObservations)||!Array.isArray(output.observations?.unreviewedPages))throw Error('VISUAL_PROVIDER_SOURCE_MISMATCH');
+   const reviewed=output.observations.pageObservations.map(p=>p.page),unreviewed=output.observations.unreviewedPages;
+   if([...reviewed,...unreviewed].some(p=>!Number.isSafeInteger(p)||p<1||p>doc.pageCount)||new Set([...reviewed,...unreviewed]).size!==reviewed.length+unreviewed.length)throw Error('VISUAL_PROVIDER_PAGE_REFERENCE_INVALID');
    await advanceJob(job,'visual_provider_checkpoint',{...previous,visualDocIndex:next+1,visualProviderLastOutput:outputPath},'retry');
    return res.status(200).json({status:'retry',stage:'visual_provider_checkpoint',processedDocuments:next+1,totalDocuments:docs.length});
   }
