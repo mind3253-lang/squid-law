@@ -135,6 +135,10 @@
     {
       "source": "/admin/skynet-data-admin",
       "destination": "/api/skynet-data-admin"
+    },
+    {
+      "source": "/admin/skynet-warehouse",
+      "destination": "/api/skynet-warehouse"
     }
   ],
   "installCommand": "npm install --ignore-scripts --no-audit --no-fund && node --test tests/*.test.mjs && node scripts/customer-db-migrate.mjs && (test \"$SKYNET_JOB_BACKEND\" != postgres || node scripts/skynet-job-migrate.mjs)",
