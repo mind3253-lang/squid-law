@@ -21,6 +21,10 @@
       "destination": "/api/skynet-write-run"
     },
     {
+      "source": "/admin/skynet-worker-tick",
+      "destination": "/api/skynet-worker-tick"
+    },
+    {
       "source": "/admin/skynet-chat",
       "destination": "/api/skynet-chat"
     },
