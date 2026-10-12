@@ -17,7 +17,7 @@ import {auditSourceUnitIndex} from '../lib/legal-reasoning-audit.mjs';
 import {buildVisualReferenceManifest} from '../lib/source-continuity.mjs';
 import {analyzeLegalWindow} from '../lib/gpt-legal-orchestrator.mjs';
 import {analyzePdfVisualEvidence} from '../lib/openai-vision-provider.mjs';
-import {auditVisualProviderCoverage} from '../lib/visual-review-audit.mjs';
+import {auditVisualProviderCoverage,compareIndependentVisualPass} from '../lib/visual-review-audit.mjs';
 import {buildLegalCustomerReport} from '../lib/legal-customer-report.mjs';
 import {validatePersistedBatch,finalizationDescriptors,validateFinalizationPart,summarizeClaimRoles} from '../lib/text-review-aggregation.mjs';
 import {detectOpposingStatements} from '../lib/case-crosscheck.mjs';
@@ -200,6 +200,30 @@ export default async function handler(req,res){
    await advanceJob(job,'visual_source_audit_failed',{...previous,visualAuditFailures:auditFailures},'blocked','VISUAL_SOURCE_AUDIT_FAILED');
    return res.status(200).json({status:'blocked',reason:'VISUAL_SOURCE_AUDIT_FAILED',failedDocuments:auditFailures.length});
   }
+  const auditIndex=previous.visualAuditDocIndex||0;
+  if(auditIndex<docs.length){
+   const doc=docs[auditIndex];
+   const root='squidlaw/analysis-jobs/'+job.customerKey+'/'+job.caseId+'/'+job.jobId+'/visual-provider/';
+   const primary=await load(root+doc.id+'.json');
+   const auditPath=root+doc.id+'-independent.json';
+   let independent=await load(auditPath);
+   if(!independent){
+    const bytes=await loadBinary(prefix+'pdf/'+doc.id+'.pdf');
+    if(!bytes||createHash('sha256').update(bytes).digest('hex')!==doc.sha256)throw Error('VISUAL_AUDIT_PDF_SOURCE_MISMATCH');
+    independent=await analyzePdfVisualEvidence({documentId:doc.id,pdfBytes:bytes,apiKey:process.env.OPENAI_API_KEY,model:process.env.SQUIDLAW_VISION_MODEL||'gpt-4.1-mini',auditOf:primary});
+    await put(auditPath,JSON.stringify(independent),{access:'private',allowOverwrite:false,addRandomSuffix:false,contentType:'application/json'});
+   }
+   const comparison=compareIndependentVisualPass({primary,secondary:independent,pageCount:doc.pageCount});
+   if(!comparison.complete){
+    await advanceJob(job,'visual_independent_audit_failed',{...previous,visualAuditDocIndex:auditIndex,visualAuditFailures:[{documentId:doc.id,failures:comparison.failures.slice(0,25)}]},'blocked','INDEPENDENT_VISUAL_AUDIT_FAILED');
+    return res.status(200).json({status:'blocked',reason:'INDEPENDENT_VISUAL_AUDIT_FAILED'});
+   }
+   await advanceJob(job,'visual_independent_audit_checkpoint',{...previous,visualAuditDocIndex:auditIndex+1},'retry');
+   return res.status(200).json({status:'retry',stage:'visual_independent_audit_checkpoint'});
+  }
+  const visualReview={verified:true,independentAuditVerified:true,sourceVersion:job.documentVersion,verifiedDocumentCount:docs.length};
+  await advanceJob(job,'visual_independent_audit_completed',{...previous,visualReview},'retry');
+  return res.status(200).json({status:'retry',stage:'visual_independent_audit_completed'});
   // Source coverage is a prerequisite, not an independent visual meaning audit.
   // Do not authorize legal reasoning until an independent source-backed review exists.
   await advanceJob(job,'visual_independent_audit_pending',{...previous,visualProviderCompleted:true,phase:'verify'},'blocked','INDEPENDENT_VISUAL_AUDIT_PENDING');
