@@ -36,7 +36,7 @@ export default async function handler(req,res){
    if(body.status==='running'&&(!/^[a-zA-Z0-9_-]{1,80}$/.test(body.owner||'')))return res.status(400).json({error:'OWNER_REQUIRED'});
    if(body.checkpoint&&JSON.stringify(body.checkpoint).length>10000)return res.status(413).json({error:'CHECKPOINT_TOO_LARGE'});
    if(typeof body.reason==='string'&&body.reason.length>1000)return res.status(400).json({error:'REASON_TOO_LONG'});
-   if(typeof body.status!=='string')return res.status(400).json({error:'STATUS_REQUIRED'});
+   if(typeof body.status!=='string'&&!body.taskId)return res.status(400).json({error:'STATUS_REQUIRED'});
    if(body.taskId&&body.taskPatch){if(body.taskPatch.status&&!['todo','in_progress','blocked','implemented','verified','failed'].includes(body.taskPatch.status))return res.status(400).json({error:'INVALID_TASK_STATUS'});const job=checkpointTask(current,body.taskId,body.taskPatch);await saveJob(job);return res.status(200).json({ok:true,job});}
    const next=body.status==='queued'&&current.status==='running'&&body.recover===true?recoverJob(current):body.status==='running'?claimJob(current,body.owner):transitionJob(current,body?.status,{checkpoint:body?.checkpoint,reason:body?.reason,owner:body?.owner});
    const job=appendJobEvent(next.status==='running'?leaseJob(next,body.owner):next,'status-changed',{from:current.status,to:next.status});
