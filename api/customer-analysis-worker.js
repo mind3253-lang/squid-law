@@ -24,6 +24,7 @@ import {buildLegalCustomerReport} from '../lib/legal-customer-report.mjs';
 import {reconcileAnalysisCompletion} from '../lib/analysis-completion-reconciliation.mjs';
 import {auditVerifiedTextPages,auditDocumentBoundaryEvidence} from '../lib/source-completion-audit.mjs';
 import {reconcileVisualOcr} from '../lib/ocr-visual-recovery.mjs';
+import {boundaryReviewRequest,auditBoundaryReview,compareBoundaryReviews,invokeBoundaryReview} from '../lib/independent-boundary-review.mjs';
 import {validatePersistedBatch,finalizationDescriptors,validateFinalizationPart,summarizeClaimRoles} from '../lib/text-review-aggregation.mjs';
 import {detectOpposingStatements} from '../lib/case-crosscheck.mjs';
 const eq=(a,b)=>{const x=Buffer.from(a||''),y=Buffer.from(b||'');return x.length===y.length&&timingSafeEqual(x,y)};
@@ -119,6 +120,48 @@ export default async function handler(req,res){
   await put(manifestPath,JSON.stringify({caseId:job.caseId,sourceVersion:job.documentVersion,documents:docs.map(x=>({id:x.id,pageCount:x.pageCount})),outputs:expectedTextReviewOutputs({root,documents:docs}),aggregateSha256,verifiedVisual:false,verifiedLegal:false,analysisComplete:false,pendingStages:ANALYSIS_STAGES.slice(2)}),{access:'private',allowOverwrite:true,addRandomSuffix:false,contentType:'application/json'});
   await advanceJob(job,'text_review_completed_visual_pending',{...previous,phase:'verify',textReviewManifest:manifestPath,textReviewAggregate:aggregatePath,textReviewIntermediateReport:intermediateReportPath,legalReasoningRequest:legalReasoningRequestPath,sourceUnitIndex:sourceIndexPath},'retry');
   return res.status(200).json({status:'retry',stage:'text_review_completed_visual_pending',verifiedTextDocuments:docs.length});
+ }
+ if(index>=docs.length&&previous.visualReview?.independentAuditVerified===true&&!previous.boundaryReviewVerified){
+  const root='squidlaw/analysis-jobs/'+job.customerKey+'/'+job.caseId+'/'+job.jobId+'/';
+  const boundaryIndex=previous.boundaryDocIndex||0;
+  if(boundaryIndex<docs.length){
+   const d=docs[boundaryIndex],base=root+'boundary-audit/'+d.id;
+   const primaryPath=base+'-primary.json',secondPath=base+'-independent.json';
+   const candidateAggregate=await load(previous.textReviewAggregate);
+   const candidate=candidateAggregate?.documentBoundaryCandidates?.find(x=>x.documentId===d.id);
+   const visual=await load(root+'visual-provider/'+d.id+'.json');
+   const pageEvidence=[];
+   for(let start=0;start<d.pageCount;start+=20){
+    const batch=await load(prefix+'verified/'+d.id+'/batch-'+String(start).padStart(8,'0')+'.json');
+    if(!batch||batch.sourcePdfSha256!==d.sha256)throw Error('BOUNDARY_SOURCE_MISSING');
+    for(const p of batch.pages)pageEvidence.push({page:p.page,text:String(p.text||'').slice(0,1500),visualFacts:visual?.observations?.pageObservations?.find(x=>x.page===p.page)?.visualFacts||[]});
+   }
+   const input={documentId:d.id,sourcePdfSha256:d.sha256,pageCount:d.pageCount,candidates:candidate?.sections||[],pageEvidence,model:process.env.SQUIDLAW_LEGAL_MODEL||'gpt-4.1-mini'};
+   let primary=await load(primaryPath);
+   if(!primary){
+    primary=await invokeBoundaryReview({request:boundaryReviewRequest(input),apiKey:process.env.OPENAI_API_KEY});
+    const audit=auditBoundaryReview({result:primary,documentId:d.id,sourcePdfSha256:d.sha256,pageCount:d.pageCount});
+    if(!audit.complete)throw Error('BOUNDARY_PRIMARY_INVALID:'+audit.failures.join(','));
+    await put(primaryPath,JSON.stringify(primary),{access:'private',allowOverwrite:false,addRandomSuffix:false,contentType:'application/json'});
+    await advanceJob(job,'boundary_primary_checkpoint',{...previous,boundaryDocIndex:boundaryIndex},'retry');
+    return res.status(200).json({status:'retry',stage:'boundary_primary_checkpoint'});
+   }
+   let independent=await load(secondPath);
+   if(!independent){
+    independent=await invokeBoundaryReview({request:boundaryReviewRequest({...input,auditOf:primary}),apiKey:process.env.OPENAI_API_KEY});
+    await put(secondPath,JSON.stringify(independent),{access:'private',allowOverwrite:false,addRandomSuffix:false,contentType:'application/json'});
+   }
+   const audit=compareBoundaryReviews({primary,independent,documentId:d.id,sourcePdfSha256:d.sha256,pageCount:d.pageCount});
+   if(!audit.complete){
+    await advanceJob(job,'boundary_independent_failed',{...previous,boundaryFailures:audit.failures.slice(0,30)},'blocked','BOUNDARY_INDEPENDENT_FAILED');
+    return res.status(200).json({status:'blocked',reason:'BOUNDARY_INDEPENDENT_FAILED'});
+   }
+   await put(base+'-verified.json',JSON.stringify(audit),{access:'private',allowOverwrite:true,addRandomSuffix:false,contentType:'application/json'});
+   await advanceJob(job,'boundary_verified_checkpoint',{...previous,boundaryDocIndex:boundaryIndex+1},'retry');
+   return res.status(200).json({status:'retry',stage:'boundary_verified_checkpoint'});
+  }
+  await advanceJob(job,'boundary_review_completed',{...previous,boundaryReviewVerified:true},'retry');
+  return res.status(200).json({status:'retry',stage:'boundary_review_completed'});
  }
  if(index>=docs.length&&!previous.legalCustomerReport&&previous.visualReview?.verified===true&&previous.visualReview?.independentAuditVerified===true&&previous.visualReview?.sourceVersion===job.documentVersion&&previous.legalReasoningRequest&&previous.sourceUnitIndex){
   const root='squidlaw/analysis-jobs/'+job.customerKey+'/'+job.caseId+'/'+job.jobId+'/';
