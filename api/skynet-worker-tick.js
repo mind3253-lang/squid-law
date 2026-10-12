@@ -1,0 +1,3 @@
+import {isSkynetAdmin} from '../lib/skynet-job-api-auth.mjs';
+import {runWorkerTick} from '../lib/skynet-worker-runner.mjs';
+export default async function handler(req,res){res.setHeader('Cache-Control','no-store');res.setHeader('Vary','Authorization');if(!isSkynetAdmin(req))return res.status(401).json({error:'ADMIN_REQUIRED'});if(req.method!=='POST')return res.status(405).json({error:'POST_REQUIRED'});try{const b=typeof req.body==='string'?JSON.parse(req.body):req.body;if(!/^[\w-]{8,80}$/.test(b?.jobId||'')||!/^[\w-]{1,80}$/.test(b?.owner||''))throw Error('INVALID_REQUEST');return res.status(200).json(await runWorkerTick(b))}catch(e){return res.status(409).json({error:String(e.message).slice(0,100)})}}
