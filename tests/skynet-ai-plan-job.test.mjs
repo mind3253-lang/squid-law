@@ -1,0 +1,3 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {planToJob} from '../lib/skynet-ai-plan-job.mjs';
+test('convert validated AI plan to queued read-only job',()=>{const job=planToJob({goal:'Inspect repo',repository:'acme/demo',plan:{tasks:[{id:'read',title:'Read README',toolCalls:[{name:'github.read',args:{owner:'acme',repo:'demo',path:'README.md'}}]}]}});assert.equal(job.status,'queued');assert.deepEqual(job.scopes,['repository:read']);assert.equal(job.tasks[0].status,'todo')});
+test('AI plan jobs never auto-grant write scopes',()=>{const job=planToJob({goal:'Inspect repo',repository:'acme/demo',scopes:['repository:write','repository:read'],plan:{tasks:[{id:'read',title:'Read README'}]}});assert.deepEqual(job.scopes,['repository:read'])});
