@@ -5,6 +5,10 @@
       "destination": "/api/skynet-jobs"
     },
     {
+      "source": "/admin/skynet-tool-run",
+      "destination": "/api/skynet-tool-run"
+    },
+    {
       "source": "/admin/skynet-chat",
       "destination": "/api/skynet-chat"
     },
