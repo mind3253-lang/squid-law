@@ -19,5 +19,5 @@ export default async function handler(req,res){
  }
  try{const docs=await documents(a.user,caseId);if(!docs.length)return respond(res,409,{error:'분석할 문서가 없습니다'});
  const job=await enqueueJob(a.user,caseId,documentVersion(docs));return respond(res,202,{job,notice:'분석 요청이 저장되었습니다. 실행 워커 활성화 여부는 별도로 확인해야 합니다.'})}
- catch{return respond(res,503,{error:'분석 작업 등록 실패'})}
+ catch(e){const code=e?.name==='LeaseUnavailable'?'DB_URL_MISSING':e?.code==='42P01'?'DB_TABLE_MISSING':e?.code==='28P01'?'DB_AUTH_FAILED':e?.code==='3D000'?'DB_NAME_INVALID':'DB_REGISTRATION_FAILED';return respond(res,503,{error:'분석 작업 등록 실패',code})}
 }
