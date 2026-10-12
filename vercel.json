@@ -13,6 +13,10 @@
       "destination": "/api/skynet-write-lock"
     },
     {
+      "source": "/admin/skynet-write-approve",
+      "destination": "/api/skynet-write-approve"
+    },
+    {
       "source": "/admin/skynet-chat",
       "destination": "/api/skynet-chat"
     },
