@@ -20,7 +20,7 @@ export default async function handler(req,res){
    const body=typeof req.body==='string'?JSON.parse(req.body):req.body;
    const input=validateJobInput(body);
    const job=appendJobEvent({id:randomUUID(),...input,status:'queued',createdAt:new Date().toISOString(),owner:null,checkpoint:null},'created');
-   await saveJob(job,{overwrite:false});return res.status(201).json({job});
+   await saveJob(job,{overwrite:false});return res.status(201).json({ok:true,job});
   }
   if(req.method==='PATCH'){
    if(!/^[a-zA-Z0-9_-]{8,80}$/.test(id))return res.status(400).json({error:'INVALID_JOB_ID'});
