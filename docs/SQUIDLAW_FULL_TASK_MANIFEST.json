@@ -45,12 +45,12 @@
       "priority": "P0",
       "title": "338페이지 기존 작업 ID·체크포인트·자료 보존 상태 조회",
       "codeLocations": "api/customer-analysis-jobs-db.js; api/customer-analysis-worker.js",
-      "status": "todo",
+      "status": "blocked",
       "implementation": "unknown_or_partial",
       "acceptance": "관련 코드 조사 + 안전한 회귀 테스트 + 실제 경로 검증 + 결과 증거 기록; 고객 데이터 삭제/재처리 금지",
       "evidence": [],
-      "checkpoint": null,
-      "blockedReason": null,
+      "checkpoint": "Source API identified: api/customer-analysis-jobs-db.js; production job contents not accessed",
+      "blockedReason": "Read-only live 338-page job lookup not yet available through current Vercel connector; must identify job without exposing customer data",
       "dependencies": []
     },
     {
@@ -59,11 +59,15 @@
       "priority": "P0",
       "title": "finalizeOffset·part digest 집계 재개 오류 조사",
       "codeLocations": "api/customer-analysis-worker.js; lib/text-review-aggregation.mjs",
-      "status": "todo",
+      "status": "in_progress",
       "implementation": "unknown_or_partial",
       "acceptance": "관련 코드 조사 + 안전한 회귀 테스트 + 실제 경로 검증 + 결과 증거 기록; 고객 데이터 삭제/재처리 금지",
-      "evidence": [],
-      "checkpoint": null,
+      "evidence": [
+        "Code path: worker finalization at index>=docs.length and previous.finalizeOffset integer",
+        "Finalization persists finalize-parts/<offset>.json and finalizePartDigests; checks FINALIZATION_DIGEST_COUNT_MISMATCH, FINALIZATION_PART_MISSING, FINALIZATION_COUNT_MISMATCH",
+        "Jobs claim lease 90s; retry scheduling 2s but Vercel cron every 5min. Check for lease expiry on long worker runs."
+      ],
+      "checkpoint": "Inspected api/customer-analysis-worker.js finalization branch, api/customer-analysis-jobs-db.js and lib/text-review-aggregation.mjs. Checkpoint increments finalizeOffset by 8 descriptor batches per part; validates stored part hashes and source count; needs runtime/error reproduction and regression tests",
       "blockedReason": null,
       "dependencies": []
     },
@@ -73,11 +77,13 @@
       "priority": "P0",
       "title": "비JSON 서버 응답의 요청·HTTP 상태·원인 추적",
       "codeLocations": "고객 분석 화면 요청부; API/배포 로그",
-      "status": "todo",
+      "status": "in_progress",
       "implementation": "unknown_or_partial",
       "acceptance": "관련 코드 조사 + 안전한 회귀 테스트 + 실제 경로 검증 + 결과 증거 기록; 고객 데이터 삭제/재처리 금지",
-      "evidence": [],
-      "checkpoint": null,
+      "evidence": [
+        "api/customer-analysis-worker.js catch returns res.status(503).json({error:'WORKER_ERROR'})"
+      ],
+      "checkpoint": "Observed frontend Unexpected token A screenshot; worker catch returns JSON 503 {error:WORKER_ERROR}, so root non-JSON response likely from another HTTP path or platform error; identify endpoint and status from logs before asserting",
       "blockedReason": null,
       "dependencies": []
     },
@@ -101,12 +107,12 @@
       "priority": "P0",
       "title": "기존 338페이지 체크포인트부터 중복 없이 재개",
       "codeLocations": "api/customer-analysis-worker.js; api/customer-analysis-jobs-db.js",
-      "status": "todo",
+      "status": "blocked",
       "implementation": "unknown_or_partial",
       "acceptance": "관련 코드 조사 + 안전한 회귀 테스트 + 실제 경로 검증 + 결과 증거 기록; 고객 데이터 삭제/재처리 금지",
       "evidence": [],
-      "checkpoint": null,
-      "blockedReason": null,
+      "checkpoint": "resumeJob exists in api/customer-analysis-jobs-db.js; no live job mutation performed",
+      "blockedReason": "Must read existing live job and checkpoint and confirm no duplicate/overwrite before initiating resume",
       "dependencies": []
     },
     {
@@ -143,12 +149,12 @@
       "priority": "P0",
       "title": "실운영 338페이지 완료·출처·보고서 수령 검증",
       "codeLocations": "운영 E2E 검증",
-      "status": "todo",
+      "status": "blocked",
       "implementation": "unknown_or_partial",
       "acceptance": "관련 코드 조사 + 안전한 회귀 테스트 + 실제 경로 검증 + 결과 증거 기록; 고객 데이터 삭제/재처리 금지",
       "evidence": [],
       "checkpoint": null,
-      "blockedReason": null,
+      "blockedReason": "Actual 338-page E2E needs authorized production job and report, not available in this session",
       "dependencies": []
     },
     {
@@ -571,5 +577,19 @@
       "blockedReason": null,
       "dependencies": []
     }
-  ]
+  ],
+  "lastExecution": {
+    "date": "2026-10-12",
+    "scope": "LAW-001..LAW-013",
+    "phase": "source_audit",
+    "latestInspectedCommit": "bf5ece30",
+    "nextActions": [
+      "Inspect job and worker lease/retry semantics with tests",
+      "Find client fetch JSON parsing code and implement safe nonJSON error handling",
+      "Trace report retrieval endpoint and gate",
+      "Do not restart live 338-page job before checkpoint is verified"
+    ],
+    "verifiedCount": 0,
+    "notes": "No production job accessed; no source code fix yet. Investigation is not implementation or E2E validation."
+  }
 }
