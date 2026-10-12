@@ -1,0 +1,14 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {createHash} from 'node:crypto';
+import {auditVisualProviderCoverage} from '../lib/visual-review-audit.mjs';
+import {assertCompletionTransition} from '../lib/analysis-stage-gates.mjs';
+const sha=s=>createHash('sha256').update(s).digest('hex');
+const sourcePdfSha256=sha('pdf');
+const pages=[1,2,3].map(page=>({page,text:'page '+page,textSha256:sha('page '+page),imageOperatorCount:0,visualInventoryStatus:'operator_scan_unverified'}));
+const providerResult={documentId:'doc',sourcePdfSha256,observations:{pageObservations:pages.map(p=>({page:p.page,observedText:p.text,visualFacts:[],uncertainties:[]})),unreviewedPages:[]}};
+test('complete visual source coverage has no deterministic failures',()=>{const r=auditVisualProviderCoverage({documentId:'doc',sourcePdfSha256,pageCount:3,providerResult,extractedPages:pages});assert.equal(r.complete,true);assert.equal(r.independentSemanticVerification,false)});
+test('unreviewed page is not certified',()=>{const r=auditVisualProviderCoverage({documentId:'doc',sourcePdfSha256,pageCount:3,providerResult:{...providerResult,observations:{pageObservations:providerResult.observations.pageObservations.slice(0,2),unreviewedPages:[3]}},extractedPages:pages});assert.equal(r.complete,false);assert.ok(r.failures.includes('PAGES_UNREVIEWED'))});
+test('tampered extracted text is rejected',()=>{const r=auditVisualProviderCoverage({documentId:'doc',sourcePdfSha256,pageCount:3,providerResult,extractedPages:[...pages.slice(0,2),{...pages[2],text:'tampered'}]});assert.equal(r.complete,false);assert.ok(r.failures.some(x=>x.startsWith('EXTRACTION_SOURCE_MISMATCH')))});
+test('unverified visual inventory is rejected',()=>{const r=auditVisualProviderCoverage({documentId:'doc',sourcePdfSha256,pageCount:3,providerResult,extractedPages:[{...pages[0],imageOperatorCount:null},...pages.slice(1)]});assert.equal(r.complete,false)});
+test('completion cannot bypass required gates',()=>assert.throws(()=>assertCompletionTransition('completed',{}),/ANALYSIS_COMPLETION_GATES_MISSING/));
