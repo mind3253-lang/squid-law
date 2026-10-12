@@ -9,6 +9,9 @@ import {latestEvents} from '../lib/skynet-job-history.mjs';
 import {scheduleNext} from '../lib/skynet-job-scheduler.mjs';
 import {validatePlan} from '../lib/skynet-job-plan.mjs';
 import {leaseJob} from '../lib/skynet-job-lease.mjs';
+import {claimJob} from '../lib/skynet-worker-claim.mjs';
+import {recoverJob} from '../lib/skynet-worker-recovery.mjs';
+import {checkpointTask} from '../lib/skynet-worker-core.mjs';
 export default async function handler(req,res){
  res.setHeader('Cache-Control','no-store');res.setHeader('X-Content-Type-Options','nosniff');res.setHeader('Vary','Authorization');
  if(Number(req.headers['content-length'])>30000)return res.status(413).json({error:'PAYLOAD_TOO_LARGE'});
