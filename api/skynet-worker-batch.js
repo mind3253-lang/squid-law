@@ -11,5 +11,5 @@ export default async function handler(req,res){
   const b=typeof req.body==='string'?JSON.parse(req.body):req.body;
   if(!/^[\w-]{8,80}$/.test(b?.jobId||'')||!/^[\w-]{1,80}$/.test(b?.owner||''))throw Error('INVALID_REQUEST');
   return res.status(200).json(await runWorkerBatch({jobId:b.jobId,owner:b.owner,maxSteps:b.maxSteps??3}));
- }catch(e){return res.status(409).json({error:String(e.message).slice(0,100)})}
+ }catch(e){return res.status(409).json({error:['INVALID_REQUEST','INVALID_STEP_LIMIT','INVALID_OWNER','INVALID_JOB_ID','ACTIVE_LEASE_REQUIRED','REVISION_CONFLICT','ATOMIC_JOB_STORAGE_REQUIRED'].includes(String(e.message))?String(e.message):'WORKER_BATCH_FAILED'})}
 }
