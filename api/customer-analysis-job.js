@@ -17,7 +17,7 @@ export default async function handler(req,res){
  if(!registry||registry.id!==caseId)return respond(res,404,{error:'등록된 사건이 없습니다'});
  if(req.method==='GET'){
   const jobId=String(req.query?.jobId||'');if(!/^[0-9a-f-]{36}$/.test(jobId))return respond(res,400,{error:'작업 ID 오류'});
-  try{const job=await getJob(a.user,caseId,jobId);return job?respond(res,200,{job}):respond(res,404,{error:'작업 없음'})}catch{return respond(res,503,{error:'작업 상태 저장소 오류'})}
+  try{const job=await getJob(a.user,caseId,jobId);if(job&&['queued','retry'].includes(job.status))kickWorker(req);return job?respond(res,200,{job}):respond(res,404,{error:'작업 없음'})}catch{return respond(res,503,{error:'작업 상태 저장소 오류'})}
  }
  if(req.method!=='POST')return respond(res,405,{error:'GET/POST만 허용'});
  let b=req.body;try{if(typeof b==='string')b=JSON.parse(b)}catch{return respond(res,400,{error:'요청 형식 오류'})}
