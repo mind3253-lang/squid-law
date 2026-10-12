@@ -41,6 +41,7 @@ export default async function handler(req,res){
  if(version!==job.documentVersion){await advanceJob(job,'source_changed',{expected:job.documentVersion,actual:version},'blocked','SOURCE_VERSION_CHANGED');return res.status(200).json({status:'blocked',reason:'SOURCE_VERSION_CHANGED'})}
 
  const previous=job.checkpoint||{};
+ const extractionOnly=previous.phase==='extract'||(previous.nextDocument===undefined&&previous.phase===undefined);
  if(previous.nextDocument!==undefined&&!Number.isSafeInteger(previous.nextDocument))throw Error('INVALID_DOCUMENT_CHECKPOINT');
  const index=previous.nextDocument??0;
  if(index<0||index>docs.length)throw Error('INVALID_DOCUMENT_CHECKPOINT');
@@ -158,6 +159,10 @@ export default async function handler(req,res){
   await advanceJob(job,'legal_reasoning_independent_review_pending',{...previous,legalTaskIndex:nextTask,legalCursor:0,legalWindowPaths:paths,legalCustomerReport:reportPath},'blocked','INDEPENDENT_SEMANTIC_AUDIT_PENDING');
   return res.status(200).json({status:'blocked',reason:'INDEPENDENT_SEMANTIC_AUDIT_PENDING'});
  }
+ if(index===docs.length&&extractionOnly){
+  await advanceJob(job,'source_collection_completed',{phase:'analyze',nextDocument:0,nextPage:0,documentCount:docs.length,collectionCompletedAt:new Date().toISOString()},'retry');
+  return res.status(200).json({status:'retry',stage:'source_collection_completed',documents:docs.length});
+ }
  if(index>=docs.length){
   if(!previous.textReviewManifest||!previous.textReviewAggregate||!(await load(previous.textReviewManifest))||!(await load(previous.textReviewAggregate))){
    await advanceJob(job,'text_review_checkpoint_incomplete',{...previous,documentCount:docs.length},'blocked','TEXT_REVIEW_AGGREGATION_MISSING');
@@ -168,6 +173,12 @@ export default async function handler(req,res){
  }
  const d=docs[index],extractionPath=prefix+'extracted/'+d.id+'.json';
  const e=await load(extractionPath);
+ if(extractionOnly&&e){
+  if(e.pageCount!==undefined&&e.pageCount!==d.pageCount)throw Error('EXTRACTION_PAGE_COUNT_MISMATCH');
+  await advanceJob(job,'source_collection_checkpoint',{...previous,phase:'extract',nextDocument:index+1,nextPage:0,documentCount:docs.length},'retry');
+  return res.status(200).json({status:'retry',stage:'source_collection_checkpoint',collectedDocuments:index+1,totalDocuments:docs.length});
+ }
+
  if(!e&&d.status==='extraction_pending'){
   const start=previous.nextDocument===index?(previous.extractionNextPage??1):1;
   if(!Number.isSafeInteger(start)||start<1||start>d.pageCount||((start-1)%20)!==0)throw Error('INVALID_EXTRACTION_CHECKPOINT');
@@ -188,7 +199,7 @@ export default async function handler(req,res){
    if(!old)await put(batchPath,JSON.stringify(payload),{access:'private',allowOverwrite:false,addRandomSuffix:false,contentType:'application/json'});
   }
   if(!extracted.finished){
-   await advanceJob(job,'pdf_extraction_checkpoint',{...previous,nextDocument:index,nextPage:0,extractionNextPage:start+extracted.pages.length,extractionReadablePages:extractedReadable,extractionImageOperatorPages:extractedImagePages,extractionUnscannedVisualPages:extractedUnscannedPages},'retry');
+   await advanceJob(job,'pdf_extraction_checkpoint',{...previous,...(extractionOnly?{phase:'extract'}:{}),nextDocument:index,nextPage:0,extractionNextPage:start+extracted.pages.length,extractionReadablePages:extractedReadable,extractionImageOperatorPages:extractedImagePages,extractionUnscannedVisualPages:extractedUnscannedPages},'retry');
    return res.status(200).json({status:'retry',stage:'pdf_extraction_checkpoint',extractedPages:start+extracted.pages.length-1,totalPages:d.pageCount});
   }
   const batches=Array.from({length:Math.ceil(d.pageCount/20)},(_,i)=>prefix+'extracted/'+d.id+'/batch-'+String(i*20).padStart(8,'0')+'.json');
@@ -197,7 +208,7 @@ export default async function handler(req,res){
   if(!auditTextReviewOutputs({expected:batches,actual:existingPaths}).complete)throw Error('EXTRACTION_BATCH_MISSING');
   await put(extractionPath,JSON.stringify({documentId:d.id,sourcePdfSha256:d.sha256,pageCount:d.pageCount,batches}),{access:'private',allowOverwrite:false,addRandomSuffix:false,contentType:'application/json'});
   await put(prefix+'docs/'+d.id+'.json',JSON.stringify({...d,status:'extraction_complete',extractedPages:d.pageCount,excludedPages:0,pendingPages:0,readablePages:extractedReadable,imageOperatorPages:extractedImagePages,unscannedVisualPages:extractedUnscannedPages,extractionNextPage:null}),{access:'private',allowOverwrite:true,addRandomSuffix:false,contentType:'application/json'});
-  await advanceJob(job,'pdf_extraction_completed',{...previous,nextDocument:index,nextPage:0,extractionNextPage:null},'retry');
+  await advanceJob(job,'pdf_extraction_completed',{...previous,...(extractionOnly?{phase:'extract'}:{}),nextDocument:index,nextPage:0,extractionNextPage:null},'retry');
   return res.status(200).json({status:'retry',stage:'pdf_extraction_completed',totalPages:d.pageCount});
  }
 
