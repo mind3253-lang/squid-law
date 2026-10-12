@@ -1,5 +1,5 @@
 import {guard,respond,readJson,documents,casePrefix} from './customer-case.js';
-import {enqueueJob,getJob,resumeJob,documentVersion} from './customer-analysis-jobs-db.js';
+import {enqueueJob,getJob,resumeJob,queueSnapshot,documentVersion} from './customer-analysis-jobs-db.js';
 import {waitUntil} from '@vercel/functions';
 const kickWorker=req=>{
  const secret=process.env.CRON_SECRET;
@@ -17,7 +17,7 @@ export default async function handler(req,res){
  if(!registry||registry.id!==caseId)return respond(res,404,{error:'등록된 사건이 없습니다'});
  if(req.method==='GET'){
   const jobId=String(req.query?.jobId||'');if(!/^[0-9a-f-]{36}$/.test(jobId))return respond(res,400,{error:'작업 ID 오류'});
-  try{const job=await getJob(a.user,caseId,jobId);if(job&&['queued','retry'].includes(job.status))kickWorker(req);return job?respond(res,200,{job}):respond(res,404,{error:'작업 없음'})}catch{return respond(res,503,{error:'작업 상태 저장소 오류'})}
+  try{const job=await getJob(a.user,caseId,jobId);if(job&&['queued','retry'].includes(job.status))kickWorker(req);const queue=job&&['queued','retry'].includes(job.status)?await queueSnapshot(a.user,caseId,jobId):null;return job?respond(res,200,{job,queue}):respond(res,404,{error:'작업 없음'})}catch{return respond(res,503,{error:'작업 상태 저장소 오류'})}
  }
  if(req.method!=='POST')return respond(res,405,{error:'GET/POST만 허용'});
  let b=req.body;try{if(typeof b==='string')b=JSON.parse(b)}catch{return respond(res,400,{error:'요청 형식 오류'})}
