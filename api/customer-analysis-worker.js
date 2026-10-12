@@ -570,5 +570,5 @@ export default async function handler(req,res){
  await advanceJob(job,'text_review_checkpoint',checkpoint,'retry');
  return res.status(200).json({status:'retry',processedDocuments:checkpoint.verifiedTextDocuments,processedPages:checkpoint.nextPage,totalDocuments:docs.length});
 
- }catch(e){if(job){try{await advanceJob(job,'error',{...(job.checkpoint||{}),errorAttempts:Number(job.checkpoint?.errorAttempts||0)+1,message:String(e.message||e).slice(0,250)},(Number(job.attempts||0)+1)>=job.maxAttempts?'failed':'retry','WORKER_ERROR')}catch{}}return res.status(503).json({error:'WORKER_ERROR'})}
+ }catch(e){const diagnostic=String(e?.message||e||'UNKNOWN').slice(0,160);const safeCode=/^[A-Z][A-Z0-9_]{2,100}$/.test(diagnostic)?diagnostic:'WORKER_ERROR';if(job){try{await advanceJob(job,'error',{...(job.checkpoint||{}),errorAttempts:Number(job.checkpoint?.errorAttempts||0)+1,lastFailedStage:job.stage||null,lastFailureCode:safeCode,lastFailureAt:new Date().toISOString(),message:diagnostic},(Number(job.attempts||0)+1)>=job.maxAttempts?'failed':'retry',safeCode)}catch{}}return res.status(503).json({error:safeCode,status:'retry_or_failed',retryable:!!job&&Number(job.attempts||0)+1<Number(job.maxAttempts||0)})}
 }
