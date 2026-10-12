@@ -7,6 +7,7 @@ import {appendJobEvent} from '../lib/skynet-job-events.mjs';
 import {jobReport} from '../lib/skynet-job-report.mjs';
 import {latestEvents} from '../lib/skynet-job-history.mjs';
 import {scheduleNext} from '../lib/skynet-job-scheduler.mjs';
+import {validatePlan} from '../lib/skynet-job-plan.mjs';
 export default async function handler(req,res){
  res.setHeader('Cache-Control','no-store');res.setHeader('X-Content-Type-Options','nosniff');res.setHeader('Vary','Authorization');
  if(Number(req.headers['content-length'])>30000)return res.status(413).json({error:'PAYLOAD_TOO_LARGE'});
@@ -22,7 +23,8 @@ export default async function handler(req,res){
   if(req.method==='POST'){
    const body=typeof req.body==='string'?JSON.parse(req.body):req.body;
    const input=validateJobInput(body);
-   const job=appendJobEvent({id:randomUUID(),...input,status:'queued',createdAt:new Date().toISOString(),owner:null,checkpoint:null},'created');
+   const tasks=body?.tasks===undefined?[]:validatePlan(body.tasks);
+   const job=appendJobEvent({id:randomUUID(),...input,tasks,status:'queued',createdAt:new Date().toISOString(),owner:null,checkpoint:null},'created');
    await saveJob(job,{overwrite:false});return res.status(201).json({ok:true,job});
   }
   if(req.method==='PATCH'){
