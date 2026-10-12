@@ -1,0 +1,11 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {planGoalFirstExecution,evaluateGoalCompletion} from '../lib/skynet-goal-first-policy.mjs';
+test('continues coding rather than committing while tasks remain',()=>{const r=planGoalFirstExecution({goal:'ship',remainingTasks:['implement API'],uncommittedChanges:25});assert.equal(r.action,'implement_next_task');assert.equal(r.commitPolicy,'batch_by_coherent_change')});
+test('normal risk defers redundant validation',()=>assert.equal(planGoalFirstExecution({goal:'ship',remainingTasks:['next']}).checkpoint,'defer_redundant_validation'));
+test('high risk retains validation gate',()=>assert.equal(planGoalFirstExecution({goal:'ship',remainingTasks:['next'],risk:'high'}).checkpoint,'validate_before_next_risky_step'));
+test('approval gate overrides autonomous continuation',()=>assert.equal(planGoalFirstExecution({goal:'ship',remainingTasks:['next'],approvalRequired:true}).owner,'user'));
+test('blocker belongs to system diagnosis',()=>assert.equal(planGoalFirstExecution({goal:'ship',blockingReason:'failed'}).action,'diagnose_blocker'));
+test('commits only after tasks finished',()=>assert.equal(planGoalFirstExecution({goal:'ship',uncommittedChanges:3}).action,'validate_and_commit'));
+test('requires acceptance evidence, not commit count',()=>{assert.equal(evaluateGoalCompletion({acceptanceCriteria:['deployed'],evidence:{deployed:false}}).completed,false);assert.equal(evaluateGoalCompletion({acceptanceCriteria:['deployed'],evidence:{deployed:true}}).completed,true)});
+test('never treats empty criteria as completion',()=>assert.equal(evaluateGoalCompletion({}).completed,false));
