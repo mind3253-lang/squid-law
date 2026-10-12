@@ -257,6 +257,15 @@ export default async function handler(req,res){
   }
  }
  if(!digestAudit.complete){await advanceJob(job,'source_digest_mismatch',{...previous,nextDocument:index,nextPage:pageOffset,failures:digestAudit.failures.slice(0,20)},'blocked','SOURCE_DIGEST_MISMATCH');return res.status(200).json({status:'blocked',reason:'SOURCE_DIGEST_MISMATCH'})}
+ // Persist source-verified legacy pages once, so a resumed analysis never needs
+ // to re-download and re-parse the original PDF for the same page window.
+ if(verifiedPages!==selectedPages){
+  const verifiedPath=prefix+'verified/'+d.id+'/batch-'+String(pageOffset).padStart(8,'0')+'.json';
+  const oldVerified=await load(verifiedPath);
+  if(oldVerified){
+   if(JSON.stringify(oldVerified.pages)!==JSON.stringify(verifiedPages))throw Error('VERIFIED_PAGE_CONFLICT');
+  }else await put(verifiedPath,JSON.stringify({documentId:d.id,sourcePdfSha256:d.sha256,pages:verifiedPages}),{access:'private',allowOverwrite:false,addRandomSuffix:false,contentType:'application/json'});
+ }
  const segmented=segmentRecord({scope:'customer',documentId:d.id,pages:verifiedPages});
  if(!auditSegments(verifiedPages,segmented.segments).complete)throw Error('SEGMENT_AUDIT');
  const units=segmented.segments.map(u=>({...u,filename:d.name||''}));
