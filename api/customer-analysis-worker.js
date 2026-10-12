@@ -22,6 +22,7 @@ import {auditVisualProviderCoverage,compareIndependentVisualPass} from '../lib/v
 import {buildSemanticReviewRequest,validateSemanticReview,invokeSemanticReview} from '../lib/independent-semantic-review.mjs';
 import {buildLegalCustomerReport} from '../lib/legal-customer-report.mjs';
 import {reconcileAnalysisCompletion} from '../lib/analysis-completion-reconciliation.mjs';
+import {auditVerifiedTextPages,auditDocumentBoundaryEvidence} from '../lib/source-completion-audit.mjs';
 import {validatePersistedBatch,finalizationDescriptors,validateFinalizationPart,summarizeClaimRoles} from '../lib/text-review-aggregation.mjs';
 import {detectOpposingStatements} from '../lib/case-crosscheck.mjs';
 const eq=(a,b)=>{const x=Buffer.from(a||''),y=Buffer.from(b||'');return x.length===y.length&&timingSafeEqual(x,y)};
@@ -199,7 +200,16 @@ export default async function handler(req,res){
    const primary=await load(rootPath+doc.id+'.json'),secondary=await load(rootPath+doc.id+'-independent.json');
    visualAudits.push(compareIndependentVisualPass({primary,secondary,pageCount:doc.pageCount}));
   }
-  const completion=reconcileAnalysisCompletion({sourceVersion:job.documentVersion,documents:docs,sourceIndex:indexData,aggregate,report,visualReview:previous.visualReview,semanticAuditPassed:true,visualAudits});
+  const verifiedBatches=[];
+  for(const doc of docs)for(let start=0;start<doc.pageCount;start+=20){
+   const path=prefix+'verified/'+doc.id+'/batch-'+String(start).padStart(8,'0')+'.json';
+   const batch=await load(path);
+   if(batch)verifiedBatches.push(batch);
+  }
+  const textAudit=auditVerifiedTextPages({documents:docs,verifiedBatches});
+  const boundaryAudit=auditDocumentBoundaryEvidence({documents:docs,aggregate});
+  const completion=reconcileAnalysisCompletion({sourceVersion:job.documentVersion,documents:docs,sourceIndex:indexData,aggregate,report,visualReview:previous.visualReview,semanticAuditPassed:true,visualAudits,ocrVerified:textAudit.verified,boundariesVerified:boundaryAudit.verified});
+  completion.failures.push(...textAudit.failures.slice(0,50),...boundaryAudit.failures.slice(0,50));
   const finalPath=root+'completion-reconciliation.json';
   await put(finalPath,JSON.stringify(completion),{access:'private',allowOverwrite:true,addRandomSuffix:false,contentType:'application/json'});
   if(!completion.complete){
