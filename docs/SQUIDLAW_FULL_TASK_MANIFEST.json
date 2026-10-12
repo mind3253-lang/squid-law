@@ -94,11 +94,13 @@
       "priority": "P0",
       "title": "비JSON·타임아웃·에러 응답 UI 안전 처리",
       "codeLocations": "고객 분석 화면 요청부; API 공통 응답",
-      "status": "todo",
-      "implementation": "unknown_or_partial",
+      "status": "in_progress",
+      "implementation": "partial",
       "acceptance": "관련 코드 조사 + 안전한 회귀 테스트 + 실제 경로 검증 + 결과 증거 기록; 고객 데이터 삭제/재처리 금지",
-      "evidence": [],
-      "checkpoint": null,
+      "evidence": [
+        "Shared response/progress utility added in commit 2b61f11d28a76d4cf742f09dce519fdd46c7c4c3"
+      ],
+      "checkpoint": "lib/customer-analysis-response.mjs implemented; frontend call-site integration and runtime acceptance pending.",
       "blockedReason": null,
       "dependencies": []
     },
@@ -124,11 +126,13 @@
       "priority": "P0",
       "title": "원문 검증 100%와 전체 분석 완료를 분리 표시",
       "codeLocations": "고객 분석 화면; 분석 상태 API",
-      "status": "todo",
-      "implementation": "unknown_or_partial",
+      "status": "in_progress",
+      "implementation": "partial",
       "acceptance": "관련 코드 조사 + 안전한 회귀 테스트 + 실제 경로 검증 + 결과 증거 기록; 고객 데이터 삭제/재처리 금지",
-      "evidence": [],
-      "checkpoint": null,
+      "evidence": [
+        "Shared response/progress utility added in commit 2b61f11d28a76d4cf742f09dce519fdd46c7c4c3"
+      ],
+      "checkpoint": "lib/customer-analysis-response.mjs implemented; frontend call-site integration and runtime acceptance pending.",
       "blockedReason": null,
       "dependencies": []
     },
@@ -587,12 +591,13 @@
     "mode": "implementation_first_then_batch_validation",
     "commits": [
       "f70bf647c709f653074cb33712e127277abd35be",
-      "e089c4bf22100cbf04a803d6c17a0bfe77eac5b6"
+      "e089c4bf22100cbf04a803d6c17a0bfe77eac5b6",
+      "2b61f11d28a76d4cf742f09dce519fdd46c7c4c3"
     ],
     "nextActions": [
-      "Implement frontend safe response parsing and stage separation",
-      "Implement retry/worker hardening and document pipeline improvements",
-      "Batch test and production verification only after implementation tranche"
+      "Wire response parser into customer analysis fetch call sites",
+      "Connect distinct source verification and analysis completion UI",
+      "Continue LAW-002..LAW-013 implementation before batch verification"
     ],
     "note": "User explicitly prioritizes coding across tasks before consolidated verification. Never mark verified until later batch acceptance."
   }
