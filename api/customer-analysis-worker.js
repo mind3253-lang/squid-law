@@ -18,6 +18,7 @@ import {buildVisualReferenceManifest} from '../lib/source-continuity.mjs';
 import {analyzeLegalWindow} from '../lib/gpt-legal-orchestrator.mjs';
 import {analyzePdfVisualEvidence} from '../lib/openai-vision-provider.mjs';
 import {auditVisualProviderCoverage,compareIndependentVisualPass} from '../lib/visual-review-audit.mjs';
+import {buildSemanticReviewRequest,validateSemanticReview,invokeSemanticReview} from '../lib/independent-semantic-review.mjs';
 import {buildLegalCustomerReport} from '../lib/legal-customer-report.mjs';
 import {validatePersistedBatch,finalizationDescriptors,validateFinalizationPart,summarizeClaimRoles} from '../lib/text-review-aggregation.mjs';
 import {detectOpposingStatements} from '../lib/case-crosscheck.mjs';
@@ -158,8 +159,35 @@ export default async function handler(req,res){
   const report={...reports[0],findings:reports.flatMap(r=>r.findings),uncertainties:reports.flatMap(r=>r.uncertainties),issues:[...new Set(reports.flatMap(r=>r.issues))],sourceCoverage:{tasks:reports.length,processedUnits:units.length},status:'draft_pending_verification',notForCourtSubmission:true,legalConclusionAvailable:false,independentSemanticAuditPassed:false};
   const reportPath=root+'legal-customer-report.json';
   await put(reportPath,JSON.stringify(report),{access:'private',allowOverwrite:true,addRandomSuffix:false,contentType:'application/json'});
-  await advanceJob(job,'legal_reasoning_independent_review_pending',{...previous,legalTaskIndex:nextTask,legalCursor:0,legalWindowPaths:paths,legalCustomerReport:reportPath},'blocked','INDEPENDENT_SEMANTIC_AUDIT_PENDING');
-  return res.status(200).json({status:'blocked',reason:'INDEPENDENT_SEMANTIC_AUDIT_PENDING'});
+  await advanceJob(job,'legal_reasoning_independent_review_pending',{...previous,legalTaskIndex:nextTask,legalCursor:0,legalWindowPaths:paths,legalCustomerReport:reportPath},'retry');
+  return res.status(200).json({status:'retry',stage:'legal_reasoning_independent_review_pending'});
+ }
+ if(index>=docs.length&&previous.legalCustomerReport&&previous.visualReview?.independentAuditVerified===true){
+  const root='squidlaw/analysis-jobs/'+job.customerKey+'/'+job.caseId+'/'+job.jobId+'/';
+  const report=await load(previous.legalCustomerReport);
+  if(!report||report.sourceVersion!==job.documentVersion)throw Error('SEMANTIC_REPORT_SOURCE_MISMATCH');
+  if(!process.env.OPENAI_API_KEY){await advanceJob(job,'semantic_api_missing',previous,'blocked','OPENAI_API_KEY_MISSING');return res.status(200).json({status:'blocked'})}
+  const sources=[];
+  for(const d of docs)for(let start=0;start<d.pageCount;start+=20){
+   const batch=await load(prefix+'extracted/'+d.id+'/batch-'+String(start).padStart(8,'0')+'.json');
+   if(!batch?.pages)throw Error('SEMANTIC_SOURCE_MISSING');
+   for(const u of segmentRecord({scope:'customer',documentId:d.id,pages:batch.pages}).segments)sources.push({documentId:d.id,page:u.page,part:u.part,hash:u.hash,text:u.text});
+  }
+  const cursor=previous.semanticAuditCursor||0;
+  const size=8;
+  const findings=report.findings.slice(cursor,cursor+size);
+  if(findings.length){
+   const request=buildSemanticReviewRequest({caseId:job.caseId,sourceVersion:job.documentVersion,findings,sourceUnits:sources,model:process.env.SQUIDLAW_LEGAL_MODEL||'gpt-5.4'});
+   const path=root+'semantic-audit/'+String(cursor).padStart(8,'0')+'.json';
+   let result=await load(path);
+   if(!result){result=await invokeSemanticReview({request,apiKey:process.env.OPENAI_API_KEY});await put(path,JSON.stringify(result),{access:'private',allowOverwrite:false,addRandomSuffix:false,contentType:'application/json'})}
+   const audit=validateSemanticReview({response:result.result,caseId:job.caseId,sourceVersion:job.documentVersion,findings});
+   if(!audit.complete){await advanceJob(job,'semantic_audit_failed',{...previous,semanticAuditFailures:audit.failures,semanticAuditCursor:cursor},'blocked','INDEPENDENT_SEMANTIC_AUDIT_FAILED');return res.status(200).json({status:'blocked',reason:'INDEPENDENT_SEMANTIC_AUDIT_FAILED'})}
+   await advanceJob(job,'semantic_audit_checkpoint',{...previous,semanticAuditCursor:cursor+findings.length,semanticAuditTotal:report.findings.length},'retry');
+   return res.status(200).json({status:'retry',stage:'semantic_audit_checkpoint'});
+  }
+  await advanceJob(job,'semantic_audit_completed',{...previous,semanticAuditPassed:true,semanticAuditTotal:report.findings.length},'blocked','COMPLETION_GATE_RECONCILIATION_REQUIRED');
+  return res.status(200).json({status:'blocked',reason:'COMPLETION_GATE_RECONCILIATION_REQUIRED'});
  }
  if(index===docs.length&&previous.phase==='verify'&&previous.textReviewManifest&&!previous.visualReview?.independentAuditVerified){
   if(!process.env.OPENAI_API_KEY){
