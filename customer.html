@@ -108,23 +108,20 @@ function renderFullReview(job,queue,progress){
  const fill=document.createElement('div');fill.style.cssText='height:100%;background:#2563eb;width:'+(pct??0)+'%;transition:width .3s';track.appendChild(fill);
  const metric=document.createElement('p');metric.style.cssText='margin:7px 0;font-weight:600';metric.textContent=waiting?'대기 중':pct===null?'진행률 산정 중':state==='completed'?'전체 분석 100%':'원문 검증 '+pct+'% ('+processed+'/'+totalPages+'페이지)';
  const disclaimer=document.createElement('small');disclaimer.textContent=state==='completed'?'전체 분석 완료':'표시된 %는 원문 페이지 검증률이며, 전체 법률 분석 완료율이 아닙니다.';
- const three=document.createElement('div');three.style.cssText='display:grid;gap:12px;margin:12px 0';
- const collected=cp.phase==='analyze'||stage.startsWith('text_review')||stage.startsWith('legal_')||stage==='awaiting_visual_verification'||state==='completed'||processed>0;
- const analysisFinished=Boolean(cp.textReviewManifest)||stage.startsWith('legal_')||stage==='awaiting_visual_verification'||state==='completed';
- const steps=[
- ['1단계 · 자료 수집·추출','#eab308',collected?100:null,collected?'수집 완료':'수집 진행 또는 대기'],
- ['2단계 · 통합 법률 분석','#2563eb',analysisFinished?100:pct,processed+'/'+totalPages+'페이지 검증 기록'],
- ['3단계 · 결과 검증','#16a34a',state==='completed'?100:null,state==='completed'?'최종 완료':state==='blocked'?'검증 보류':'검증 대기']
- ];
- for(const [name,color,value,description] of steps){
- const wrap=document.createElement('div'),head=document.createElement('div'),bar=document.createElement('div'),fill=document.createElement('div'),sub=document.createElement('small');
- head.style.cssText='display:flex;justify-content:space-between;font-weight:600;margin-bottom:5px';
- const label=document.createElement('span');label.textContent=name;const valueLabel=document.createElement('span');valueLabel.textContent=value===null?'측정 전':value+'%';head.append(label,valueLabel);
- bar.style.cssText='height:13px;background:#e2e8f0;border-radius:12px;overflow:hidden';fill.style.cssText='height:100%;width:'+(value??0)+'%;background:'+color+';transition:width .4s';bar.append(fill);
- sub.style.cssText='color:#64748b';sub.textContent=description;wrap.append(head,bar,sub);three.append(wrap);
- }
- disclaimer.textContent='측정되지 않은 단계는 임의의 진행률을 표시하지 않습니다.';
- fullReviewPanel.replaceChildren(title,detail,three,disclaimer);fullReviewPanel.hidden=false;
+ const collectionDone=cp.phase==='analyze'||stage.startsWith('text_review')||stage.startsWith('legal_')||stage==='awaiting_visual_verification'||state==='completed'||processed>0;
+ const analysisDone=Boolean(cp.textReviewManifest)||stage.startsWith('legal_')||stage==='awaiting_visual_verification'||state==='completed';
+ const collectionRatio=collectionDone?1:Math.min(1,Math.max(0,(Number(cp.extractionNextPage)||1)-1)/Math.max(1,totalPages));
+ const analysisRatio=analysisDone?1:totalPages?Math.min(1,processed/totalPages):0;
+ const verificationRatio=state==='completed'?1:0;
+ const sections=[{color:'#eab308',ratio:collectionRatio,weight:0.2},{color:'#2563eb',ratio:analysisRatio,weight:0.65},{color:'#16a34a',ratio:verificationRatio,weight:0.15}];
+ const overall=Math.floor(sections.reduce((n,x)=>n+x.ratio*x.weight,0)*100);
+ const single=document.createElement('div');single.style.cssText='height:16px;background:#e2e8f0;border-radius:20px;overflow:hidden;display:flex;margin:12px 0 6px';
+ for(const section of sections){const piece=document.createElement('div');piece.style.cssText='height:100%;width:'+(section.weight*100)+'%;background:#e2e8f0;position:relative';const filled=document.createElement('div');filled.style.cssText='height:100%;width:'+(section.ratio*100)+'%;background:'+section.color+';transition:width .4s';piece.append(filled);single.append(piece)}
+ const caption=document.createElement('div');caption.style.cssText='display:flex;justify-content:space-between;gap:10px;font-size:13px;color:#475569';
+ const phase=document.createElement('span');phase.textContent=state==='completed'?'전체 분석 완료':!collectionDone?'자료 수집·추출 중':!analysisDone?'통합 법률 분석 중':'결과 검증 대기';
+ const percent=document.createElement('strong');percent.textContent=overall+'%';caption.append(phase,percent);
+ const legend=document.createElement('small');legend.style.cssText='display:block;color:#64748b;margin-top:5px';legend.textContent='🟨 수집·추출 20%  ·  🟦 통합 분석 65%  ·  🟩 결과 검증 15%';
+ fullReviewPanel.replaceChildren(title,detail,single,caption,legend);fullReviewPanel.hidden=false;
  fullReviewButton.textContent=state==='blocked'?'분석 재개':state==='failed'?'분석 상태 확인':state==='completed'?'분석 완료 · 상태 확인':'분석 진행 상태 확인';
 }
 
