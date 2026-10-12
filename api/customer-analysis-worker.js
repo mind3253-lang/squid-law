@@ -224,9 +224,29 @@ export default async function handler(req,res){
   return res.status(200).json({status:'blocked',reason:'INVALID_PAGE_SEQUENCE'});
  }
  if(selectedPages.length===0)throw Error('EMPTY_PAGE_BATCH');
- const digestAudit=verifyPageDigests(selectedPages,{requireDigests:true});
+ // Legacy extracted pages can predate page digests. Re-derive them only from the
+ // original, SHA-256-verified PDF; never trust or silently rewrite stale text.
+ let verifiedPages=selectedPages;
+ let digestAudit=verifyPageDigests(verifiedPages,{requireDigests:true});
+ if(!digestAudit.complete&&digestAudit.failures.every(f=>f.reason==='MISSING_TEXT_HASH'||f.reason==='MISSING_VISUAL_OPERATOR_DIGEST')){
+  const source=await loadBinary(prefix+'pdf/'+d.id+'.pdf');
+  if(!source||createHash('sha256').update(source).digest('hex')!==d.sha256)throw Error('SOURCE_PDF_DIGEST_MISMATCH');
+  const regenerated=await extractPdfPages(source,{startPage:pageOffset+1,pageCount:selectedPages.length});
+  if(regenerated.totalPages!==d.pageCount||regenerated.pages.length!==selectedPages.length)throw Error('SOURCE_PAGE_REEXTRACTION_MISMATCH');
+  const sameSource=selectedPages.every((oldPage,i)=>{
+   const fresh=regenerated.pages[i];
+   return oldPage.page===fresh.page&&String(oldPage.text??'')===fresh.text
+    &&(oldPage.imageOperatorCount===undefined||oldPage.imageOperatorCount===fresh.imageOperatorCount)
+    &&(oldPage.visualInventoryStatus===undefined||oldPage.visualInventoryStatus===fresh.visualInventoryStatus)
+    &&(oldPage.visualOperatorDigest===undefined||oldPage.visualOperatorDigest===fresh.visualOperatorDigest);
+  });
+  if(sameSource){
+   verifiedPages=regenerated.pages.map((p,i)=>({...selectedPages[i],...p,textSha256:createHash('sha256').update(String(p.text??'')).digest('hex')}));
+   digestAudit=verifyPageDigests(verifiedPages,{requireDigests:true});
+  }
+ }
  if(!digestAudit.complete){await advanceJob(job,'source_digest_mismatch',{...previous,nextDocument:index,nextPage:pageOffset,failures:digestAudit.failures.slice(0,20)},'blocked','SOURCE_DIGEST_MISMATCH');return res.status(200).json({status:'blocked',reason:'SOURCE_DIGEST_MISMATCH'})}
- const segmented=segmentRecord({scope:'customer',documentId:d.id,pages:selectedPages});
+ const segmented=segmentRecord({scope:'customer',documentId:d.id,pages:verifiedPages});
  if(!auditSegments(selectedPages,segmented.segments).complete)throw Error('SEGMENT_AUDIT');
  const units=segmented.segments.map(u=>({...u,filename:d.name||''}));
  const results=units.map(analyzeUnit),audit=independentlyVerify(units,results);
