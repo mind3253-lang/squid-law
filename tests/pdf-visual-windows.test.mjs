@@ -1,0 +1,5 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {PDFDocument} from 'pdf-lib';
+import {splitPdfVisualWindow,mergeVisualWindows} from '../lib/pdf-visual-windows.mjs';
+test('split a 34-page PDF into bounded windows',async()=>{const pdf=await PDFDocument.create();for(let i=0;i<34;i++)pdf.addPage();const original=await pdf.save();const windows=[];for(let page=1;page<=34;page+=12){const window=await splitPdfVisualWindow({pdfBytes:original,startPage:page,pageCount:12});const sliced=await PDFDocument.load(window.bytes);assert.equal(sliced.getPageCount(),Math.min(12,35-page));windows.push({documentId:'d',sourcePdfSha256:window.originalSha256,observations:{pageObservations:Array.from({length:sliced.getPageCount()},(_,i)=>({page:page+i,observedText:'',visualFacts:[],uncertainties:[]})),unreviewedPages:[]}})}const merged=mergeVisualWindows({documentId:'d',sourcePdfSha256:windows[0].sourcePdfSha256,pageCount:34,windows});assert.equal(merged.observations.pageObservations.length,34)});
