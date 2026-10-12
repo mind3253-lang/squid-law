@@ -79,13 +79,14 @@
       "title": "비JSON 서버 응답의 요청·HTTP 상태·원인 추적",
       "codeLocations": "고객 분석 화면 요청부; API/배포 로그",
       "status": "in_progress",
-      "implementation": "unknown_or_partial",
+      "implementation": "partial",
       "acceptance": "관련 코드 조사 + 안전한 회귀 테스트 + 실제 경로 검증 + 결과 증거 기록; 고객 데이터 삭제/재처리 금지",
       "evidence": [
         "api/customer-analysis-worker.js catch returns res.status(503).json({error:'WORKER_ERROR'})",
-        "api/customer-analysis-worker.js catch now returns structured error code and preserves lastFailedStage in checkpoint, commit f70bf64; frontend still needs safe JSON handling"
+        "api/customer-analysis-worker.js catch now returns structured error code and preserves lastFailedStage in checkpoint, commit f70bf64; frontend still needs safe JSON handling",
+        "requestAnalysisJson with timeout/network/HTML response normalization and fixture tests, commits 1741bd6, 59a08e4"
       ],
-      "checkpoint": "Worker error diagnostics coded; locate UI request parsing next; production cause still unverified.",
+      "checkpoint": "Shared UI request helper coded; actual frontend integration and production HTTP tracing still pending.",
       "blockedReason": null,
       "dependencies": []
     },
@@ -99,9 +100,10 @@
       "implementation": "partial",
       "acceptance": "관련 코드 조사 + 안전한 회귀 테스트 + 실제 경로 검증 + 결과 증거 기록; 고객 데이터 삭제/재처리 금지",
       "evidence": [
-        "Shared response/progress utility added in commit 2b61f11d28a76d4cf742f09dce519fdd46c7c4c3"
+        "Shared response/progress utility added in commit 2b61f11d28a76d4cf742f09dce519fdd46c7c4c3",
+        "requestAnalysisJson with timeout/network/HTML response normalization and fixture tests, commits 1741bd6, 59a08e4"
       ],
-      "checkpoint": "lib/customer-analysis-response.mjs implemented; frontend call-site integration and runtime acceptance pending.",
+      "checkpoint": "Shared UI request helper coded; actual frontend integration and production HTTP tracing still pending.",
       "blockedReason": null,
       "dependencies": []
     },
@@ -605,13 +607,15 @@
       "14d646468332a2a0329926893e430ec54c280ea0",
       "dc316e731bc06aa6baca7f05420d3189c3736b2d",
       "08f2e4322bceb439d34efafc8f0d7cec386015e4",
-      "7894ed9fedd9fc9b8b0caa36e3c77ac7471186f2"
+      "7894ed9fedd9fc9b8b0caa36e3c77ac7471186f2",
+      "1741bd6abce2612f488323655bd863279cf01c03",
+      "59a08e429cde6865dc88e1c636c4d93d50b48cb4"
     ],
     "nextActions": [
       "Wire customer API call sites to shared response parser",
       "Wire source ingestion and page coverage guards into upload/extraction flows",
       "Finish remaining LAW-001..013 code and consolidated runtime verification"
     ],
-    "note": "User explicitly prioritizes coding across tasks before consolidated verification. Never mark verified until later batch acceptance."
+    "note": "User explicitly prioritizes coding across tasks before consolidated verification. Never mark verified until later batch acceptance. PDF extraction text format intentionally kept unchanged to preserve persisted SHA-256 compatibility (beaa961)."
   }
 }
