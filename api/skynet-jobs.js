@@ -13,6 +13,7 @@ export default async function handler(req,res){
   const id=String(req.query?.id||'');
   if(req.method==='GET'){
    if(!id)return res.status(200).json(await listJobs());
+   if(!/^[a-zA-Z0-9_-]{8,80}$/.test(id))return res.status(400).json({error:'INVALID_JOB_ID'});
    const job=await loadJob(id);return job?res.status(200).json({job}):res.status(404).json({error:'NOT_FOUND'});
   }
   if(req.method==='POST'){
