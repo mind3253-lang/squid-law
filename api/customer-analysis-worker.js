@@ -134,7 +134,7 @@ export default async function handler(req,res){
    for(let start=0;start<d.pageCount;start+=20){
     const batch=await load(prefix+'verified/'+d.id+'/batch-'+String(start).padStart(8,'0')+'.json');
     if(!batch||batch.sourcePdfSha256!==d.sha256)throw Error('BOUNDARY_SOURCE_MISSING');
-    for(const p of batch.pages)pageEvidence.push({page:p.page,text:String(p.text||'').slice(0,1500),visualFacts:visual?.observations?.pageObservations?.find(x=>x.page===p.page)?.visualFacts||[]});
+    for(const p of batch.pages)pageEvidence.push({page:p.page,text:String(p.text||'').slice(0,450),visualFacts:(visual?.observations?.pageObservations?.find(x=>x.page===p.page)?.visualFacts||[]).slice(0,5)});
    }
    const input={documentId:d.id,sourcePdfSha256:d.sha256,pageCount:d.pageCount,candidates:candidate?.sections||[],pageEvidence,model:process.env.SQUIDLAW_LEGAL_MODEL||'gpt-4.1-mini'};
    let primary=await load(primaryPath);
