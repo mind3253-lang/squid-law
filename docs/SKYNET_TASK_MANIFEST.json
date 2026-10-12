@@ -76,9 +76,11 @@
       "priority": "P1",
       "title": "Build unified SKYNET tool registry and policy",
       "acceptance": "Implement typed tool definitions, per-tool scopes, approval for destructive actions, audit trail, safe credential handling",
-      "status": "todo",
-      "evidence": [],
-      "checkpoint": null,
+      "status": "in_progress",
+      "evidence": [
+        "Shared implementation added in commits 40b94fd (job transitions and unfinished-task selection), 2b34610 (tool scopes). Persistent storage, API wiring, runtime acceptance and tests pending."
+      ],
+      "checkpoint": "Shared implementation added in commits 40b94fd (job transitions and unfinished-task selection), 2b34610 (tool scopes). Persistent storage, API wiring, runtime acceptance and tests pending.",
       "blockedReason": null,
       "dependsOn": []
     },
@@ -120,9 +122,11 @@
       "priority": "P1",
       "title": "Implement durable job state machine",
       "acceptance": "Persist queued/running/blocked/completed/failed/cancelled, job ID, owner, plan, dependencies, tool events, checkpoints and artifacts",
-      "status": "todo",
-      "evidence": [],
-      "checkpoint": null,
+      "status": "in_progress",
+      "evidence": [
+        "Shared implementation added in commits 40b94fd (job transitions and unfinished-task selection), 2b34610 (tool scopes). Persistent storage, API wiring, runtime acceptance and tests pending."
+      ],
+      "checkpoint": "Shared implementation added in commits 40b94fd (job transitions and unfinished-task selection), 2b34610 (tool scopes). Persistent storage, API wiring, runtime acceptance and tests pending.",
       "blockedReason": null,
       "dependsOn": []
     },
@@ -142,9 +146,11 @@
       "priority": "P1",
       "title": "Implement continue-unfinished-only scheduler",
       "acceptance": "On invocation compare current repo/deploy with manifest, skip only verified tasks, resume partial tasks from checkpoint, detect stale state",
-      "status": "todo",
-      "evidence": [],
-      "checkpoint": null,
+      "status": "in_progress",
+      "evidence": [
+        "Shared implementation added in commits 40b94fd (job transitions and unfinished-task selection), 2b34610 (tool scopes). Persistent storage, API wiring, runtime acceptance and tests pending."
+      ],
+      "checkpoint": "Shared implementation added in commits 40b94fd (job transitions and unfinished-task selection), 2b34610 (tool scopes). Persistent storage, API wiring, runtime acceptance and tests pending.",
       "blockedReason": null,
       "dependsOn": []
     },
