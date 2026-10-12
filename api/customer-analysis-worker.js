@@ -27,6 +27,7 @@ import {reconcileVisualOcr} from '../lib/ocr-visual-recovery.mjs';
 import {boundaryReviewRequest,auditBoundaryReview,compareBoundaryReviews,invokeBoundaryReview} from '../lib/independent-boundary-review.mjs';
 import {validatePersistedBatch,finalizationDescriptors,validateFinalizationPart,summarizeClaimRoles} from '../lib/text-review-aggregation.mjs';
 import {detectOpposingStatements} from '../lib/case-crosscheck.mjs';
+import {auditFinalizationCheckpoint} from '../lib/finalization-checkpoint.mjs';
 const eq=(a,b)=>{const x=Buffer.from(a||''),y=Buffer.from(b||'');return x.length===y.length&&timingSafeEqual(x,y)};
 async function load(path){const r=await get(path,{access:'private'});if(!r||r.statusCode!==200)return null;let size=0,parts=[];for await(const chunk of r.stream){size+=chunk.length;if(size>32*1024*1024)throw Error('BLOB_TOO_LARGE');parts.push(Buffer.from(chunk))}return JSON.parse(Buffer.concat(parts).toString())}
 async function loadBinary(path,maxBytes=105*1024*1024){const r=await get(path,{access:'private'});if(!r||r.statusCode!==200)return null;let size=0;const chunks=[];for await(const chunk of r.stream){size+=chunk.length;if(size>maxBytes)throw Error('SOURCE_PDF_TOO_LARGE');chunks.push(Buffer.from(chunk))}return Buffer.concat(chunks)}
@@ -58,7 +59,7 @@ export default async function handler(req,res){
   const root='squidlaw/analysis-jobs/'+job.customerKey+'/'+job.caseId+'/'+job.jobId+'/';
   const descriptors=finalizationDescriptors(docs);
   const offset=previous.finalizeOffset;
-  if(offset<0||offset>descriptors.length||offset%8!==0&&offset!==descriptors.length)throw Error('INVALID_FINALIZATION_CHECKPOINT');
+  auditFinalizationCheckpoint({checkpoint:previous,descriptorCount:descriptors.length});
   if(offset<descriptors.length){
    let cursor=offset,countTotal=previous.finalizeUnitCount||0;
    const digests=[...(previous.finalizePartDigests||[])];
