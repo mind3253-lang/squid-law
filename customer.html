@@ -89,22 +89,25 @@ fullReviewPanel.style.cssText='margin:12px 0;padding:16px;border:1px solid #cbd5
 fullReviewPanel.hidden=true;
 fullReviewPanel.setAttribute('aria-live','polite');
 feedback.parentElement.appendChild(fullReviewPanel);
-function renderFullReview(job,queue){
+function renderFullReview(job,queue,progress){
  const cp=job.checkpoint||{},state=job.status;
  const waiting=state==='queued'||(state==='retry'&&queue?.ahead>0);
  const total=Number(cp.documentCount)||0,done=Number(cp.verifiedTextDocuments)||0;
  const pageDone=Number(cp.nextPage)||0;
  const stage=job.stage||'queued';
- const pct=state==='completed'?100:state==='queued'?0:stage==='pdf_extraction_checkpoint'?Math.min(19,Math.floor(20*(Number(cp.extractionNextPage||1)-1)/Math.max(1,Number(cp.extractionNextPage||1)))):stage==='pdf_extraction_completed'?20:stage==='text_review_checkpoint'?Math.min(74,20+Math.floor(55*(done+(pageDone>0?0.5:0))/Math.max(1,total))):stage==='text_review_finalize_checkpoint'?Math.min(84,75+Math.floor(10*(Number(cp.finalizeOffset)||0)/Math.max(1,Number(cp.finalizeUnitCount)||1))):stage==='text_review_completed_visual_pending'||stage==='awaiting_visual_verification'?85:state==='blocked'?Math.min(85,20+Math.floor(55*done/Math.max(1,total))):0;
+ const processed=Number(progress?.processedPages)||0,totalPages=Number(progress?.totalPages)||0;
+ const textPercent=totalPages>0?Math.min(100,Math.floor(100*processed/totalPages)):null;
+ const pct=state==='completed'?100:textPercent;
+
  const labels={queued:'분석 대기',running:'분석 진행',retry:'분석 처리 중',blocked:'검증 중단',failed:'분석 실패',completed:'분석 완료'};
  const title=document.createElement('strong');title.textContent=labels[state]||state;
  const detail=document.createElement('p');detail.style.cssText='margin:8px 0;font-size:14px';
  if(waiting){const ahead=queue?.ahead;const eta=queue?.estimatedStartSeconds;detail.textContent='대기 순번: '+(Number.isInteger(ahead)?ahead+1+'번째':'확인 중')+' · 예상 시작: '+(eta!==null&&Number.isFinite(eta)?'약 '+Math.max(1,Math.ceil(eta/60))+'분 후':'처리 기록 부족으로 산정 중');}
  else detail.textContent='현재 단계: '+stage+' · 확인된 문서 '+done+'/'+(total||'?')+(job.errorCode?' · '+job.errorCode:'');
  const track=document.createElement('div');track.style.cssText='height:12px;background:#e2e8f0;border-radius:20px;overflow:hidden';
- const fill=document.createElement('div');fill.style.cssText='height:100%;background:#2563eb;width:'+pct+'%;transition:width .3s';track.appendChild(fill);
- const metric=document.createElement('p');metric.style.cssText='margin:7px 0;font-weight:600';metric.textContent=waiting?'대기 중':pct+'% · 단계별 예상 진척도';
- const disclaimer=document.createElement('small');disclaimer.textContent='진행률은 완료된 처리 단계에 따른 추정치이며, 최종 검증 전에는 100%가 되지 않습니다.';
+ const fill=document.createElement('div');fill.style.cssText='height:100%;background:#2563eb;width:'+(pct??0)+'%;transition:width .3s';track.appendChild(fill);
+ const metric=document.createElement('p');metric.style.cssText='margin:7px 0;font-weight:600';metric.textContent=waiting?'대기 중':pct===null?'진행률 산정 중':state==='completed'?'전체 분석 100%':'원문 검증 '+pct+'% ('+processed+'/'+totalPages+'페이지)';
+ const disclaimer=document.createElement('small');disclaimer.textContent=state==='completed'?'전체 분석 완료':'표시된 %는 원문 페이지 검증률이며, 전체 법률 분석 완료율이 아닙니다.';
  fullReviewPanel.replaceChildren(title,detail,metric,track,disclaimer);fullReviewPanel.hidden=false;
  fullReviewButton.textContent=state==='blocked'?'분석 재개':state==='failed'?'분석 상태 확인':state==='completed'?'분석 완료 · 상태 확인':'분석 진행 상태 확인';
 }
@@ -169,7 +172,7 @@ async function readFullReviewJson(r){
 let fullReviewTimer=null;
 async function fullReviewStatus(jobId,caseId){
  const r=await fetch('/api/customer-analysis-job?caseId='+encodeURIComponent(caseId)+'&jobId='+encodeURIComponent(jobId),{credentials:'same-origin',cache:'no-store'});const j=await readFullReviewJson(r);if(!r.ok)throw Error(j.error||'분석 상태 조회 실패');
- const job=j.job,cp=job.checkpoint||{};renderFullReview(job,j.queue);const stageLabels={pdf_extraction_checkpoint:'PDF 원문 페이지별 추출',pdf_extraction_completed:'PDF 추출 완료 · 분석 대기',text_review_checkpoint:'원문 텍스트 검증',text_review_finalize_checkpoint:'전체 문서 교차검증 집계',text_review_completed_visual_pending:'이미지·OCR 검증 대기'};const progress=job.stage==='pdf_extraction_checkpoint'?' · 추출 '+(cp.extractionNextPage?cp.extractionNextPage-1:0)+'페이지':job.stage==='text_review_finalize_checkpoint'?' · 검증 배치 '+(cp.finalizeOffset||0):' · 확인된 문서 '+(cp.verifiedTextDocuments||0)+'/'+(cp.documentCount||'?');notice('전체 분석: '+job.status+' · '+(stageLabels[job.stage]||job.stage)+progress+' · '+(job.errorCode||'진행 중'),job.status==='blocked'?'error':'info');
+ const job=j.job,cp=job.checkpoint||{};renderFullReview(job,j.queue,j.progress);const stageLabels={pdf_extraction_checkpoint:'PDF 원문 페이지별 추출',pdf_extraction_completed:'PDF 추출 완료 · 분석 대기',text_review_checkpoint:'원문 텍스트 검증',text_review_finalize_checkpoint:'전체 문서 교차검증 집계',text_review_completed_visual_pending:'이미지·OCR 검증 대기'};const progress=job.stage==='pdf_extraction_checkpoint'?' · 추출 '+(cp.extractionNextPage?cp.extractionNextPage-1:0)+'페이지':job.stage==='text_review_finalize_checkpoint'?' · 검증 배치 '+(cp.finalizeOffset||0):' · 확인된 문서 '+(cp.verifiedTextDocuments||0)+'/'+(cp.documentCount||'?');notice('전체 분석: '+job.status+' · '+(stageLabels[job.stage]||job.stage)+progress+' · '+(job.errorCode||'진행 중'),job.status==='blocked'?'error':'info');
  if(cp.textReviewIntermediateReport){try{const rr=await fetch('/api/customer-text-review-report?caseId='+encodeURIComponent(caseId)+'&jobId='+encodeURIComponent(jobId)+'&summary=1',{credentials:'same-origin',cache:'no-store'});if(rr.ok){const summary=(await rr.json()).summary;notice('원문 중간보고서: '+summary.documents+'개 문서 · '+summary.pages+'페이지 · 모순 후보 '+summary.opposingCandidates+'건 · 관련 증거 '+summary.evidenceLinks+'건 (모두 미검증 후보)','info')}}catch{}}
  if(['blocked','failed','completed'].includes(job.status)){clearInterval(fullReviewTimer);fullReviewTimer=null}
  return job.status;
