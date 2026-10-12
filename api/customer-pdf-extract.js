@@ -16,7 +16,7 @@ export async function extractPdfPages(buffer,maxPages=Infinity){
  const task=getDocument({data:new Uint8Array(buffer),useSystemFonts:true,disableFontFace:true});
  try{
   const pdf=await task.promise;
-  const totalPages=pdf.numPages,pages=[];
+  const totalPages=pdf.numPages,pages=[];const fastTextOnly=typeof maxPages==='object'&&maxPages!==null&&maxPages.fastTextOnly===true;
   const range=resolvePdfPageRange(totalPages,typeof maxPages==='object'&&maxPages!==null?maxPages:{pageCount:maxPages});
   for(let n=range.startPage;n<=range.endPage;n++){
    const page=await pdf.getPage(n);
@@ -28,7 +28,7 @@ export async function extractPdfPages(buffer,maxPages=Infinity){
     lines.push(item.str||'');lastY=y;
    }
    let imageOperatorCount=null,visualInventoryStatus='operator_scan_failed';
-   try{imageOperatorCount=countImagePaintOperations(await page.getOperatorList());visualInventoryStatus='operator_scan_unverified'}catch{}
+   if(fastTextOnly){visualInventoryStatus='visual_scan_deferred'}else try{imageOperatorCount=countImagePaintOperations(await page.getOperatorList());visualInventoryStatus='operator_scan_unverified'}catch{}
    const visualOperatorDigest=createHash('sha256').update(JSON.stringify([n,imageOperatorCount,visualInventoryStatus])).digest('hex');
    pages.push({page:n,text:lines.join(' '),imageOperatorCount,visualInventoryStatus,visualOperatorDigest});
    page.cleanup();
