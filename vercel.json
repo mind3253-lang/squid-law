@@ -25,6 +25,14 @@
       "destination": "/api/skynet-worker-tick"
     },
     {
+      "source": "/admin/skynet-worker-step",
+      "destination": "/api/skynet-worker-step"
+    },
+    {
+      "source": "/admin/skynet-worker-batch",
+      "destination": "/api/skynet-worker-batch"
+    },
+    {
       "source": "/admin/skynet-chat",
       "destination": "/api/skynet-chat"
     },
