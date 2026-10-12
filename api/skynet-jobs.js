@@ -31,7 +31,7 @@ export default async function handler(req,res){
   if(req.method==='POST'){
    const body=typeof req.body==='string'?JSON.parse(req.body):req.body;
    const input=validateJobInput(body);
-   const tasks=body?.tasks===undefined?[]:validatePlan(body.tasks);const scopes=Array.isArray(body.scopes)?body.scopes.filter(x=>['repository:read','deployment:read'].includes(x)):[];
+   const tasks=body?.tasks===undefined?[]:validatePlan(body.tasks);const scopes=Array.isArray(body.scopes)?body.scopes.filter(x=>['repository:read','deployment:read','repository:write','deployment:write'].includes(x)):[];
    const job=appendJobEvent({id:randomUUID(),...input,tasks,scopes,status:'queued',createdAt:new Date().toISOString(),owner:null,checkpoint:null},'created');
    await saveJob(job,{overwrite:false});return res.status(201).json({ok:true,job,pendingTasks:job.tasks.length});
   }
