@@ -33,5 +33,5 @@ export default async function handler(req,res){
    await saveJob(job);return res.status(200).json({ok:true,job,updatedAt:job.updatedAt});
   }
   res.setHeader('Allow','GET, POST, PATCH');return res.status(405).json({error:'METHOD_NOT_ALLOWED'});
- }catch(e){return res.status(400).json({error:String(e.message||'INVALID_REQUEST').slice(0,100)})}
+ }catch(e){return res.status(e instanceof SyntaxError?400:422).json({error:String(e.message||'INVALID_REQUEST').slice(0,100)})}
 }
