@@ -1,5 +1,5 @@
 import {isSkynetAdmin} from '../lib/skynet-job-api-auth.mjs';
-import {loadJob,saveJob} from '../lib/skynet-job-store.mjs';
+import {readJob as loadJob,writeJob as saveJob,requireAtomicJobs} from '../lib/skynet-job-store-router.mjs';
 import {executeReadTool} from '../lib/skynet-tool-executor.mjs';
 import {registerOperation,finishOperation,failOperation} from '../lib/skynet-worker-operations.mjs';
 import {validateToolRequest} from '../lib/skynet-worker-request.mjs';
