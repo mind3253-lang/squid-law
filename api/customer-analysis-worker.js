@@ -15,6 +15,8 @@ import {buildLegalReasoningRequest} from '../lib/analysis-stage-gates.mjs';
 import {buildTextReviewReport} from '../lib/text-review-report.mjs';
 import {auditSourceUnitIndex} from '../lib/legal-reasoning-audit.mjs';
 import {buildVisualReferenceManifest} from '../lib/source-continuity.mjs';
+import {analyzeLegalWindow} from '../lib/gpt-legal-orchestrator.mjs';
+import {buildLegalCustomerReport} from '../lib/legal-customer-report.mjs';
 import {validatePersistedBatch,finalizationDescriptors,validateFinalizationPart,summarizeClaimRoles} from '../lib/text-review-aggregation.mjs';
 import {detectOpposingStatements} from '../lib/case-crosscheck.mjs';
 const eq=(a,b)=>{const x=Buffer.from(a||''),y=Buffer.from(b||'');return x.length===y.length&&timingSafeEqual(x,y)};
@@ -109,6 +111,52 @@ export default async function handler(req,res){
   await put(manifestPath,JSON.stringify({caseId:job.caseId,sourceVersion:job.documentVersion,documents:docs.map(x=>({id:x.id,pageCount:x.pageCount})),outputs:expectedTextReviewOutputs({root,documents:docs}),aggregateSha256,verifiedVisual:false,verifiedLegal:false,analysisComplete:false,pendingStages:ANALYSIS_STAGES.slice(2)}),{access:'private',allowOverwrite:true,addRandomSuffix:false,contentType:'application/json'});
   await advanceJob(job,'text_review_completed_visual_pending',{...previous,textReviewManifest:manifestPath,textReviewAggregate:aggregatePath,textReviewIntermediateReport:intermediateReportPath,legalReasoningRequest:legalReasoningRequestPath,sourceUnitIndex:sourceIndexPath},'blocked','VISUAL_EVIDENCE_NOT_VERIFIED');
   return res.status(200).json({status:'blocked',reason:'VISUAL_EVIDENCE_NOT_VERIFIED',verifiedTextDocuments:docs.length});
+ }
+ if(index>=docs.length&&previous.visualReview?.verified===true&&previous.visualReview?.independentAuditVerified===true&&previous.visualReview?.sourceVersion===job.documentVersion&&previous.legalReasoningRequest&&previous.sourceUnitIndex){
+  const root='squidlaw/analysis-jobs/'+job.customerKey+'/'+job.caseId+'/'+job.jobId+'/';
+  const request=await load(previous.legalReasoningRequest);
+  const sourceIndex=await load(previous.sourceUnitIndex);
+  if(!request||!sourceIndex||sourceIndex.sourceVersion!==job.documentVersion||request.sourceVersion!==job.documentVersion)throw Error('LEGAL_SOURCE_VERSION_MISMATCH');
+  if(process.env.SQUIDLAW_LEGAL_API_ENABLED!=='true'||!process.env.OPENAI_API_KEY){
+   await advanceJob(job,'legal_api_approval_pending',previous,'blocked','LEGAL_API_NOT_ENABLED');
+   return res.status(200).json({status:'blocked',reason:'LEGAL_API_NOT_ENABLED'});
+  }
+  const authorized={...request,ready:true,status:'authorized_after_visual_review'};
+  const task=authorized.requestedTasks?.[previous.legalTaskIndex||0];
+  if(!task)throw Error('INVALID_LEGAL_TASK');
+  const cursor=previous.legalCursor||0;
+  const units=[];
+  // Rehydrate only the requested source window from original extracted text.
+  for(const d of docs){
+   for(let start=0;start<d.pageCount;start+=20){
+    const extracted=await load(prefix+'extracted/'+d.id+'/batch-'+String(start).padStart(8,'0')+'.json');
+    if(!extracted?.pages)throw Error('LEGAL_SOURCE_TEXT_MISSING');
+    const segments=segmentRecord({scope:'customer',documentId:d.id,pages:extracted.pages}).segments;
+    for(const u of segments)if(u.part>0)units.push({documentId:d.id,page:u.page,part:u.part,hash:u.hash,text:u.text});
+   }
+  }
+  const indexed=new Map(sourceIndex.sources.map(x=>[x.documentId+':'+x.page+':'+x.part,x.hash]));
+  if(units.length!==sourceIndex.sources.length||units.some(u=>indexed.get(u.documentId+':'+u.page+':'+u.part)!==u.hash))throw Error('LEGAL_SOURCE_REHYDRATION_MISMATCH');
+  const part=await analyzeLegalWindow({request:authorized,sourceUnits:units,cursor,task,apiKey:process.env.OPENAI_API_KEY,model:process.env.SQUIDLAW_LEGAL_MODEL||'gpt-5.4'});
+  const path=root+'legal-windows/'+String(previous.legalTaskIndex||0).padStart(2,'0')+'-'+String(cursor).padStart(8,'0')+'.json';
+  const existing=await load(path);
+  if(existing&&JSON.stringify(existing)!==JSON.stringify(part))throw Error('LEGAL_WINDOW_CONFLICT');
+  if(!existing)await put(path,JSON.stringify(part),{access:'private',allowOverwrite:false,addRandomSuffix:false,contentType:'application/json'});
+  const paths=[...(previous.legalWindowPaths||[]),path];
+  const nextTask=part.complete?(previous.legalTaskIndex||0)+1:(previous.legalTaskIndex||0);
+  const nextCursor=part.complete?0:part.nextCursor;
+  if(nextTask<authorized.requestedTasks.length){
+   await advanceJob(job,'legal_reasoning_checkpoint',{...previous,legalTaskIndex:nextTask,legalCursor:nextCursor,legalWindowPaths:paths},'retry');
+   return res.status(200).json({status:'retry',stage:'legal_reasoning_checkpoint',task:nextTask,cursor:nextCursor});
+  }
+  const windows=await Promise.all(paths.map(p=>load(p)));
+  // Each task restarts its cursor; build a report per task and keep all outputs as unverified.
+  const reports=authorized.requestedTasks.map(t=>buildLegalCustomerReport({request:authorized,windows:windows.filter(w=>w.task===t),sourceIndex:sourceIndex.sources}));
+  const report={...reports[0],findings:reports.flatMap(r=>r.findings),uncertainties:reports.flatMap(r=>r.uncertainties),issues:[...new Set(reports.flatMap(r=>r.issues))],sourceCoverage:{tasks:reports.length,processedUnits:units.length},status:'draft_pending_verification',notForCourtSubmission:true,legalConclusionAvailable:false,independentSemanticAuditPassed:false};
+  const reportPath=root+'legal-customer-report.json';
+  await put(reportPath,JSON.stringify(report),{access:'private',allowOverwrite:true,addRandomSuffix:false,contentType:'application/json'});
+  await advanceJob(job,'legal_reasoning_independent_review_pending',{...previous,legalTaskIndex:nextTask,legalCursor:0,legalWindowPaths:paths,legalCustomerReport:reportPath},'blocked','INDEPENDENT_SEMANTIC_AUDIT_PENDING');
+  return res.status(200).json({status:'blocked',reason:'INDEPENDENT_SEMANTIC_AUDIT_PENDING'});
  }
  if(index>=docs.length){
   if(!previous.textReviewManifest||!previous.textReviewAggregate||!(await load(previous.textReviewManifest))||!(await load(previous.textReviewAggregate))){
