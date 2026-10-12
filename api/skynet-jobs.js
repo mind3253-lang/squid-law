@@ -25,7 +25,7 @@ export default async function handler(req,res){
    const input=validateJobInput(body);
    const tasks=body?.tasks===undefined?[]:validatePlan(body.tasks);
    const job=appendJobEvent({id:randomUUID(),...input,tasks,status:'queued',createdAt:new Date().toISOString(),owner:null,checkpoint:null},'created');
-   await saveJob(job,{overwrite:false});return res.status(201).json({ok:true,job});
+   await saveJob(job,{overwrite:false});return res.status(201).json({ok:true,job,pendingTasks:job.tasks.length});
   }
   if(req.method==='PATCH'){
    if(!/^[a-zA-Z0-9_-]{8,80}$/.test(id))return res.status(400).json({error:'INVALID_JOB_ID'});
