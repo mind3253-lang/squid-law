@@ -436,7 +436,7 @@ export default async function handler(req,res){
  if(!digestAudit.complete){await advanceJob(job,'source_digest_mismatch',{...previous,nextDocument:index,nextPage:pageOffset,failures:digestAudit.failures.slice(0,20)},'blocked','SOURCE_DIGEST_MISMATCH');return res.status(200).json({status:'blocked',reason:'SOURCE_DIGEST_MISMATCH'})}
  // Persist source-verified legacy pages once, so a resumed analysis never needs
  // to re-download and re-parse the original PDF for the same page window.
- if(verifiedPages!==selectedPages){
+ {
   const verifiedPath=prefix+'verified/'+d.id+'/batch-'+String(pageOffset).padStart(8,'0')+'.json';
   const oldVerified=await load(verifiedPath);
   if(oldVerified){
