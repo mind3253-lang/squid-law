@@ -33,6 +33,7 @@ export default async function handler(req,res){
    if(!body||typeof body!=='object'||Array.isArray(body))return res.status(400).json({error:'INVALID_BODY'});
    const current=await loadJob(id);if(!current)return res.status(404).json({error:'NOT_FOUND'});
    if(body.status==='running'&&(!/^[a-zA-Z0-9_-]{1,80}$/.test(body.owner||'')))return res.status(400).json({error:'OWNER_REQUIRED'});
+   if(body.checkpoint&&JSON.stringify(body.checkpoint).length>10000)return res.status(413).json({error:'CHECKPOINT_TOO_LARGE'});
    if(typeof body.reason==='string'&&body.reason.length>1000)return res.status(400).json({error:'REASON_TOO_LONG'});
    if(typeof body.status!=='string')return res.status(400).json({error:'STATUS_REQUIRED'});
    const next=transitionJob(current,body?.status,{checkpoint:body?.checkpoint,reason:body?.reason,owner:body?.owner});
