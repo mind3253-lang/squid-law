@@ -20,6 +20,7 @@ import {analyzePdfVisualEvidence} from '../lib/openai-vision-provider.mjs';
 import {auditVisualProviderCoverage,compareIndependentVisualPass} from '../lib/visual-review-audit.mjs';
 import {buildSemanticReviewRequest,validateSemanticReview,invokeSemanticReview} from '../lib/independent-semantic-review.mjs';
 import {buildLegalCustomerReport} from '../lib/legal-customer-report.mjs';
+import {reconcileAnalysisCompletion} from '../lib/analysis-completion-reconciliation.mjs';
 import {validatePersistedBatch,finalizationDescriptors,validateFinalizationPart,summarizeClaimRoles} from '../lib/text-review-aggregation.mjs';
 import {detectOpposingStatements} from '../lib/case-crosscheck.mjs';
 const eq=(a,b)=>{const x=Buffer.from(a||''),y=Buffer.from(b||'');return x.length===y.length&&timingSafeEqual(x,y)};
@@ -186,8 +187,26 @@ export default async function handler(req,res){
    await advanceJob(job,'semantic_audit_checkpoint',{...previous,semanticAuditCursor:cursor+findings.length,semanticAuditTotal:report.findings.length},'retry');
    return res.status(200).json({status:'retry',stage:'semantic_audit_checkpoint'});
   }
-  await advanceJob(job,'semantic_audit_completed',{...previous,semanticAuditPassed:true,semanticAuditTotal:report.findings.length},'blocked','COMPLETION_GATE_RECONCILIATION_REQUIRED');
-  return res.status(200).json({status:'blocked',reason:'COMPLETION_GATE_RECONCILIATION_REQUIRED'});
+  const indexData=await load(previous.sourceUnitIndex);
+  const aggregate=await load(previous.textReviewAggregate);
+  const visualAudits=[];
+  for(const doc of docs){
+   const rootPath=root+'visual-provider/';
+   const primary=await load(rootPath+doc.id+'.json'),secondary=await load(rootPath+doc.id+'-independent.json');
+   visualAudits.push(compareIndependentVisualPass({primary,secondary,pageCount:doc.pageCount}));
+  }
+  const completion=reconcileAnalysisCompletion({sourceVersion:job.documentVersion,documents:docs,sourceIndex:indexData,aggregate,report,visualReview:previous.visualReview,semanticAuditPassed:true,visualAudits});
+  const finalPath=root+'completion-reconciliation.json';
+  await put(finalPath,JSON.stringify(completion),{access:'private',allowOverwrite:true,addRandomSuffix:false,contentType:'application/json'});
+  if(!completion.complete){
+   await advanceJob(job,'completion_gates_pending',{...previous,semanticAuditPassed:true,semanticAuditTotal:report.findings.length,completionReconciliation:finalPath,missingGates:completion.missing},'blocked','COMPLETION_GATES_PENDING');
+   return res.status(200).json({status:'blocked',reason:'COMPLETION_GATES_PENDING',missing:completion.missing});
+  }
+  const finalReport={...report,status:'reviewed',notForCourtSubmission:false,legalConclusionAvailable:true,independentSemanticAuditPassed:true,issues:[],warning:'원본과 검증 결과를 확인한 후 제출 여부를 결정하세요.'};
+  const finalReportPath=root+'legal-customer-report-final.json';
+  await put(finalReportPath,JSON.stringify(finalReport),{access:'private',allowOverwrite:true,addRandomSuffix:false,contentType:'application/json'});
+  await advanceJob(job,'analysis_completed',{...previous,semanticAuditPassed:true,completionReconciliation:finalPath,legalCustomerReport:finalReportPath,gates:completion.gates},'completed');
+  return res.status(200).json({status:'completed',report:finalReportPath});
  }
  if(index===docs.length&&previous.phase==='verify'&&previous.textReviewManifest&&!previous.visualReview?.independentAuditVerified){
   if(!process.env.OPENAI_API_KEY){
