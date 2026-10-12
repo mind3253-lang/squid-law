@@ -17,6 +17,7 @@ import {auditSourceUnitIndex} from '../lib/legal-reasoning-audit.mjs';
 import {buildVisualReferenceManifest} from '../lib/source-continuity.mjs';
 import {analyzeLegalWindow} from '../lib/gpt-legal-orchestrator.mjs';
 import {analyzePdfVisualEvidence} from '../lib/openai-vision-provider.mjs';
+import {auditVisualProviderCoverage} from '../lib/visual-review-audit.mjs';
 import {buildLegalCustomerReport} from '../lib/legal-customer-report.mjs';
 import {validatePersistedBatch,finalizationDescriptors,validateFinalizationPart,summarizeClaimRoles} from '../lib/text-review-aggregation.mjs';
 import {detectOpposingStatements} from '../lib/case-crosscheck.mjs';
@@ -181,6 +182,23 @@ export default async function handler(req,res){
    if([...reviewed,...unreviewed].some(p=>!Number.isSafeInteger(p)||p<1||p>doc.pageCount)||new Set([...reviewed,...unreviewed]).size!==reviewed.length+unreviewed.length)throw Error('VISUAL_PROVIDER_PAGE_REFERENCE_INVALID');
    await advanceJob(job,'visual_provider_checkpoint',{...previous,visualDocIndex:next+1,visualProviderLastOutput:outputPath},'retry');
    return res.status(200).json({status:'retry',stage:'visual_provider_checkpoint',processedDocuments:next+1,totalDocuments:docs.length});
+  }
+  const auditFailures=[];
+  for(const doc of docs){
+   const outputPath='squidlaw/analysis-jobs/'+job.customerKey+'/'+job.caseId+'/'+job.jobId+'/visual-provider/'+doc.id+'.json';
+   const providerResult=await load(outputPath);
+   const extractedPages=[];
+   for(let start=0;start<doc.pageCount;start+=20){
+    const batch=await load(prefix+'extracted/'+doc.id+'/batch-'+String(start).padStart(8,'0')+'.json');
+    if(!batch?.pages)throw Error('VISUAL_AUDIT_EXTRACTED_BATCH_MISSING');
+    extractedPages.push(...batch.pages);
+   }
+   const audit=auditVisualProviderCoverage({documentId:doc.id,sourcePdfSha256:doc.sha256,pageCount:doc.pageCount,providerResult,extractedPages});
+   if(!audit.complete)auditFailures.push({documentId:doc.id,failures:audit.failures.slice(0,25)});
+  }
+  if(auditFailures.length){
+   await advanceJob(job,'visual_source_audit_failed',{...previous,visualAuditFailures:auditFailures},'blocked','VISUAL_SOURCE_AUDIT_FAILED');
+   return res.status(200).json({status:'blocked',reason:'VISUAL_SOURCE_AUDIT_FAILED',failedDocuments:auditFailures.length});
   }
   await advanceJob(job,'visual_independent_audit_pending',{...previous,visualProviderCompleted:true,phase:'verify'},'blocked','INDEPENDENT_VISUAL_AUDIT_PENDING');
   return res.status(200).json({status:'blocked',reason:'INDEPENDENT_VISUAL_AUDIT_PENDING'});
