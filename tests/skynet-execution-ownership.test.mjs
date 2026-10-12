@@ -1,0 +1,11 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {resolveExecutionOwnership,userHandoff,batchNextAction} from '../lib/skynet-execution-ownership.mjs';
+const operation='github.commit';
+test('selects available direct route before asking user',()=>{const d=resolveExecutionOwnership({operation,capabilities:{connected_github_batch:'available'}});assert.equal(d.route,'connected_github_batch');assert.equal(d.owner,'system');assert.throws(()=>userHandoff(d),/SYSTEM_WORK_REMAINS/)});
+test('falls back to second route after a failed attempt',()=>{const d=resolveExecutionOwnership({operation,capabilities:{connected_github_batch:'failed',server_approved_write:'available'},attempts:[{route:'connected_github_batch',outcome:'failed'}]});assert.equal(d.route,'server_approved_write')});
+test('unknown capabilities must be inspected before manual handoff',()=>{const d=resolveExecutionOwnership({operation,capabilities:{connected_github_batch:'unavailable'}});assert.equal(d.status,'inspect_capabilities');assert.throws(()=>userHandoff(d),/SYSTEM_WORK_REMAINS/)});
+test('manual configuration needs precise reason and action after exhaustion',()=>{const d=resolveExecutionOwnership({operation,capabilities:{connected_github_batch:'unavailable',server_approved_write:'denied'}});assert.equal(d.status,'blocked');assert.throws(()=>userHandoff(d),/ACTIONABLE_HANDOFF_REQUIRED/);assert.equal(userHandoff(d,{reason:'No GitHub write connection',action:'Connect GitHub write permission'}).kind,'configuration')});
+test('approval is distinct from unnecessary manual file transfer',()=>{const d=resolveExecutionOwnership({operation,capabilities:{connected_github_batch:'available'},approvalRequired:true});assert.equal(userHandoff(d).kind,'approval')});
+test('failed worker execution remains system-owned',()=>{assert.equal(batchNextAction('tool_failed').owner,'system');assert.equal(batchNextAction('scope_required').owner,'user')});
+test('rejects invented route attempts',()=>{assert.throws(()=>resolveExecutionOwnership({operation,attempts:[{route:'manual_zip',outcome:'failed'}]}),/INVALID_ATTEMPT/)});
