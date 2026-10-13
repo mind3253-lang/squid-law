@@ -599,9 +599,67 @@ async function analyzeIndexedPdfFollowup(question,effort,saveAnswer){
   '쪽 / 전 구간 기존 보고서 + 후반부 원문 재검토 / 이미지·스캔 미검증]\n\n'+answer,'pdf-followup');
 }
 
+
+/**
+ * A full-file legal review must not collapse to a one-paragraph synthesis.
+ * Four evidence-focused sections are generated and independently persisted;
+ * the complete chapters are assembled, not compressed by one final model call.
+ * Existing source receipts and pages stay untouched on retries.
+ */
+async function compileSkynetCaseDossier({doc,question,effort,mainNotes,lateNotes,pageCount,ocrRequired=[]}){
+ const contract=globalThis.SkynetCaseDossier;
+ if(!contract||!Array.isArray(contract.CASE_DOSSIER_SECTIONS))
+  throw Error('심층 보고서 생성 모듈을 불러오지 못했어 · 새로고침 후 재개해');
+ if(!/^[a-f0-9]{64}$/.test(String(doc?.hash||''))||
+  !Number.isSafeInteger(pageCount)||pageCount<1)
+  throw Error('심층 보고서 원본·쪽수 검증 실패');
+ const contentHash=await reviewFingerprint(mainNotes+'\n'+lateNotes);
+ const qhash=await reviewFingerprint(contract.CASE_DOSSIER_VERSION+'\n'+doc.hash+'\n'+
+  question.trim()+'\n'+effort+'\n'+contentHash);
+ const sections=contract.CASE_DOSSIER_SECTIONS;
+ const prompts=sections.map(x=>contract.dossierSectionPrompt(x,{
+  question,mainNotes,lateNotes,pageCount
+ }));
+ if(prompts.some(x=>x.length>115000))
+  throw Error('법률 심층보고서 근거 노트가 입력 크기를 초과했어 · 원문을 생략해 작성하지 않아');
+ const hashes=await Promise.all(prompts.map(reviewFingerprint));
+ const ref={documentHash:doc.hash,questionHash:qhash};
+ await reviewJobRequest('start',{...ref,question:question.trim().slice(0,4950),
+  effort,chunks:hashes});
+ const existing=await reviewJobRequest('status',ref);
+ if(existing.complete&&typeof existing.report==='string'&&existing.report.trim())
+  return existing.report;
+ const collected=[];
+ for(let i=0;i<sections.length;i++){
+  el('chatErrorStatus').textContent='258쪽 등 전체 기록 분석 · 심층 보고서 '+
+   (i+1)+'/'+sections.length+'장 · '+sections[i].title;
+  renderReviewState('단순 요약이 아니라 사건별·시간별·금액별·증거별 검토 중 · '+
+   (i+1)+'/'+sections.length+'장');
+  const found=await documentReviewCheckpoint(doc,qhash,hashes[i],i+1);
+  let text=found?.found&&typeof found.summary==='string'?found.summary:null;
+  if(!text){
+   text=await askReviewNoteWithRetry(prompts[i],effort,
+    '사건 기록 심층보고서 '+(i+1)+'/'+sections.length);
+   if(text.trim().length<120||!text.includes('|'))
+    throw Error(sections[i].title+' 장의 구체적인 비교 도표가 누락돼 완료로 처리하지 않았어');
+   const saved=await documentReviewCheckpoint(doc,qhash,hashes[i],i+1,
+    text,[]);
+   text=saved.summary||text;
+  }
+  collected.push({id:sections[i].id,text});
+ }
+ const report=contract.assembleCaseDossier({sections:collected,pageCount,
+  sourceName:doc.name,ocrRequired});
+ await reviewJobRequest('finish',{...ref,report});
+ return report;
+}
+
 async function analyzeAttachedDocuments(docs,question,previous,effort,saveAnswer,turnId){
  if(docs.length>5)throw Error('한 번에 분석할 수 있는 문서는 최대 5개야.');
- if(docs.length===1&&/\.pdf$/i.test(String(docs[0].name||''))){
+ // Short one-call paths are reserved for explicit short requests; a substantive
+ // casefile deserves chapter-by-chapter evidence analysis, regardless of size.
+ if(docs.length===1&&/\.pdf$/i.test(String(docs[0].name||''))&&
+  /(?:한두\s*줄|한\s*문장|간단히|짧게|3\s*줄|두\s*줄)/.test(question)){
   if(await analyzeWholeIndexedPdf(docs[0],question,effort,saveAnswer))return;
  }
  const allNotes=[],meta=[],lateSourceNotes=[];
@@ -745,7 +803,12 @@ async function analyzeAttachedDocuments(docs,question,previous,effort,saveAnswer
   '특히 마지막 40% 구간의 공방과 최근 날짜의 준비서면을 반드시 별도 대조하고, 앞부분만 반복하지 마.\n\n'+
   '[원문 전 구간 검토·압축 노트]\n'+summaries+
   '\n\n[후반부 원문 공방 재검토 전용 노트]\n'+recentSource;
- const reply=await askReviewNoteWithRetry(finalPrompt,effort,'최종 종합 분석');
+ const reply=docs.length===1&&kind==='pdf'?
+  await compileSkynetCaseDossier({doc:docs[0],question,effort,
+   mainNotes:summaries,lateNotes:recentSource,
+   pageCount:Number(meta[0]?.match(/(\\d+)쪽/)?.[1]||0)||activeReview?.pageCount||0,
+   ocrRequired:activeReview?.ocrRequired||[]}):
+  await askReviewNoteWithRetry(finalPrompt,effort,'최종 종합 분석');
  if(docs.length===1){
   await reviewJobRequest('finish',{documentHash:docs[0].hash,questionHash,report:reply});
   rememberReview({...activeReview,complete:true,completedChunks:activeReview.totalChunks});
@@ -1134,7 +1197,8 @@ el('retryStoredPdf').onclick=async()=>{
 el('archivePickButton').onclick=()=>el('archivePickInput').click();el('archivePickInput').onchange=async e=>{const files=[...e.target.files];e.target.value='';if(files.length)await archiveDroppedFiles(files)};window.addEventListener('dragover',e=>{if(e.dataTransfer&&e.dataTransfer.types.includes('Files'))e.preventDefault()});window.addEventListener('drop',e=>{if(e.dataTransfer&&e.dataTransfer.files.length){e.preventDefault();if(!e.target.closest('#chatComposer,#conversation,#dropzone'))archiveDroppedFiles([...e.dataTransfer.files])}});const dz=el('dropzone');dz.addEventListener('click',e=>{if(e.target!==el('file'))el('file').click()});dz.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();el('file').click()}});for(const target of [dz,el('chatComposer'),el('conversation')]){target.addEventListener('dragover',e=>{if(e.dataTransfer&&e.dataTransfer.types.includes('Files')){e.preventDefault();target.classList.add('dragging')}});target.addEventListener('dragleave',()=>target.classList.remove('dragging'));target.addEventListener('drop',e=>{e.preventDefault();target.classList.remove('dragging');const fs=[...(e.dataTransfer?.files||[])];if(!fs.length)return;archiveDroppedFiles(fs);return})}el('attachChat').onclick=()=>{};let lastEnter=0;el('chatInput').addEventListener('keydown',e=>{if(e.key!=='Enter'||e.isComposing||e.keyCode===229)return;if(e.shiftKey||e.ctrlKey||e.altKey||e.metaKey){lastEnter=0;return}const now=Date.now(),input=el('chatInput');if(now-lastEnter<1100&&input.selectionStart===input.selectionEnd&&input.selectionStart>0&&input.value[input.selectionStart-1]==='\n'&&input.value.trim()){e.preventDefault();lastEnter=0;if(!el('sendChat').disabled)el('sendChat').click()}else lastEnter=now});el('chatInput').addEventListener('input',()=>{});drawChat();render();const hydrateDb=()=>{if(el('sendChat').disabled){setTimeout(hydrateDb,30000);return}fetch('/admin/skynet-memory?store=db').then(async r=>{if(!r.ok)throw Error('HTTP '+r.status);const j=await r.json();if(!Array.isArray(j.records))throw Error('서버 DB 형식 오류');let changed=false;for(const item of j.records){if(importMemoryRecord(item))changed=true}serverDbReady=true;if(data.length&&!j.records.length)persist();try{localStorage.setItem(KEY,JSON.stringify(data))}catch{}render();el('status').textContent='서버 기억 DB '+j.records.length+'개 동기화 완료'}).catch(e=>{el('status').textContent='서버 DB 동기화 실패: '+e.message+' · 로컬 데이터 유지'})};setTimeout(hydrateDb,30000);fetch('/admin/skynet-memory',{credentials:'same-origin'}).then(async response=>{if(!response.ok)throw Error('기억 서버 응답 '+response.status);const payload=await response.json();if(!Array.isArray(payload.messages))return;serverHasMore=Boolean(payload.hasMore);serverPage=1;let added=0;for(const message of payload.messages){if(message&&typeof message.content==='string'&&message.content.trim()&&message.content.length<=4000){if(!memoryIndex.has(exactKey(message.content))&&add(message.content))added++}}if(added){persist();render()}if(history.length===0&&payload.messages.length){history=payload.messages.filter(m=>m&&['user','assistant'].includes(m.role)&&typeof m.content==='string'&&m.content.trim()).map(m=>({role:m.role,content:m.content}));drawChat()}el('status').textContent='서버 대화 기억 '+payload.messages.length+'개 불러옴'}).catch(e=>{el('status').textContent='서버 기억 불러오기 실패: '+e.message});fetch('/admin/skynet-archive').then(async response=>{const body=await response.json().catch(()=>({}));const node=el('archiveStatus');if(response.ok)node.textContent='서버 저장소 연결 확인 · 보관된 파일 조각 '+(body.files?.length||0)+'개';else node.textContent='서버 저장소 점검 필요: '+(body.error||'HTTP '+response.status)}).catch(()=>{el('archiveStatus').textContent='서버 연결 점검 실패'})})();
 </script><script>
 (()=>{const names={'skynet/imports/':'GPT ZIP 대화','skynet/memory/':'SKYNET 대화','skynet/documents/':'업로드 문서','skynet/document-segments/':'PDF 페이지 색인','skynet/records/':'불변 기억','skynet/db/':'기존 DB 스냅샷'};const prefixes=Object.keys(names),key='skynet_index_cursor_v2_topic_categories';let running=false;const el=id=>document.getElementById(id);let state;try{state=JSON.parse(localStorage.getItem(key)||'{}')}catch{state={}};if(!state||typeof state!=='object')state={};const show=s=>{el('indexProgress').textContent=s};const request=async payload=>{const r=await fetch('/admin/skynet-index-backfill',{method:'POST',headers:{'content-type':'application/json'},credentials:'same-origin',body:JSON.stringify(payload)});const j=await r.json();if(!r.ok)throw Error(j.error||'HTTP '+r.status);return j};el('indexRefresh').onclick=async()=>{try{show('인덱스 상태 조회 중…');const j=await request({action:'status'});el('indexStats').textContent=prefixes.map(p=>names[p]+': 원본 '+(j.counts?.[p]?.total??'?')+'개').join(' · ')+' · 인덱스 파일 '+j.indexFiles+'개 (개략 집계)';show('조회 완료')}catch(e){show('상태 조회 실패: '+e.message)}};el('indexStop').onclick=()=>{running=false;show('중지 요청됨 · 현재 배치 완료 후 중단')};el('indexStart').onclick=async event=>{if(running)return;const automatic=!event?.isTrusted;running=true;el('indexStart').disabled=true;el('indexStop').disabled=false;let processed=0,created=0,failed=0;try{for(const p of prefixes){if(automatic&&state['done:'+p])continue;if(!automatic){delete state['done:'+p];delete state['error:'+p]}let cursor=typeof state[p]==='string'?state[p]:undefined;while(running){if(automatic&&el('sendChat').disabled){await new Promise(resolve=>setTimeout(resolve,10000));continue}const j=await request({prefix:p,cursor,limit:automatic?6:10});processed+=j.processed;created+=j.indexed;failed+=j.failed;window.dispatchEvent(new Event('skynet:category-index-changed'));show(names[p]+' · 처리 '+processed+' · 신규 '+created+' · 실패 '+failed+' · '+(j.errors||[]).map(x=>x.path).join(', '));if(j.failed){state['error:'+p]=(j.errors||[]).map(x=>x.path).join(', ').slice(0,500)||'재색인 실패';localStorage.setItem(key,JSON.stringify(state));show(names[p]+' · 실패 '+j.failed+'건 · 다음 실행에서 재시도: '+state['error:'+p]);window.dispatchEvent(new Event('skynet:category-index-changed'));break}if(j.hasMore&&j.nextCursor){cursor=j.nextCursor;state[p]=cursor;localStorage.setItem(key,JSON.stringify(state))}else{delete state[p];delete state['error:'+p];state['done:'+p]=true;localStorage.setItem(key,JSON.stringify(state));window.dispatchEvent(new Event('skynet:category-index-changed'));break}}}if(running)show('인덱싱 배치 순회 완료 · 처리 '+processed+' · 신규 '+created+' · 실패 '+failed+' (실패 자료는 재시도 필요)')}catch(e){show('중단됨 · 재개 가능: '+e.message)}finally{running=false;el('indexStart').disabled=false;el('indexStop').disabled=true}};const backgroundIndex=()=>{if(running||el('sendChat').disabled){setTimeout(backgroundIndex,60000);return}let categoriesDone=false;try{const c=JSON.parse(localStorage.getItem('skynet_category_fast_v1')||'{}');categoriesDone=prefixes.every(p=>c['done:'+p]===true)}catch{}if(!categoriesDone){setTimeout(backgroundIndex,60000);return}if(prefixes.some(p=>!state['done:'+p]))el('indexStart').click()};/* Heavy full-text reindexing is manual only. It must never start from page load. */})();
-</script><script>
+</script><script src="/skynet-case-dossier.js"></script>
+<script>
 (()=>{const el=id=>document.getElementById(id);el('timelineLoad').onclick=async()=>{const out=el('timelineResults');out.replaceChildren();let offset=0,events=[],errors=0;const status=el('timelineStatus');try{do{status.textContent='기록 조회 중 · '+events.length+'건';const response=await fetch('/admin/skynet-timeline',{method:'POST',headers:{'content-type':'application/json'},credentials:'same-origin',body:JSON.stringify({caseId:el('timelineCase').value,offset,limit:8})});const j=await response.json();if(!response.ok)throw Error(j.error||'HTTP '+response.status);events.push(...j.events);errors+=j.errors;offset=j.nextOffset;if(events.length>1000){status.textContent='표시 제한 1,000건 · 추가 자료는 별도 조회 필요';break}}while(offset!==null);events.sort((a,b)=>String(a.eventDate||'9999').localeCompare(String(b.eventDate||'9999')));const seen=new Set();for(const e of events){if(seen.has(e.id))continue;seen.add(e.id);const article=document.createElement('article');article.className='item';const heading=document.createElement('strong');heading.textContent=(e.eventDate||'날짜 미확인')+' · '+(e.case?.label||'미분류')+' · '+(e.stance||'미확인');const summary=document.createElement('p');summary.textContent=e.summary;const meta=document.createElement('p');meta.className='muted';meta.textContent='기록일: '+(e.recordedAt||'미상')+' · 출처: '+(e.source||'미상')+' · 위치: '+(e.part||'미상')+' · 증거: '+(e.evidence?.join(', ')||'확인 안 됨')+(e.uncertain?' · 날짜 검토 필요':'');article.append(heading,summary,meta);out.append(article)}status.textContent='표시 '+seen.size+'건 · 읽기 실패 인덱스 '+errors+'건 · 자동 추출 결과는 원본 검증 필요'}catch(e){status.textContent='조회 실패: '+e.message}}})();
 </script><script src="/admin/skynet-layout.js" defer></script><section id="skynetCodePanel" hidden style="display:none!important;max-width:1480px;margin:12px auto" aria-label="SKYNET 코드 개발">
 <h2>SKYNET 코드 개발 · 관리자 승인 방식</h2>
