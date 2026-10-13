@@ -380,6 +380,8 @@ async function analyzeWholeIndexedPdf(doc,question,effort,saveAnswer){
    '스캔·카카오톡 이미지·도면 등 시각자료가 텍스트 추출에 누락될 수 있으니 '+
    '이 텍스트 검토만으로 문서의 시각증거 전부를 확인했다고 주장하지 마. '+
    '판독 불가 페이지: '+(data.ocrRequired?.length?data.ocrRequired.join(','):'추출기 판정 없음')+
+   '. 텍스트가 매우 적어 이미지 검토가 특히 필요한 페이지: '+
+   (data.sparseTextPages?.length?data.sparseTextPages.join(','):'특정 불가')+
    '. 이 단계의 결과는 PDF 전체 추출 텍스트 통합 검토이며 이미지 증거의 별도 검증은 미완료야.\n'+
    '--- 원문 시작 ---\n'+data.text+'\n--- 원문 끝 ---';
   // The standard API rejects individual messages over 120k characters; this
