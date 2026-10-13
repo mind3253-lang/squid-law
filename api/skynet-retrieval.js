@@ -21,7 +21,7 @@ async function read(path,limit=3000000){
  }
  return parsed;
 }
-const rootSources=['skynet/imports/','skynet/memory/','skynet/documents/','skynet/records/','skynet/db/'];
+const rootSources=['skynet/imports/','skynet/memory/','skynet/documents/','skynet/document-segments/','skynet/records/','skynet/db/'];
 async function inventory(){
  if(fileListCache&&Date.now()-fileListCachedAt<15000)return fileListCache;
  const groups=await Promise.all(rootSources.map(async prefix=>{
@@ -56,7 +56,7 @@ function* entriesOfDocument(data){
   for(const [i,m] of data.messages.entries()){
    if(typeof m.content==='string')yield {text:m.content,part:String(i),role:m.role,at:m.at||data.savedAt||null};
   }
- }else if(typeof data.text==='string')yield {text:data.text,part:'0',at:data.at||null};
+ }else if(Array.isArray(data.segments)){for(const [i,segment] of data.segments.entries())if(typeof segment?.text==='string')yield {text:'[PDF '+String(segment.page||'?')+'쪽 / 부분 '+String(segment.part||'?')+']\n'+segment.text,part:String(segment.page||i)+':'+String(segment.part||'?'),at:data.createdAt||null};}else if(typeof data.text==='string')yield {text:data.text,part:'0',at:data.at||null};
  else if(Array.isArray(data.records)){
   for(const [i,r] of data.records.entries())if(typeof r.text==='string')yield {text:r.text,part:String(i),at:r.at||null};
  }
