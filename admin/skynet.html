@@ -938,7 +938,7 @@ async function analyzeIndexedPdfFollowup(question,effort,saveAnswer){
   try{previous=await reviewJobRequest('status',activeReview)}
   catch(e){if(e.status!==404)throw e}
  }
- if(!previous?.complete||typeof previous.report!=='string'||!previous.report.trim()){
+ if(sourceScope||!previous?.complete||typeof previous.report!=='string'||!previous.report.trim()){
   // A half-finished or merely searched source must be reviewed from page ONE.
   // This routine verifies all 1..N source pages and produces the full dossier.
   el('chatErrorStatus').textContent='기존 분석 미완료 · 보관 PDF '+pageCount+
@@ -1084,12 +1084,12 @@ async function analyzeAttachedDocuments(docs,question,previous,effort,saveAnswer
  if(docs.length>5)throw Error('한 번에 분석할 수 있는 문서는 최대 5개야.');
  // Short one-call paths are reserved for explicit short requests; a substantive
  // casefile deserves chapter-by-chapter evidence analysis, regardless of size.
- if(docs.length===1&&/\.pdf$/i.test(String(docs[0].name||''))&&
+ if(!sourceScope&&docs.length===1&&/\.pdf$/i.test(String(docs[0].name||''))&&
   /(?:한두\s*줄|한\s*문장|간단히|짧게|3\s*줄|두\s*줄)/.test(question)){
   if(await analyzeWholeIndexedPdf(docs[0],question,effort,saveAnswer))return;
  }
  const allNotes=[],meta=[],lateSourceNotes=[],pageCounts=[],ocrByDocument=[],originalSourceWindows=[];
- const questionHash=await reviewFingerprint('skynet-pdf-review-v5-dossier-with-original-text\n'+question.trim()+'\n'+effort);
+ const questionHash=await reviewFingerprint('skynet-pdf-review-v5-dossier-with-original-text\n'+reviewPromptQuestion.trim()+'\n'+effort);
  for(let d=0;d<docs.length;d++){
   const doc=docs[d];
   let offset=0,position=0,chunks=[],pageCount=null,ocrRequired=[];
