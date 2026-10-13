@@ -34,14 +34,14 @@ test('real Markdown comparison tables become semantic and safely rendered tables
   'AI-provided markup must never execute as HTML');
 });
 test('PDF follow-ups re-open exact page ranges from stored indexed original',()=>{
- assert.match(code,/if\\(shouldUseIndexedPdfFollowup\\(composed\\)\\)/);
+ assert.match(code,/if\(shouldUseIndexedPdfFollowup\(composed\)\)/);
  const section=functionBody('async function analyzeIndexedPdfFollowup(','async function analyzeAttachedDocuments(');
- assert.match(section,/resolveSkynetPdfForFollowup\\(\\)/);
- assert.match(section,/readPdfPageSpan\\(doc,startPage,pageCount\\)/);
- assert.match(section,/Math\\.floor\\(pageCount\\/2\\)\\+1/);
- assert.match(section,/!previous\\?\\.complete/);
- assert.match(section,/await analyzeAttachedDocuments\\(/);
- assert.match(code,/fetchIndexedPdfPageWindow\\(doc\\.hash,startPage,endPage,offset,position\\)/);
- assert.match(code,/PDF 원문 미색인\\/누락 페이지/);
- assert.match(jobs,/sourceSegmentCount:job\\.sourceSegmentCount/);
+ assert.match(section,/resolveSkynetPdfForFollowup\(\)/);
+ assert.match(section,/readPdfPageSpan\(doc,startPage,pageCount\)/);
+ assert.match(section,/Math\.floor\(pageCount\/2\)\+1/);
+ assert.match(section,/!previous\?\.complete/);
+ assert.match(section,/await analyzeAttachedDocuments\(/);
+ assert.match(code,/fetchIndexedPdfPageWindow\(doc\.hash,startPage,endPage,offset,position\)/);
+ assert.match(code,/PDF 원문 미색인\/누락 페이지/);
+ assert.match(jobs,/sourceSegmentCount:job\.sourceSegmentCount/);
 });
