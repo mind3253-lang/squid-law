@@ -35,6 +35,15 @@ SKYNET 관리자 PDF는 현재 바이트 범위 읽기·16페이지 구간 추�
 - 미완료·저장되지 않은 구 보고서일 경우 전 페이지 1..N 원문을 다시 읽는 기존 분할 검토로 이행. 완료된 기존 보고서가 있으면 정확히 뒤 50%의 실자료를 다시 읽고 심층 보고서에 결합함.
 - `tests/skynet-pdf-page-routing.test.mjs`: 앞 40쪽에 텍스트 세그먼트가 편중된 가짜 258쪽 자료에서 143~258쪽을 116쪽 모두 선택, 미완료 로컬 작업 분기, 원문 누락 시 fail-closed; 과거 `tests/skynet-pdf-followup-table.test.mjs`도 갱신. 실제 사용자가 보관한 258쪽 PDF 운영 재현 및 날짜별 서면 결과 확인은 미실시. READY/모의시험으로 성공 주장하지 않는다.
 
+## 2026-10-14 · 실제 SKYNET 전송 무한 로딩 + 사라진 대화 + 입력창·진행률 사고
+- 실제 화면: 사용자 메시지는 나타나지 않고 `질문 원문을 서버에 저장 중…`만 무한 표시. 과거 대화 일부만 보임. 대화창 높이는 고정, PDF 258쪽의 진행률은 대화창 안에 표시되지 않음.
+- **결정적 원인(재현 가능):** `admin/skynet.html`의 `drawChat`이 일반 사용자 메시지를 그릴 때 `const displayed=assistant?...:displayed`로 자기 참조해 ReferenceError 발생. `saveTurn('user')` 이후 사용자 기록을 `history.push`한 다음 `drawChat`에서 멈춰 AI 분석과 마지막 `finally` 복구가 실행되지 않는 흐름. 이 오류는 느린 AI가 아니라 JS 버그.
+- 동시에 첫 로딩 및 매 전송 종료 `localStorage.removeItem(chatKey)`로 브라우저 대화를 계속 제거하는 코드 발견. 제거했고 브라우저 캐시 + 서버 대화 복원/병합을 추가. 서버 실제 원본까지 삭제됐다는 증거는 없으며 실제 저장 이력의 완전성은 운영 확인 필요.
+- 수정: 질문을 즉시 화면에 표시 → 서버 저장 확인 → AI 시작; 저장/응답 오류에도 사용자 질문 제거 금지. 저장 요청 35초 상한. 입력창 자동 높이 확장. 대화창 안에 의미론적 진행률 막대, 실제 PDF 페이지 범위·검토 구간·4장 보고서 작성 단계 표기, AI 대기 시 경과시간·마지막 상태 갱신 시점 표시. 모든 완료·실패에서 프로그레스 제거.
+- 기존 `skynetReviewPanel`의 분리 진행률 외에 실시간 **대화 말풍선 아래**에 진행 카드를 띄움. `admin/skynet-layout.css`의 textarea fixed height/resize:none를 새로운 높이 계산으로 수정.
+- 화면에서 `↺ 이전 대화 복원`을 눌러 서버의 추가 과거 대화를 5페이지씩 조회할 수 있게 했고, 최초 서버 동기화도 기존 로컬 대화와 합침.
+- 회귀검사: `tests/skynet-chat-ui-reliability.test.mjs` 4개 검증: 사용자 말풍선 렌더링, 사전 저장 순서와 장애 후 보존, 정확한 진행 구간, 기존 기록 복원. **실제 사용자 세션/258쪽 PDF 성공 및 데이터 완전복원은 운영 검증 전까지 완료 주장 금지**.
+
 ## 세션 시작 시 무조건 실행
 1. GitHub `mind3253-lang/squid-law`의 **최신 main**을 읽는다. `docs/SKYNET_CONTINUITY_AND_IMPLEMENTATION.md`, **이 파일**, `docs/SKYNET_TASK_MANIFEST.json`을 읽는다.
 2. Vercel `squid-law` 최신 배포와 최근 커밋/테스트/로그를 확인한다. 권한 오류가 나면 구체적 차단 요인을 기록하고 다른 가능한 작업을 진행한다.
