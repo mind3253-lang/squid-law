@@ -106,3 +106,15 @@ header h1{font-size:18px;margin:0;line-height:1.3}
 #skynetSidebar:not(.open) #skynetSidebarCategories{width:43px}
 #skynetSidebar:not(.open) #skynetSidebarPanel .skynetToolLink:not(button){overflow:hidden}
 #skynetSidebar .skynetMemoryNavItem:hover{background:#e9eaed}
+
+/* 2026-10-14: natural composer growth + visible in-chat source progress */
+#chatComposer textarea{height:auto;min-height:58px;max-height:min(46vh,460px);resize:vertical;overflow-y:auto;line-height:1.6}
+#conversation .skynet-working{width:100%;box-sizing:border-box;padding:12px 15px;margin:12px 0 16px;border:1px solid #e3e7ed;border-radius:14px;background:#f7f9fc;font-size:13px;line-height:1.65;color:#34445b}
+#conversation .skynet-working-header{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+#conversation .skynet-working-title{font-weight:650;color:#192d49}
+#conversation .skynet-working-count{font-variant-numeric:tabular-nums;font-size:12px;color:#617086}
+#conversation .skynet-working progress{display:block;width:100%;height:11px;accent-color:#2776d2;margin:10px 0}
+#conversation .skynet-working-stage{font-size:13px;white-space:pre-wrap;overflow-wrap:anywhere}
+#conversation .skynet-working-note{font-size:11px;color:#64748b;margin-top:5px}
+#chatInput:focus{outline:none}
+@media(max-width:700px){#chatComposer textarea{max-height:44vh;min-height:54px}}
