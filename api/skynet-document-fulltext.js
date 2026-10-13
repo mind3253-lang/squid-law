@@ -46,7 +46,7 @@ export default async function handler(req,res){
     totalCharacters:manifest.characters,retryable:false,mode:'segmented'});
   const pageNumbers=new Set(),ocrPages=Array.isArray(manifest.ocrRequired)?
    [...new Set(manifest.ocrRequired.filter(n=>Number.isSafeInteger(n)&&n>0&&n<=manifest.pageCount))]:[];
-  let text='',count=0;
+  let text='',count=0;const textLengths=new Map();
   // Independent Blob reads can be batched, but total source text and memory
   // are capped. Buffer batches are appended in the original document order.
   for(let groupStart=0;groupStart<starts.length;groupStart+=4){
@@ -69,7 +69,7 @@ export default async function handler(req,res){
       error:'FULL_TEXT_TOO_LARGE',limit:MAX_TEXT,totalCharacters:text.length,
       retryable:false,mode:'segmented'
      });
-     pageNumbers.add(page);count++;
+     pageNumbers.add(page);textLengths.set(page,(textLengths.get(page)||0)+item.text.length);count++;
     }
    }
   }
@@ -78,6 +78,8 @@ export default async function handler(req,res){
   return respond(res,200,{ok:true,kind:'pdf',mode:'whole_extracted_text',hash,
    name:manifest.name||'',pageCount:manifest.pageCount,segmentCount:count,
    totalCharacters:text.length,text,pageNumbers:[...pageNumbers].sort((a,b)=>a-b),
+   sparseTextPages:[...textLengths].filter(([,characters])=>characters<180)
+    .map(([page])=>page).sort((a,b)=>a-b),
    ocrRequired:ocrPages,visualVerified:false,textSourceComplete:true,
    note:'Full indexed text only; images, handwriting and OCR-required pages are not verified'});
  }catch(e){
