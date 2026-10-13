@@ -80,11 +80,11 @@ function evaluateFile(data,path,terms){
  }
  return out.sort((a,b)=>b.score-a.score).slice(0,8);
 }
-export async function retrieveMemory(question,{maxFiles=160,maxResults=12}={}){
+export async function retrieveMemory(question,{maxFiles=160,maxResults=12,indexedResults=null}={}){
  const words=retrievalTerms(question,30);
  if(!words.length)return [];
  let indexed=[],indexError=null;
- try{indexed=await searchIndex(question,{maxResults:Math.max(60,maxResults*6),maxIndexFiles:250})}
+ try{indexed=Array.isArray(indexedResults)?indexedResults:await searchIndex(question,{maxResults:Math.max(60,maxResults*6),maxIndexFiles:250})}
  catch(e){indexError=String(e?.message||e);console.error('SKYNET_INDEX_SEARCH_FAILED',indexError.slice(0,200))}
  // Do not stop after 12 hits from one recent handover. Prefer original records.
  const independent=new Set(indexed.filter(x=>sourceKind(x.source)!=='memory').map(x=>x.source)).size;
