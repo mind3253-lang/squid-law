@@ -3,61 +3,69 @@ import test from 'node:test';
 import {readFileSync} from 'node:fs';
 import {categoryDigestEntries,sourceTopicEntries} from '../lib/skynet-topic-categories.mjs';
 
-test('338-page text classification streams without constructing legal search indexes',()=>{
+const read=path=>readFileSync(new URL('../'+path,import.meta.url),'utf8');
+
+test('338-page classification is a CPU operation, not one remote AI call per page',()=>{
  const pages=Array.from({length:338},(_,i)=>({page:i+1,text:
   i%2?'사주 명리 구성학과 주변 사람 이야기. '.repeat(35):
   '서브마린 여과 순환 시설과 운영 설계. '.repeat(35)}));
- const t=Date.now();
- const summary=categoryDigestEntries(sourceTopicEntries({segments:pages}),{
+ const started=performance.now();
+ const digest=categoryDigestEntries(sourceTopicEntries({segments:pages}),{
   source:'test/338',name:'GENOME_두런두런_MASTER_20260913.pdf'});
- assert.equal(summary.units,338);
- assert.ok(summary.counts.interests>0);
- assert.ok(summary.counts.people>0);
- assert.ok(summary.counts.business>0);
- assert.ok(Date.now()-t<8000,'topic-only classification must finish rapidly on text corpus');
-});
-test('fast category endpoint is independent of costly case-index rebuilding',()=>{
- const endpoint=readFileSync(new URL('../api/skynet-category-fast-backfill.js',import.meta.url),'utf8');
- assert.match(endpoint,/sourceTopicEntries/);
- assert.match(endpoint,/elapsedMs/);
- assert.match(endpoint,/classified/);
- assert.match(endpoint,/hasMore/);
- assert.doesNotMatch(endpoint,/indexSource\(/);
- assert.doesNotMatch(endpoint,/searchIndexMulti\(/);
-});
-test('frontend visibly reports live progress, errors and rate, not indefinite spinner',()=>{
- const sidebar=readFileSync(new URL('../admin/skynet-layout.js',import.meta.url),'utf8');
- const chat=readFileSync(new URL('../admin/skynet.html',import.meta.url),'utf8');
- const config=JSON.parse(readFileSync(new URL('../vercel.json',import.meta.url),'utf8'));
- assert.match(sidebar,/skynet-category-fast-backfill/);
- assert.match(sidebar,/건\/초/);
- assert.match(sidebar,/남은 약/);
- assert.match(sidebar,/분류 중단/);
- assert.match(sidebar,/categorySources\.set/);
- assert.match(chat,/categoriesDone/);
- assert.ok(config.rewrites.some(x=>x.source==='/admin/skynet-category-fast-backfill'&&x.destination==='/api/skynet-category-fast-backfill'));
- assert.ok(config.rewrites.some(x=>x.source==='/admin/skynet-categories'&&x.destination==='/api/skynet-categories'));
+ assert.equal(digest.units,338);
+ assert.ok(digest.counts.interests>0);
+ assert.ok(digest.counts.people>0);
+ assert.ok(digest.counts.business>0);
+ assert.ok(performance.now()-started<8000);
 });
 
-test('partial source pages resume with offset, without dropping files or looping from start',()=>{
- const source=readFileSync(new URL('../api/skynet-category-fast-backfill.js',import.meta.url),'utf8');
- const client=readFileSync(new URL('../admin/skynet-layout.js',import.meta.url),'utf8');
- assert.match(source,/const withinPage=offset\+results\.handled<files\.length/);
- assert.match(source,/nextOffset:withinPage\?offset\+results\.handled:0/);
- assert.match(source,/files\.slice\(offset\)/);
- assert.match(client,/nextOffset/);
- assert.match(client,/offset,limit:/);
+test('normal dashboard load performs one aggregate request, never a Blob corpus scan',()=>{
+ const client=read('admin/skynet-layout.js');
+ const route=read('api/skynet-category-dashboard.js');
+ const db=read('lib/skynet-topic-db.mjs');
+ const routes=JSON.parse(read('vercel.json')).rewrites;
+ assert.match(client,/fetch\('\/admin\/skynet-category-dashboard'/);
+ assert.doesNotMatch(client,/skynet-categories\?limit=/);
+ assert.doesNotMatch(client,/loadCategoryTotal/);
+ assert.match(route,/await topicDashboard\(\)/);
+ assert.match(db,/SUM\(\(counts->>/);
+ assert.ok(routes.some(x=>x.source==='/admin/skynet-category-dashboard'&&x.destination==='/api/skynet-category-dashboard'));
 });
-test('classification traffic is not multiplied by every open SKYNET tab',()=>{
- const client=readFileSync(new URL('../admin/skynet-layout.js',import.meta.url),'utf8');
+
+test('migration is once-per-source and uses durable server leases and checkpoints',()=>{
+ const worker=read('api/skynet-category-fast-backfill.js');
+ const db=read('lib/skynet-topic-db.mjs');
+ assert.match(worker,/claimTopicBackfill\(prefix,owner\)/);
+ assert.match(worker,/await upsertTopics\(results.records\)/);
+ assert.match(worker,/await finishTopicBackfill\(prefix,owner/);
+ assert.match(worker,/lease\.offset\+results\.handled/);
+ assert.match(db,/lease_until<now\(\)/);
+ assert.match(db,/WHERE prefix=\$1 AND owner=\$2/);
+ assert.match(db,/ON CONFLICT\(source\) DO UPDATE/);
+ assert.doesNotMatch(worker,/searchIndexMulti\(/);
+});
+
+test('frontend does not auto-start heavy full-text search reindex',()=>{
+ const client=read('admin/skynet-layout.js');
+ const chat=read('admin/skynet.html');
  assert.match(client,/navigator\.locks\?\.request/);
  assert.match(client,/ifAvailable:true/);
- assert.doesNotMatch(client,/void loadCategoryTotal\(\)/);
- assert.match(client,/skynet:source-added/);
+ assert.match(client,/action:'step'/);
+ assert.doesNotMatch(chat,/setTimeout\(backgroundIndex,60000\);\}\)\(\)/);
 });
-test('new source gains topic coverage before expensive search indexing',()=>{
- const source=readFileSync(new URL('../api/skynet-search-index.js',import.meta.url),'utf8');
+
+test('new sources make the lightweight classification durable before expensive search indexing',()=>{
+ const source=read('api/skynet-search-index.js');
  const write=source.indexOf("await put('skynet/category-index/'");
+ const sql=source.indexOf('await upsertTopics([categories])',write);
  const heavy=source.indexOf('const entries=entriesOf(data);',write);
- assert.ok(write>0&&heavy>write,'persist classification ahead of costly full-text index');
+ assert.ok(write>0&&sql>write&&heavy>sql);
+});
+
+test('details load lazily instead of downloading all category sidecars at page load',()=>{
+ const client=read('admin/skynet-layout.js');
+ const route=read('api/skynet-category-dashboard.js');
+ assert.match(client,/topic='\+encodeURIComponent\(id\)/);
+ assert.match(client,/limit=20/);
+ assert.match(route,/Math\.min\(40,Math\.max\(1/);
 });
