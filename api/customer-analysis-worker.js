@@ -21,6 +21,7 @@ import {buildVisualReferenceManifest} from '../lib/source-continuity.mjs';
 import {analyzeLegalWindow} from '../lib/gpt-legal-orchestrator.mjs';
 import {analyzePdfVisualEvidence} from '../lib/openai-vision-provider.mjs';
 import {splitPdfVisualWindow,splitPdfVisualWindows,splitPdfVisualPageSet,mergeVisualWindows} from '../lib/pdf-visual-windows.mjs';
+import {splitRangeVisualWindows,splitRangeVisualPageSet} from '../lib/customer-pdf-visual-range.mjs';
 import {auditVisualProviderCoverage,compareIndependentVisualPass} from '../lib/visual-review-audit.mjs';
 import {buildSemanticReviewRequest,validateSemanticReview,invokeSemanticReview} from '../lib/independent-semantic-review.mjs';
 import {buildLegalCustomerReport} from '../lib/legal-customer-report.mjs';
@@ -381,11 +382,16 @@ export default async function handler(req,res){
     const missing=starts.filter((_,i)=>!cached[i]);
     let windows=new Map();
     if(missing.length){
-     const bytes=await loadBinary(prefix+'pdf/'+doc.id+'.pdf');
-     if(!bytes||createHash('sha256').update(bytes).digest('hex')!==doc.sha256)
-      throw Error('VISUAL_SOURCE_PDF_DIGEST_MISMATCH');
-     const pieces=await splitPdfVisualWindows({pdfBytes:bytes,startPage,
-      count:starts.length,pageCount:12});
+     const pieces=doc.sourceKind==='private_chunked_pdf_v1'?
+      await splitRangeVisualWindows({
+       source:{reader:createCustomerPdfRangeSource(prefix,doc),pageCount:doc.pageCount},
+       sha256:doc.sha256,startPage,count:starts.length,pageCount:12
+      }):await (async()=>{
+       const bytes=await loadBinary(prefix+'pdf/'+doc.id+'.pdf');
+       if(!bytes||createHash('sha256').update(bytes).digest('hex')!==doc.sha256)
+        throw Error('VISUAL_SOURCE_PDF_DIGEST_MISMATCH');
+       return splitPdfVisualWindows({pdfBytes:bytes,startPage,count:starts.length,pageCount:12});
+      })();
      windows=new Map(pieces.map(piece=>[piece.startPage,piece]));
     }
     // All scheduled calls must settle before releasing this fenced lease. Every
@@ -466,11 +472,16 @@ export default async function handler(req,res){
     const missing=starts.filter((_,i)=>!cached[i]);
     let windows=new Map();
     if(missing.length){
-     const bytes=await loadBinary(prefix+'pdf/'+doc.id+'.pdf');
-     if(!bytes||createHash('sha256').update(bytes).digest('hex')!==doc.sha256)
-      throw Error('VISUAL_AUDIT_PDF_SOURCE_MISMATCH');
-     const pieces=await splitPdfVisualWindows({pdfBytes:bytes,startPage,
-      count:starts.length,pageCount:12});
+     const pieces=doc.sourceKind==='private_chunked_pdf_v1'?
+      await splitRangeVisualWindows({
+       source:{reader:createCustomerPdfRangeSource(prefix,doc),pageCount:doc.pageCount},
+       sha256:doc.sha256,startPage,count:starts.length,pageCount:12
+      }):await (async()=>{
+       const bytes=await loadBinary(prefix+'pdf/'+doc.id+'.pdf');
+       if(!bytes||createHash('sha256').update(bytes).digest('hex')!==doc.sha256)
+        throw Error('VISUAL_AUDIT_PDF_SOURCE_MISMATCH');
+       return splitPdfVisualWindows({pdfBytes:bytes,startPage,count:starts.length,pageCount:12});
+      })();
      windows=new Map(pieces.map(piece=>[piece.startPage,piece]));
     }
     const original=await Promise.all(starts.map((page,i)=>cached[i]?null:
@@ -663,11 +674,16 @@ export default async function handler(req,res){
    return res.status(200).json({status:'blocked',reason:'OPENAI_API_KEY_MISSING'});
   }
   const selected=pendingOcr.slice(0,VISUAL_WINDOW_CONCURRENCY);
-  const source=await loadBinary(prefix+'pdf/'+d.id+'.pdf');
-  if(!source||createHash('sha256').update(source).digest('hex')!==d.sha256)
-   throw Error('OCR_PDF_SOURCE_MISMATCH');
-  const windows=await splitPdfVisualPageSet({pdfBytes:source,
-   pages:selected.map(page=>page.page)});
+  const windows=d.sourceKind==='private_chunked_pdf_v1'?
+   await splitRangeVisualPageSet({
+    source:{reader:createCustomerPdfRangeSource(prefix,d),pageCount:d.pageCount},
+    sha256:d.sha256,pages:selected.map(page=>page.page)
+   }):await (async()=>{
+    const source=await loadBinary(prefix+'pdf/'+d.id+'.pdf');
+    if(!source||createHash('sha256').update(source).digest('hex')!==d.sha256)
+     throw Error('OCR_PDF_SOURCE_MISMATCH');
+    return splitPdfVisualPageSet({pdfBytes:source,pages:selected.map(page=>page.page)});
+   })();
   // Each page still requires BOTH independent image/model passes and strict
   // reconciliation. Only unrelated pages run concurrently.
   const settled=await Promise.allSettled(selected.map(async(page,i)=>{
