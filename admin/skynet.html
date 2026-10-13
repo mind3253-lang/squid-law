@@ -102,8 +102,8 @@ function localCandidates(prompt){
   .filter(x=>x.score>=2).sort((a,b)=>b.score-a.score).slice(0,5).map(x=>x.x.text.slice(0,1800));
 }
 el("sendChat").onclick=async()=>{
- const typed=el('chatInput').value.trim(),attached=pendingAttachments.slice(),archiveFiles=pendingArchiveFiles.slice();
- const msg=typed||(attached.length?'첨부한 파일 내용을 읽고 기억해 줘.':'');
+ const typed=el('chatInput').value,attached=pendingAttachments.slice(),archiveFiles=pendingArchiveFiles.slice();
+ const msg=typed.trim()?typed:(attached.length?'첨부한 파일 내용을 읽고 기억해 줘.':'');
  if((!msg&&!archiveFiles.length)||el('sendChat').disabled||el('file').disabled)return;
  if(history.length>=199999){el('chatErrorStatus').hidden=false;el('chatErrorStatus').textContent='대화 기록 한도입니다. 기존 자료는 삭제하지 마세요.';return}
  if(archiveFiles.length){pendingArchiveFiles=[];renderArchiveQueue();el('sendChat').disabled=true;
