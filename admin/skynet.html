@@ -968,6 +968,8 @@ async function compileSkynetCaseDossier({
  const collected=[];
  for(let i=0;i<sections.length;i++){
   const section=sections[i];
+  setSkynetPipelineProgress('report',i,sections.length,
+   '분석보고서 작성 중 · '+section.title,doc.name);
   el('chatErrorStatus').textContent='원문 종합 보고서 작성 '+(i+1)+'/'+sections.length+
    '장 · '+section.title;
   renderReviewState('앞서 검토한 원문 유지 · '+(i+1)+'/'+sections.length+
@@ -988,11 +990,14 @@ async function compileSkynetCaseDossier({
    summary=saved.summary||summary;
   }
   collected.push({id:section.id,text:summary});
+  setSkynetPipelineProgress('report',i+1,sections.length,
+   '분석보고서 작성 중 · '+section.title,doc.name);
  }
  const report=contract.assembleCaseDossier({
   sections:collected,pageCount,sourceName:doc.name,ocrRequired
  });
  await reviewJobRequest('finish',{...job,report});
+ setSkynetPipelineProgress('delivery',0,1,'종합 보고서 저장 완료 · 답변 전달 준비 중',doc.name);
  return report;
 }
 
@@ -1053,6 +1058,8 @@ async function analyzeAttachedDocuments(docs,question,previous,effort,saveAnswer
   await reviewJobRequest('start',{documentHash:doc.hash,questionHash,
    question:question.trim(),effort,chunks:digest});
   reviewIsRunning=true;
+  setSkynetPipelineProgress('review',0,chunks.length,
+   'PDF '+pageCount+'쪽 원문 검토 시작',doc.name);
   rememberReview({documentHash:doc.hash,questionHash,question:question.trim(),
    effort,name:doc.name,pageCount,ocrRequired,totalChunks:chunks.length,
    completedChunks:0,complete:false});
@@ -1094,6 +1101,8 @@ async function analyzeAttachedDocuments(docs,question,previous,effort,saveAnswer
     throw Error(doc.name+' · '+errors.join(' / ')+
      ' · 정상 처리한 구간은 서버에 보존됨. 같은 문서로 이어서 분석 가능');
    }
+   setSkynetPipelineProgress('review',Math.min(i+2,chunks.length),chunks.length,
+    'PDF '+pageCount+'쪽 원문 검토 중 · '+pageSpan+'확인 완료',doc.name);
    el('chatErrorStatus').textContent=doc.name+' · '+pageSpan+
     Math.min(i+2,chunks.length)+'/'+chunks.length+'구간 검토 완료'+
     (resumed?' · 이전 완료 '+resumed+'건 재사용':'');
@@ -1148,7 +1157,8 @@ async function analyzeAttachedDocuments(docs,question,previous,effort,saveAnswer
  }
  if(recentSource.length>18000)throw Error('PDF 후반부 공방 노트의 보존 검증 실패');
  el('chatErrorStatus').textContent='원문 텍스트 전 구간 검토 · 최신 공방 포함 종합 분석 중…';
- renderReviewState('텍스트 구간 검토 완료 · 종합 보고서 작성 중 (아직 최종 완료 아님)');
+ setSkynetPipelineProgress('report',0,4,
+  '원문 검토를 마치고 쟁점별 분석보고서를 작성 중',docs[0]?.name);
  const finalPrompt='사용자 요청: '+question+
   '\n\n다음은 이번에 실제로 첨부된 PDF의 모든 판독 가능 텍스트 구간을 차례로 검토한 중간 분석 노트야. '+
   '노트에 없는 사실·근거·쪽수는 만들지 말고 당사자 주장과 확인된 사실, 상충 증거, 불확실성을 분리해 독립적으로 분석해. '+
@@ -1166,8 +1176,8 @@ async function analyzeAttachedDocuments(docs,question,previous,effort,saveAnswer
   await reviewJobRequest('finish',{documentHash:docs[0].hash,questionHash,report:reply});
   rememberReview({...activeReview,complete:true,completedChunks:activeReview.totalChunks});
  }
- await saveAnswer('[직접 첨부 문서 분석 · '+meta.join(' / ')+']\n\n'+reply,'document-final');
- renderReviewState('텍스트 검토 및 최종 종합 보고서 저장 완료');
+ await saveAnswer('[PDF 분석 보고서 · '+docs.map(d=>d.name).join(', ')+']\n\n'+reply,'document-final');
+ renderReviewState();
 }
 el("sendChat").onclick=async()=>{
  const typed=el('chatInput').value,attached=pendingAttachments.slice(),archiveFiles=pendingArchiveFiles.slice();
@@ -1307,9 +1317,13 @@ el("sendChat").onclick=async()=>{
  let savedReplies=0,failures=[];
  const saveAnswer=async(reply,suffix)=>{
   const id=suffix?turnId+'-'+suffix:turnId;
+  if(skynetPipeline?.active)setSkynetPipelineProgress('delivery',0,1,
+   '분석결과를 대화에 저장 중',skynetPipeline.name);
   await saveTurn('assistant',reply,id);
   history.push({role:'assistant',content:reply});
-  savedReplies++;saveLocalChatSnapshot();drawChat();
+  savedReplies++;saveLocalChatSnapshot();
+  if(skynetPipeline?.active)clearSkynetPipelineProgress();
+  drawChat();
  };
  try{
   if(uploadedDocs.length){
@@ -1414,6 +1428,7 @@ el("sendChat").onclick=async()=>{
   saveLocalChatSnapshot();
  }finally{
   finishSkynetLiveWork();
+  if(skynetPipeline?.active)clearSkynetPipelineProgress();
   el('sendChat').disabled=false;el('clearChat').disabled=false;el('save').disabled=false;
   el('backup').disabled=false;el('fullBackup').disabled=false;
   saveLocalChatSnapshot();
