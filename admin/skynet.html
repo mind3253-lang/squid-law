@@ -51,7 +51,7 @@ async function saveTurn(role,content,turnId){
  }
  if(parts.length>160)throw Error('한 메시지가 너무 큽니다. 원본은 파일 첨부 기능으로 제출하세요.');
  const req=async body=>{
-  const r=await fetch('/api/skynet-long-turn',{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},body:JSON.stringify({role,turnId,total:parts.length,...body})});
+  const r=await fetch('/admin/skynet-long-turn',{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},body:JSON.stringify({role,turnId,total:parts.length,...body})});
   const j=await r.json().catch(()=>null);if(!r.ok||!j?.ok)throw Error('대용량 원문 저장 실패: '+(j?.error||r.status));
   return j;
  };
@@ -145,7 +145,7 @@ el("sendChat").onclick=async()=>{
     try{
      const batchController=new AbortController(),batchTimer=setTimeout(()=>batchController.abort(),45000);
      let prefetch;
-     try{prefetch=await fetch('/api/skynet-recall-batch',{method:'POST',credentials:'same-origin',
+     try{prefetch=await fetch('/admin/skynet-recall-batch',{method:'POST',credentials:'same-origin',
       headers:{'content-type':'application/json'},body:JSON.stringify({queries:planned.map(q=>q.retrievalQuery)}),signal:batchController.signal})}
      finally{clearTimeout(batchTimer)}
      const result=await prefetch.json().catch(()=>({}));
