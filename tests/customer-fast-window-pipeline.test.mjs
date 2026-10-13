@@ -64,3 +64,21 @@ test('visual review has fenced, checkpointed parallel independent primary and au
  assert.match(jobs,/FOR UPDATE SKIP LOCKED/);
  assert.match(jobs,/AND owner_token=\$4 AND fence=\$5 AND lease_expires_at>now\(\)/);
 });
+
+
+test('legal model window reuses only immutable SHA-verified original source bundles',()=>{
+ const worker=source('api/customer-analysis-worker.js');
+ assert.match(worker,/legal-source-text-bundle\.json/);
+ assert.match(worker,/bundle\.sourceIndexSha256!==request\.sourceIndexSha256/);
+ assert.match(worker,/createHash\('sha256'\)\.update\(u\.text\)\.digest\('hex'\)!==u\.hash/);
+ assert.match(worker,/maxCharacters:64000/);
+ assert.match(worker,/!extracted\?\.pages\|\|extracted\.documentId!==d\.id/);
+ assert.match(worker,/LEGAL_SOURCE_REHYDRATION_MISMATCH/);
+});
+test('transient job failures restart after bounded SQL backoff, not on a five-minute stall',()=>{
+ const jobs=source('api/customer-analysis-jobs-db.js');
+ assert.match(jobs,/stage==='error'&&Number\(job\.attempts\|\|0\)<4/);
+ assert.match(jobs,/2\*\*Math\.min\(3,Number\(job\.attempts\|\|0\)\)\*1000\+750/);
+ assert.match(jobs,/LEAST\(3600,POWER\(2,LEAST\(attempts,10\)\)\)/);
+ assert.match(jobs,/interval '250 milliseconds'/);
+});
