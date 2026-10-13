@@ -1156,7 +1156,7 @@ async function analyzeAttachedDocuments(docs,question,previous,effort,saveAnswer
   '특히 마지막 40% 구간의 공방과 최근 날짜의 준비서면을 반드시 별도 대조하고, 앞부분만 반복하지 마.\n\n'+
   '[원문 전 구간 검토·압축 노트]\n'+summaries+
   '\n\n[후반부 원문 공방 재검토 전용 노트]\n'+recentSource;
- const reply=docs.length===1&&/\\.pdf$/i.test(String(docs[0].name||''))?
+ const reply=docs.length===1&&/\.pdf$/i.test(String(docs[0].name||''))?
   await compileSkynetCaseDossier({doc:docs[0],question,effort,
    mainNotes:summaries,lateNotes:recentSource,
    pageCount:pageCounts[0],ocrRequired:ocrByDocument[0]||[],
