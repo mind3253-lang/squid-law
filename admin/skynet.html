@@ -227,7 +227,11 @@ async function reviewSourceText(doc,chunk,total,question,effort,depth=0){
   (chunk.pages.length?' / 페이지 후보 '+chunk.pages.join(','):'')+
   (depth?' / 오류 복구용 재분할 '+depth+'단계':'')+']\n';
  const prompt='다음은 사용자가 이번 대화에서 직접 첨부한 문서의 실제 원문 일부야. '+
-  '이 부분에서 확인되는 구체적 사실·날짜·금액·당사자 주장과 불일치를, 근거가 표시된 원문 쪽수와 함께 정리해. '+
+  '이 구간에 포함된 문서의 작성일·소송번호·당사자·서면 종류를 구분하고 '+
+  '모든 중요 청구·항변·반박·금액·상계 대상·증거의 실제 PDF 쪽수를 붙여 정리해. '+
+  '뒤쪽에 제출된 반박·추가증거까지 먼저 확인하고, 원고·피고에게 불리한 내용도 빠뜨리지 마. '+
+  '서로 다른 사건의 임대차 차임과 풀장 사용료 같은 별개 채권을 섞지 마. '+
+  '지금까지 확인한 페이지의 중요 쟁점을 줄이지 말고 쟁점별로 자료 유형과 날짜를 보존해. '+
   '사용자 질문: "'+question.slice(0,2400)+'". 문서 밖 사실은 추가하지 말고, 근거 없는 쪽수도 만들지 마. '+
   '이 단계는 중간 검토야. 전체 사건에 대한 최종 결론을 내리지 마.\n\n'+heading+chunk.text;
  let failure;
@@ -663,7 +667,7 @@ async function analyzeAttachedDocuments(docs,question,previous,effort,saveAnswer
   if(await analyzeWholeIndexedPdf(docs[0],question,effort,saveAnswer))return;
  }
  const allNotes=[],meta=[],lateSourceNotes=[],pageCounts=[],ocrByDocument=[];
- const questionHash=await reviewFingerprint('skynet-pdf-review-v2\n'+question.trim()+'\n'+effort);
+ const questionHash=await reviewFingerprint('skynet-pdf-review-v4-dossier\n'+question.trim()+'\n'+effort);
  for(let d=0;d<docs.length;d++){
   const doc=docs[d];let offset=0,position=0,chunks=[],pageCount=null,ocrRequired=[];
   let kind=null,totalChars=null;
@@ -768,7 +772,8 @@ async function analyzeAttachedDocuments(docs,question,previous,effort,saveAnswer
    const segment=groups.slice(i,i+2);
    const result=await Promise.allSettled(segment.map(chunk=>askReviewNoteWithRetry(
     '다음은 PDF 원문이 아니라 이미 작성된 중간 검토 노트 일부야. '+
-    '원문에서 확인된 내용과 그 근거 쪽수, 양측 주장·금액·불일치를 유지하면서 압축해. '+
+    'PDF 쪽수·서면 작성일·사건별 청구원인·채권 귀속자·원고/피고의 각 주장과 반박을 삭제하지 마. '+
+    '각 채권의 원금·상계·공제·지급액·잔액을 구분하고, 앞선 주장에 대한 최신 서면 반박을 우선 보존해. '+
     '없던 사실이나 쪽수는 절대 만들지 마.\n\n'+chunk,
     effort,'중간 검토 노트 압축'
    )));
