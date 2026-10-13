@@ -38,3 +38,26 @@ test('frontend visibly reports live progress, errors and rate, not indefinite sp
  assert.ok(config.rewrites.some(x=>x.source==='/admin/skynet-category-fast-backfill'&&x.destination==='/api/skynet-category-fast-backfill'));
  assert.ok(config.rewrites.some(x=>x.source==='/admin/skynet-categories'&&x.destination==='/api/skynet-categories'));
 });
+
+test('partial source pages resume with offset, without dropping files or looping from start',()=>{
+ const source=readFileSync(new URL('../api/skynet-category-fast-backfill.js',import.meta.url),'utf8');
+ const client=readFileSync(new URL('../admin/skynet-layout.js',import.meta.url),'utf8');
+ assert.match(source,/const withinPage=offset\+results\.handled<files\.length/);
+ assert.match(source,/nextOffset:withinPage\?offset\+results\.handled:0/);
+ assert.match(source,/files\.slice\(offset\)/);
+ assert.match(client,/nextOffset/);
+ assert.match(client,/offset,limit:/);
+});
+test('classification traffic is not multiplied by every open SKYNET tab',()=>{
+ const client=readFileSync(new URL('../admin/skynet-layout.js',import.meta.url),'utf8');
+ assert.match(client,/navigator\.locks\?\.request/);
+ assert.match(client,/ifAvailable:true/);
+ assert.doesNotMatch(client,/void loadCategoryTotal\(\)/);
+ assert.match(client,/skynet:source-added/);
+});
+test('new source gains topic coverage before expensive search indexing',()=>{
+ const source=readFileSync(new URL('../api/skynet-search-index.js',import.meta.url),'utf8');
+ const write=source.indexOf("await put('skynet/category-index/'");
+ const heavy=source.indexOf('const entries=entriesOf(data);',write);
+ assert.ok(write>0&&heavy>write,'persist classification ahead of costly full-text index');
+});
