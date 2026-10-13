@@ -10,12 +10,12 @@ const helpers=html.slice(first,last);
 const hash='a'.repeat(64);
 const sourceName='성남지원_2026가단12498_임대차보증금.pdf';
 const sourceQuestion='첨부한 문서에서 사실관계와 핵심 쟁점을 원문 근거로 분석해 줘.';
-function createApp({askSkynet,history=[],fetchImpl,states={}}){
+function createApp({askSkynet,history=[],fetchImpl}){
  const factory=new Function('crypto','fetch','TextEncoder','URLSearchParams','AbortController',
   'setTimeout','clearTimeout','el','askSkynet','history','splitLongText',
+  'localStorage','saveTurn','drawChat',
   helpers+'\nreturn {reviewSourceText,documentReviewCheckpoint,analyzeAttachedDocuments,'+
-  'isResumeReviewRequest,previousAttachedReview,reviewFingerprint};');
- // No real 1.8-second delays in retry tests; keep abort timeout cancellable.
+  'isResumeReviewRequest,previousAttachedReview,reviewFingerprint,isReviewStatusQuestion};');
  const timed=new Set();
  let next=0;
  const fakeTimeout=(fn,ms)=>{
@@ -23,17 +23,23 @@ function createApp({askSkynet,history=[],fetchImpl,states={}}){
   const timer=setTimeout(fn,ms);timed.add(timer);return timer;
  };
  const fakeClear=id=>{if(typeof id==='object'){clearTimeout(id);timed.delete(id)}};
+ const storage=new Map(),elements=new Map();
+ const localStorage={getItem:key=>storage.get(key)||null,setItem:(key,value)=>storage.set(key,value)};
+ const el=name=>{
+  if(!elements.has(name))elements.set(name,{textContent:'',hidden:false,disabled:false,value:0});
+  return elements.get(name);
+ };
  const api=factory(webcrypto,fetchImpl,TextEncoder,URLSearchParams,AbortController,
-  fakeTimeout,fakeClear,()=>({textContent:''}),askSkynet,history,
+  fakeTimeout,fakeClear,el,askSkynet,history,
   (text,max)=>{
    const pieces=[];for(let i=0;i<text.length;i+=max)pieces.push(text.slice(i,i+max));
    return pieces;
-  });
+  },localStorage,async()=>{},()=>{});
  return {api,dispose:()=>{for(const x of timed)clearTimeout(x)}};
 }
 function mockEndpoints(){
  const checkpoints=new Map();
- let documentGets=0,checkpointReads=0,checkpointWrites=0;
+ let documentGets=0,checkpointReads=0,checkpointWrites=0,job=null,finalReport=null;
  const response=data=>({ok:true,status:200,json:async()=>data});
  const fetchImpl=async url=>{
   const query=new URL(url,'https://local.invalid');
@@ -47,6 +53,13 @@ function mockEndpoints(){
     offset:offset+1,position:0,done:offset===2,ocrRequired:[],
     pages:[offset+1]});
   }
+  if(query.pathname==='/admin/skynet-document-job'&&query.search){
+   if(!job)return {ok:false,status:404,json:async()=>({error:'REVIEW_NOT_REGISTERED'})};
+   return response({ok:true,found:true,name:sourceName,question:job.question,pageCount:3,
+    totalChunks:job.chunks.length,completedChunks:checkpoints.size,complete:finalReport!==null,
+    status:finalReport?'TEXT_COMPLETE_VISUAL_NOT_VERIFIED':'TEXT_REVIEW_INCOMPLETE',
+    ocrRequired:[],finishedAt:finalReport?new Date().toISOString():null,report:finalReport});
+  }
   if(query.pathname==='/admin/skynet-document-review'&&query.search){
    checkpointReads++;
    const key=[query.searchParams.get('documentHash'),query.searchParams.get('questionHash'),
@@ -55,14 +68,25 @@ function mockEndpoints(){
    return response({ok:true,found:!!entry,summary:entry?.summary||null,
     pages:entry?.pages||[],reviewStatus:entry?'AI_DRAFT_NOT_INDEPENDENTLY_VERIFIED':null});
   }
-  if(query.pathname==='/admin/skynet-document-review'){
-   // POST-only calls are passed with a request body.
-   throw Error('POST was not configured in test harness');
-  }
   throw Error('unexpected endpoint '+url);
  };
  const fetch=async (url,opts={})=>{
   const parsed=new URL(url,'https://local.invalid');
+  if(parsed.pathname==='/admin/skynet-document-job'&&opts.method==='POST'){
+   const input=JSON.parse(opts.body);
+   if(input.action==='start'){
+    if(!job)job=input;
+    return response({ok:true,totalChunks:job.chunks.length,reused:job!==input});
+   }
+   if(input.action==='finish'){
+    if(checkpoints.size!==job.chunks.length)return {
+     ok:false,status:409,json:async()=>({error:'REVIEW_TEXT_CHUNKS_INCOMPLETE'})
+    };
+    finalReport=input.report;
+    return response({ok:true,complete:true});
+   }
+   throw Error('unexpected job action: '+input.action);
+  }
   if(parsed.pathname==='/admin/skynet-document-review'&&opts.method==='POST'){
    const input=JSON.parse(opts.body),key=[input.documentHash,input.questionHash,
     input.chunkHash,input.chunkNumber].join(':');
