@@ -1,8 +1,29 @@
 import {createHash,randomUUID} from 'node:crypto';
 import {LeaseUnavailable} from './customer-analysis-lease.js';
 const customerKey=user=>createHash('sha256').update(user).digest('hex');
-const db=async()=>{const url=process.env.SQUID_CUSTOMER_DATABASE_URL||process.env.SQUID_CUSTOMER_DATABASE_DATABASE_URL;if(!url)throw new LeaseUnavailable();const {Pool}=await import('pg');return new Pool({connectionString:url,max:2,connectionTimeoutMillis:3500,ssl:process.env.SQUID_CUSTOMER_DATABASE_SSL==='disable'?false:{rejectUnauthorized:true}})};
-export async function withLeaseDb(fn){const pool=await db();try{return await fn(pool)}finally{await pool.end()}}
+// A warm serverless invocation may use the database dozens of times across
+// checkpoint and lease transitions. Recreating/closing a TLS Pool per query
+// needlessly amplifies latency and connection churn under concurrent users.
+let cachedPool=null,cachedKey=null;
+const db=async()=>{
+ const url=process.env.SQUID_CUSTOMER_DATABASE_URL||process.env.SQUID_CUSTOMER_DATABASE_DATABASE_URL;
+ if(!url)throw new LeaseUnavailable();
+ const ssl=process.env.SQUID_CUSTOMER_DATABASE_SSL==='disable'?false:{rejectUnauthorized:true};
+ const key=url+'|'+(ssl?'verified-tls':'no-tls');
+ if(cachedPool&&cachedKey===key)return cachedPool;
+ if(cachedPool){
+  const previous=cachedPool;cachedPool=null;cachedKey=null;
+  void previous.end().catch(()=>{});
+ }
+ const {Pool}=await import('pg');
+ const pool=new Pool({connectionString:url,max:2,connectionTimeoutMillis:3500,
+  idleTimeoutMillis:15000,allowExitOnIdle:true,ssl});
+ // Unhandled idle-client errors must not crash a worker processing another job.
+ pool.on('error',err=>console.error('CUSTOMER_DB_IDLE_CLIENT_ERROR',String(err?.code||'CONNECTION_ERROR')));
+ cachedPool=pool;cachedKey=key;
+ return pool;
+};
+export async function withLeaseDb(fn){return fn(await db())}
 export async function acquireCustomerLease(user,caseId,requestId,requestHash,hasDurableDraft=false){
  return withLeaseDb(async pool=>{
   const ownerToken=randomUUID(),key=customerKey(user);
