@@ -2,6 +2,19 @@ import {loadProfile} from './skynet-profile.js';
 import {tokenUsage} from '../lib/skynet-token-usage.mjs';
 import {timelineFromEntry,orderTimeline} from './skynet-timeline-core.js';
 import {retrieveMemory} from './skynet-retrieval.js';
+import {get} from '@vercel/blob';
+import {createHash} from 'node:crypto';
+async function preparedEvidence(batchId,index,question){
+ if(!/^[a-f0-9]{32}$/.test(String(batchId||''))||!Number.isInteger(index)||index<0||index>23)return null;
+ const file=await get('skynet/recall-batches/'+batchId+'.json',{access:'private'});
+ if(!file||file.statusCode!==200)return null;
+ const chunks=[];let size=0;
+ for await(const chunk of file.stream){const b=Buffer.from(chunk);size+=b.length;if(size>2600000)throw Error('RECALL_BATCH_OVERSIZED');chunks.push(b)}
+ const data=JSON.parse(Buffer.concat(chunks).toString('utf8'));
+ const item=data.items?.[index],hash=createHash('sha256').update(String(question).normalize('NFKC')).digest('hex');
+ if(!data.expiresAt||data.expiresAt<Date.now()||item?.queryHash!==hash)return null;
+ return Array.isArray(item.sources)?item.sources:null;
+}
 export default async function handler(req,res){
  const send=(code,obj)=>res.status(code).setHeader('Cache-Control','no-store').setHeader('X-Content-Type-Options','nosniff').json(obj);
  if(req.method!=='POST'){res.setHeader('Allow','POST');return send(405,{error:'POST only'})}if(Number(req.headers['content-length'])>800000)return send(413,{error:'요청 본문 크기 제한 초과'});
@@ -14,7 +27,7 @@ export default async function handler(req,res){
  if(messages.length===0||messages.length>24||memories.length>20)return send(400,{error:'요청 항목 수 제한'});if(messages.some(x=>!x||typeof x!=='object'||Array.isArray(x))||memories.some(x=>typeof x!=='string'))return send(400,{error:'메시지 또는 기억 데이터 형식 오류'});if(messages.some(x=>typeof x.content==='string'&&x.content.length>120000)||memories.some(x=>x.length>1800))return send(413,{error:'메시지 또는 기억 항목이 너무 깁니다'});if(!messages.some(x=>x&&x.role==='user'&&typeof x.content==='string'&&x.content.trim()))return send(400,{error:'질문 내용이 없습니다'});if(messages.some(x=>!['user','assistant'].includes(x.role)||typeof x.content!=='string'||!x.content.trim()))return send(400,{error:'대화 역할 또는 내용 형식 오류'});if(messages[messages.length-1].role!=='user')return send(400,{error:'마지막 대화는 사용자 질문이어야 합니다'});
  const clean=messages.map(x=>({role:x.role,content:x.content}));const effort=['low','medium','high'].includes(input.reasoningEffort)?input.reasoningEffort:'low';
  const profilePromise=loadProfile();
- let retrieved=[],matchedSources=[],retrievalError=null;try{const question=typeof input.retrievalQuery==='string'&&input.retrievalQuery.trim()?input.retrievalQuery.slice(0,6000):clean[clean.length-1].content;const matches=await retrieveMemory(question,{maxFiles:240,maxResults:16});matchedSources=matches.map(x=>({source:String(x.source||'미상'),part:String(x.part||''),page:Number.isInteger(x.page)?x.page:null,score:Math.round(Number(x.score)||0)}));const chronological=/경과|타임라인|시간순|연혁|언제|진행 과정/.test(question);const timeline=chronological?orderTimeline(matches.flatMap(x=>timelineFromEntry(x))).slice(0,12).map(e=>'[타임라인 후보 · 사건일: '+(e.eventDate||'미확인')+' · 기록일: '+(e.recordedAt||'미상')+' · 구분: '+e.stance+' · 출처: '+(e.source||'미상')+' · 위치: '+(e.part||'미상')+' · 증거: '+(e.evidence.join(', ')||'미확인')+'] '+e.summary):[];retrieved=[...timeline,...matches.map(x=>'[출처: '+String(x.source||'미상').slice(0,180)+' | 사건: '+String(x.case?.label||'미분류')+' ('+String(x.case?.confidence||'미확인')+') | 기록시각: '+String(x.at||'미상')+']\n'+x.content.slice(0,1400))]}catch(err){retrievalError=String(err?.message||err).slice(0,200);console.error('SKYNET_CHAT_MEMORY_RETRIEVAL_FAILED',retrievalError)}
+ let retrieved=[],matchedSources=[],retrievalError=null;try{const question=typeof input.retrievalQuery==='string'&&input.retrievalQuery.trim()?input.retrievalQuery.slice(0,6000):clean[clean.length-1].content;const prepared=await preparedEvidence(input.retrievalBatchId,Number(input.retrievalBatchIndex),question).catch(()=>null);const matches=await retrieveMemory(question,{maxFiles:240,maxResults:16,indexedResults:prepared});matchedSources=matches.map(x=>({source:String(x.source||'미상'),part:String(x.part||''),page:Number.isInteger(x.page)?x.page:null,score:Math.round(Number(x.score)||0)}));const chronological=/경과|타임라인|시간순|연혁|언제|진행 과정/.test(question);const timeline=chronological?orderTimeline(matches.flatMap(x=>timelineFromEntry(x))).slice(0,12).map(e=>'[타임라인 후보 · 사건일: '+(e.eventDate||'미확인')+' · 기록일: '+(e.recordedAt||'미상')+' · 구분: '+e.stance+' · 출처: '+(e.source||'미상')+' · 위치: '+(e.part||'미상')+' · 증거: '+(e.evidence.join(', ')||'미확인')+'] '+e.summary):[];retrieved=[...timeline,...matches.map(x=>'[출처: '+String(x.source||'미상').slice(0,180)+' | 사건: '+String(x.case?.label||'미분류')+' ('+String(x.case?.confidence||'미확인')+') | 기록시각: '+String(x.at||'미상')+']\n'+x.content.slice(0,1400))]}catch(err){retrievalError=String(err?.message||err).slice(0,200);console.error('SKYNET_CHAT_MEMORY_RETRIEVAL_FAILED',retrievalError)}
  if(retrievalError)return send(503,{error:'장기기억 검색 오류: 자료 검색 후 다시 시도해 주세요.',retryable:true,searchStatus:'error'});
 
  const profile=await profilePromise;
