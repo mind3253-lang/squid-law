@@ -12,6 +12,13 @@ export default async function handler(req,res){if(req.method!=='POST')return sen
  const indexedSearch=existing?.version===4&&(existing.shards>0||(Array.isArray(existing.entries)&&existing.entries.length>0));
  if(indexedSearch&&categorized?.version===1){skipped++;continue}
  let data=await readJSON(f.pathname,12000000).catch(()=>null);
+ if(data&&f.pathname.startsWith('skynet/document-segments/')&&!data.name){
+  const hash=f.pathname.split('/')[2];
+  if(/^[a-f0-9]{64}$/.test(hash)){
+   const manifest=await readJSON('skynet/documents/'+hash+'.json',180000).catch(()=>null);
+   if(manifest?.name)data={...data,name:manifest.name,category:manifest.category||''};
+  }
+ }
  if(!data&&indexedSearch){
   // A very large imported conversation may have been indexed as many smaller
   // search shards. Reconstruct just its classification metadata from shards.
