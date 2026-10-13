@@ -1,5 +1,6 @@
 import {classifyRecord} from './skynet-case-classifier.js';
 import {retrievalTerms,selectDiverseEvidence} from '../lib/skynet-evidence-rank.mjs';
+import {categoryDigestEntries} from '../lib/skynet-topic-categories.mjs';
 import {createHash} from 'node:crypto';
 import {put,get,list} from '@vercel/blob';
 // Per-function warm caches avoid repeatedly downloading the same private Blob
@@ -60,8 +61,11 @@ export async function indexSource(path,data){
   await put(base,JSON.stringify(manifest),{access:'private',addRandomSuffix:false,allowOverwrite:true,contentType:'application/json'});
   cacheIndex(base,manifest);
  }
+ const categories=categoryDigestEntries(docs,{source:path,name:data.title||data.name||data.category||''});
+ const topicPath='skynet/category-index/'+sourceId+'.json';
+ await put(topicPath,JSON.stringify(categories),{access:'private',addRandomSuffix:false,allowOverwrite:true,contentType:'application/json'});
  listedIndexes=null;
- return {entries:docs.length,shards,buckets:0};
+ return {entries:docs.length,shards,buckets:0,categorized:categories.classified};
 }
 export async function listIndex(){if(listedIndexes&&Date.now()-listedAt<15000)return listedIndexes;const files=[];let cursor;do{const page=await list({prefix:'skynet/search-index/',limit:1000,...(cursor?{cursor}:{})});files.push(...page.blobs.filter(b=>b.pathname.endsWith('.json')));cursor=page.hasMore?page.cursor:undefined}while(cursor&&files.length<100000);listedIndexes=files;listedAt=Date.now();return files}
 export async function readIndex(path){const cached=indexCache.get(path);if(cached&&Date.now()-cached.at<INDEX_CACHE_MS)return cached.data;const r=await get(path,{access:'private'});if(!r||r.statusCode!==200)return null;let n=0;const chunks=[];for await(const x of r.stream){const b=Buffer.from(x);n+=b.length;if(n>12000000)throw Error('Index exceeds size limit');chunks.push(b)}const index=JSON.parse(Buffer.concat(chunks).toString('utf8'));if(n<=2500000)cacheIndex(path,index,n);return index}
