@@ -43,6 +43,9 @@ function mockEndpoints(){
  const response=data=>({ok:true,status:200,json:async()=>data});
  const fetchImpl=async url=>{
   const query=new URL(url,'https://local.invalid');
+  if(query.pathname==='/admin/skynet-document-fulltext'){
+   return {ok:false,status:413,json:async()=>({error:'FULL_TEXT_TOO_LARGE',retryable:false})};
+  }
   if(query.pathname==='/admin/skynet-document-context'){
    const offset=Number(query.searchParams.get('offset'));
    assert.equal(query.searchParams.get('hash'),hash);
