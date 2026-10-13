@@ -7,7 +7,8 @@ import {segmentRecord,auditSegments} from '../lib/record-chunks.mjs';
 import {analyzeUnit,independentlyVerify,crosscheckObservations} from '../lib/legal-evidence-review.mjs';
 import {put} from '@vercel/blob';
 import {candidateDocuments,mergeDocumentBoundaryCandidates} from './customer-document-boundaries.js';
-import {extractPdfPages,choosePdfExtractionWindow} from './customer-pdf-extract.js';
+import {extractPdfPages,extractPdfPagesByRange,choosePdfExtractionWindow} from './customer-pdf-extract.js';
+import {createCustomerPdfRangeSource} from '../lib/customer-pdf-source.mjs';
 import {planVisualEvidence,buildVisualWorkQueue} from '../lib/visual-evidence.mjs';
 import {assertPageBatch,assertBatchManifest} from '../lib/batch-integrity.mjs';
 import {expectedTextReviewOutputs,auditTextReviewOutputs} from '../lib/text-review-manifest.mjs';
@@ -33,6 +34,22 @@ import {auditFinalizationCheckpoint} from '../lib/finalization-checkpoint.mjs';
 const eq=(a,b)=>{const x=Buffer.from(a||''),y=Buffer.from(b||'');return x.length===y.length&&timingSafeEqual(x,y)};
 async function load(path){const r=await get(path,{access:'private'});if(!r||r.statusCode!==200)return null;let size=0,parts=[];for await(const chunk of r.stream){size+=chunk.length;if(size>32*1024*1024)throw Error('BLOB_TOO_LARGE');parts.push(Buffer.from(chunk))}return JSON.parse(Buffer.concat(parts).toString())}
 async function loadBinary(path,maxBytes=105*1024*1024){const r=await get(path,{access:'private'});if(!r||r.statusCode!==200)return null;let size=0;const chunks=[];for await(const chunk of r.stream){size+=chunk.length;if(size>maxBytes)throw Error('SOURCE_PDF_TOO_LARGE');chunks.push(Buffer.from(chunk))}return Buffer.concat(chunks)}
+/**
+ * The customer uploads a whole PDF as immutable parts. Every source window is
+ * parsed on-demand; no step needs to Buffer.concat all original parts.
+ */
+async function extractCustomerPdfWindow(prefix,doc,options){
+ if(doc.sourceKind==='private_chunked_pdf_v1'){
+  const source=createCustomerPdfRangeSource(prefix,doc);
+  const result=await extractPdfPagesByRange(source,options);
+  if(result.totalPages!==doc.pageCount)throw Error('CHUNKED_PDF_PAGE_COUNT_CHANGED');
+  return result;
+ }
+ const bytes=await loadBinary(prefix+'pdf/'+doc.id+'.pdf');
+ if(!bytes||createHash('sha256').update(bytes).digest('hex')!==doc.sha256)
+  throw Error('SOURCE_PDF_DIGEST_MISMATCH');
+ return extractPdfPages(bytes,options);
+}
 export default async function handler(req,res){
  res.setHeader('Cache-Control','no-store');
  if(req.method!=='POST'&&req.method!=='GET')return res.status(405).json({error:'METHOD'});
@@ -532,10 +549,10 @@ export default async function handler(req,res){
  if(!e&&d.status==='extraction_pending'){
   const start=previous.nextDocument===index?(previous.extractionNextPage??1):1;
   if(!Number.isSafeInteger(start)||start<1||start>d.pageCount||((start-1)%20)!==0)throw Error('INVALID_EXTRACTION_CHECKPOINT');
-  const bytes=await loadBinary(prefix+'pdf/'+d.id+'.pdf');
-  if(!bytes||createHash('sha256').update(bytes).digest('hex')!==d.sha256)throw Error('SOURCE_PDF_DIGEST_MISMATCH');
-  const extractionWindow=choosePdfExtractionWindow(d.size);
-  const extracted=await extractPdfPages(bytes,{startPage:start,pageCount:extractionWindow});
+  const extractionWindow=d.sourceKind==='private_chunked_pdf_v1'?20:choosePdfExtractionWindow(d.size);
+  const extracted=await extractCustomerPdfWindow(prefix,d,{
+   startPage:start,pageCount:extractionWindow
+  });
   if(extracted.totalPages!==d.pageCount||extracted.pages.length!==Math.min(extractionWindow,d.pageCount-start+1))throw Error('PDF_EXTRACTION_PAGE_MISMATCH');
   for(const page of extracted.pages)page.textSha256=createHash('sha256').update(String(page.text||'')).digest('hex');
   const extractedReadable=(previous.nextDocument===index?previous.extractionReadablePages||0:0)+extracted.pages.filter(p=>String(p.text||'').trim().length>=15).length;
@@ -601,9 +618,9 @@ export default async function handler(req,res){
   }
  }
  if(!digestAudit.complete&&digestAudit.failures.every(f=>f.reason==='MISSING_TEXT_HASH'||f.reason==='MISSING_VISUAL_OPERATOR_DIGEST')){
-  const source=await loadBinary(prefix+'pdf/'+d.id+'.pdf');
-  if(!source||createHash('sha256').update(source).digest('hex')!==d.sha256)throw Error('SOURCE_PDF_DIGEST_MISMATCH');
-  const regenerated=await extractPdfPages(source,{startPage:pageOffset+1,pageCount:selectedPages.length});
+  const regenerated=await extractCustomerPdfWindow(prefix,d,{
+   startPage:pageOffset+1,pageCount:selectedPages.length
+  });
   if(regenerated.totalPages!==d.pageCount||regenerated.pages.length!==selectedPages.length)throw Error('SOURCE_PAGE_REEXTRACTION_MISMATCH');
   const sameSource=selectedPages.every((oldPage,i)=>{
    const fresh=regenerated.pages[i];
