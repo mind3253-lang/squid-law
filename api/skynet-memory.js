@@ -4,6 +4,7 @@ import {appendRecords,loadRecords,recordId} from './skynet-records.js';
 import {put,list,get} from '@vercel/blob';
 import {randomUUID} from 'node:crypto';
 import {autosaveId} from '../lib/skynet-autosave-id.mjs';
+import {buildCorrectionEpisode} from '../lib/skynet-episodic-context.mjs';
 const prefix='skynet/memory/';
 const send=(res,code,data)=>res.status(code).setHeader('Vary','Authorization').setHeader('Cache-Control','no-store').setHeader('X-Content-Type-Options','nosniff').json(data);
 const authorized=req=>{try{const h=String(req.headers.authorization||'');return !!process.env.ADMIN_PASSWORD&&h.startsWith('Basic ')&&Buffer.from(h.slice(6),'base64').toString()==='admin:'+process.env.ADMIN_PASSWORD}catch{return false}};
@@ -55,7 +56,32 @@ export default async function handler(req,res){
    const saved={messages:[{role,content}],turnId,savedAt:new Date().toISOString()};
    await put(pathname,JSON.stringify(saved),{access:'private',addRandomSuffix:false,allowOverwrite:false,contentType:'application/json'});
    try{waitUntil(indexSource(pathname,saved).catch(e=>console.error('Turn indexing deferred',String(e.message).slice(0,120))))}catch(e){console.error('Turn index scheduling deferred',String(e.message).slice(0,120))}
-   return send(res,200,{ok:true,role});
+   // When the user corrects a prior assistant answer, preserve the event with
+   // the actual adjacent dialogue and immutable original turn reference.
+   // This records an explicit dispute, NOT a proven corrected legal fact.
+   let correctionSaved=false;
+   if(role==='user'&&Array.isArray(body.recentTurns)){
+    const recentTurns=body.recentTurns.slice(-8).filter(m=>m&&
+     ['user','assistant'].includes(m.role)&&typeof m.content==='string'&&
+     m.content.length<=3500).map(m=>({role:m.role,content:m.content}));
+    const episode=buildCorrectionEpisode({userText:content,recentTurns,turnId,
+     at:saved.savedAt});
+    if(episode){
+     const episodePath='skynet/episodes/'+episode.id+'.json';
+     try{
+      await put(episodePath,JSON.stringify(episode),{access:'private',
+       addRandomSuffix:false,allowOverwrite:false,contentType:'application/json'});
+      correctionSaved=true;
+      try{waitUntil(indexSource(episodePath,episode).catch(e=>
+       console.error('Correction episode indexing deferred',String(e.message).slice(0,120))))}
+      catch(e){console.error('Correction index scheduling deferred',String(e.message).slice(0,120))}
+     }catch(e){
+      if(/already exists|conflict|409|BlobAlreadyExists/i.test(String(e?.message||e)))correctionSaved=true;
+      else console.error('Correction episode persistence deferred',String(e.message).slice(0,120));
+     }
+    }
+   }
+   return send(res,200,{ok:true,role,correctionSaved});
   }catch(e){if(/already exists|conflict/i.test(String(e.message)))return send(res,200,{ok:true,duplicate:true});return send(res,502,{error:'대화 저장 실패'})}
  }
 
