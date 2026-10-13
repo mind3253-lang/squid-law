@@ -57,7 +57,11 @@ test('progress shows real units and stage transitions; composer automatically ex
  assert.deepEqual(parse('PDF 214쪽 자료 읽는 중'),null);
  assert.match(html,/new MutationObserver\(\(\)=>updateSkynetLiveWork/);
  assert.match(html,/refreshSkynetLiveClock/);
- assert.match(html,/progress\.setAttribute\('aria-label','실제 검토 완료 구간'\)/);
+ assert.doesNotMatch(html,/progress\.setAttribute\('aria-label','실제 검토 완료 구간'\)/);
+ assert.match(html,/id="skynetReviewProgress"/);
+ assert.match(html,/setSkynetPipelineProgress\('upload'/);
+ assert.match(html,/setSkynetPipelineProgress\('report'/);
+ assert.doesNotMatch(html,/id="skynetReviewRefresh"/);
  assert.match(html,/addEventListener\('input',resizeSkynetComposer\)/);
  assert.match(css,/#chatComposer textarea\{height:auto;min-height:58px/);
  assert.match(css,/#conversation \.skynet-working progress/);
