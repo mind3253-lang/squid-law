@@ -82,16 +82,23 @@ function splitLongText(text,max=20000){
  }
  return parts;
 }
-async function askSkynet(prompt,previous,effort,memories=[],retrievalQuery=''){
+async function askSkynet(prompt,previous,effort,memories=[],retrievalQuery='',batchInfo=null){
  const outgoing=[...previous,{role:'user',content:prompt}];
  const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),180000);
  try{
   const response=await fetch('/admin/skynet-chat',{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},
-   body:JSON.stringify({messages:outgoing,memories,retrievalQuery,reasoningEffort:effort}),signal:controller.signal});
+   body:JSON.stringify({messages:outgoing,memories,retrievalQuery,reasoningEffort:effort,...(batchInfo?.batchId?{retrievalBatchId:batchInfo.batchId,retrievalBatchIndex:batchInfo.item}: {})}),signal:controller.signal});
   const result=await response.json().catch(()=>null);
   if(!response.ok)throw Error((result?.error||'AI 서버 오류')+' (HTTP '+response.status+(result?.upstreamCode?', '+result.upstreamCode:'')+')');
   if(!result||typeof result.reply!=='string'||!result.reply.trim())throw Error('AI 응답이 비어 있습니다.');
-  return result.reply;
+  const sources=Array.isArray(result.searchSources)?result.searchSources:[];
+  const original=sources.filter(x=>/^(skynet\\/(imports|documents|document-segments|records|db)\\/)/.test(x.source));
+  const memory=sources.length-original.length;
+  const refs=original.slice(0,3).map(x=>x.source+(x.part?' ('+x.part+')':''));
+  const note='[서버 자동검색: 과거 원본·문서 '+original.length+'건 / 대화기록 '+memory+'건'
+    +(refs.length?' · 관련 출처: '+refs.join(', '):'')
+    +(result.searchStatus==='no_match'?' · 검색 결과 없음(색인 여부 확인 필요)':'')+']';
+  return result.reply+'\\n\\n'+note;
  }finally{clearTimeout(timeout)}
 }
 function localCandidates(prompt){
@@ -132,13 +139,24 @@ el("sendChat").onclick=async()=>{
  try{
   const planned=splitQuestions(composed);
   if(planned&&planned.length>=4){
-   el('chatErrorStatus').textContent='문항 '+planned.length+'개 확인 · 순서대로 검색·분석 시작';
+   el('chatErrorStatus').textContent='문항 '+planned.length+'개 · 게놈 인덱스 일괄 검색 중…';
+   let batchInfo=null;
+   if(planned.length<=24){
+    try{
+     const prefetch=await fetch('/api/skynet-recall-batch',{method:'POST',credentials:'same-origin',
+      headers:{'content-type':'application/json'},body:JSON.stringify({queries:planned.map(q=>q.retrievalQuery)})});
+     const result=await prefetch.json().catch(()=>({}));
+     if(!prefetch.ok||!result.ok||!result.batchId)throw Error(result.error||'일괄 검색 실패');
+     batchInfo=result;
+    }catch(e){console.warn('일괄 검색 대기/실패, 기존 문항별 검색 사용',e);}
+   }
+   el('chatErrorStatus').textContent='문항 '+planned.length+'개 확인 · '+(batchInfo?'검색 자료 준비 완료':'문항별 검색')+' · 순서대로 분석 시작';
    // Two concurrent calls avoid the single 90-second bottleneck. Display and
    // persist each answer so a later failure cannot erase finished work.
    for(let i=0;i<planned.length;i+=2){
     const group=planned.slice(i,i+2);
     const results=await Promise.allSettled(group.map(async q=>{
-     return await askSkynet(q.prompt,previous,effort,localCandidates(q.retrievalQuery),q.retrievalQuery);
+     return await askSkynet(q.prompt,previous,effort,localCandidates(q.retrievalQuery),q.retrievalQuery,batchInfo?{batchId:batchInfo.batchId,item:q.number-1}:null);
     }));
     for(let j=0;j<group.length;j++){
      const q=group[j],result=results[j];
