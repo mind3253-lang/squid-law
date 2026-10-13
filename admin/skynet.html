@@ -484,178 +484,159 @@ async function analyzeWholeIndexedPdf(doc,question,effort,saveAnswer){
  return true;
 }
 
-function shouldUseIndexedPdfFollowup(question){
- if(!activeReview||!activeReview.complete||
-  !/^[a-f0-9]{64}$/.test(String(activeReview.documentHash||'')))return false;
- const q=String(question||'').trim();
- if(!q||q.length>5000||
-  !/(?:표|도표|비교|공방|사건|PDF|원문|문서|자료|페이지|쪽|후반|뒷부분|앞서|방금|서면|모순|상계|채권|차임|보증금|반소|원고|피고|계약|주장|반박|근거|정리)/.test(q))
-  return false;
- // Do not hijack unrelated discussions just because a PDF was uploaded days ago.
- const recent=history.slice(-7).filter(x=>x.role==='assistant');
- return recent.some(x=>/^\[(?:직접 첨부 문서 분석|첨부 PDF 전체 추출 텍스트 통합 분석|첨부 문서 종합 분석|PDF 원문 후속 교차분석)/.test(x.content||'')||
-  /PDF\s*\d+쪽|원문\s*구간|서면|공방|모순|차임|반소/.test(x.content||''));
+function resolveSkynetPdfForFollowup(){
+ // A source handle is recovered from the saved user turn, not from search hits.
+ // A tab refresh or an unfinished job must not disable source-backed analysis.
+ const attached=previousAttachedReview();
+ const doc=attached?.docs?.length===1?attached.docs[0]:null;
+ if(doc&&/^[a-f0-9]{64}$/.test(String(doc.hash||'')))
+  return {hash:doc.hash,name:doc.name||'첨부 PDF',
+   pages:doc.pages||null,
+   question:attached.question||'PDF 사건기록 전체 검토'};
+ if(activeReview&&/^[a-f0-9]{64}$/.test(String(activeReview.documentHash||'')))
+  return {hash:activeReview.documentHash,name:activeReview.name||'첨부 PDF',
+   pages:activeReview.pageCount||null,question:activeReview.question||'PDF 사건기록 전체 검토'};
+ return null;
 }
-async function fetchIndexedPdfContextWindow(hash,offset,position){
- const params=new URLSearchParams({hash,offset:String(offset),position:String(position)});
+function shouldUseIndexedPdfFollowup(question){
+ const q=String(question||'').trim();
+ if(!q||q.length>5000)return false;
+ const direct=/(?:PDF|[0-9]+\s*(?:쪽|페이지)|143\s*[~-]\s*258|첨부.{0,12}(?:파일|문서)|(?:후반|뒷부분|앞부분|서면).{0,20}(?:공방|누락|분석|반박|원문|자료)|(?:분석|도표|표|주장).{0,15}(?:후반|뒷부분|최신\s*서면))/.test(q);
+ const linked=resolveSkynetPdfForFollowup();
+ if(direct&&/(?:후반|뒷부분|앞부분|누락|빠졌|143|258|PDF|원문|첨부)/.test(q))
+  return true; // no source => fail closed with explicit missing-link error
+ if(!linked||!/(?:표|도표|비교|공방|사건|서면|모순|상계|채권|차임|보증금|반소|원고|피고|근거|정리)/.test(q))
+  return false;
+ // Do not hijack an unrelated new conversation merely because a PDF was
+ // uploaded in this browser. The recent user or assistant discussion must
+ // refer to this PDF, or a direct PDF phrase must be present in the question.
+ const recent=history.slice(-8);
+ return direct||recent.some(x=>/PDF\s*\d+쪽|258\s*(?:쪽|페이지)|\[직접 첨부 문서 분석|원문\s*구간|서면\s*공방|법률\s*분석보고서/.test(String(x?.content||'')));
+}
+async function fetchIndexedPdfPageWindow(hash,startPage,endPage,offset,position){
+ const params=new URLSearchParams({hash,startPage:String(startPage),endPage:String(endPage)});
+ if(offset!==null)params.set('offset',String(offset));
+ params.set('position',String(position));
  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),30000);
  try{
-  const response=await fetch('/admin/skynet-document-context?'+params,{
+  const response=await fetch('/admin/skynet-document-page-context?'+params,{
    credentials:'same-origin',cache:'no-store',signal:controller.signal});
   const data=await response.json().catch(()=>({}));
-  if(!response.ok||!data.ok||data.hash!==hash||data.kind!=='pdf')
-   throw Error('PDF 원문 페이지 재조회 오류: '+(data.detail||data.error||response.status));
+  if(!response.ok||data.ok!==true||data.kind!=='pdf_page_range'||data.hash!==hash)
+   throw Error('보관 PDF 페이지 원문 조회 실패: '+(data.detail||data.error||response.status));
   return data;
  }finally{clearTimeout(timer)}
 }
-async function analyzeIndexedPdfFollowup(question,effort,saveAnswer){
- const state={...activeReview};
- const doc={hash:state.documentHash,name:state.name||'첨부 PDF'};
- const prior=await reviewJobRequest('status',state);
- if(!prior.complete||!prior.report||typeof prior.report!=='string')
-  throw Error('앞선 PDF 분석이 완료되지 않았어. 먼저 원문 전 구간 분석을 재개해야 해.');
- const count=Number(prior.sourceSegmentCount);
- if(!Number.isSafeInteger(count)||count<1||
-  !Number.isSafeInteger(prior.pageCount)||prior.pageCount<1)
-  throw Error('PDF 전체 색인 구간 정보가 없어. 일반 기억 검색으로 대신할 수 없어.');
- // An older summary may have compressed away the most recent pleadings.
- // Read the actual latter half of the indexed PDF again, never the search hits.
- const start=Math.floor(Math.floor(count*0.5)/20)*20;
- let offset=start,position=0,done=false;
- const chunks=[];
- for(let i=0;i<Math.ceil((count-start)/1)+2&&!done;i++){
-  el('chatErrorStatus').textContent='앞선 PDF 보고서와 후반 원문 대조 · '+offset+'/'+count+'구간';
-  const data=await fetchIndexedPdfContextWindow(doc.hash,offset,position);
-  if(data.pageCount!==prior.pageCount||
-   (Number.isSafeInteger(data.segmentCount)&&data.segmentCount!==count))
-   throw Error('PDF 원문 색인 버전 불일치 · 잘못된 사건 결합 방지');
-  if(typeof data.text==='string'&&data.text.trim())
+async function readPdfPageSpan(doc,startPage,endPage){
+ const chunks=[],seenPages=new Set();
+ let offset=null,position=0,totalPages=null,segmentCount=null,complete=false;
+ for(let step=0;step<2000;step++){
+  el('chatErrorStatus').textContent='원본 PDF '+startPage+'~'+endPage+
+   '쪽 · 원문 대조 '+(seenPages.size)+'/'+(endPage-startPage+1)+'쪽';
+  const data=await fetchIndexedPdfPageWindow(doc.hash,startPage,endPage,offset,position);
+  if(!Number.isSafeInteger(data.pageCount)||data.pageCount<endPage||
+   !Number.isSafeInteger(data.segmentCount)||data.segmentCount<1)
+   throw Error('PDF 원문 페이지 수 또는 색인 상태가 유효하지 않아');
+  if(totalPages!==null&&(data.pageCount!==totalPages||data.segmentCount!==segmentCount))
+   throw Error('PDF 원문 색인이 분석 중 변경되었어');
+  totalPages=data.pageCount;segmentCount=data.segmentCount;
+  for(const page of data.pages||[]){
+   if(!Number.isSafeInteger(page)||page<startPage||page>endPage)
+    throw Error('PDF 요청 범위를 벗어난 페이지 발견');
+   seenPages.add(page);
+  }
+  if(typeof data.text==='string'&&data.text.trim()){
    chunks.push({text:data.text,pages:data.pages||[],index:chunks.length+1});
-  if(data.done){done=true;break}
+  }
+  if(data.done===true){complete=true;break}
   if(!Number.isSafeInteger(data.offset)||!Number.isSafeInteger(data.position)||
-   data.offset<offset||(data.offset===offset&&data.position<=position))
-   throw Error('PDF 원문 후반부 조회 위치 정체 · 누락 방지 중단');
+   data.offset<0||data.position<0||
+   (offset!==null&&(data.offset<offset||
+    (data.offset===offset&&data.position<=position))))
+   throw Error('PDF 원문 페이지 조회가 정체됐어 · 완료로 표시하지 않아');
   offset=data.offset;position=data.position;
  }
- if(!done||!chunks.length)throw Error('PDF 후반부 원문 검토가 완료되지 않아 교차분석 중단');
- const fingerprint=await reviewFingerprint('skynet-pdf-followup-original-tail-v1\n'+
+ if(!complete)throw Error('PDF 후반부 원문 조회가 끝나지 않아 완료 처리하지 않았어');
+ const missing=[];
+ for(let page=startPage;page<=endPage;page++)if(!seenPages.has(page))missing.push(page);
+ if(missing.length)throw Error('PDF 원문 미색인/누락 페이지: '+missing.slice(0,35).join(',')+
+  (missing.length>35?' 외 '+(missing.length-35)+'쪽':'')+' · 전체 분석 완료로 표시하지 않아');
+ if(!chunks.length)throw Error('PDF '+startPage+'~'+endPage+'쪽 원문 텍스트가 없어 · OCR 검증 필요');
+ return {chunks,pageCount:totalPages,segmentCount,verifiedPages:seenPages.size};
+}
+async function analyzeIndexedPdfFollowup(question,effort,saveAnswer){
+ const doc=resolveSkynetPdfForFollowup();
+ if(!doc)throw Error('현재 대화에 연결된 PDF 원본 식별정보를 찾지 못했어. '+
+  '과거 일반 검색 발췌로 답하지 않고, 보관 문서 연결 상태부터 복구해야 해.');
+ // Manifest is the authority for existence, page count and version; the
+ // browser localStorage is only a hint and may contain an unfinished job.
+ const check=await fetchIndexedPdfPageWindow(doc.hash,1,1,null,0);
+ if(!Number.isSafeInteger(check.pageCount)||check.pageCount<2)
+  throw Error('보관 PDF 페이지 수를 확인하지 못했어');
+ const pageCount=check.pageCount;
+ const startPage=Math.floor(pageCount/2)+1;
+ const span=await readPdfPageSpan(doc,startPage,pageCount);
+ let previous=null;
+ if(activeReview?.documentHash===doc.hash&&
+  /^[a-f0-9]{64}$/.test(String(activeReview.questionHash||''))){
+  try{previous=await reviewJobRequest('status',activeReview)}
+  catch(e){if(e.status!==404)throw e}
+ }
+ if(!previous?.complete||typeof previous.report!=='string'||!previous.report.trim()){
+  // A half-finished or merely searched source must be reviewed from page ONE.
+  // This routine verifies all 1..N source pages and produces the full dossier.
+  el('chatErrorStatus').textContent='기존 분석 미완료 · 보관 PDF '+pageCount+
+   '쪽 전체를 원본부터 다시 대조 중…';
+  await analyzeAttachedDocuments([{name:doc.name,hash:doc.hash,pages:pageCount}],
+   question,[],effort,saveAnswer,crypto.randomUUID());
+  return;
+ }
+ // Retain the completed prior report, but re-read the ACTUAL later pages,
+ // including 143..258. Each partial note is cached by source fingerprint.
+ const fingerprint=await reviewFingerprint('skynet-pdf-page-followup-v2\n'+
   doc.hash+'\n'+question.trim()+'\n'+effort);
- const digests=await Promise.all(chunks.map(x=>reviewFingerprint(x.text)));
- await reviewJobRequest('start',{documentHash:doc.hash,questionHash:fingerprint,
-  question:question.trim(),effort,chunks:digests});
+ const digests=await Promise.all(span.chunks.map(x=>reviewFingerprint(x.text)));
+ const job={documentHash:doc.hash,questionHash:fingerprint};
+ await reviewJobRequest('start',{...job,question:question.trim(),effort,chunks:digests});
  const notes=[];
- for(let i=0;i<chunks.length;i++){
-  const chunk=chunks[i],digest=digests[i];
-  el('chatErrorStatus').textContent=doc.name+' · 최근 제출서면 원문 재검토 '+
-   (i+1)+'/'+chunks.length+'구간';
+ for(let i=0;i<span.chunks.length;i++){
+  const chunk=span.chunks[i],digest=digests[i];
   const cached=await documentReviewCheckpoint(doc,fingerprint,digest,i+1);
-  let summary=typeof cached.summary==='string'?cached.summary:null;
-  if(!summary){
-   const sourcePrompt='사용자 추가 질문: '+question+
-    '\n\n다음 자료는 저장된 PDF의 후반부 원문에서 직접 읽은 '+(i+1)+
-    '/'+chunks.length+'구간이야. 반드시 표시된 [PDF N쪽] 번호를 보존해. '+
-    '날짜가 늦은 준비서면, 원고와 피고가 서로 반박하는 직접 문장, 금액, 상계의 대상, '+
-    '모순 후보와 그 입증 위치를 빠짐없이 추려. 사실과 당사자 주장 구분. '+
-    '이 단계에서는 다른 페이지 내용을 상상하거나 사건 전체 결론을 내리지 마.\n\n'+chunk.text;
-   summary=await askReviewNoteWithRetry(sourcePrompt,effort,
-    'PDF 후반부 원문 검토 '+(i+1)+'/'+chunks.length);
-   const saved=await documentReviewCheckpoint(doc,fingerprint,digest,i+1,summary,chunk.pages);
-   summary=saved.summary||summary;
+  let note=cached?.found?cached.summary:null;
+  if(typeof note!=='string'||!note.trim()){
+   note=await reviewSourceText(doc,chunk,span.chunks.length,
+    '다음은 '+startPage+'~'+pageCount+'쪽의 실제 원문 후속 재검토야. '+question,effort);
+   const saved=await documentReviewCheckpoint(doc,fingerprint,digest,i+1,note,chunk.pages);
+   note=saved.summary||note;
   }
-  notes.push('[후반부 원문 '+(i+1)+'/'+chunks.length+' · PDF '+
-   chunk.pages.join(',')+'쪽]\n'+summary);
+  notes.push('[후반 원문 '+(i+1)+'/'+span.chunks.length+
+   ' · PDF '+chunk.pages.join(',')+'쪽]\n'+note);
  }
- let earlier=prior.report;
- if(earlier.length>40000){
-  const summaryPieces=splitLongText(earlier,22000);
-  const compact=[];
-  for(const [i,piece] of summaryPieces.entries())
-   compact.push(await askReviewNoteWithRetry('기존 PDF 검토 보고서의 '+(i+1)+
-    '/'+summaryPieces.length+'부분이야. 양측 주장, 모순과 근거 페이지를 유지하여 압축하고 '+
-    '기록에 없던 사실은 넣지 마.\n'+piece,effort,'기존 분석 압축'));
-  earlier=compact.join('\n\n');
- }
- let lateNotes=notes.join('\n\n');
- for(let wave=0;lateNotes.length>46000&&wave<8;wave++){
-  const windows=splitLongText(lateNotes,22000),reduced=[];
-  for(const [i,piece] of windows.entries())
-   reduced.push(await askReviewNoteWithRetry('다음은 PDF 후반부 원문 재검토 기록 '+(i+1)+
-    '/'+windows.length+'부분이다. 최근 공방, 주장별 근거 PDF 페이지와 '+
-    '서로 배치되는 진술을 절대 삭제하지 말고 압축해.\n'+piece,
-    effort,'최근 서면 노트 압축'));
+ let lateNotes=notes.join('\n\n'),earlier=previous.report;
+ for(let pass=0;lateNotes.length>34000&&pass<8;pass++){
+  const chunks=splitLongText(lateNotes,18000),reduced=[];
+  for(const part of chunks)reduced.push(await askReviewNoteWithRetry(
+   '아래 원문 검토 노트는 PDF '+startPage+'~'+pageCount+
+   '쪽의 실제 자료야. 모든 중요 공방·날짜·금액·출처 쪽수를 남겨 요점별로 압축하고 '+
+   '추측으로 빠진 내용을 채우지 마.\n\n'+part,effort,'후반 근거 보존'));
   lateNotes=reduced.join('\n\n');
  }
- if(lateNotes.length>46000||earlier.length+lateNotes.length>95000)
-  throw Error('원문 근거 종합 입력의 완전성이 확보되지 않아 응답을 중단해');
- const prompt='사용자의 후속 질문: '+question+
-  '\n\n이 답변은 일반 검색 결과를 재조합하는 작업이 아니다. '+
-  '기존 PDF 전체 검토 보고서와, 이 보고서에서 누락됐을 수 있어 추가로 직접 판독한 후반부 원문 검토 기록을 비교해. '+
-  '특히 최신 제출서면의 공방을 앞부분 설명보다 우선 살펴보고 누락된 쟁점을 새로 넣어. '+
-  '처음 보고서 내용만 되풀이하지 마. 상반된 주장, 진짜 모순과 단순 대립을 구분하고 반드시 정확한 PDF 근거 페이지를 적어. '+
-  '자료에서 확인할 수 없는 부분은 미검증이라 써. '+
-  '도표나 비교를 요청하면 Markdown 파이프 표 형식(| 쟁점 | 원고 | 피고 | 모순·해석 |)으로 출력해. '+
-  '후반 페이지를 확인하지 않았다거나 PDF 전체 이미지를 검증했다고 꾸미지 마.\n\n'+
-  '[앞서 완료된 PDF 텍스트 검토 보고서]\n'+earlier+
-  '\n\n[PDF 후반부에서 직접 판독한 추가 근거]\n'+lateNotes;
- const answer=await askReviewNoteWithRetry(prompt,effort,'PDF 최신 공방 최종 대조');
- await reviewJobRequest('finish',{documentHash:doc.hash,questionHash:fingerprint,report:answer});
- await saveAnswer('[PDF 원문 후속 교차분석 · '+doc.name+' · '+prior.pageCount+
-  '쪽 / 전 구간 기존 보고서 + 후반부 원문 재검토 / 이미지·스캔 미검증]\n\n'+answer,'pdf-followup');
-}
-
-
-/**
- * A full-file legal review must not collapse to a one-paragraph synthesis.
- * Four evidence-focused sections are generated and independently persisted;
- * the complete chapters are assembled, not compressed by one final model call.
- * Existing source receipts and pages stay untouched on retries.
- */
-async function compileSkynetCaseDossier({doc,question,effort,mainNotes,lateNotes,pageCount,ocrRequired=[]}){
- const contract=globalThis.SkynetCaseDossier;
- if(!contract||!Array.isArray(contract.CASE_DOSSIER_SECTIONS))
-  throw Error('심층 보고서 생성 모듈을 불러오지 못했어 · 새로고침 후 재개해');
- if(!/^[a-f0-9]{64}$/.test(String(doc?.hash||''))||
-  !Number.isSafeInteger(pageCount)||pageCount<1)
-  throw Error('심층 보고서 원본·쪽수 검증 실패');
- const contentHash=await reviewFingerprint(mainNotes+'\n'+lateNotes);
- const qhash=await reviewFingerprint(contract.CASE_DOSSIER_VERSION+'\n'+doc.hash+'\n'+
-  question.trim()+'\n'+effort+'\n'+contentHash);
- const sections=contract.CASE_DOSSIER_SECTIONS;
- const prompts=sections.map(x=>contract.dossierSectionPrompt(x,{
-  question,mainNotes,lateNotes,pageCount
- }));
- if(prompts.some(x=>x.length>115000))
-  throw Error('법률 심층보고서 근거 노트가 입력 크기를 초과했어 · 원문을 생략해 작성하지 않아');
- const hashes=await Promise.all(prompts.map(reviewFingerprint));
- const ref={documentHash:doc.hash,questionHash:qhash};
- await reviewJobRequest('start',{...ref,question:question.trim().slice(0,4950)||'PDF 전체 원문 심층검토',
-  effort,chunks:hashes});
- const existing=await reviewJobRequest('status',ref);
- if(existing.complete&&typeof existing.report==='string'&&existing.report.trim())
-  return existing.report;
- const collected=[];
- for(let i=0;i<sections.length;i++){
-  el('chatErrorStatus').textContent='258쪽 등 전체 기록 분석 · 심층 보고서 '+
-   (i+1)+'/'+sections.length+'장 · '+sections[i].title;
-  renderReviewState('단순 요약이 아니라 사건별·시간별·금액별·증거별 검토 중 · '+
-   (i+1)+'/'+sections.length+'장');
-  const found=await documentReviewCheckpoint(doc,qhash,hashes[i],i+1);
-  let text=found?.found&&typeof found.summary==='string'?found.summary:null;
-  if(!text){
-   text=await askReviewNoteWithRetry(prompts[i],effort,
-    '사건 기록 심층보고서 '+(i+1)+'/'+sections.length);
-   if(text.trim().length<120||!text.includes('|'))
-    throw Error(sections[i].title+' 장의 구체적인 비교 도표가 누락돼 완료로 처리하지 않았어');
-   const saved=await documentReviewCheckpoint(doc,qhash,hashes[i],i+1,
-    text,[]);
-   text=saved.summary||text;
-  }
-  collected.push({id:sections[i].id,text});
+ if(lateNotes.length>34000)throw Error('후반 원문 근거를 보존할 수 없어 분석 완료로 처리하지 않아');
+ if(earlier.length>34000){
+  const parts=splitLongText(earlier,18000),reduced=[];
+  for(const part of parts)reduced.push(await askReviewNoteWithRetry(
+   '기존 사건 전체 보고서의 쟁점·금액·PDF 페이지·앞뒤 공방을 누락하지 않고 압축해.\n\n'+
+   part,effort,'기존 분석 근거 보존'));
+  earlier=reduced.join('\n\n');
  }
- const report=contract.assembleCaseDossier({sections:collected,pageCount,
-  sourceName:doc.name,ocrRequired});
- await reviewJobRequest('finish',{...ref,report});
- return report;
+ if(earlier.length+lateNotes.length>98000)
+  throw Error('심층 검토 보고서 입력이 과도해 누락 없이 처리할 수 없어');
+ const answer=await compileSkynetCaseDossier({doc,question,effort,
+  mainNotes:earlier,lateNotes,pageCount,
+  ocrRequired:previous.ocrRequired||[]});
+ await saveAnswer('[PDF 원문 후속 교차분석 · '+doc.name+' · '+pageCount+
+  '쪽 / '+startPage+'~'+pageCount+
+  '쪽 페이지별 원문 대조 완료 / 이미지·스캔 미검증]\n\n'+answer,'pdf-followup');
 }
 
 async function analyzeAttachedDocuments(docs,question,previous,effort,saveAnswer,turnId){
