@@ -34,18 +34,25 @@ function references(value){
 }
 async function countChunks(job){
  const prefix=reviewPrefix(job.documentHash,job.questionHash),found=new Set();
+ let lastCheckpointAt=null;
  let cursor=null,loops=0;
  do{
   const page=await list({prefix,limit:1000,...(cursor?{cursor}:{})});
   for(const item of page.blobs){
    const name=item.pathname.slice(prefix.length);
    const m=/^(\d{4})-([a-f0-9]{64})\.json$/.exec(name);
-   if(m&&job.chunks[Number(m[1])-1]===m[2])found.add(Number(m[1]));
+   if(m&&job.chunks[Number(m[1])-1]===m[2]){
+    found.add(Number(m[1]));
+    const t=Date.parse(String(item.uploadedAt||''));
+    if(Number.isFinite(t)&&(!lastCheckpointAt||t>lastCheckpointAt))
+     lastCheckpointAt=t;
+   }
   }
   cursor=page.hasMore?page.cursor:null;
   if(++loops>10)throw Error('REVIEW_RECEIPT_PAGINATION_LIMIT');
  }while(cursor);
  return {completedChunks:found.size,totalChunks:job.chunks.length,
+  lastCheckpointAt:lastCheckpointAt?new Date(lastCheckpointAt).toISOString():null,
   missingChunks:job.chunks.map((_,i)=>i+1).filter(n=>!found.has(n))};
 }
 export default async function handler(req,res){
