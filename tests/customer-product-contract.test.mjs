@@ -61,3 +61,13 @@ test('an admin-only 100MB PDF workaround is NOT counted as finished customer-sca
  assert.match(admin,/Buffer\.concat\(buffers,total\)/);
  assert.match(src('AGENTS.md'),/구조 보완 및 E2E 테스트가 필요/);
 });
+
+test('SKYNET admin chat reloads the product contract after a new conversation',()=>{
+ const chat=src('api/skynet-chat.js');
+ assert.match(chat,/import \{customerProductDirective\} from '\.\.\/lib\/customer-product-contract\.mjs'/);
+ assert.match(chat,/\]:\[\{role:'system',content:customerProductDirective\(\)\}/);
+ // Single-pass PDF evidence review must remain source-focused.
+ assert.match(chat,/input\.skipMemorySearch===true\?\[/);
+ assert.doesNotMatch(chat.slice(chat.indexOf('input.skipMemorySearch===true?['),
+  chat.indexOf(']:[{role:\'system\',content:customerProductDirective()}')),/customerProductDirective\(\)/);
+});
