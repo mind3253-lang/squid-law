@@ -36,7 +36,7 @@ async function indexOne(file){
  const search=await readIndex('skynet/search-index/'+id+'.json').catch(()=>null);
  const classified=await readJSON('skynet/category-index/'+id+'.json',160000).catch(()=>null);
  const currentSearch=search?.version===4&&(search.shards>0||(Array.isArray(search.entries)&&search.entries.length>0));
- if(currentSearch&&classified?.version===2)return {status:'skipped'};
+ if(currentSearch&&classified?.version===3)return {status:'skipped'};
  let data=await readJSON(path,24000000).catch(()=>null);
  if(data&&path.startsWith('skynet/document-segments/')&&!data.name){
   const hash=path.split('/')[2];
