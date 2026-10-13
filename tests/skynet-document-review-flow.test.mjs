@@ -117,7 +117,7 @@ test('a repeatedly failing large window is subdivided without omitting the sourc
  const {api,dispose}=createApp({askSkynet:model,fetchImpl:async()=>{throw Error('unused')}});
  try{
   const result=await api.reviewSourceText({name:sourceName},
-   {index:1,pages:[1],text:'확인 자료 '.repeat(1400)},1,sourceQuestion,'low');
+   {index:1,pages:[1],text:'확인 자료 '.repeat(1800)},1,sourceQuestion,'low');
   assert.match(result,/복구 분할 1\//);
   assert.match(result,/복구 분할 2\//);
   assert.ok(calls>=5);
