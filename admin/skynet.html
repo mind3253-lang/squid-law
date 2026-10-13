@@ -392,8 +392,11 @@ async function analyzeWholeIndexedPdf(doc,question,effort,saveAnswer){
    // The deep segmented path remains available on unsupported model windows,
    // transport timeouts and transient provider errors. A failed fast pass
    // never fabricates a saved chunk or final report.
-   if(e.retryable||[413,422].includes(e.status)){
-    renderReviewState('통합 호출이 실패해 분할 검토로 전환 중…');
+   // A provider outage or rate limit is not a reason to fire a cascade of
+   // slower calls. Preserve the source and show a recoverable error instead.
+   // Only a genuine input-size rejection should switch to segmented review.
+   if(e.status===413||e.code==='context_length_exceeded'){
+    renderReviewState('모델 입력 크기 제한 · 분할 검토로 자동 전환 중…');
     return false;
    }
    throw e;
