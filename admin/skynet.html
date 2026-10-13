@@ -1267,13 +1267,14 @@ el("sendChat").onclick=async()=>{
   try{outcomes=await sendArchiveFiles(archiveFiles)}finally{el('sendChat').disabled=false}
   const failed=outcomes.filter(x=>x.error);
   if(failed.length){
+   clearSkynetPipelineProgress();
    el('chatErrorStatus').hidden=false;
    el('chatErrorStatus').textContent='첨부 파일 연결 실패: '+failed.map(x=>x.name+' · '+x.error).join(' / ').slice(0,1200)+
     ' · 원문을 읽지 못했으므로 과거 기록으로 대신 답하지 않았어.';
    return;
   }
   uploadedDocs=outcomes.filter(x=>x.hash&&/\.(pdf|docx|xlsx|xls|txt|md|csv|json)$/i.test(x.name));
-  if(!msg)return;
+  if(!msg){clearSkynetPipelineProgress();return}
  }
  const context=attached.map(f=>'\n[첨부: '+f.name+']\n'+f.content).join('\n');
  const reference=uploadedDocs.map(x=>'\n[이번 대화에 직접 첨부: '+x.name+' / 문서 식별번호 '+x.hash+
@@ -1454,6 +1455,7 @@ el("sendChat").onclick=async()=>{
 async function sendArchiveFiles(files){
  const outcomes=[];
  for(const f of files){
+  setSkynetPipelineProgress('upload',0,1,'파일 업로드 준비 중 · '+f.name,f.name);
   const item={role:'user',content:'📎 '+f.name+' · 전송 중'};
   history.push(item);drawChat();
   const outcome={name:f.name,hash:null,error:null,pages:null,ocrRequired:[]};
@@ -1472,9 +1474,12 @@ async function sendArchiveFiles(files){
    let completed=0;
    for(let i=0;i<total;i+=3){
     await Promise.all(Array.from({length:Math.min(3,total-i)},(_,j)=>sendPart(i+j).then(()=>{
-     completed++;item.content='📎 '+f.name+' · 전송 '+Math.round(completed/total*100)+'%';drawChat();
+     completed++;setSkynetPipelineProgress('upload',completed,total,
+      '원본 업로드 중 · '+Math.floor(completed/total*100)+'%',f.name);
+     item.content='📎 '+f.name+' · 전송 '+Math.round(completed/total*100)+'%';drawChat();
     })));
    }
+   setSkynetPipelineProgress('index',0,1,'원본 업로드 완료 · PDF 페이지 판독 준비 중',f.name);
    item.content='📎 '+f.name+' · 서버 원본 저장 완료';
    item.archive={name:f.name,batch,parts:total,size:f.size};
    try{
@@ -1487,6 +1492,8 @@ async function sendArchiveFiles(files){
     try{
      const pdf=/\.pdf$/i.test(f.name);
      const info=pdf?await indexArchivedPdfInWindows(batch,total,f.name,p=>{
+      setSkynetPipelineProgress('index',p.processedPages,p.pages,
+       'PDF '+p.pages+'쪽 중 '+p.processedPages+'쪽 원문 판독·저장 중',f.name);
       item.content='📎 '+f.name+' · PDF 텍스트 '+p.processedPages+'/'+p.pages+
        '쪽 저장'+(p.complete?' 완료':' 진행 중');
       el('archiveStatus').textContent=item.content;
@@ -1501,6 +1508,8 @@ async function sendArchiveFiles(files){
      })();
 
      if(!/^[a-f0-9]{64}$/.test(String(info.hash||'')))throw Error('원문 색인 식별번호 누락');
+     if(pdf)setSkynetPipelineProgress('index',1,1,
+      'PDF '+info.pages+'쪽 원문 판독 완료 · 분석 준비 중',f.name);
      item.documentHash=info.hash;outcome.hash=info.hash;
      outcome.pages=Number.isInteger(info.pages)?info.pages:null;
      outcome.ocrRequired=Array.isArray(info.ocrRequired)?info.ocrRequired:[];
@@ -1537,6 +1546,7 @@ async function sendArchiveFiles(files){
    try{localStorage.setItem(chatKey,JSON.stringify(history))}catch{}
   }catch(e){
    outcome.error=String(e.message||e);
+   clearSkynetPipelineProgress();
    item.content='📎 '+f.name+' · 전송 실패: '+outcome.error;
    el('archiveStatus').textContent='전송 실패. 원본 파일을 보관하세요.';
   }
