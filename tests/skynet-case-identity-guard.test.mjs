@@ -15,7 +15,7 @@ test('does not analyze 12498 PDF as if it were requested 12878 case',()=>{
  assert.equal(mismatch.actual,'2026가단12498');
  assert.equal(mismatch.requested,'2026가단12878');
  assert.throws(()=>ensurePdfMatchesQuestion('2026가단12878 사건 재분석',oldPdf),
-  /원본처럼 분석하지 않았어/);
+  /원문처럼 분석하지 않았어/);
  assert.ok(mismatchedPdfCase('12878 사건 다시 분석해',oldPdf));
 });
 test('correct same-case questions and explicit cross-case comparisons remain allowed',()=>{
