@@ -4,7 +4,7 @@
   "repo": "mind3253-lang/squid-law",
   "branch": "main",
   "asOf": "2026-10-14",
-  "taskCount": 41,
+  "taskCount": 42,
   "knownObserved": {
     "pages": 338,
     "verifiedPages": 338,
@@ -645,6 +645,24 @@
       "blockedReason": null,
       "dependencies": [
         "LAW-039"
+      ]
+    },
+    {
+      "id": "LAW-042",
+      "group": "유료 사건기록 분석 품질",
+      "priority": "P0",
+      "title": "원문 전체 과금 대비 실질적 심층 분석 결과, 최신 공방·정산표·증거 각주 및 서버 경로 비노출",
+      "codeLocations": "skynet-case-dossier.js; lib/skynet-case-dossier.mjs; admin/skynet.html; api/skynet-chat.js; api/skynet-document-job.js; tests/skynet-paid-dossier.test.mjs",
+      "status": "in_progress",
+      "implementation": "skynet_multichapter_dossier_backend_paths_hidden_runtime_258page_unverified",
+      "acceptance": "실제 258쪽 원본으로 전체 페이지 누락 0 검증 후 사건별 청구, 뒤쪽 최신 준비서면의 상호 반박, 채권별 원금·공제·상계·잔액·귀속자, 진짜 모순과 대립 구분, 유불리 증거·원문 PDF 각주를 4장 보고서에서 확인한다. 내부 blob/검색 경로 표시는 없음. 축약·모델 출력 잘림은 완료로 표시 불가. SQUIDLAW 고객 유료 보고서에도 같은 품질 기준 적용.",
+      "evidence": [
+        "2026-10-14: SKYNET report formerly compressed all 258 pages to one sparse summary; user explicitly rejected paid-page quality and trailing server search paths. Four persisted chapter plan added, footer hidden, full report display, upstream truncation rejects. Runtime original 258page E2E not yet exercised."
+      ],
+      "checkpoint": "Latest report code on main, check production READY and real previously stored 258-page reanalysis, then paid customer report alignment.",
+      "blockedReason": null,
+      "dependencies": [
+        "LAW-040"
       ]
     }
   ],
