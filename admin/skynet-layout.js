@@ -67,7 +67,7 @@ async function loadCategories({force=false}={}){
  try{
   let cursor=null,read=0,errors=0;
   do{
-   const url='/api/skynet-categories?limit=40'+(cursor?'&cursor='+encodeURIComponent(cursor):'');
+   const url='/admin/skynet-categories?limit=40'+(cursor?'&cursor='+encodeURIComponent(cursor):'');
    const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),20000);
    let response;
    try{response=await fetch(url,{credentials:'same-origin',cache:'no-store',signal:controller.signal})}
@@ -93,7 +93,7 @@ async function loadCategories({force=false}={}){
 async function requestCategoryBatch(body,timeout=24000){
  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),timeout);
  try{
-  const response=await fetch('/api/skynet-category-fast-backfill',{
+  const response=await fetch('/admin/skynet-category-fast-backfill',{
    method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},
    body:JSON.stringify(body),signal:controller.signal
   });
