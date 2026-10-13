@@ -143,8 +143,11 @@ el("sendChat").onclick=async()=>{
    let batchInfo=null;
    if(planned.length<=24){
     try{
-     const prefetch=await fetch('/api/skynet-recall-batch',{method:'POST',credentials:'same-origin',
-      headers:{'content-type':'application/json'},body:JSON.stringify({queries:planned.map(q=>q.retrievalQuery)})});
+     const batchController=new AbortController(),batchTimer=setTimeout(()=>batchController.abort(),45000);
+     let prefetch;
+     try{prefetch=await fetch('/api/skynet-recall-batch',{method:'POST',credentials:'same-origin',
+      headers:{'content-type':'application/json'},body:JSON.stringify({queries:planned.map(q=>q.retrievalQuery)}),signal:batchController.signal})}
+     finally{clearTimeout(batchTimer)}
      const result=await prefetch.json().catch(()=>({}));
      if(!prefetch.ok||!result.ok||!result.batchId)throw Error(result.error||'일괄 검색 실패');
      batchInfo=result;
