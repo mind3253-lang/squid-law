@@ -825,7 +825,15 @@ async function readPdfPageSpan(doc,startPage,endPage){
  return {chunks,pageCount:totalPages,segmentCount,verifiedPages:seenPages.size};
 }
 async function analyzeIndexedPdfFollowup(question,effort,saveAnswer){
- const doc=resolveSkynetPdfForFollowup();
+ let doc=resolveSkynetPdfForFollowup();
+ const requestedPages=expectedPdfPageCount(question);
+ if(requestedPages&&doc?.pages&&doc.pages!==requestedPages){
+  const matches=indexedSourceCandidates().filter(x=>x.pages===requestedPages);
+  if(matches.length===1)doc=matches[0];
+  else throw Error('질문은 '+requestedPages+'쪽 PDF를 지정했지만 현재 분석 연결은 '+
+   doc.pages+'쪽 · '+doc.name+'이야. 다른 원본을 분석하지 않았어. '+
+   '「분석할 PDF 선택」에서 정확한 파일을 연결해.');
+ }
  if(!doc)throw Error('현재 대화에 연결된 PDF 원본 식별정보를 찾지 못했어. '+
   '과거 일반 검색 발췌로 답하지 않고, 보관 문서 연결 상태부터 복구해야 해.');
  // Manifest is the authority for existence, page count and version; the
@@ -834,6 +842,13 @@ async function analyzeIndexedPdfFollowup(question,effort,saveAnswer){
  if(!Number.isSafeInteger(check.pageCount)||check.pageCount<2)
   throw Error('보관 PDF 페이지 수를 확인하지 못했어');
  const pageCount=check.pageCount;
+ if(requestedPages&&requestedPages!==pageCount)
+  throw Error('질문은 '+requestedPages+'쪽 PDF를 지정했는데 서버 원본은 '+
+   pageCount+'쪽이야. 원본 식별번호 '+doc.hash.slice(0,12)+
+   '의 분석을 중단했어. 「분석할 PDF 선택」에서 맞는 파일을 선택해.');
+ if(Number.isSafeInteger(doc.pages)&&doc.pages!==pageCount)
+  throw Error('연결된 PDF 페이지 수 '+doc.pages+'와 서버 실제 색인 '+pageCount+
+   '쪽이 달라서 분석을 중단했어.');
  const startPage=Math.floor(pageCount/2)+1;
  let previous=null;
  if(activeReview?.documentHash===doc.hash&&
@@ -999,6 +1014,10 @@ async function analyzeAttachedDocuments(docs,question,previous,effort,saveAnswer
    if(!advanced)throw Error(doc.name+': 원문 판독 위치가 움직이지 않아 중단');
    if(tries===249)throw Error(doc.name+': 원문 구간 수 250회 초과 · 미완료');
   }
+  if(kind==='pdf'&&expectedPdfPageCount(question)!==null&&
+   expectedPdfPageCount(question)!==pageCount)
+   throw Error(doc.name+': 사용자 요청 '+expectedPdfPageCount(question)+
+    '쪽과 색인 원본 '+pageCount+'쪽 불일치 · 원본을 다시 선택해야 해');
   if(kind==='pdf'&&Number.isSafeInteger(doc.pages)&&doc.pages!==pageCount)
    throw Error(doc.name+': 선택한 PDF '+doc.pages+'쪽과 실제 색인 '+pageCount+'쪽 불일치 · 잘못된 원본 분석 중단');
   if(kind==='pdf'&&(!Number.isSafeInteger(pageCount)||pageSet.size!==pageCount||
