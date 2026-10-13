@@ -5,7 +5,7 @@
  * valuable when it retains material claims, their replies and precise source
  * positions, including the final pleadings. Never make up rows to fill a quota.
  */
-const CASE_DOSSIER_VERSION='squidlaw-evidence-dossier-v1';
+const CASE_DOSSIER_VERSION='squidlaw-evidence-dossier-v2-direct-indexed-pdf';
 const CASE_DOSSIER_SECTIONS=Object.freeze([
  Object.freeze({
   id:'claim-map',
@@ -36,9 +36,58 @@ const CASE_DOSSIER_SECTIONS=Object.freeze([
   required:['증거','쪽','미확인']
  })
 ]);
-function dossierSectionPrompt(section,{question,mainNotes,lateNotes,pageCount}){
+
+const DOSSIER_SOURCE_KEYWORDS=Object.freeze({
+ 'claim-map':/청구|소장|답변서|반소|지급명령|원고|피고|당사자|2026가단|2025가단/g,
+ 'chronology-rebuttals':/준비서면|반박|계약|일자|2026\.|2025\.|2024\.|공방|재반박|석명/g,
+ 'money-and-offsets':/원|대여금|차임|보증금|상계|관리비|정산|지급|변제|반환|공제/g,
+ 'evidence-and-issues':/증거|갑\s*\d+|을\s*\d+|카카오|녹취|대화|사진|입증|모순|통화|계약서/g
+});
+function directIndexedPdfExcerpt(windows,section,{maxCharacters=33000}={}){
+ if(!Array.isArray(windows)||!windows.length||
+  !CASE_DOSSIER_SECTIONS.some(x=>x.id===section?.id)||
+  !Number.isSafeInteger(maxCharacters)||maxCharacters<4000)
+  throw Error('DIRECT_SOURCE_EVIDENCE_MISSING');
+ const regex=DOSSIER_SOURCE_KEYWORDS[section.id];
+ const scored=windows.map((window,index)=>{
+  if(!window||typeof window.text!=='string'||!window.text.trim()||
+   !Array.isArray(window.pages)||!window.pages.length)
+   throw Error('UNVERIFIABLE_INDEXED_PDF_WINDOW');
+  const samples=window.text.match(regex)||[];
+  return {window,index,score:samples.length+index/windows.length*8};
+ });
+ const latest=windows.length-1;
+ const picked=new Set([0,latest]);
+ if(windows.length>2)picked.add(latest-1);
+ for(const row of [...scored].sort((a,b)=>b.score-a.score||b.index-a.index)){
+  if(picked.size>=Math.min(windows.length,6))break;
+  picked.add(row.index);
+ }
+ const indexes=[...picked].sort((a,b)=>a-b);
+ const budget=Math.floor((maxCharacters-indexes.length*135)/indexes.length);
+ return indexes.map(index=>{
+  const window=windows[index];
+  const head='[실제 색인 PDF 원문 / PDF '+window.pages.join(',')+
+   '쪽 / 소스 구간 '+(index+1)+'/'+windows.length+']\n';
+  const raw=window.text;
+  // The window itself may contain several page labels: preserve the first
+  // and last portions instead of silently claiming full quoted coverage.
+  const excerpt=raw.length<=budget?raw:
+   raw.slice(0,Math.floor(budget*0.66))+
+   '\n[이 원문 구간 중간부는 이 장의 직접 인용에서 생략됨]\n'+
+   raw.slice(-Math.floor(budget*0.30));
+  return head+excerpt;
+ }).join('\n\n');
+}
+function reportRequestsAlreadyIndexedPdf(text){
+ const answer=String(text||'');
+ return /(?:실제\s*추출\s*텍스트|PDF\s*\d+\s*[~\-]\s*\d+\s*쪽.{0,16}(?:보내|제공)|원문(?:을|이)\s*(?:보내|제공)|첨부.{0,25}원문이\s*아니라\s*(?:중간\s*)?분석\s*노트|이번\s*메시지.{0,50}중간\s*분석\s*노트)/su.test(answer);
+}
+
+function dossierSectionPrompt(section,{question,mainNotes,lateNotes,pageCount,sourceExcerpts}){
  if(!CASE_DOSSIER_SECTIONS.some(x=>x.id===section?.id))throw Error('UNKNOWN_DOSSIER_SECTION');
  if(!Number.isSafeInteger(pageCount)||pageCount<1)throw Error('INVALID_DOSSIER_PAGE_COUNT');
+ if(typeof sourceExcerpts!=='string'||!sourceExcerpts.includes('[실제 색인 PDF 원문'))throw Error('DIRECT_PDF_TEXT_REQUIRED');
  return [
   'SQUIDLAW/SKYNET 사건기록 심층분석 보고서 — 독립 장별 작성.',
   'PDF 총 '+pageCount+'쪽. 사용자의 실제 질문: '+String(question||'').slice(0,4500),
@@ -54,6 +103,11 @@ function dossierSectionPrompt(section,{question,mainNotes,lateNotes,pageCount}){
   '하단의 "후반 원문"을 별도 대조하여 가장 늦게 제출된 서면의 반박을 누락하지 마.',
   '스캔·사진·계약서 원본을 실제로 보지 않았다면 그 증거의 내용을 검증했다고 하지 마.',
   '단순한 요약문이 아닌 실제 소송 준비에 활용할 수 있는 구체적인 검토 기록을 작성해.',
+  '서버에서 이미 해당 PDF 전체를 페이지 순서대로 추출하여 각 구간을 검토했어. 아래에 실제 PDF 추출 문장을 재첨부하므로 원문이 없다고 말하거나 페이지 재전송을 요청하지 마.',
+  '아래 직접 원문 발췌는 각 장에서 인용 가능한 일부 구간이고 모든 페이지가 전부 재인용된 것은 아니야. 중간 노트는 다른 구간의 선행 검토 결과야.',
+  'PDF의 사건번호와 질문에서 다룰 다른 사건번호를 혼동하지 마. 다른 사건 문서가 현재 PDF에 없으면 현재 PDF에서 확인 가능한 범위만 명확히 구분해.',
+  '실제로 없는 증거나 별건 판결을 창작하지 말되, 현재 PDF의 실제 원문을 읽고도 그 원문을 다시 보내 달라는 답은 절대 작성하지 마.',
+  '\\n[서버 색인에서 직접 추출한 PDF 원문 발췌]\n'+sourceExcerpts,
   '\n[전 구간 원문 검토 노트]\n'+mainNotes,
   '\n[뒤쪽 제출서면 검토 노트]\n'+lateNotes
  ].join('\n\n');
@@ -78,4 +132,4 @@ function assembleCaseDossier({sections,pageCount,sourceName,ocrRequired=[]}){
 }
 
 // Shared between the customer-quality server tests and SKYNET browser report generator.
-globalThis.SkynetCaseDossier=Object.freeze({CASE_DOSSIER_VERSION,CASE_DOSSIER_SECTIONS,dossierSectionPrompt,assembleCaseDossier});
+globalThis.SkynetCaseDossier=Object.freeze({CASE_DOSSIER_VERSION,CASE_DOSSIER_SECTIONS,dossierSectionPrompt,assembleCaseDossier,directIndexedPdfExcerpt,reportRequestsAlreadyIndexedPdf});
