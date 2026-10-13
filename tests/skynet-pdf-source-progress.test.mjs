@@ -41,18 +41,18 @@ test('one bar covers upload through final report, advances by verified 1% steps 
   'read:()=>displayedReviewPercent,clear:clearSkynetPipelineProgress};')(
    name=>dom[name],fn=>{intervals.push(fn);return intervals.length},()=>{}
   );
- assert.equal(f.target('upload',1,2),6);
- assert.equal(f.target('index',1,2),22);
- assert.equal(f.target('review',2,8),43);
- assert.equal(f.target('review',8,8),78);
- assert.equal(f.target('report',4,4),97);
+ assert.equal(f.target('upload',1,2),2);
+ assert.equal(f.target('index',1,2),12);
+ assert.equal(f.target('review',2,8),37);
+ assert.equal(f.target('review',8,8),90);
+ assert.equal(f.target('report',4,4),99);
  assert.equal(f.target('delivery',1,1),99);
- f.animate({key:'146page-case',target:43});
+ f.animate({key:'146page-case',target:37});
  assert.equal(f.read(),0);
  const tick=intervals[0];
- for(let n=1;n<=43;n++){tick();assert.equal(f.read(),n);assert.equal(dom.skynetReviewProgress.value,n)}
- f.animate({key:'146page-case',target:78});
- assert.equal(f.read(),43);
+ for(let n=1;n<=37;n++){tick();assert.equal(f.read(),n);assert.equal(dom.skynetReviewProgress.value,n)}
+ f.animate({key:'146page-case',target:90});
+ assert.equal(f.read(),37);
  f.clear();
  assert.equal(dom.skynetReviewPanel.hidden,true);
  assert.match(html,/setSkynetPipelineProgress\('upload'/);
