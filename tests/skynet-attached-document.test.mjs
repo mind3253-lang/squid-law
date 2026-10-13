@@ -7,7 +7,7 @@ test('PDF and user prompt are linked in the same send, not replaced with past me
  const chat=read('admin/skynet.html');
  assert.match(chat,/uploadedDocs=outcomes\.filter/);
  assert.match(chat,/outcome\.hash=info\.hash/);
- assert.match(chat,/analyzeAttachedDocuments\(uploadedDocs,msg,previous,effort,saveAnswer,turnId\)/);
+ assert.match(chat,/analyzeAttachedDocuments\(uploadedDocs,reviewQuestion,previous,effort,saveAnswer,turnId\)/);
  assert.match(chat,/첨부 파일 연결 실패/);
  assert.match(chat,/원문을 읽지 못했으므로 과거 기록으로 대신 답하지 않았어/);
 });
@@ -40,4 +40,34 @@ test('direct PDF endpoint is authenticated and has registered route',()=>{
  assert.match(endpoint,/if\(!authorized\(req\)\)/);
  assert.match(endpoint,/\^\[a-f0-9\]\{64\}\$/);
  assert.ok(config.rewrites.some(x=>x.source==='/admin/skynet-document-context'&&x.destination==='/api/skynet-document-context'));
+});
+
+test('resumable PDF review uses durable keyed checkpoints and no file reupload',()=>{
+ const chat=read('admin/skynet.html');
+ const endpoint=read('api/skynet-document-review.js');
+ const config=JSON.parse(read('vercel.json'));
+ assert.match(chat,/function previousAttachedReview\(\)/);
+ assert.match(chat,/if\(!archiveFiles\.length&&!attached\.length&&isResumeReviewRequest\(msg\)\)/);
+ assert.match(chat,/uploadedDocs=resume\.docs;reviewQuestion=resume\.question/);
+ assert.match(chat,/function isResumeReviewRequest\(message\)/);
+ assert.match(chat,/documentReviewCheckpoint\(doc,questionHash,hash,chunk\.index\)/);
+ assert.match(chat,/const saved=await documentReviewCheckpoint\(doc,questionHash,hash,chunk\.index,summary,chunk\.pages\)/);
+ assert.match(chat,/resumed\+\+/);
+ assert.match(chat,/Promise\.allSettled\(group\.map/);
+ assert.match(chat,/if\(errors\.length\)/);
+ assert.match(chat,/failure\?\.retryable&&failure\.status!==429/);
+ assert.match(chat,/await waitReview\(attempt\*1800\)/);
+ assert.match(endpoint,/AI_DRAFT_NOT_INDEPENDENTLY_VERIFIED/);
+ assert.match(endpoint,/allowOverwrite:false/);
+ assert.match(endpoint,/SOURCE_DOCUMENT_NOT_FOUND/);
+ assert.ok(config.rewrites.some(x=>x.source==='/admin/skynet-document-review'&&x.destination==='/api/skynet-document-review'));
+});
+
+test('temporary OpenAI errors are retryable but bad model input is not',()=>{
+ const api=read('api/skynet-chat.js');
+ const chat=read('admin/skynet.html');
+ assert.match(api,/const retryable=upstream\.status===429\|\|upstream\.status>=500/);
+ assert.match(api,/upstream\.status===400\|\|upstream\.status===422\?422/);
+ assert.match(api,/SKYNET_OPENAI_UPSTREAM_ERROR/);
+ assert.match(chat,/error\.retryable=result\?\.retryable===true/);
 });
