@@ -538,8 +538,13 @@ function renderReviewState(stage){
  const visual=ocr?' · 이미지/스캔 텍스트 미검증 '+ocr+'쪽':' · 이미지 내용 별도 검증 필요';
  const current=stage||(completed?'텍스트 구간 검토 및 종합 보고서 저장 완료':
   reviewIsRunning?'원문 구간 분석 중 · 최종 보고서 작성 전':'분석 미완료 · 이어서 분석할 수 있음');
+ const checkpoint=activeReview.lastCheckpointAt&&
+  Number.isFinite(Date.parse(activeReview.lastCheckpointAt))?
+  ' · 최근 서버 저장 '+new Date(activeReview.lastCheckpointAt).toLocaleTimeString('ko-KR',
+   {hour:'2-digit',minute:'2-digit',second:'2-digit'}):'';
  el('skynetReviewStage').textContent=current+visual+
-  (!completed&&total?' · 완료 구간만 %에 반영, 처리 중인 구간은 별도 확인 중':'');
+  (!completed&&total?' · 완료한 구간만 실제 %에 반영':'')+checkpoint;
+ el('skynetReviewStage').classList.toggle('is-processing',reviewIsRunning&&!completed);
  el('skynetReviewResume').hidden=reviewIsRunning||completed;
 }
 async function reviewJobRequest(action,payload){
@@ -564,6 +569,7 @@ async function showReviewJobStatus({showReport=false}={}){
   name:data.name||activeReview.name,pageCount:data.pageCount,
   totalChunks:data.totalChunks,completedChunks:data.completedChunks,
   ocrRequired:data.ocrRequired,complete:data.complete,
+  lastCheckpointAt:data.lastCheckpointAt||null,
   finishedAt:data.finishedAt||null
  }};
  rememberReview(next);
