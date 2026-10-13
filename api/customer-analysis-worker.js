@@ -197,21 +197,50 @@ export default async function handler(req,res){
   const task=authorized.requestedTasks?.[previous.legalTaskIndex||0];
   if(!task)throw Error('INVALID_LEGAL_TASK');
   const cursor=previous.legalCursor||0;
-  const units=[];
-  // Read immutable verified batches concurrently, preserving document/page order and source hashes.
-  const batchRefs=docs.flatMap(d=>Array.from({length:Math.ceil(d.pageCount/20)},(_,i)=>({d,start:i*20})));
-  for(let i=0;i<batchRefs.length;i+=12){
-   const selected=batchRefs.slice(i,i+12);
-   const batches=await Promise.all(selected.map(({d,start})=>load(prefix+'verified/'+d.id+'/batch-'+String(start).padStart(8,'0')+'.json')));
-   for(let j=0;j<selected.length;j++){
-    const {d}=selected[j],extracted=batches[j];
-    if(!extracted?.pages)throw Error('LEGAL_SOURCE_TEXT_MISSING');
-    const segments=segmentRecord({scope:'customer',documentId:d.id,pages:extracted.pages}).segments;
-    for(const u of segments)if(u.part>0)units.push({documentId:d.id,page:u.page,part:u.part,hash:u.hash,text:u.text});
+  // Verified original text bundle is immutable for this documentVersion. It
+  // replaces a full 338-page multi-Blob rehydration on EVERY legal-model call.
+  // The first request still verifies all original immutable page batches.
+  const bundlePath=root+'legal-source-text-bundle.json';
+  let bundle=await load(bundlePath);
+  let units;
+  if(bundle){
+   if(bundle.caseId!==job.caseId||bundle.sourceVersion!==job.documentVersion||
+    bundle.sourceIndexSha256!==request.sourceIndexSha256||
+    !Array.isArray(bundle.units))throw Error('LEGAL_SOURCE_BUNDLE_VERSION_MISMATCH');
+   units=bundle.units;
+  }else{
+   units=[];
+   const batchRefs=docs.flatMap(d=>Array.from({length:Math.ceil(d.pageCount/20)},
+    (_,i)=>({d,start:i*20})));
+   for(let i=0;i<batchRefs.length;i+=12){
+    const selected=batchRefs.slice(i,i+12);
+    const batches=await Promise.all(selected.map(({d,start})=>
+     load(prefix+'verified/'+d.id+'/batch-'+String(start).padStart(8,'0')+'.json')));
+    for(let j=0;j<selected.length;j++){
+     const {d}=selected[j],extracted=batches[j];
+     if(!extracted?.pages||extracted.documentId!==d.id||
+      extracted.sourcePdfSha256!==d.sha256)throw Error('LEGAL_SOURCE_TEXT_MISSING');
+     const segments=segmentRecord({scope:'customer',documentId:d.id,pages:extracted.pages}).segments;
+     for(const u of segments)if(u.part>0)
+      units.push({documentId:d.id,page:u.page,part:u.part,hash:u.hash,text:u.text});
+    }
    }
   }
   const indexed=new Map(sourceIndex.sources.map(x=>[x.documentId+':'+x.page+':'+x.part,x.hash]));
-  if(units.length!==sourceIndex.sources.length||units.some(u=>indexed.get(u.documentId+':'+u.page+':'+u.part)!==u.hash))throw Error('LEGAL_SOURCE_REHYDRATION_MISMATCH');
+  if(units.length!==sourceIndex.sources.length||
+   units.some(u=>!u||typeof u.text!=='string'||
+    createHash('sha256').update(u.text).digest('hex')!==u.hash||
+    indexed.get(u.documentId+':'+u.page+':'+u.part)!==u.hash))
+   throw Error('LEGAL_SOURCE_REHYDRATION_MISMATCH');
+  if(!bundle){
+   const payload={caseId:job.caseId,sourceVersion:job.documentVersion,
+    sourceIndexSha256:request.sourceIndexSha256,units};
+   const serialized=JSON.stringify(payload);
+   // A huge dense case can still take the legacy verified-source path.
+   if(Buffer.byteLength(serialized,'utf8')<28*1024*1024)
+    await put(bundlePath,serialized,{access:'private',allowOverwrite:false,
+     addRandomSuffix:false,contentType:'application/json'});
+  }
   const path=root+'legal-windows/'+String(previous.legalTaskIndex||0).padStart(2,'0')+'-'+String(cursor).padStart(8,'0')+(task==='claims_and_rebuttals'?'-read-receipts-v1':'')+'.json';
   let part=await load(path);
   if(part){
