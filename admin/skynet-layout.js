@@ -1,53 +1,182 @@
-document.addEventListener('DOMContentLoaded',()=>{const sidebar=document.createElement('aside');sidebar.id='skynetSidebar';sidebar.innerHTML='<button type="button" id="skynetSidebarToggle" title="사이드바 펼치기" aria-label="사이드바 펼치기" aria-expanded="false"></button><nav id="skynetSidebarPanel" aria-label="SKYNET 관리 도구"><strong>관리 도구</strong></nav>';document.body.append(sidebar);const tools=document.createElement('div');tools.id='skynetToolContent';tools.innerHTML='<button class="skynetToolClose" type="button">✕ 닫기</button>';document.body.append(tools);const panel=document.getElementById('skynetSidebarPanel'),toggle=document.getElementById('skynetSidebarToggle');const warehouse=document.createElement('section');warehouse.id='skynetWarehouse';document.body.append(warehouse);warehouse.innerHTML='<h2>자료창고</h2><p class="muted" id="warehouseStatus">자료 목록 불러오는 중…</p><div id="warehouseRows"></div>';const categories=document.createElement('section');categories.id='skynetCategories';document.body.append(categories);categories.hidden=true;categories.style.display='none';categories.innerHTML='<h2>기억 저장소</h2><p class="muted">게놈 원본 분류 상태를 확인 중…</p><div id="skynetCategoryRows"></div><div id="skynetCategoryDetails" hidden></div>';const categoryLabels=['인물 · 인간관계','법률 · 사건','사업 · 업무','프로젝트 · 개발','재산 · 금융','건강 · 생활','지식 · 관심사','사용자 설정 · 취향','프라이버시'];for(const label of categoryLabels){const row=document.createElement('div');row.textContent=label==='프라이버시'?'🔒 프라이버시':label;row.style.padding='12px';row.style.borderBottom='1px solid #e4e8ef';if(label==='프라이버시'){row.setAttribute('aria-disabled','true');row.title='암구호로만 진입하는 비밀대화';}categories.querySelector('#skynetCategoryRows').append(row)}const items=[['skynetWarehouse','자료창고']];const profile=[...document.querySelectorAll('body > section')].find(n=>n.querySelector('h3')?.textContent.includes('오징어 장기 성격'));if(profile){profile.id='skynetProfileManager';profile.hidden=true}const memory=document.querySelector('section.internal-memory');if(memory){memory.id='skynetMemoryManager';memory.hidden=true}const icons=['▤','◷','▦','⚙','▧','▧'];const memoryHeader=document.createElement('div');memoryHeader.className='skynetToolLink';memoryHeader.textContent='▧  기억 저장소';memoryHeader.style.cssText='padding:12px 14px;font-weight:600';panel.append(memoryHeader);const memoryList=document.createElement('div');memoryList.id='skynetSidebarCategories';memoryList.style.cssText='padding-left:14px';panel.append(memoryList);let warehouseLoaded=false;
+document.addEventListener('DOMContentLoaded',()=>{const sidebar=document.createElement('aside');sidebar.id='skynetSidebar';sidebar.innerHTML='<button type="button" id="skynetSidebarToggle" title="사이드바 펼치기" aria-label="사이드바 펼치기" aria-expanded="false"></button><nav id="skynetSidebarPanel" aria-label="SKYNET 관리 도구"><strong>관리 도구</strong></nav>';document.body.append(sidebar);const tools=document.createElement('div');tools.id='skynetToolContent';tools.innerHTML='<button class="skynetToolClose" type="button">✕ 닫기</button>';document.body.append(tools);const panel=document.getElementById('skynetSidebarPanel'),toggle=document.getElementById('skynetSidebarToggle');const warehouse=document.createElement('section');warehouse.id='skynetWarehouse';document.body.append(warehouse);warehouse.innerHTML='<h2>자료창고</h2><p class="muted" id="warehouseStatus">자료 목록 불러오는 중…</p><div id="warehouseRows"></div>';const categories=document.createElement('section');categories.id='skynetCategories';document.body.append(categories);categories.hidden=true;categories.style.display='none';categories.innerHTML='<h2>기억 저장소</h2><p class="muted">게놈 원본 분류 상태를 확인 중…</p><button type="button" id="skynetCategoryRetry" style="padding:6px 10px;margin:8px 0">재분류 재시도</button><div id="skynetCategoryRows"></div><div id="skynetCategoryDetails" hidden></div>';const categoryLabels=['인물 · 인간관계','법률 · 사건','사업 · 업무','프로젝트 · 개발','재산 · 금융','건강 · 생활','지식 · 관심사','사용자 설정 · 취향','프라이버시'];for(const label of categoryLabels){const row=document.createElement('div');row.textContent=label==='프라이버시'?'🔒 프라이버시':label;row.style.padding='12px';row.style.borderBottom='1px solid #e4e8ef';if(label==='프라이버시'){row.setAttribute('aria-disabled','true');row.title='암구호로만 진입하는 비밀대화';}categories.querySelector('#skynetCategoryRows').append(row)}const items=[['skynetWarehouse','자료창고']];const profile=[...document.querySelectorAll('body > section')].find(n=>n.querySelector('h3')?.textContent.includes('오징어 장기 성격'));if(profile){profile.id='skynetProfileManager';profile.hidden=true}const memory=document.querySelector('section.internal-memory');if(memory){memory.id='skynetMemoryManager';memory.hidden=true}const icons=['▤','◷','▦','⚙','▧','▧'];const memoryHeader=document.createElement('div');memoryHeader.className='skynetToolLink';memoryHeader.textContent='▧  기억 저장소';memoryHeader.style.cssText='padding:12px 14px;font-weight:600';panel.append(memoryHeader);const memoryList=document.createElement('div');memoryList.id='skynetSidebarCategories';memoryList.style.cssText='padding-left:14px';panel.append(memoryList);let warehouseLoaded=false;
 const categoryIds=['people','legal','business','development','finance','lifestyle','interests','preferences'];
-const sourcePrefixes=['skynet/imports/','skynet/memory/','skynet/documents/','skynet/document-segments/','skynet/records/','skynet/db/'];
+const sourcePrefixes=['skynet/document-segments/','skynet/documents/','skynet/imports/','skynet/memory/','skynet/records/','skynet/db/'];
 const categorySources=new Map();
-let categoryLoading=false,categoryReadErrors=0,categoryLoadedAll=false,categoryTimer;
-function backfillComplete(){
- try{const state=JSON.parse(localStorage.getItem('skynet_index_cursor_v2_topic_categories')||'{}');
-  return sourcePrefixes.every(p=>state['done:'+p]===true)&&!sourcePrefixes.some(p=>state['error:'+p]);
- }catch{return false}
+const categoryKey='skynet_category_fast_v1';
+let categoryState;
+try{categoryState=JSON.parse(localStorage.getItem(categoryKey)||'{}')}catch{categoryState={}};
+if(!categoryState||typeof categoryState!=='object')categoryState={};
+categoryState.progress=categoryState.progress||{processed:0,classified:0,cached:0,notext:0,failed:0,elapsedMs:0};
+let categoryLoading=false,categoryLoadedAll=false,categoryReadErrors=0,categoryRunning=false;
+let categoryRefreshTimer=null,categoryLastProgress='',categoryStartedAt=0;
+let categoryTotals=null,categoryStatus='';
+const categorySave=()=>{try{localStorage.setItem(categoryKey,JSON.stringify(categoryState))}catch{}};
+const categoryDoneCount=()=>sourcePrefixes.filter(p=>categoryState['done:'+p]).length;
+const categoryHasErrors=()=>categoryReadErrors>0||categoryState.progress.failed>0||
+ sourcePrefixes.some(p=>categoryState['error:'+p]);
+const categoryComplete=()=>categoryDoneCount()===sourcePrefixes.length&&!categoryHasErrors()&&categoryLoadedAll;
+const categoryStats=()=>categoryState.progress;
+const catPause=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+function categoryProgressText(){
+ const progress=categoryStats(),done=categoryDoneCount(),elapsed=Number(progress.elapsedMs)||0;
+ const seconds=elapsed>0?Math.max(1,elapsed/1000):0;
+ const speed=seconds?(progress.processed/seconds).toFixed(1):null;
+ const total=categoryTotals?.total||0;
+ const left=total?Math.max(0,total-progress.processed):null;
+ let text='분류 '+progress.processed+(total?'/'+total:'')+'개';
+ text+=' · '+done+'/'+sourcePrefixes.length+'개 자료영역 완료';
+ if(progress.failed)text+=' · 실패 '+progress.failed+'개';
+ if(progress.notext)text+=' · 텍스트 없는 자료 '+progress.notext+'개';
+ if(speed)text+=' · '+speed+'건/초';
+ if(left!==null&&speed&&Number(speed)>0&&left>0)text+=' · 남은 약 '+Math.ceil(left/Number(speed)/60)+'분 (추정)';
+ return text;
 }
 function updateCategoryCounts(progress=''){
+ if(progress)categoryLastProgress=progress;
  const rows=categories.querySelector('#skynetCategoryRows').children;
- const complete=categoryLoadedAll&&backfillComplete()&&categoryReadErrors===0;
+ const complete=categoryComplete();
  for(let i=0;i<8;i++){
   const id=categoryIds[i];let total=0,sources=0;
   for(const record of categorySources.values()){const n=Number(record.counts?.[id])||0;if(n){total+=n;sources++}}
   rows[i].dataset.topic=id;
-  rows[i].textContent=categoryLabels[i]+' · '+(complete?total+'건':total?total+'건 이상 · 분류 중':'집계 중');
-  rows[i].title=total?'관련 원본 '+sources+'개 출처 확인':'원본 분류 완료 전에는 0건으로 확정하지 않습니다';
+  // A tagged source passage may belong to multiple categories; this is
+  // segment coverage, not a count of unique personal facts.
+  rows[i].textContent=categoryLabels[i]+' · '+(total?total+'구간':complete?'0구간':'집계 중');
+  rows[i].title='현재 '+sources+'개 출처에서 확인 · 원문 구간 수(중복 주제 허용)';
  }
- categories.querySelector('.muted').textContent='원본 '+categorySources.size+'개 출처 분류 확인'+
-  (complete?' · 전체 재분류 완료':' · 기존 자료 재분류 진행/확인 필요')+
-  (categoryReadErrors?' · 읽기 오류 '+categoryReadErrors+'건':'')+(progress?' · '+progress:'');
+ const status=categories.querySelector('.muted');
+ status.textContent=categoryProgressText()+' · 현재 원문 출처 '+categorySources.size+'개'+
+ (complete?' · 분류 완료':categoryRunning?' · 재분류 실행 중':categoryHasErrors()?' · 오류로 일부 미완료':' · 재분류 확인 중')+
+ (categoryLastProgress?' · '+categoryLastProgress:'');
  renderSidebarCategories();
 }
-async function loadCategories(){
+function incorporateCategories(records){
+ let changed=0;
+ for(const record of records||[]){
+  if(!record?.source||!record.counts)continue;
+  categorySources.set(record.source,record);changed++;
+ }
+ if(changed)updateCategoryCounts();
+ return changed;
+}
+async function loadCategories({force=false}={}){
  if(categoryLoading)return;
- categoryLoading=true;categoryLoadedAll=false;categoryReadErrors=0;
- updateCategoryCounts('분류 자료 불러오는 중');
+ if(categoryLoadedAll&&!force)return;
+ categoryLoading=true;
+ updateCategoryCounts('저장된 분류 결과 불러오는 중');
  try{
-  const found=new Map();let cursor,read=0;
+  let cursor=null,read=0,errors=0;
   do{
    const url='/api/skynet-categories?limit=40'+(cursor?'&cursor='+encodeURIComponent(cursor):'');
-   const r=await fetch(url,{credentials:'same-origin',cache:'no-store'}),j=await r.json().catch(()=>({}));
-   if(!r.ok||!Array.isArray(j.records))throw Error(j.error||'HTTP '+r.status);
-   for(const record of j.records)if(record&&record.source)found.set(record.source,record);
-   categoryReadErrors+=(j.errors||[]).length;
-   cursor=j.hasMore&&j.nextCursor?j.nextCursor:null;
-   read+=j.scanned||0;
-   categorySources.clear();for(const [key,value] of found)categorySources.set(key,value);
-   updateCategoryCounts('출처 '+read+'개 조사');
-   if(read>50000){categoryReadErrors++;break}
+   const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),20000);
+   let response;
+   try{response=await fetch(url,{credentials:'same-origin',cache:'no-store',signal:controller.signal})}
+   finally{clearTimeout(timer)}
+   const data=await response.json().catch(()=>({}));
+   if(!response.ok||!Array.isArray(data.records))throw Error(data.error||'HTTP '+response.status);
+   incorporateCategories(data.records);
+   errors+=(data.errors||[]).length;
+   cursor=data.hasMore&&data.nextCursor?data.nextCursor:null;
+   read+=data.scanned||0;
+   if(read>100000)throw Error('분류 색인 목록 10만 건 초과: 추가 분할 점검 필요');
+   updateCategoryCounts('저장된 분류 출처 '+read+'개 확인');
   }while(cursor);
-  categoryLoadedAll=!cursor;
-  updateCategoryCounts();
- }catch(e){categories.querySelector('.muted').textContent='분류 조회 실패: '+e.message+' · 원본 부재를 뜻하지 않음';renderSidebarCategories()}
- finally{categoryLoading=false}
+  categoryReadErrors=errors;
+  categoryLoadedAll=true;
+  updateCategoryCounts('');
+ }catch(e){
+  categoryReadErrors++;
+  categoryStatus='분류 목록 조회 오류: '+e.message;
+  updateCategoryCounts(categoryStatus);
+ }finally{categoryLoading=false}
 }
-function requestCategoryRefresh(){clearTimeout(categoryTimer);categoryTimer=setTimeout(loadCategories,5500)}
-window.addEventListener('skynet:category-index-changed',requestCategoryRefresh);
+async function requestCategoryBatch(body,timeout=24000){
+ const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),timeout);
+ try{
+  const response=await fetch('/api/skynet-category-fast-backfill',{
+   method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},
+   body:JSON.stringify(body),signal:controller.signal
+  });
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok||!data.ok)throw Error(data.detail||data.error||'분류 서버 오류 HTTP '+response.status);
+  return data;
+ }finally{clearTimeout(timer)}
+}
+async function loadCategoryTotal(){
+ try{
+  const data=await requestCategoryBatch({action:'totals'},16000);
+  categoryTotals={total:Object.values(data.prefixes||{}).reduce((n,x)=>n+(x.total||0),0)};
+  updateCategoryCounts();
+ }catch{categoryTotals=null}
+}
+async function runFastClassification(){
+ if(categoryRunning)return;
+ categoryRunning=true;
+ categoryStartedAt=Date.now();
+ updateCategoryCounts('분류 작업 시작');
+ try{
+  for(const prefix of sourcePrefixes){
+   if(categoryState['done:'+prefix])continue;
+   let cursor=typeof categoryState[prefix]==='string'?categoryState[prefix]:undefined;
+   // Retry a previously failed prefix in the next explicit session, not
+   // endlessly within one failing request.
+   while(categoryRunning){
+    if(document.getElementById('sendChat')?.disabled){
+     updateCategoryCounts('AI 답변 작업 우선 · 분류 일시정지');
+     await catPause(2000);continue;
+    }
+    const started=Date.now();
+    let result;
+    try{result=await requestCategoryBatch({prefix,cursor,limit:16})}
+    catch(e){
+     categoryState['error:'+prefix]=String(e.message).slice(0,180);
+     categorySave();updateCategoryCounts('분류 중단: '+e.message);
+     break;
+    }
+    const p=categoryStats();
+    p.processed+=result.processed||0;p.classified+=result.classified||0;
+    p.cached+=result.cached||0;p.notext+=result.noText||0;
+    p.failed+=result.failed||0;
+    p.elapsedMs+=result.elapsedMs||Date.now()-started;
+    // Failed records remain visible as failures, but never stop other roots.
+    if(result.failed)categoryState['error:'+prefix]=
+      (result.errors||[]).map(x=>x.source+' '+x.error).slice(0,3).join('; ').slice(0,400);
+    incorporateCategories(result.updates);
+    window.dispatchEvent(new CustomEvent('skynet:category-index-changed',{detail:{updates:result.updates,progress:p}}));
+    if(result.hasMore&&result.nextCursor){
+     cursor=result.nextCursor;categoryState[prefix]=cursor;categorySave();
+    }else{
+     delete categoryState[prefix];categoryState['done:'+prefix]=true;
+     categorySave();break;
+    }
+    updateCategoryCounts('최근 배치 '+result.processed+'건 · '+(result.elapsedMs/1000).toFixed(1)+'초');
+    await catPause(100);
+   }
+   if(!categoryRunning)break;
+  }
+  if(categoryDoneCount()===sourcePrefixes.length){
+   categoryStatus=categoryHasErrors()?'일부 실패 · 세부 진단 필요':'전체 자료영역 분류 종료';
+   // Reconcile all sidecars once, not from scratch on every tiny batch.
+   await loadCategories({force:true});
+  }
+ }finally{
+  categoryRunning=false;
+  updateCategoryCounts(categoryStatus||'현재 진행 내역 표시');
+ }
+}
+window.addEventListener('skynet:category-index-changed',event=>{
+ if(event.detail?.updates?.length)incorporateCategories(event.detail.updates);
+});
+const retryCategory=()=>{
+ if(categoryRunning)return;
+ categoryState={progress:{processed:0,classified:0,cached:0,notext:0,failed:0,elapsedMs:0}};
+ categorySave();categoryStatus='기존 원본 유지 · 분류 결과 재확인';
+ void runFastClassification();
+};
+const retryButton=document.getElementById('skynetCategoryRetry');
+if(retryButton)retryButton.onclick=retryCategory;
+renderSidebarCategories();loadCategories();
+setTimeout(()=>{void runFastClassification();void loadCategoryTotal()},1500);
 function renderSidebarCategories(){memoryList.replaceChildren();for(const [i,row] of [...categories.querySelector('#skynetCategoryRows').children].entries()){const label=row.textContent;const el=document.createElement('div');el.textContent=label;el.style.cssText='padding:9px 10px;font-size:12px;white-space:nowrap';if(label.includes('프라이버시')){el.style.opacity='.55';el.title='암구호 전용 · 목록 접근 불가';}if(!label.includes('프라이버시')){el.style.cursor='pointer';el.onclick=()=>openMemoryCategory(i)}memoryList.append(el)}}renderSidebarCategories();loadCategories();
 const sideIcons=['users','scale','briefcase-business','code-2','wallet','heart-pulse','book-open','sliders-horizontal','lock-keyhole'];
 const sideSvg=paths=>'<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+paths+'</svg>';
