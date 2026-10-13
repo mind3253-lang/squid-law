@@ -100,3 +100,23 @@ export async function searchIndex(question,{maxResults=12,maxIndexFiles=250}={})
  }
  return selectDiverseEvidence([...found.values()],question,{limit:maxResults,maxPerSource:2});
 }
+
+export async function searchIndexMulti(queries,{maxResults=48}={}){
+ if(!Array.isArray(queries)||!queries.length)return [];
+ const unique=queries.slice(0,24).map(q=>String(q||'').slice(0,6000));
+ const found=unique.map(()=>new Map());
+ const files=await listIndex();
+ for(let offset=0;offset<files.length;offset+=32){
+  const batch=await Promise.all(files.slice(offset,offset+32).map(f=>readIndex(f.pathname).catch(()=>null)));
+  for(const idx of batch){
+   if(!idx?.entries?.length)continue;
+   for(let q=0;q<unique.length;q++){
+    for(const entry of rankIndex(idx,unique[q])){
+     const key=digest(entry.source+'|'+entry.part+'|'+entry.content);
+     if(!found[q].has(key)||found[q].get(key).score<entry.score)found[q].set(key,entry);
+    }
+   }
+  }
+ }
+ return found.map((bucket,i)=>selectDiverseEvidence([...bucket.values()],unique[i],{limit:maxResults,maxPerSource:4}));
+}
