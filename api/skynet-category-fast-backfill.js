@@ -45,8 +45,9 @@ async function one(file){
 async function batchWork(files,started){
  let handled=0,classified=0,cached=0,noText=0,failed=0;
  const updates=[],errors=[];
- for(let i=0;i<files.length;i+=8){
-  const group=files.slice(i,i+8);
+ const concurrency=files.some(f=>Number(f.size)>3*1024*1024)?3:8;
+ for(let i=0;i<files.length;i+=concurrency){
+  const group=files.slice(i,i+concurrency);
   const done=await Promise.allSettled(group.map(one));
   for(let j=0;j<done.length;j++){
    handled++;const x=done[j];
