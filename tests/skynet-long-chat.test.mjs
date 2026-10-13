@@ -4,6 +4,7 @@ import {readFileSync} from 'node:fs';
 import {Script} from 'node:vm';
 import {splitSkynetQuestions} from '../lib/skynet-chat-question-split.mjs';
 import {skynetLongTurnLimits} from '../api/skynet-long-turn.js';
+import {filterCaseResults} from '../api/skynet-case-classifier.js';
 
 const html=readFileSync(new URL('../admin/skynet.html',import.meta.url),'utf8');
 test('long 14-question prompt excludes numbered instructions from headings',()=>{
@@ -33,4 +34,17 @@ test('chat message uses uncut original, persistent parts, incremental answers',(
  assert.match(html,/Promise\.allSettled\(/);
  assert.match(html,/await saveTurn\('assistant',reply,id\)/);
  assert.ok(skynetLongTurnLimits.maxParts*skynetLongTurnLimits.maxPartChars>=5000000);
+});
+
+test('separate retrieval query focuses memory on actual question',()=>{
+ const chat=readFileSync(new URL('../api/skynet-chat.js',import.meta.url),'utf8');
+ assert.match(html,/retrievalQuery:body/);
+ assert.match(chat,/input\.retrievalQuery\.slice\(0,6000\)/);
+});
+test('mixed project memory is ranked not silently discarded',()=>{
+ const mixed={score:4,content:'서브마린 홈페이지 SKYNET 개발',case:{id:null,candidates:['project:submarine','project:squidlaw']}};
+ const other={score:2,content:'다른 소송',case:{id:'case:minji'}};
+ const results=filterCaseResults([other,mixed],'서브마린 마일리지 정책');
+ assert.equal(results.length,2);
+ assert.equal(results[0],mixed);
 });
