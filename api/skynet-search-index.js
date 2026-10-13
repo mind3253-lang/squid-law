@@ -1,6 +1,6 @@
 import {classifyRecord} from './skynet-case-classifier.js';
 import {retrievalTerms,selectDiverseEvidence} from '../lib/skynet-evidence-rank.mjs';
-import {categoryDigestEntries} from '../lib/skynet-topic-categories.mjs';
+import {categoryDigestEntries,sourceTopicEntries} from '../lib/skynet-topic-categories.mjs';
 import {createHash} from 'node:crypto';
 import {put,get,list} from '@vercel/blob';
 // Per-function warm caches avoid repeatedly downloading the same private Blob
@@ -61,7 +61,7 @@ export async function indexSource(path,data){
   await put(base,JSON.stringify(manifest),{access:'private',addRandomSuffix:false,allowOverwrite:true,contentType:'application/json'});
   cacheIndex(base,manifest);
  }
- const categories=categoryDigestEntries(docs,{source:path,name:data.title||data.name||data.category||''});
+ const categories=categoryDigestEntries(sourceTopicEntries(data),{source:path,name:data.title||data.name||data.category||''});
  const topicPath='skynet/category-index/'+sourceId+'.json';
  await put(topicPath,JSON.stringify(categories),{access:'private',addRandomSuffix:false,allowOverwrite:true,contentType:'application/json'});
  listedIndexes=null;
