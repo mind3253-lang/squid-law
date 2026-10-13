@@ -1577,9 +1577,9 @@ el("sendChat").onclick=async()=>{
     if(e.quotaExhausted){
      clearSkynetPipelineProgress();
      failures.push('AI API 크레딧 소진 (credit_balance_exhausted) · 자동 재시도 중단 · 저장된 원문과 완료된 검토 기록은 보존됨 · API 결제/사용 한도 확인 필요');
-     await saveAnswer('**원문 분석 중단 — AI API 크레딧 소진**\\n\\n'+
+     await saveAnswer('**원문 분석 중단 — AI API 크레딧 소진**\n\n'+
       'PDF 원본 저장·색인과 AI 내용 분석은 별개의 단계야. 이번에는 AI 모델이 '+
-      '\`credit_balance_exhausted\`를 반환해서 분석 보고서를 완성하지 못했어.\\n\\n'+
+      '`credit_balance_exhausted`를 반환해서 분석 보고서를 완성하지 못했어.\n\n'+
       '이미 서버에 저장된 PDF 색인과 완료된 검토 기록은 삭제하지 않았어. '+
       'API 결제·크레딧 한도를 확인한 뒤 다시 요청해야 해. 자동 재시도는 중단했어.',
       'model-quota-blocked');
