@@ -91,6 +91,14 @@ SKYNET 관리자 PDF는 현재 바이트 범위 읽기·16페이지 구간 추�
 - `tests/skynet-pdf-stop-and-progress.test.mjs` 신규 4종 + `tests/skynet-pdf-source-progress.test.mjs` 진행률 배분 갱신; 관련 모의/구문 검사 8종 통과. 운영 E2E 중단 및 서버 취소 표시 동작은 아직 검증 전. Vercel 최신 READY 확인 필요.
 - 중요: 현재 사용자가 열어 둔 이전 JavaScript는 새 커밋에 의해 자동 갱신되지 않음. 새 버전 READY 후에 새로고침해야 버튼과 새 프로세스가 적용됨. 그 전에 오래된 탭을 닫으면 해당 브라우저 실행은 멈추지만 서버가 이미 받은 AI 요청은 완료될 수 있음.
 
+## 2026-10-14 · 12878 PDF 원본은 있으나 `PREVIOUS_PDF_WINDOW_MISSING` 색인 오류
+- 사용자 실측: `해당 사건 원본 연결 확인 필요 / 2026가단12878 원본 PDF는 서버에 저장돼 있으나 색인 복구에 실패했어: PREVIOUS_PDF_WINDOW_MISSING`. 본건 원본 업로드 레코드 검색 성공, 전체 원문 색인은 아직 미완료.
+- 확인된 코드 원인: `api/skynet-document-range.js`는 PDF 16쪽마다 `skynet/document-ingest/<hash>/step-xxxxxxxx.json` 영수증을 생성하며 **이전 구간 영수증이 없거나 nextPage 연결 정보가 틀리면 HTTP 409** (`PREVIOUS_PDF_WINDOW_MISSING`) 반환. 이전 `admin/skynet.html`의 `indexArchivedPdfInWindows`는 이 409를 즉시 오류 처리하고 복구 루틴이 없었음. 실제 누락 원인(서버 부분 저장 실패, 오래된 색인 버전, 중단 등)은 운영 Blob 직접 검증 전까지 특정 불가.
+- 수정: 보관 PDF 원본의 분할 아카이브를 그대로 두고 `recoveryMode='rebuild-v2'`를 지원. 구 legacy receipt 누락 시 자동으로 **독립 경로 `skynet/document-ingest-rebuild-v2/<hash>/step-...`**에 1쪽부터 안전하게 별도 색인을 재구성. 새 색인은 기존 checkpoint를 우회하며 새 페이지·세그먼트를 검증한 뒤 원래 불변 해시의 full manifest를 최종 작성. 기존 원본 업로드 삭제/재업로드 금지.
+- 프론트는 정확한 409+코드와 `recoverable:true`에만 **한 번** 자동 재구성. 재구성 도중 다시 선행 구간 누락이면 무한 루프 없이 오류 처리하고 원문 전체 분석 완료로 위장하지 않음.
+- `tests/skynet-pdf-window-recovery.test.mjs` 모의 3건: legacy 정상 1쪽→17쪽에서 409→재구성 1/17/33으로 완료; 복구 구간에서도 409일 경우 실패; 서버와 클라이언트 경로/모드 연동. 세 테스트 + JS 구문 확인 통과. **실제 12878 원본이 끝까지 색인되는 운영 E2E는 미검증.**
+- Vercel 최신 배포가 READY인 것을 확인하기 전 사용자에게 재실행을 요구하지 말 것. 사용자는 빨리 법원형 관련 대화로 복귀하기 원함.
+
 ## 세션 시작 시 무조건 실행
 1. GitHub `mind3253-lang/squid-law`의 **최신 main**을 읽는다. `docs/SKYNET_CONTINUITY_AND_IMPLEMENTATION.md`, **이 파일**, `docs/SKYNET_TASK_MANIFEST.json`을 읽는다.
 2. Vercel `squid-law` 최신 배포와 최근 커밋/테스트/로그를 확인한다. 권한 오류가 나면 구체적 차단 요인을 기록하고 다른 가능한 작업을 진행한다.
