@@ -605,7 +605,7 @@ async function analyzeAttachedDocuments(docs,question,previous,effort,saveAnswer
  if(docs.length===1&&/\.pdf$/i.test(String(docs[0].name||''))){
   if(await analyzeWholeIndexedPdf(docs[0],question,effort,saveAnswer))return;
  }
- const allNotes=[],meta=[];
+ const allNotes=[],meta=[],lateSourceNotes=[];
  const questionHash=await reviewFingerprint('skynet-pdf-review-v2\n'+question.trim()+'\n'+effort);
  for(let d=0;d<docs.length;d++){
   const doc=docs[d];let offset=0,position=0,chunks=[],pageCount=null,ocrRequired=[];
@@ -639,6 +639,9 @@ async function analyzeAttachedDocuments(docs,question,previous,effort,saveAnswer
    if(!advanced)throw Error(doc.name+': 원문 판독 위치가 움직이지 않아 중단');
    if(tries===249)throw Error(doc.name+': 원문 구간 수 250회 초과 · 미완료');
   }
+  if(kind==='pdf'&&(!Number.isSafeInteger(pageCount)||pageSet.size!==pageCount||
+   Array.from({length:pageCount},(_,i)=>i+1).some(n=>!pageSet.has(n))))
+   throw Error(doc.name+': PDF 전체 '+pageCount+'쪽 중 페이지 기록 누락 · 완료 처리 금지');
   if(!chunks.length)throw Error(doc.name+': 판독 가능한 문서 텍스트가 없어. 원본은 보관돼 있어.');
   const notes=new Array(chunks.length);
   const digest=await Promise.all(chunks.map(x=>reviewFingerprint(x.text)));
@@ -691,6 +694,8 @@ async function analyzeAttachedDocuments(docs,question,previous,effort,saveAnswer
    }
   }
   if(notes.some(x=>typeof x!=='string'||!x.trim()))throw Error(doc.name+': 원문 구간 검토 누락');
+  if(kind==='pdf')lateSourceNotes.push('[PDF 후반부 공방 독립 재검토 · '+doc.name+']\n'+
+   notes.slice(Math.floor(notes.length*0.6)).join('\n\n'));
   meta.push(doc.name+(kind==='pdf'?' · '+pageCount+'쪽':'')+
    ' · '+chunks.length+'개 텍스트 구간 검토'+
    (ocrRequired.length?' · 텍스트 판독 불가 '+ocrRequired.join(',')+'쪽':''));
@@ -719,12 +724,28 @@ async function analyzeAttachedDocuments(docs,question,previous,effort,saveAnswer
   summaries=compressed.join('\n\n');
  }
  if(summaries.length>45000)throw Error('첨부 검토 노트가 입력 한도를 초과해 최종 종합 미완료야.');
- el('chatErrorStatus').textContent='원문 텍스트 전 구간 검토 · 최종 종합 분석 중…';
+ let recentSource=lateSourceNotes.join('\n\n');
+ for(let wave=0;recentSource.length>18000&&wave<8;wave++){
+  const pieces=splitLongText(recentSource,11000),reduced=[];
+  for(const [i,piece] of pieces.entries()){
+   reduced.push(await askReviewNoteWithRetry(
+    '이 자료는 첨부 PDF 후반부의 실제 검토 기록 '+(i+1)+'/'+pieces.length+
+    '부분이다. 이 부분의 양측 공방, 10월 등 최근 서면, 상계와 증거 페이지를 남기고 압축해. '+
+    '근거 위치와 불리한 주장까지 유지하고 없는 사실을 쓰지 마.\n\n'+piece,
+    effort,'PDF 후반 공방 보존'));
+  }
+  recentSource=reduced.join('\n\n');
+ }
+ if(recentSource.length>18000)throw Error('PDF 후반부 공방 노트의 보존 검증 실패');
+ el('chatErrorStatus').textContent='원문 텍스트 전 구간 검토 · 최신 공방 포함 종합 분석 중…';
  renderReviewState('텍스트 구간 검토 완료 · 종합 보고서 작성 중 (아직 최종 완료 아님)');
  const finalPrompt='사용자 요청: '+question+
   '\n\n다음은 이번에 실제로 첨부된 PDF의 모든 판독 가능 텍스트 구간을 차례로 검토한 중간 분석 노트야. '+
   '노트에 없는 사실·근거·쪽수는 만들지 말고 당사자 주장과 확인된 사실, 상충 증거, 불확실성을 분리해 독립적으로 분석해. '+
-  '이미지/OCR이 미검증인 경우 문서 전체가 완전히 판독됐다고 주장하면 안 돼.\n\n'+summaries;
+  '이미지/OCR이 미검증인 경우 문서 전체가 완전히 판독됐다고 주장하면 안 돼. '+
+  '특히 마지막 40% 구간의 공방과 최근 날짜의 준비서면을 반드시 별도 대조하고, 앞부분만 반복하지 마.\n\n'+
+  '[원문 전 구간 검토·압축 노트]\n'+summaries+
+  '\n\n[후반부 원문 공방 재검토 전용 노트]\n'+recentSource;
  const reply=await askReviewNoteWithRetry(finalPrompt,effort,'최종 종합 분석');
  if(docs.length===1){
   await reviewJobRequest('finish',{documentHash:docs[0].hash,questionHash,report:reply});
