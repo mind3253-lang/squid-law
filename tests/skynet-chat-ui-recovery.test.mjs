@@ -13,7 +13,7 @@ test('SKYNET inline scripts remain valid JavaScript',()=>{
 });
 
 test('SKYNET chat does not abandon replies before server timeout without feedback',()=>{
- assert.match(html,/setTimeout\(\(\)=>controller\.abort\(\),100000\)/);
+ assert.match(html,/setTimeout\(\(\)=>controller\.abort\(\),180000\)/);
  assert.doesNotMatch(html,/setTimeout\(\(\)=>controller\.abort\(\),45000\)/);
  assert.match(html,/id="chatErrorStatus"/);
  assert.match(html,/AI 답변 실패/);
