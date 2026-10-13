@@ -26,7 +26,8 @@ const base=(documentHash,questionHash)=>'skynet/document-review/jobs/'+documentH
 const reviewPrefix=(documentHash,questionHash)=>'skynet/document-review/v1/'+documentHash+'/'+questionHash+'/';
 const paths=(documentHash,questionHash)=>({
  manifest:base(documentHash,questionHash)+'manifest.json',
- final:base(documentHash,questionHash)+'final.json'
+ final:base(documentHash,questionHash)+'final.json',
+ canceled:base(documentHash,questionHash)+'canceled.json'
 });
 function references(value){
  const documentHash=String(value?.documentHash||''),questionHash=String(value?.questionHash||'');
@@ -65,10 +66,17 @@ export default async function handler(req,res){
  if(typeof body==='string')try{body=JSON.parse(body)}catch{return send(res,400,{error:'INVALID_JSON'})}
  const ref=references(body);
  if(!ref)return send(res,400,{error:'INVALID_JOB_REFERENCE'});
- const {documentHash,questionHash}=ref,{manifest,final}=paths(documentHash,questionHash);
+ const {documentHash,questionHash}=ref,{manifest,final,canceled}=paths(documentHash,questionHash);
  try{
   const source=await read('skynet/documents/'+documentHash+'.json',27*1048576);
   if(!source||source.hash!==documentHash)return send(res,404,{error:'SOURCE_NOT_FOUND'});
+  if(req.method==='POST'&&body.action==='cancel'){
+   const current=await read(manifest);
+   if(!current)return send(res,200,{ok:true,canceled:true,registered:false});
+   await put(canceled,JSON.stringify({canceled:true,canceledAt:new Date().toISOString()}),
+    {access:'private',allowOverwrite:true,addRandomSuffix:false,contentType:'application/json'});
+   return send(res,200,{ok:true,canceled:true});
+  }
   if(req.method==='POST'&&body.action==='start'){
    const chunks=body.chunks,question=String(body.question||''),effort=String(body.effort||'');
    if(!Array.isArray(chunks)||chunks.length<1||chunks.length>maxChunks||
@@ -78,6 +86,10 @@ export default async function handler(req,res){
     return send(res,400,{error:'INVALID_JOB_MANIFEST'});
    const existing=await read(manifest);
    if(existing){
+    const stopped=await read(canceled);
+    if(stopped?.canceled===true)
+     await put(canceled,JSON.stringify({canceled:false,resumedAt:new Date().toISOString()}),
+      {access:'private',allowOverwrite:true,addRandomSuffix:false,contentType:'application/json'});
     if(existing.documentHash!==documentHash||existing.questionHash!==questionHash||
      JSON.stringify(existing.chunks)!==JSON.stringify(chunks)||
      existing.question!==question||existing.effort!==effort)
@@ -101,6 +113,9 @@ export default async function handler(req,res){
   }
   const job=await read(manifest);
   if(!job)return send(res,404,{error:'REVIEW_NOT_REGISTERED'});
+  const canceledState=await read(canceled);
+  if(req.method==='POST'&&body.action==='finish'&&canceledState?.canceled===true)
+   return send(res,409,{error:'REVIEW_CANCELED_BY_USER',canceled:true});
   const counts=await countChunks(job);
   const completed=await read(final,900000);
   if(req.method==='POST'){
@@ -126,7 +141,8 @@ export default async function handler(req,res){
   }
   return send(res,200,{ok:true,found:true,name:job.name,question:job.question,
    pageCount:job.pageCount,sourceSegmentCount:job.sourceSegmentCount,...counts,complete:!!completed,
-   status:completed?.status||'TEXT_REVIEW_INCOMPLETE',
+   status:canceledState?.canceled?'REVIEW_CANCELED_BY_USER':completed?.status||'TEXT_REVIEW_INCOMPLETE',
+   canceled:canceledState?.canceled===true,
    ocrRequired:job.ocrRequired,visualVerified:false,
    createdAt:job.createdAt,finishedAt:completed?.finishedAt||null,
    report:completed?.report||null});
