@@ -22,14 +22,14 @@ export default async function handler(req,res){
  if(!authorized(req))return send(res,401,{error:'ADMIN_REQUIRED'});
  if(req.method!=='GET')return send(res,405,{error:'GET_ONLY'});
  if(!process.env.BLOB_READ_WRITE_TOKEN)return send(res,503,{error:'MEMORY_STORAGE_NOT_CONNECTED'});
- const limit=Math.max(1,Math.min(40,Number(req.query?.limit)||30));
+ const limit=Math.max(1,Math.min(80,Number(req.query?.limit)||48));
  const cursor=typeof req.query?.cursor==='string'&&req.query.cursor.length<=3000?req.query.cursor:undefined;
  try{
   const page=await list({prefix:ROOT,limit,...(cursor?{cursor}:{})});
   const files=page.blobs.filter(x=>x.pathname.endsWith('.json'));
   const records=[],errors=[];
-  for(let i=0;i<files.length;i+=10){
-   const results=await Promise.allSettled(files.slice(i,i+10).map(x=>readSmall(x.pathname)));
+  for(let i=0;i<files.length;i+=16){
+   const results=await Promise.allSettled(files.slice(i,i+16).map(x=>readSmall(x.pathname)));
    for(let j=0;j<results.length;j++){
     const result=results[j],path=files[i+j].pathname;
     if(result.status==='fulfilled')records.push(result.value);
