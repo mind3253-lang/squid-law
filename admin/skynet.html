@@ -800,6 +800,8 @@ async function fetchIndexedPdfPageWindow(hash,startPage,endPage,offset,position)
  }finally{clearTimeout(timer)}
 }
 async function readPdfPageSpan(doc,startPage,endPage){
+ setSkynetPipelineProgress('review',0,endPage-startPage+1,
+  'PDF '+startPage+'~'+endPage+'쪽 원문 재검토 시작',doc.name);
  const chunks=[],seenPages=new Set();
  let offset=null,position=0,totalPages=null,segmentCount=null,complete=false,lastPage=0;
  for(let step=0;step<2000;step++){
@@ -818,6 +820,8 @@ async function readPdfPageSpan(doc,startPage,endPage){
    if(page<lastPage)throw Error('PDF 페이지 순서가 역행했어 · 색인 오류 가능성');
    lastPage=page;seenPages.add(page);
   }
+  setSkynetPipelineProgress('review',seenPages.size,endPage-startPage+1,
+   'PDF '+startPage+'~'+endPage+'쪽 원문 재검토 중 · '+seenPages.size+'쪽 확인',doc.name);
   if(typeof data.text==='string'&&data.text.trim()){
    chunks.push({text:data.text,pages:data.pages||[],index:chunks.length+1});
   }
