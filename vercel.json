@@ -1,6 +1,10 @@
 {
   "rewrites": [
     {
+      "source": "/admin/skynet-document-context",
+      "destination": "/api/skynet-document-context"
+    },
+    {
       "source": "/admin/skynet-category-dashboard",
       "destination": "/api/skynet-category-dashboard"
     },
