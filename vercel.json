@@ -1,6 +1,10 @@
 {
   "rewrites": [
     {
+      "source": "/admin/skynet-category-dashboard",
+      "destination": "/api/skynet-category-dashboard"
+    },
+    {
       "source": "/admin/skynet-long-turn",
       "destination": "/api/skynet-long-turn"
     },
