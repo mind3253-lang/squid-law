@@ -41,7 +41,8 @@ function updateCategoryCounts(progress=''){
   rows[i].dataset.topic=id;
   // A tagged source passage may belong to multiple categories; this is
   // segment coverage, not a count of unique personal facts.
-  rows[i].textContent=categoryLabels[i]+' · '+(total?total+'구간':complete?'0구간':'집계 중');
+  const incompleteError=categoryHasErrors()&&!categoryRunning;
+  rows[i].textContent=categoryLabels[i]+' · '+(total?total+'구간'+(incompleteError?' · 일부 미확인':''):complete?'0구간':incompleteError?'확인 필요':'집계 중');
   rows[i].title='현재 '+sources+'개 출처에서 확인 · 원문 구간 수(중복 주제 허용)';
  }
  const status=categories.querySelector('.muted');
