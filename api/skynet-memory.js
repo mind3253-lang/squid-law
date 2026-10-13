@@ -1,4 +1,5 @@
 import {indexSource} from './skynet-search-index.js';
+import {waitUntil} from '@vercel/functions';
 import {appendRecords,loadRecords,recordId} from './skynet-records.js';
 import {put,list,get} from '@vercel/blob';
 import {randomUUID} from 'node:crypto';
@@ -53,7 +54,7 @@ export default async function handler(req,res){
    if(existing?.statusCode===200)return send(res,200,{ok:true,duplicate:true});
    const saved={messages:[{role,content}],turnId,savedAt:new Date().toISOString()};
    await put(pathname,JSON.stringify(saved),{access:'private',addRandomSuffix:false,allowOverwrite:false,contentType:'application/json'});
-   try{await indexSource(pathname,saved)}catch(e){console.error('Turn indexing deferred',String(e.message).slice(0,120))}
+   try{waitUntil(indexSource(pathname,saved).catch(e=>console.error('Turn indexing deferred',String(e.message).slice(0,120))))}catch(e){console.error('Turn index scheduling deferred',String(e.message).slice(0,120))}
    return send(res,200,{ok:true,role});
   }catch(e){if(/already exists|conflict/i.test(String(e.message)))return send(res,200,{ok:true,duplicate:true});return send(res,502,{error:'대화 저장 실패'})}
  }
@@ -63,7 +64,7 @@ export default async function handler(req,res){
   const pathname=prefix+'pairs/'+autosaveId(messages)+'.json';
   const existing=await get(pathname,{access:'private'});
   if(existing?.statusCode===200)return send(res,200,{ok:true,duplicate:true});
-  const sourceData={messages:messages.map(m=>({role:m.role,content:m.content})),savedAt:new Date().toISOString()};await put(pathname,JSON.stringify(sourceData),{access:'private',allowOverwrite:false,addRandomSuffix:false,contentType:'application/json'});try{await indexSource(pathname,sourceData)}catch(e){console.error('Search index deferred',String(e.message).slice(0,120))}
+  const sourceData={messages:messages.map(m=>({role:m.role,content:m.content})),savedAt:new Date().toISOString()};await put(pathname,JSON.stringify(sourceData),{access:'private',allowOverwrite:false,addRandomSuffix:false,contentType:'application/json'});try{waitUntil(indexSource(pathname,sourceData).catch(e=>console.error('Search index deferred',String(e.message).slice(0,120))))}catch(e){console.error('Search index scheduling deferred',String(e.message).slice(0,120))}
   return send(res,200,{ok:true});
  }catch(e){if(/already exists|conflict/i.test(String(e?.message||'')))return send(res,200,{ok:true,duplicate:true});return send(res,502,{error:'기억 저장 실패'})}
 }
