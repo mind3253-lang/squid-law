@@ -25,7 +25,13 @@ const bucket=t=>digest(t).slice(0,3);
 const chunkText=(text,size=1800)=>{const out=[];for(let i=0;i<text.length;i+=size)out.push(text.slice(i,i+size));return out};
 export function entriesOf(data){if(Array.isArray(data?.messages))return data.messages.filter(x=>typeof x.content==='string').flatMap((x,i)=>chunkText(x.content).map((content,j)=>({content,at:x.at||data.createdAt||data.savedAt||null,category:data.category||'',title:data.title||data.name||'',role:x.role||null,part:i+':'+j,case:classifyRecord(content,{title:data.title||data.name||'',category:data.category||''})})));if(Array.isArray(data?.segments))return data.segments.filter(x=>typeof x?.text==='string'&&x.text.trim()).flatMap((segment,i)=>chunkText('[PDF '+String(segment.page||'?')+'쪽 / 부분 '+String(segment.part||'?')+']\n'+segment.text).map((content,j)=>({content,at:data.createdAt||null,category:data.category||'',title:data.name||('PDF 원본 '+String(data.hash||'').slice(0,12)),part:String(segment.page||i)+':'+String(segment.part||j),page:segment.page||null,case:classifyRecord(content,{title:data.name||'',category:data.category||''})})));if(typeof data?.text==='string')return chunkText(data.text).map((content,i)=>({content,at:data.at||data.createdAt||null,category:data.category||'',title:data.name||'불변 기억',part:String(i),case:classifyRecord(content,{title:data.name||'',category:data.category||''})}));if(Array.isArray(data?.records))return data.records.filter(x=>typeof x?.text==='string'&&x.text.trim()).flatMap((x,i)=>chunkText(x.text).map((content,j)=>({content,at:x.at||data.savedAt||null,category:x.category||'',title:'기억 DB',part:i+':'+j,case:classifyRecord(content,{category:x.category||''})})));return []}
 export async function indexSource(path,data){
- const entries=entriesOf(data),sourceId=digest(path),createdAt=new Date().toISOString();
+ const sourceId=digest(path),createdAt=new Date().toISOString();
+ // Persist cheap, independent topic evidence before the expensive case/search
+ // index. A slow or failed full-text job must not hide the source from the
+ // memory categories.
+ const categories=categoryDigestEntries(sourceTopicEntries(data),{source:path,name:data.title||data.name||data.category||''});
+ await put('skynet/category-index/'+sourceId+'.json',JSON.stringify(categories),{access:'private',addRandomSuffix:false,allowOverwrite:true,contentType:'application/json'});
+ const entries=entriesOf(data);
  const docs=entries.map(e=>({...e,source:path,id:digest(path+'|'+e.part+'|'+e.content)}));
  const makeIndex=items=>{
   const terms=new Map();
@@ -61,9 +67,6 @@ export async function indexSource(path,data){
   await put(base,JSON.stringify(manifest),{access:'private',addRandomSuffix:false,allowOverwrite:true,contentType:'application/json'});
   cacheIndex(base,manifest);
  }
- const categories=categoryDigestEntries(sourceTopicEntries(data),{source:path,name:data.title||data.name||data.category||''});
- const topicPath='skynet/category-index/'+sourceId+'.json';
- await put(topicPath,JSON.stringify(categories),{access:'private',addRandomSuffix:false,allowOverwrite:true,contentType:'application/json'});
  listedIndexes=null;
  return {entries:docs.length,shards,buckets:0,categorized:categories.classified};
 }
