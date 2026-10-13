@@ -1,6 +1,10 @@
 {
   "rewrites": [
     {
+      "source": "/admin/skynet-document-job",
+      "destination": "/api/skynet-document-job"
+    },
+    {
       "source": "/admin/skynet-document-review",
       "destination": "/api/skynet-document-review"
     },
