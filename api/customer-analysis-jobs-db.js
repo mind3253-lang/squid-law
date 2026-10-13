@@ -43,6 +43,11 @@ export async function advanceJob(job,stage,checkpoint,status='running',errorCode
  // Trigger the next checkpoint without waiting for the customer's browser
  // or the periodic cron. Claiming remains serialized by PG SKIP LOCKED/fence.
  if(status==='retry'&&stage!=='error')scheduleCustomerWorker({delayMs:600});
+ // A transient provider/transport failure should retry after its persisted
+ // SQL backoff, not stall until the next 5-minute cron. Limit immediate
+ // re-dispatch to the first four attempts; repeated failures still back off.
+ if(status==='retry'&&stage==='error'&&Number(job.attempts||0)<4)
+  scheduleCustomerWorker({delayMs:Math.min(9500,2**Math.min(3,Number(job.attempts||0))*1000+750)});
  if(status==='completed')scheduleCustomerWorker({delayMs:600});
  return result;
 }
