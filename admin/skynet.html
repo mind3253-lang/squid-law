@@ -989,9 +989,14 @@ async function compileSkynetCaseDossier({
    }
    if(summary.trim().length<120||!summary.includes('|'))
     throw Error(section.title+' 장의 원문 비교표가 없으므로 완료 처리할 수 없어.');
+   if(contract.reportHasInvalidPageCitations(summary,pageCount))
+    throw Error(section.title+' 장에 원본 PDF '+pageCount+
+     '쪽을 넘어서는 허위 페이지 근거가 있어 완료 처리하지 않아.');
    const saved=await documentReviewCheckpoint(doc,fingerprint,digests[i],i+1,summary,[]);
    summary=saved.summary||summary;
   }
+  if(contract.reportHasInvalidPageCitations(summary,pageCount))
+   throw Error(section.title+' 장의 저장된 보고서에서 원본 밖 페이지를 인용했어.');
   collected.push({id:section.id,text:summary});
   setSkynetPipelineProgress('report',i+1,sections.length,
    '분석보고서 작성 중 · '+section.title,doc.name);
