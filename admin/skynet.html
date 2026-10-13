@@ -84,7 +84,7 @@ function splitLongText(text,max=20000){
 }
 async function askSkynet(prompt,previous,effort,memories=[],retrievalQuery=''){
  const outgoing=[...previous,{role:'user',content:prompt}];
- const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),100000);
+ const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),180000);
  try{
   const response=await fetch('/admin/skynet-chat',{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},
    body:JSON.stringify({messages:outgoing,memories,retrievalQuery,reasoningEffort:effort}),signal:controller.signal});
