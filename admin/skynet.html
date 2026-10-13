@@ -1,4 +1,4 @@
-<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>SKYNET</title><style>body{margin:0;background:#f2f5fa;color:#14243a;font:16px system-ui,sans-serif}header{background:#10243b;color:white;padding:24px}main{max-width:1480px;margin:12px auto;padding:0 16px}main section{padding:16px}.chat-shell{display:flex;flex-direction:column;min-height:calc(100vh - 145px)}section{background:white;border:1px solid #dce4ed;border-radius:14px;padding:20px;margin-bottom:16px}textarea,input{box-sizing:border-box;width:100%;padding:12px;border:1px solid #cdd7e5;border-radius:8px;font:inherit}textarea{min-height:120px}button:disabled{opacity:.55;cursor:wait}.internal-memory{display:none!important}.dropzone{border:2px dashed #8ca9c8;border-radius:14px;padding:20px;text-align:center;background:#f8fbff;cursor:pointer}.dropzone.dragging{border-color:#1762b4;background:#dceeff}.dropzone input{display:none}.composer{border:1px solid #cdd7e5;border-radius:16px;padding:10px;background:#fff}.composer textarea{border:0;resize:vertical;min-height:145px;max-height:55vh;overflow-y:auto;overscroll-behavior:contain}.chat-attachment{display:inline-flex;align-items:center;gap:6px;border:1px solid #bdd0e5;border-radius:9px;padding:7px 10px;margin:4px;background:#f2f7ff;max-width:100%;overflow-wrap:anywhere}.chat-attachment button{padding:3px 7px;margin:0}.chat-message{padding:14px 18px;border-radius:14px;margin:12px 0;max-width:85%;white-space:pre-wrap;overflow-wrap:anywhere}.chat-message.user{background:#e8f2ff;margin-left:auto}.chat-message.assistant{background:#f4f6fa;margin-right:auto}.chat-message .chat-attachment{display:flex;width:fit-content}.chat-message a{word-break:break-all}.chat-message.assistant{max-width:96%}.skynet-table-scroll{width:100%;max-width:100%;overflow-x:auto;margin:12px 0}.skynet-markdown-table{border-collapse:collapse;width:100%;min-width:560px;background:#fff;font-size:14px;line-height:1.55;white-space:normal}.skynet-markdown-table th,.skynet-markdown-table td{border:1px solid #cbd5e1;padding:9px 11px;text-align:left;vertical-align:top;overflow-wrap:anywhere}.skynet-markdown-table th{background:#eaf1fa;font-weight:700;position:sticky;top:0}.skynet-markdown-text{white-space:pre-wrap;overflow-wrap:anywhere}.skynet-markdown-heading{font-weight:700;margin:12px 0 5px}.skynet-markdown-heading.level-2{font-size:18px}.skynet-markdown-heading.level-3{font-size:16px}#conversation{scrollbar-width:auto}#pendingFiles{min-height:0}#chatComposer.dragging{outline:3px dashed #1762b4;background:#e8f2ff}.composer textarea:focus{outline:none}.composerbar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}.composerbar .muted{flex:1}button:focus-visible,textarea:focus-visible,input:focus-visible{outline:3px solid #f59e0b;outline-offset:2px}button{background:#1762b4;color:white;border:0;border-radius:8px;padding:11px 16px;cursor:pointer;margin:8px 5px 8px 0}.item{border-top:1px solid #ddd;padding:12px 0;white-space:pre-wrap}.muted{color:#64748b;font-size:13px}.warning{background:#fff3d9;padding:12px;border-radius:8px}a{color:#1762b4}</style><link rel="stylesheet" href="/admin/skynet-layout.css"></head><body><header><h1>🦑 SKYNET</h1><a href="/admin/" style="color:white">관리자방으로</a></header><main><section class="chat-shell"><div class="skynet-chat-toolbar"><h2>SKYNET 대화</h2><button id="chatRestoreHistory" type="button" title="서버에 남은 이전 대화 가져오기">↺ 이전 대화 복원</button></div><button id="chatLoadMore" type="button" hidden style="align-self:center;margin:2px auto;padding:6px 14px;border-radius:14px;background:#eef1f6;color:#394152;font-size:13px">이전 대화 더 보기</button><div id="conversation" role="log" aria-live="polite" style="flex:1;min-height:380px;max-height:none;overflow-y:auto;overscroll-behavior:contain;white-space:pre-wrap"></div><div id="skynetReviewPanel" hidden style="border:1px solid #cbd5e1;border-radius:12px;background:#f8fafc;padding:12px 15px;margin:8px 0" aria-live="polite"><div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap"><strong id="skynetReviewHeader" style="font-size:14px">첨부 문서 원문 분석</strong><span style="display:inline-flex;align-items:center;gap:6px"><span id="skynetReviewCount" style="font-size:13px;color:#334155"></span><strong id="skynetReviewPercent" style="font-size:13px;color:#1762b4;min-width:34px;text-align:right">0%</strong></span></div><progress id="skynetReviewProgress" value="0" max="100" style="display:block;width:100%;height:12px;margin:9px 0"></progress><p id="skynetReviewStage" style="margin:4px 0;color:#475569;font-size:13px"></p><button id="skynetReviewResume" type="button" hidden style="margin:6px 6px 0 0;padding:7px 13px">미완료 구간 이어서 분석</button><button id="skynetReviewRefresh" type="button" style="margin:6px 0 0;padding:7px 13px;background:#e2e8f0;color:#334155">서버 진행 상태 확인</button><button id="skynetReviewChooseSource" type="button" style="margin:6px 0 0 6px;padding:7px 13px;background:#e2e8f0;color:#334155">분석할 PDF 선택</button></div><div class="composer" id="chatComposer"><div id="pendingFiles" aria-live="polite"></div><input type="file" id="chatFiles" accept=".txt,.md,.json,.csv,text/plain,text/markdown,application/json,text/csv" multiple hidden><textarea id="chatInput" aria-label="SKYNET 메시지 입력" placeholder="SKYNET에게 이야기하세요. Enter는 줄바꿈, 연속 두 번 Enter는 전송"></textarea><div class="composerbar"><span class="muted">파일은 이 대화창에 끌어놓기 · Enter 줄바꿈 · 연속 Enter 두 번 전송</span><button id="archivePickButton" type="button">📎 파일 첨부</button><button id="retryStoredPdf" type="button" title="서버에 보관된 PDF 원본을 재업로드 없이 분석 연결" aria-label="저장된 PDF 재연결">↻</button><input id="archivePickInput" type="file" accept=".pdf,.png,.jpg,.jpeg,.xls,.xlsx,.doc,.docx,.ppt,.pptx,.hwp,.hwpx,.json,.txt,.md,.csv,.zip" multiple hidden><button id="sendChat" type="button">➤ 보내기</button></div></div><p id="chatErrorStatus" role="status" aria-live="polite" hidden style="margin:6px 8px;font-size:13px;color:#9a3412"></p><span id="chatCount" class="muted"></span><p id="archiveStatus" class="muted" role="status" aria-live="polite">사건 자료를 대화창에 한 번에 첨부하세요 · 서버에서 파일을 자동 분할하여 비공개 보관</p><p class="muted">PDF·이미지·엑셀·워드·파워포인트·한글·GPT 백업 파일을 서버에 원본 그대로 보관합니다. 저장된 자료의 AI 분석은 별도 연결 전입니다. 기존 대화는 브라우저에도 남아 있으니 삭제하지 마세요.</p></section></main><section id="indexManager" hidden style="display:none!important;max-width:1480px;margin:12px auto"><h2>장기기억 검색 인덱스 관리</h2><p class="muted">기존 자료를 삭제하지 않고 순차 인덱싱합니다. 브라우저를 닫으면 일시 중단되며 다시 시작할 수 있습니다.</p><div id="indexStats" role="status" aria-live="polite">상태 확인 전</div><button type="button" id="indexRefresh">상태 확인</button><button type="button" id="indexStart">인덱싱 시작 / 재개</button><button type="button" id="indexStop" disabled>일시 중지</button><p id="indexProgress" class="muted"></p></section><section id="timelineManager" hidden style="display:none!important;max-width:1480px;margin:12px auto"><h2>사건별 타임라인 (검토용)</h2><label for="timelineCase">사건 선택</label><select id="timelineCase"><option value="">전체 (미분류 포함)</option><option value="case:minji">민지 임대차</option><option value="case:bauer">바우어</option><option value="case:jo-hyejeong">조혜정</option><option value="project:submarine">서브마린</option><option value="project:sihwaseong">시화성</option><option value="project:squidlaw">SQUIDLAW</option></select><button id="timelineLoad" type="button">타임라인 조회</button><p class="muted" id="timelineStatus" role="status"></p><div id="timelineResults"></div></section><section id="dataManager" hidden style="display:none!important;max-width:1480px;margin:12px auto"><h2>저장 데이터 관리</h2><p class="warning">테스트로 명확히 식별된 자료만 삭제할 수 있습니다. 실제 사건·백업·운영 자료는 보호됩니다. 목록 확인 후 선택·재확인이 필요합니다.</p><button type="button" id="dataRefresh">저장 데이터 조회</button><p id="dataStatus" role="status" class="muted">조회 전</p><div id="dataItems"></div><button type="button" id="dataDelete" disabled>선택한 임시 자료 삭제 확인</button></section><section hidden style="display:none!important;margin:18px 0;padding:16px;border:1px solid #aaa;border-radius:12px"><h3>오징어 장기 성격 · 사용자 취향</h3><p>서버에 저장되어 새 대화에서도 적용돼.</p><label>이름 <input id="ojName" value="오징어" maxlength="100"></label><p><label>말투 <textarea id="ojStyle" rows="2" style="width:100%" maxlength="3000"></textarea></label></p><p><label>작업 취향 <textarea id="ojPrefs" rows="3" style="width:100%" maxlength="3000"></textarea></label></p><button id="ojSave" type="button">서버에 영구 저장</button> <span id="ojStatus"></span></section>
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>SKYNET</title><style>body{margin:0;background:#f2f5fa;color:#14243a;font:16px system-ui,sans-serif}header{background:#10243b;color:white;padding:24px}main{max-width:1480px;margin:12px auto;padding:0 16px}main section{padding:16px}.chat-shell{display:flex;flex-direction:column;min-height:calc(100vh - 145px)}section{background:white;border:1px solid #dce4ed;border-radius:14px;padding:20px;margin-bottom:16px}textarea,input{box-sizing:border-box;width:100%;padding:12px;border:1px solid #cdd7e5;border-radius:8px;font:inherit}textarea{min-height:120px}button:disabled{opacity:.55;cursor:wait}.internal-memory{display:none!important}.dropzone{border:2px dashed #8ca9c8;border-radius:14px;padding:20px;text-align:center;background:#f8fbff;cursor:pointer}.dropzone.dragging{border-color:#1762b4;background:#dceeff}.dropzone input{display:none}.composer{border:1px solid #cdd7e5;border-radius:16px;padding:10px;background:#fff}.composer textarea{border:0;resize:vertical;min-height:145px;max-height:55vh;overflow-y:auto;overscroll-behavior:contain}.chat-attachment{display:inline-flex;align-items:center;gap:6px;border:1px solid #bdd0e5;border-radius:9px;padding:7px 10px;margin:4px;background:#f2f7ff;max-width:100%;overflow-wrap:anywhere}.chat-attachment button{padding:3px 7px;margin:0}.chat-message{padding:14px 18px;border-radius:14px;margin:12px 0;max-width:85%;white-space:pre-wrap;overflow-wrap:anywhere}.chat-message.user{background:#e8f2ff;margin-left:auto}.chat-message.assistant{background:#f4f6fa;margin-right:auto}.chat-message .chat-attachment{display:flex;width:fit-content}.chat-message a{word-break:break-all}.chat-message.assistant{max-width:96%}.skynet-table-scroll{width:100%;max-width:100%;overflow-x:auto;margin:12px 0}.skynet-markdown-table{border-collapse:collapse;width:100%;min-width:560px;background:#fff;font-size:14px;line-height:1.55;white-space:normal}.skynet-markdown-table th,.skynet-markdown-table td{border:1px solid #cbd5e1;padding:9px 11px;text-align:left;vertical-align:top;overflow-wrap:anywhere}.skynet-markdown-table th{background:#eaf1fa;font-weight:700;position:sticky;top:0}.skynet-markdown-text{white-space:pre-wrap;overflow-wrap:anywhere}.skynet-markdown-heading{font-weight:700;margin:12px 0 5px}.skynet-markdown-heading.level-2{font-size:18px}.skynet-markdown-heading.level-3{font-size:16px}#conversation{scrollbar-width:auto}#pendingFiles{min-height:0}#chatComposer.dragging{outline:3px dashed #1762b4;background:#e8f2ff}.composer textarea:focus{outline:none}.composerbar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}.composerbar .muted{flex:1}button:focus-visible,textarea:focus-visible,input:focus-visible{outline:3px solid #f59e0b;outline-offset:2px}button{background:#1762b4;color:white;border:0;border-radius:8px;padding:11px 16px;cursor:pointer;margin:8px 5px 8px 0}.item{border-top:1px solid #ddd;padding:12px 0;white-space:pre-wrap}.muted{color:#64748b;font-size:13px}.warning{background:#fff3d9;padding:12px;border-radius:8px}a{color:#1762b4}</style><link rel="stylesheet" href="/admin/skynet-layout.css"></head><body><header><h1>🦑 SKYNET</h1><a href="/admin/" style="color:white">관리자방으로</a></header><main><section class="chat-shell"><div class="skynet-chat-toolbar"><h2>SKYNET 대화</h2><button id="chatRestoreHistory" type="button" title="서버에 남은 이전 대화 가져오기">↺ 이전 대화 복원</button></div><button id="chatLoadMore" type="button" hidden style="align-self:center;margin:2px auto;padding:6px 14px;border-radius:14px;background:#eef1f6;color:#394152;font-size:13px">이전 대화 더 보기</button><div id="conversation" role="log" aria-live="polite" style="flex:1;min-height:380px;max-height:none;overflow-y:auto;overscroll-behavior:contain;white-space:pre-wrap"></div><div id="skynetReviewPanel" hidden style="border:1px solid #cbd5e1;border-radius:12px;background:#f8fafc;padding:12px 15px;margin:8px 0" aria-live="polite"><div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap"><strong id="skynetReviewHeader" style="font-size:14px">첨부 문서 원문 분석</strong><span style="display:inline-flex;align-items:center;gap:6px"><span id="skynetReviewCount" style="font-size:13px;color:#334155"></span><strong id="skynetReviewPercent" style="font-size:13px;color:#1762b4;min-width:34px;text-align:right">0%</strong></span></div><progress id="skynetReviewProgress" value="0" max="100" style="display:block;width:100%;height:12px;margin:9px 0"></progress><p id="skynetReviewStage" style="margin:4px 0;color:#475569;font-size:13px"></p><button id="skynetReviewResume" type="button" hidden style="margin:6px 6px 0 0;padding:7px 13px">미완료 구간 이어서 분석</button><button id="skynetReviewChooseSource" type="button" style="margin:6px 0 0 6px;padding:7px 13px;background:#e2e8f0;color:#334155">분석할 PDF 선택</button></div><div class="composer" id="chatComposer"><div id="pendingFiles" aria-live="polite"></div><input type="file" id="chatFiles" accept=".txt,.md,.json,.csv,text/plain,text/markdown,application/json,text/csv" multiple hidden><textarea id="chatInput" aria-label="SKYNET 메시지 입력" placeholder="SKYNET에게 이야기하세요. Enter는 줄바꿈, 연속 두 번 Enter는 전송"></textarea><div class="composerbar"><span class="muted">파일은 이 대화창에 끌어놓기 · Enter 줄바꿈 · 연속 Enter 두 번 전송</span><button id="archivePickButton" type="button">📎 파일 첨부</button><button id="retryStoredPdf" type="button" title="서버에 보관된 PDF 원본을 재업로드 없이 분석 연결" aria-label="저장된 PDF 재연결">↻</button><input id="archivePickInput" type="file" accept=".pdf,.png,.jpg,.jpeg,.xls,.xlsx,.doc,.docx,.ppt,.pptx,.hwp,.hwpx,.json,.txt,.md,.csv,.zip" multiple hidden><button id="sendChat" type="button">➤ 보내기</button></div></div><p id="chatErrorStatus" role="status" aria-live="polite" hidden style="margin:6px 8px;font-size:13px;color:#9a3412"></p><span id="chatCount" class="muted"></span><p id="archiveStatus" class="muted" role="status" aria-live="polite">사건 자료를 대화창에 한 번에 첨부하세요 · 서버에서 파일을 자동 분할하여 비공개 보관</p><p class="muted">PDF·이미지·엑셀·워드·파워포인트·한글·GPT 백업 파일을 서버에 원본 그대로 보관합니다. 저장된 자료의 AI 분석은 별도 연결 전입니다. 기존 대화는 브라우저에도 남아 있으니 삭제하지 마세요.</p></section></main><section id="indexManager" hidden style="display:none!important;max-width:1480px;margin:12px auto"><h2>장기기억 검색 인덱스 관리</h2><p class="muted">기존 자료를 삭제하지 않고 순차 인덱싱합니다. 브라우저를 닫으면 일시 중단되며 다시 시작할 수 있습니다.</p><div id="indexStats" role="status" aria-live="polite">상태 확인 전</div><button type="button" id="indexRefresh">상태 확인</button><button type="button" id="indexStart">인덱싱 시작 / 재개</button><button type="button" id="indexStop" disabled>일시 중지</button><p id="indexProgress" class="muted"></p></section><section id="timelineManager" hidden style="display:none!important;max-width:1480px;margin:12px auto"><h2>사건별 타임라인 (검토용)</h2><label for="timelineCase">사건 선택</label><select id="timelineCase"><option value="">전체 (미분류 포함)</option><option value="case:minji">민지 임대차</option><option value="case:bauer">바우어</option><option value="case:jo-hyejeong">조혜정</option><option value="project:submarine">서브마린</option><option value="project:sihwaseong">시화성</option><option value="project:squidlaw">SQUIDLAW</option></select><button id="timelineLoad" type="button">타임라인 조회</button><p class="muted" id="timelineStatus" role="status"></p><div id="timelineResults"></div></section><section id="dataManager" hidden style="display:none!important;max-width:1480px;margin:12px auto"><h2>저장 데이터 관리</h2><p class="warning">테스트로 명확히 식별된 자료만 삭제할 수 있습니다. 실제 사건·백업·운영 자료는 보호됩니다. 목록 확인 후 선택·재확인이 필요합니다.</p><button type="button" id="dataRefresh">저장 데이터 조회</button><p id="dataStatus" role="status" class="muted">조회 전</p><div id="dataItems"></div><button type="button" id="dataDelete" disabled>선택한 임시 자료 삭제 확인</button></section><section hidden style="display:none!important;margin:18px 0;padding:16px;border:1px solid #aaa;border-radius:12px"><h3>오징어 장기 성격 · 사용자 취향</h3><p>서버에 저장되어 새 대화에서도 적용돼.</p><label>이름 <input id="ojName" value="오징어" maxlength="100"></label><p><label>말투 <textarea id="ojStyle" rows="2" style="width:100%" maxlength="3000"></textarea></label></p><p><label>작업 취향 <textarea id="ojPrefs" rows="3" style="width:100%" maxlength="3000"></textarea></label></p><button id="ojSave" type="button">서버에 영구 저장</button> <span id="ojStatus"></span></section>
 <script>
 document.addEventListener('DOMContentLoaded',async()=>{
 const $=id=>document.getElementById(id);
@@ -487,66 +487,86 @@ function rememberReview(value){
  if(value)try{localStorage.setItem(reviewStateKey,JSON.stringify(value))}catch{}
  renderReviewState();
 }
+
 let displayedReviewPercent=0,reviewPercentTimer=null,reviewPercentKey='';
-function reviewPercentTarget(done,total){
- if(!Number.isSafeInteger(done)||!Number.isSafeInteger(total)||total<=0)return 0;
- return Math.max(0,Math.min(100,Math.floor(done/total*100)));
+let skynetPipeline=null;
+const SKYNET_PIPELINE_PHASES=Object.freeze({
+ upload:[0,12],index:[12,32],review:[32,78],report:[78,97],delivery:[97,99]
+});
+function verifiedPipelinePercent(phase,completed,total){
+ const limits=SKYNET_PIPELINE_PHASES[phase];
+ if(!limits||!Number.isSafeInteger(completed)||!Number.isSafeInteger(total)||
+  total<1||completed<0)return 0;
+ return Math.min(99,Math.floor(limits[0]+(limits[1]-limits[0])*
+  Math.min(1,completed/total)));
 }
-function animateVerifiedReviewProgress({key,target,finished}){
- const bar=el('skynetReviewProgress'),percentText=el('skynetReviewPercent');
+function animateVerifiedReviewProgress({key,target}){
+ const bar=el('skynetReviewProgress'),pct=el('skynetReviewPercent');
  if(key!==reviewPercentKey){
-  reviewPercentKey=key;
-  displayedReviewPercent=0;
+  reviewPercentKey=key;displayedReviewPercent=0;
   if(reviewPercentTimer){clearInterval(reviewPercentTimer);reviewPercentTimer=null}
  }
- const bounded=Math.max(0,Math.min(100,Math.floor(target)));
- if(bounded<displayedReviewPercent)displayedReviewPercent=bounded;
+ const verified=Math.max(0,Math.min(99,Math.floor(target)));
  const paint=()=>{
   bar.value=displayedReviewPercent;
-  if(percentText)percentText.textContent=displayedReviewPercent+'%';
+  if(pct)pct.textContent=displayedReviewPercent+'%';
  };
+ if(verified<displayedReviewPercent)displayedReviewPercent=verified;
  paint();
- if(!finished&&displayedReviewPercent===bounded)return;
+ if(displayedReviewPercent===verified)return;
  if(reviewPercentTimer){clearInterval(reviewPercentTimer);reviewPercentTimer=null}
- if(displayedReviewPercent<bounded){
-  // Only animate toward work that has ALREADY been confirmed by the server.
-  // The visible counter never runs ahead of actual checkpoint completion.
-  reviewPercentTimer=setInterval(()=>{
-   displayedReviewPercent=Math.min(bounded,displayedReviewPercent+1);
-   paint();
-   if(displayedReviewPercent>=bounded){
-    clearInterval(reviewPercentTimer);reviewPercentTimer=null;
-   }
-  },90);
- }
+ reviewPercentTimer=setInterval(()=>{
+  displayedReviewPercent=Math.min(verified,displayedReviewPercent+1);
+  paint();
+  if(displayedReviewPercent===verified){
+   clearInterval(reviewPercentTimer);reviewPercentTimer=null;
+  }
+ },90);
 }
-
+function setSkynetPipelineProgress(phase,completed,total,label,name){
+ const target=verifiedPipelinePercent(phase,completed,total);
+ const key=String(skynetPipeline?.key||
+  activeReview?.documentHash||'new-upload-'+Date.now());
+ // Phase percentages have fixed meaning for this one end-to-end operation,
+ // so verified progress never jumps to 100 after text-review completion.
+ skynetPipeline={key,active:true,phase,target,
+  label:String(label||'문서 처리 중'),name:name||skynetPipeline?.name||
+  activeReview?.name||'첨부 PDF'};
+ renderReviewState();
+}
+function clearSkynetPipelineProgress(){
+ skynetPipeline=null;
+ if(reviewPercentTimer){clearInterval(reviewPercentTimer);reviewPercentTimer=null}
+ displayedReviewPercent=0;reviewPercentKey='';
+ const panel=el('skynetReviewPanel');if(panel)panel.hidden=true;
+}
 function renderReviewState(stage){
  const panel=el('skynetReviewPanel');
  if(!panel)return;
- if(!activeReview){panel.hidden=true;return}
+ const running=skynetPipeline?.active===true;
+ // Finished report: the progress UI itself disappears. Incomplete work can
+ // still be resumed from the user conversation or the dedicated source picker.
+ if(!running&&(!activeReview||activeReview.complete===true)){
+  panel.hidden=true;return;
+ }
  panel.hidden=false;
- const total=Number(activeReview.totalChunks)||0,done=Number(activeReview.completedChunks)||0;
- const completed=activeReview.complete===true;
- const percent=reviewPercentTarget(done,total);
- el('skynetReviewHeader').textContent='📄 '+String(activeReview.name||'첨부 PDF');
- const documentKey=String(activeReview.documentHash||'')+':'+String(activeReview.questionHash||'');
- el('skynetReviewCount').textContent=(total?'원문 분석 '+done+'/'+total+'구간 확인 완료':'분석 범위 확인 중')+
-  (activeReview.pageCount?' · 원본 PDF '+activeReview.pageCount+'쪽':'');
- animateVerifiedReviewProgress({key:documentKey,target:percent,finished:completed});
- const ocr=Array.isArray(activeReview.ocrRequired)?activeReview.ocrRequired.length:0;
- const visual=ocr?' · 이미지/스캔 텍스트 미검증 '+ocr+'쪽':' · 이미지 내용 별도 검증 필요';
- const current=stage||(completed?'텍스트 구간 검토 및 종합 보고서 저장 완료':
-  reviewIsRunning?'원문 구간 분석 중 · 최종 보고서 작성 전':'분석 미완료 · 이어서 분석할 수 있음');
- const checkpoint=activeReview.lastCheckpointAt&&
-  Number.isFinite(Date.parse(activeReview.lastCheckpointAt))?
-  ' · 최근 서버 저장 '+new Date(activeReview.lastCheckpointAt).toLocaleTimeString('ko-KR',
-   {hour:'2-digit',minute:'2-digit',second:'2-digit'}):'';
- el('skynetReviewStage').textContent=current+visual+
-  (!completed&&total?' · 완료한 구간만 실제 %에 반영':'')+checkpoint;
- el('skynetReviewStage').classList.toggle('is-processing',reviewIsRunning&&!completed);
- el('skynetReviewResume').hidden=reviewIsRunning||completed;
+ const state=skynetPipeline;
+ const title=state?.name||activeReview?.name||'첨부 PDF';
+ el('skynetReviewHeader').textContent='📄 '+String(title);
+ const pageCount=Number(activeReview?.pageCount)||null;
+ el('skynetReviewCount').textContent=pageCount?'PDF '+pageCount+'쪽':'문서 분석';
+ const key=state?.key||String(activeReview?.documentHash||'resume');
+ const target=running?state.target:
+  verifiedPipelinePercent('review',Math.max(0,Number(activeReview?.completedChunks)||0),
+   Math.max(1,Number(activeReview?.totalChunks)||1));
+ animateVerifiedReviewProgress({key,target});
+ const message=state?.label||stage||'중단된 분석을 이어서 진행할 수 있어';
+ el('skynetReviewStage').textContent=message;
+ el('skynetReviewStage').classList.toggle('is-processing',running);
+ el('skynetReviewResume').hidden=running||!activeReview||
+  activeReview.complete===true;
 }
+
 async function reviewJobRequest(action,payload){
  const post=action!=='status';
  const params=new URLSearchParams({documentHash:payload.documentHash,questionHash:payload.questionHash});
@@ -630,12 +650,6 @@ el('skynetReviewResume').onclick=()=>{
  if(reviewIsRunning||!activeReview)return;
  el('chatInput').value='이어서 분석해';
  el('sendChat').click();
-};
-el('skynetReviewRefresh').onclick=async()=>{
- const button=el('skynetReviewRefresh');button.disabled=true;
- try{await showReviewJobStatus({showReport:true})}
- catch(e){renderReviewState('서버 작업 상태 확인 실패: '+e.message)}
- finally{button.disabled=false}
 };
 if(activeReview){
  renderReviewState('이전 PDF 분석 상태 확인 중…');
