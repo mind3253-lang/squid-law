@@ -4,7 +4,7 @@ import {categoryDigestEntries,sourceTopicEntries,TOPIC_SCHEMA_VERSION} from '../
 
 const ROOTS=['skynet/imports/','skynet/memory/','skynet/documents/','skynet/document-segments/','skynet/records/','skynet/db/'];
 const CATEGORY_BASE='skynet/category-index/';
-const TIME_BUDGET_MS=19000;
+const TIME_BUDGET_MS=15000; // leave time to return partial progress before serverless timeout
 const send=(res,n,o)=>res.status(n).setHeader('Cache-Control','no-store').setHeader('Vary','Authorization').json(o);
 function authorize(req){
  try{const auth=String(req.headers.authorization||'');return !!process.env.ADMIN_PASSWORD&&auth.startsWith('Basic ')&&Buffer.from(auth.slice(6),'base64').toString()==='admin:'+process.env.ADMIN_PASSWORD}catch{return false}
@@ -89,19 +89,26 @@ export default async function handler(req,res){
  const prefix=String(input?.prefix||'');
  const limit=Math.min(32,Math.max(1,Number(input?.limit)||16));
  const cursor=typeof input?.cursor==='string'&&input.cursor.length<4000?input.cursor:undefined;
+ const offset=Number(input?.offset||0);
+ if(!Number.isSafeInteger(offset)||offset<0||offset>100000)return send(res,400,{error:'분류 페이지 위치 오류'});
  if(!ROOTS.includes(prefix))return send(res,400,{error:'분류 대상 영역 오류'});
  try{
   const page=await list({prefix,limit,...(cursor?{cursor}:{})});
   const files=page.blobs.filter(f=>f.pathname.endsWith('.json')&&!f.pathname.endsWith('/index.json'));
-  const results=await batchWork(files,started);
-  // A full page was read before processing. Only advance a cursor when every
-  // discovered file was handled, otherwise progress could silently skip data.
-  if(results.handled!==files.length)return send(res,503,{error:'배치 시간 초과: 누락 방지를 위해 재시도 필요',processed:results.handled,elapsedMs:Date.now()-started});
+  if(offset>files.length)return send(res,409,{error:'분류 페이지가 변경됨: 시작 위치 재설정 필요'});
+  const results=await batchWork(files.slice(offset),started);
+  // Resume inside this exact list page when the time budget is reached.
+  // Advancing the Blob cursor early silently skipped unprocessed records.
+  const withinPage=offset+results.handled<files.length;
+  if(withinPage&&!results.handled)return send(res,503,{error:'분류 배치 처리 시간 부족: 묶음 크기를 줄여 재시도 필요'});
   return send(res,200,{
    ok:true,prefix,scanned:page.blobs.length,processed:results.handled,
    classified:results.classified,cached:results.cached,noText:results.noText,
    failed:results.failed,errors:results.errors,updates:results.updates,
-   hasMore:page.hasMore,nextCursor:page.hasMore?page.cursor:null,
+   hasMore:withinPage||page.hasMore,
+   nextCursor:withinPage?(cursor||null):(page.hasMore?page.cursor:null),
+   nextOffset:withinPage?offset+results.handled:0,
+   withinPage,
    elapsedMs:Date.now()-started
   });
  }catch(e){console.error('SKYNET_FAST_CATEGORY_FAILURE',prefix,String(e.message).slice(0,140));
