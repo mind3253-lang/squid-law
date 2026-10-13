@@ -17,5 +17,5 @@ test('SKYNET chat does not abandon replies before server timeout without feedbac
  assert.doesNotMatch(html,/setTimeout\(\(\)=>controller\.abort\(\),45000\)/);
  assert.match(html,/id="chatErrorStatus"/);
  assert.match(html,/AI 답변 실패/);
- assert.match(html,/history\[history\.length-1\]===submittedTurn/);
+ assert.match(html,/history\.at\(-1\)===submittedTurn/);
 });
