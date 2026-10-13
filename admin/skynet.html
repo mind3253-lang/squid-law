@@ -847,7 +847,7 @@ el('retryStoredPdf').onclick=async()=>{
   const response=await fetch('/admin/skynet-warehouse',{credentials:'same-origin',cache:'no-store'});
   const data=await response.json().catch(()=>({}));
   if(!response.ok||!Array.isArray(data.items))throw Error(data.error||'자료창고 조회 실패');
-  const pdfs=data.items.filter(f=>f.source==='original'&&/\\.pdf$/i.test(f.name||'')&&
+  const pdfs=data.items.filter(f=>f.source==='original'&&/\.pdf$/i.test(f.name||'')&&
    /^[a-zA-Z0-9_-]{8,80}$/.test(String(f.batch||''))&&
    Number.isInteger(f.parts)&&f.parts>0&&f.parts<=100).slice(0,15);
   if(!pdfs.length)throw Error('재연결 가능한 PDF 원본을 자료창고에서 찾지 못했어.');
