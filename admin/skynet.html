@@ -426,6 +426,28 @@ async function reviewSourceText(doc,chunk,total,question,effort,depth=0){
 function isResumeReviewRequest(message){
  return /^(?:이어서|계속|재개|다시)\s*(?:(?:원문\s*)?(?:분석|검토|진행)(?:해줘|해|해주세요)?)?\s*(?:해줘|해|해주세요|부탁해)?[.!?\s]*$/u.test(String(message||'').trim());
 }
+function expectedPdfPageCount(question){
+ const q=String(question||'');
+ // A user explicitly asking about the 258-page source must not receive a
+ // report about whichever PDF happened to remain in localStorage.
+ const m=/(?:PDF\s*)?(\d{2,5})\s*(?:쪽|페이지)\s*(?:짜리|분량|전체|원본|PDF|문서|자료|분석|기록|인데)/.exec(q)||
+  /(?:총|전체|원본)\s*(\d{2,5})\s*(?:쪽|페이지)/.exec(q);
+ const value=m?Number(m[1]):null;
+ return Number.isSafeInteger(value)&&value>1&&value<100000?value:null;
+}
+function indexedSourceCandidates(){
+ const found=new Map();
+ const regex=/\[이번 대화에 직접 첨부: ([^\]\n]+?) \/ 문서 식별번호 ([a-f0-9]{64})(?: \/ (\d+)쪽)?\]/g;
+ for(const row of history){
+  if(row?.role!=='user')continue;
+  for(const match of String(row.content||'').matchAll(regex)){
+   const doc={name:match[1],hash:match[2],pages:match[3]?Number(match[3]):null};
+   found.set(doc.hash,doc);
+  }
+ }
+ return [...found.values()];
+}
+
 function previousAttachedReview(){
  const extract=content=>{
   const result=[];
@@ -933,6 +955,8 @@ async function analyzeAttachedDocuments(docs,question,previous,effort,saveAnswer
    if(!advanced)throw Error(doc.name+': 원문 판독 위치가 움직이지 않아 중단');
    if(tries===249)throw Error(doc.name+': 원문 구간 수 250회 초과 · 미완료');
   }
+  if(kind==='pdf'&&Number.isSafeInteger(doc.pages)&&doc.pages!==pageCount)
+   throw Error(doc.name+': 선택한 PDF '+doc.pages+'쪽과 실제 색인 '+pageCount+'쪽 불일치 · 잘못된 원본 분석 중단');
   if(kind==='pdf'&&(!Number.isSafeInteger(pageCount)||pageSet.size!==pageCount||
    Array.from({length:pageCount},(_,i)=>i+1).some(n=>!pageSet.has(n))))
    throw Error(doc.name+': PDF 전체 '+pageCount+'쪽 중 페이지 기록 누락 · 완료 처리 금지');
@@ -1125,6 +1149,28 @@ el("sendChat").onclick=async()=>{
   if(resume){
    uploadedDocs=resume.docs;reviewQuestion=resume.question;
    reviewEffort=resume.effort||null;
+  }
+ }
+ if(!archiveFiles.length&&!attached.length){
+  const expectedPages=expectedPdfPageCount(msg);
+  const actual=uploadedDocs.length===1?Number(uploadedDocs[0].pages)||null:null;
+  if(expectedPages&&actual&&actual!==expectedPages){
+   const matches=indexedSourceCandidates().filter(x=>x.pages===expectedPages);
+   if(matches.length===1){
+    // Only a uniquely identified source from the persisted conversation
+    // may replace an obviously mismatched active PDF.
+    uploadedDocs=[matches[0]];
+    reviewQuestion=msg;
+    reviewEffort=null;
+   }else{
+    el('chatErrorStatus').hidden=false;
+    el('chatErrorStatus').textContent='PDF 원본이 달라. 현재 선택된 파일은 '+
+     uploadedDocs[0].name+' ('+actual+'쪽), 질문에서 지정한 원본은 '+
+     expectedPages+'쪽이야. 146쪽을 258쪽으로 간주하지 않았어. '+
+     '저장된 원본을 선택해서 연결한 뒤 다시 요청해.';
+    el('chatInput').value=msg;resizeSkynetComposer();
+    return;
+   }
   }
  }
  if(archiveFiles.length){
