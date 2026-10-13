@@ -1,4 +1,4 @@
-import {claimJob,advanceJob} from './customer-analysis-jobs-db.js';
+import {claimJob,advanceJob,renewJobLease} from './customer-analysis-jobs-db.js';
 import {get} from '@vercel/blob';
 import {createHash,timingSafeEqual} from 'node:crypto';
 import {segmentRecord,auditSegments} from '../lib/record-chunks.mjs';
@@ -35,7 +35,20 @@ export default async function handler(req,res){
  res.setHeader('Cache-Control','no-store');
  if(req.method!=='POST'&&req.method!=='GET')return res.status(405).json({error:'METHOD'});
  if(!process.env.CRON_SECRET||!eq(String(req.headers.authorization||''),'Bearer '+process.env.CRON_SECRET))return res.status(401).json({error:'UNAUTHORIZED'});
- let job;try{job=await claimJob();if(!job)return res.status(200).json({status:'idle'});
+ let job,heartbeat=null,heartbeatBusy=false,leaseExpired=false;
+ try{
+  job=await claimJob();
+  if(!job)return res.status(200).json({status:'idle'});
+  // Long PDF and vision windows must retain their fenced owner across stages.
+  heartbeat=setInterval(()=>{
+   if(heartbeatBusy||leaseExpired)return;
+   heartbeatBusy=true;
+   void renewJobLease(job).catch(e=>{
+    leaseExpired=true;
+    console.error('CUSTOMER_JOB_LEASE_RENEWAL_FAILED',String(e?.message||e).slice(0,90));
+   }).finally(()=>{heartbeatBusy=false});
+  },25000);
+  heartbeat.unref?.();
  const prefix='squidlaw/cases/'+job.customerKey+'/'+job.caseId+'/';
  const registry=await load('squidlaw/cases/'+job.customerKey+'/registry/'+job.caseId+'.json');
  if(!registry||registry.id!==job.caseId)throw Error('CASE_NOT_FOUND');
@@ -586,4 +599,5 @@ export default async function handler(req,res){
  return res.status(200).json({status:'retry',processedDocuments:checkpoint.verifiedTextDocuments,processedPages:checkpoint.nextPage,totalDocuments:docs.length});
 
  }catch(e){const diagnostic=String(e?.message||e||'UNKNOWN').slice(0,160);const safeCode=diagnostic.startsWith('GPT_LEGAL_SOURCE_REVIEW_FAILED:')?'SOURCE_READ_REVIEW_FAILED':/^[A-Z][A-Z0-9_]{2,100}$/.test(diagnostic)?diagnostic:'WORKER_ERROR';if(job){try{await advanceJob(job,'error',{...(job.checkpoint||{}),errorAttempts:Number(job.checkpoint?.errorAttempts||0)+1,lastFailedStage:job.stage||null,lastFailureCode:safeCode,lastFailureAt:new Date().toISOString(),message:diagnostic},(Number(job.attempts||0)+1)>=job.maxAttempts?'failed':'retry',safeCode)}catch{}}return res.status(503).json({error:safeCode,status:'retry_or_failed',retryable:!!job&&Number(job.attempts||0)+1<Number(job.maxAttempts||0)})}
+ finally{if(heartbeat)clearInterval(heartbeat)}
 }
