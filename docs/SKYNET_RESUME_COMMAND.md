@@ -27,6 +27,14 @@ SKYNET 관리자 PDF는 현재 바이트 범위 읽기·16페이지 구간 추�
 - `api/skynet-chat.js`: 근거는 PDF 쪽수로, 내부 Blob 경로는 답변 금지, 검토 응답 출력 토큰 확장. AI가 길이 제한으로 잘린 챕터는 완료 성공으로 처리 금지.
 - 회귀시험: `tests/skynet-paid-dossier.test.mjs` (계약·도표·표시 꼬리표·장별 라우팅). **구현 및 정적 검사를 실제 258쪽 유료 분석 성공으로 오해하지 말 것. 운영 재실행 후 청구별 근거·최근 공방·서면별 누락을 검증해야 함.**
 
+## 2026-10-14 추가 장애 · 258쪽 후반 공방 미조회 재발
+- 실제 사용자 질문: `페이지는 258페이지인데 왜 후반부에 대한 설명이 다 빠졌지?` → SKYNET이 서버 보관 원본을 다시 조회하지 않고 검색 발췌 1~131쪽만 봤다며 `143~258쪽은 조회 도구가 없다`고 잘못 답했다.
+- 직접 확인한 원인: `admin/skynet.html`의 `shouldUseIndexedPdfFollowup`가 브라우저 `activeReview.complete`와 최근 답변 단어에 의존해 원문 후속 분석을 건너뛰었음. 건너뛰면 `askSkynet` 일반 자동기억 검색으로 빠짐. 기존 후반 분석은 PDF 쪽수가 아니라 세그먼트의 50% 지점부터 읽음. 업로드 자체 성공과 실제 페이지별 색인 완료는 별도로 검증해야 함.
+- 수정: `resolveSkynetPdfForFollowup`는 과거 사용자 첨부 기록에서 PDF hash를 찾아 localStorage 상태 유실/미완료에 대응. 후반 PDF 질문은 연결이 없을 경우 **원문 링크 복구 오류로 명시적으로 중단**, 일반 검색으로 폴백 금지.
+- `api/skynet-document-page-context.js` + `lib/skynet-indexed-page-read.mjs` + `vercel.json`: **실제 PDF 페이지 번호**를 기준으로 143~258쪽 같은 특정 구간을 저장된 문서 세그먼트에서 바이너리 탐색 후 반환. 프론트는 각 쪽 번호의 존재를 집계하고 1쪽이라도 누락되면 완료로 표시하지 않음.
+- 미완료·저장되지 않은 구 보고서일 경우 전 페이지 1..N 원문을 다시 읽는 기존 분할 검토로 이행. 완료된 기존 보고서가 있으면 정확히 뒤 50%의 실자료를 다시 읽고 심층 보고서에 결합함.
+- `tests/skynet-pdf-page-routing.test.mjs`: 앞 40쪽에 텍스트 세그먼트가 편중된 가짜 258쪽 자료에서 143~258쪽을 116쪽 모두 선택, 미완료 로컬 작업 분기, 원문 누락 시 fail-closed; 과거 `tests/skynet-pdf-followup-table.test.mjs`도 갱신. 실제 사용자가 보관한 258쪽 PDF 운영 재현 및 날짜별 서면 결과 확인은 미실시. READY/모의시험으로 성공 주장하지 않는다.
+
 ## 세션 시작 시 무조건 실행
 1. GitHub `mind3253-lang/squid-law`의 **최신 main**을 읽는다. `docs/SKYNET_CONTINUITY_AND_IMPLEMENTATION.md`, **이 파일**, `docs/SKYNET_TASK_MANIFEST.json`을 읽는다.
 2. Vercel `squid-law` 최신 배포와 최근 커밋/테스트/로그를 확인한다. 권한 오류가 나면 구체적 차단 요인을 기록하고 다른 가능한 작업을 진행한다.
