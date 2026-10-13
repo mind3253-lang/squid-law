@@ -1,7 +1,6 @@
 import {get,list,put} from '@vercel/blob';
 import {createHash} from 'node:crypto';
-import {entriesOf} from './skynet-search-index.js';
-import {categoryDigestEntries,TOPIC_SCHEMA_VERSION} from '../lib/skynet-topic-categories.mjs';
+import {categoryDigestEntries,sourceTopicEntries,TOPIC_SCHEMA_VERSION} from '../lib/skynet-topic-categories.mjs';
 
 const ROOTS=['skynet/imports/','skynet/memory/','skynet/documents/','skynet/document-segments/','skynet/records/','skynet/db/'];
 const CATEGORY_BASE='skynet/category-index/';
@@ -35,14 +34,13 @@ async function one(file){
    if(manifest?.name)data={...data,name:manifest.name,category:manifest.category||''};
   }
  }
- const records=entriesOf(data);
- // Empty/nontext manifests also need a durable status, otherwise every
- // resumed run wastes one or more remote reads on them.
- const digest=categoryDigestEntries(records,{
+ // Process real text directly, without the much heavier full-text/legal index.
+ // Empty/nontext manifests get a cached status so they are not re-read.
+ const digest=categoryDigestEntries(sourceTopicEntries(data),{
   source:path,name:data.title||data.name||data.category||'',maxExamples:5});
  await put(target,JSON.stringify(digest),{
   access:'private',addRandomSuffix:false,allowOverwrite:true,contentType:'application/json'});
- return {status:records.length?'classified':'no_text',record:digest};
+ return {status:digest.units?'classified':'no_text',record:digest};
 }
 async function batchWork(files,started){
  let handled=0,classified=0,cached=0,noText=0,failed=0;
