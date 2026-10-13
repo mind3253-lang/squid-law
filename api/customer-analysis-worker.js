@@ -246,15 +246,34 @@ export default async function handler(req,res){
   const size=8;
   const findings=report.findings.slice(cursor,cursor+size);
   if(findings.length){
+  // Fetch only exact cited original batches. The semantic model still
+  // independently checks each reference and original SHA-256 against the
+  // verified immutable source units; unknown sources fail closed.
   const sources=[];
-  const semanticBatchRefs=docs.flatMap(d=>Array.from({length:Math.ceil(d.pageCount/20)},(_,i)=>({d,start:i*20})));
+  const byId=new Map(docs.map(d=>[d.id,d])),requested=new Map();
+  for(const finding of findings){
+   if(!Array.isArray(finding.sources)||!finding.sources.length)
+    throw Error('SEMANTIC_REVIEW_UNCITED_FINDING');
+   for(const ref of finding.sources){
+    const d=byId.get(ref?.documentId);
+    if(!d||!Number.isSafeInteger(ref.page)||ref.page<1||ref.page>d.pageCount)
+     throw Error('SEMANTIC_UNKNOWN_SOURCE_REFERENCE');
+    const start=Math.floor((ref.page-1)/20)*20;
+    requested.set(d.id+':'+start,{d,start});
+   }
+  }
+  const semanticBatchRefs=[...requested.values()].sort((x,y)=>
+   x.d.id.localeCompare(y.d.id)||x.start-y.start);
   for(let i=0;i<semanticBatchRefs.length;i+=12){
    const selected=semanticBatchRefs.slice(i,i+12);
-   const batches=await Promise.all(selected.map(({d,start})=>load(prefix+'verified/'+d.id+'/batch-'+String(start).padStart(8,'0')+'.json')));
+   const batches=await Promise.all(selected.map(({d,start})=>
+    load(prefix+'verified/'+d.id+'/batch-'+String(start).padStart(8,'0')+'.json')));
    for(let j=0;j<selected.length;j++){
     const {d}=selected[j],batch=batches[j];
-    if(!batch?.pages||batch.documentId!==d.id||batch.sourcePdfSha256!==d.sha256)throw Error('SEMANTIC_VERIFIED_SOURCE_MISSING');
-    for(const u of segmentRecord({scope:'customer',documentId:d.id,pages:batch.pages}).segments)sources.push({documentId:d.id,page:u.page,part:u.part,hash:u.hash,text:u.text});
+    if(!batch?.pages||batch.documentId!==d.id||batch.sourcePdfSha256!==d.sha256)
+     throw Error('SEMANTIC_VERIFIED_SOURCE_MISSING');
+    for(const u of segmentRecord({scope:'customer',documentId:d.id,pages:batch.pages}).segments)
+     sources.push({documentId:d.id,page:u.page,part:u.part,hash:u.hash,text:u.text});
    }
   }
    const request=buildSemanticReviewRequest({caseId:job.caseId,sourceVersion:job.documentVersion,findings,sourceUnits:sources,model:process.env.SQUIDLAW_LEGAL_MODEL||'gpt-5.4'});
