@@ -18,20 +18,38 @@ export async function extractPdfPages(buffer,maxPages=Infinity){
   const pdf=await task.promise;
   const totalPages=pdf.numPages,pages=[];const fastTextOnly=typeof maxPages==='object'&&maxPages!==null&&maxPages.fastTextOnly===true;
   const range=resolvePdfPageRange(totalPages,typeof maxPages==='object'&&maxPages!==null?maxPages:{pageCount:maxPages});
-  for(let n=range.startPage;n<=range.endPage;n++){
+  // Keep memory bounded: the underlying PDF can be up to 100 MB.
+  // Independent pages can be extracted concurrently, but every output is
+  // returned in page order and retains the existing visual-operator digest.
+  const concurrency=fastTextOnly?4:3;
+  const extractPage=async n=>{
    const page=await pdf.getPage(n);
-   const content=await page.getTextContent();
-   const lines=[];let lastY;
-   for(const item of content.items){
-    const y=item.transform?.[5];
-    if(lastY!==undefined&&y!==lastY)lines.push('\n');
-    lines.push(item.str||'');lastY=y;
-   }
-   let imageOperatorCount=null,visualInventoryStatus='operator_scan_failed';
-   if(fastTextOnly){visualInventoryStatus='visual_scan_deferred'}else try{imageOperatorCount=countImagePaintOperations(await page.getOperatorList());visualInventoryStatus='operator_scan_unverified'}catch{}
-   const visualOperatorDigest=createHash('sha256').update(JSON.stringify([n,imageOperatorCount,visualInventoryStatus])).digest('hex');
-   pages.push({page:n,text:lines.join(' '),imageOperatorCount,visualInventoryStatus,visualOperatorDigest});
-   page.cleanup();
+   try{
+    const content=await page.getTextContent();
+    const lines=[];let lastY;
+    for(const item of content.items){
+     const y=item.transform?.[5];
+     if(lastY!==undefined&&y!==lastY)lines.push('\n');
+     lines.push(item.str||'');lastY=y;
+    }
+    let imageOperatorCount=null,visualInventoryStatus='operator_scan_failed';
+    if(fastTextOnly){visualInventoryStatus='visual_scan_deferred'}
+    else try{
+     imageOperatorCount=countImagePaintOperations(await page.getOperatorList());
+     visualInventoryStatus='operator_scan_unverified';
+    }catch{}
+    const visualOperatorDigest=createHash('sha256').update(JSON.stringify([n,imageOperatorCount,visualInventoryStatus])).digest('hex');
+    return {page:n,text:lines.join(' '),imageOperatorCount,visualInventoryStatus,visualOperatorDigest};
+   }finally{page.cleanup()}
+  };
+  for(let start=range.startPage;start<=range.endPage;start+=concurrency){
+   const count=Math.min(concurrency,range.endPage-start+1);
+   // allSettled finishes outstanding pdf.js tasks before the PDF is destroyed,
+   // even when a page fails. Never silently skip an unreadable source page.
+   const group=await Promise.allSettled(Array.from({length:count},(_,i)=>extractPage(start+i)));
+   const failed=group.find(x=>x.status==='rejected');
+   if(failed)throw failed.reason;
+   pages.push(...group.map(x=>x.value));
   }
   return {pages,totalPages,startPage:range.startPage,endPage:range.endPage,finished:range.endPage===totalPages};
  }finally{await task.destroy()}
