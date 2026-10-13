@@ -1,6 +1,10 @@
 {
   "rewrites": [
     {
+      "source": "/admin/skynet-document-range",
+      "destination": "/api/skynet-document-range"
+    },
+    {
       "source": "/admin/skynet-search-backfill",
       "destination": "/api/skynet-search-backfill"
     },
