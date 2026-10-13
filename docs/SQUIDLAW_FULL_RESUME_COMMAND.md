@@ -1,5 +1,16 @@
 # SQUIDLAW 전체 법률 엔진 — 재개 실행 명령
 
+## 제품 확정 원칙 (다음 방에서 첫 번째로 확인할 것)
+먼저 `AGENTS.md` 제4절과 `lib/customer-product-contract.mjs`를 읽는다.
+**사건 전체 한 번에 업로드, 페이지당 과금, 전체 고객 분석 동시 실행 1건,
+순서/예상 대기시간 표시, 분할·체크포인트·재개**는 이미 확정된 설계다.
+25MB→100MB 같은 내부 파일 제한 숫자 변경만으로 이 문제를 해결했다고
+보고하지 않는다. 새 채팅방에서도 이 원칙에 대한 재승인을 묻지 않는다.
+`api/customer-analysis-jobs-db.js`의 글로벌 단일 작업 실행권 확인과
+`tests/customer-product-contract.test.mjs` 자동검사를 유지한다.
+**미완료:** 관리자 SKYNET의 100MB 단일메모리 PDF 추출과 실제 대용량
+운영 재현은 아직 구조 개선 및 검증 필요. READY는 통합 처리 성공 증거가 아니다.
+
 ## 프로젝트
 GitHub: mind3253-lang/squid-law (main)
 Vercel: squid-law
