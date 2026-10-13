@@ -4,7 +4,7 @@ const sourcePrefixes=['skynet/imports/','skynet/memory/','skynet/documents/','sk
 const categorySources=new Map();
 let categoryLoading=false,categoryReadErrors=0,categoryLoadedAll=false,categoryTimer;
 function backfillComplete(){
- try{const state=JSON.parse(localStorage.getItem('skynet_index_cursor_v1')||'{}');
+ try{const state=JSON.parse(localStorage.getItem('skynet_index_cursor_v2_topic_categories')||'{}');
   return sourcePrefixes.every(p=>state['done:'+p]===true)&&!sourcePrefixes.some(p=>state['error:'+p]);
  }catch{return false}
 }
