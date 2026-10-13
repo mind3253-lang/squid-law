@@ -68,7 +68,7 @@ async function loadCategories({force=false}={}){
  try{
   let cursor=null,read=0,errors=0;
   do{
-   const url='/admin/skynet-categories?limit=40'+(cursor?'&cursor='+encodeURIComponent(cursor):'');
+   const url='/admin/skynet-categories?limit=80'+(cursor?'&cursor='+encodeURIComponent(cursor):'');
    const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),20000);
    let response;
    try{response=await fetch(url,{credentials:'same-origin',cache:'no-store',signal:controller.signal})}
@@ -112,13 +112,27 @@ async function loadCategoryTotal(){
 }
 async function runFastClassification(){
  if(categoryRunning)return;
+ // Browser-wide Web Locks prevent multiple SKYNET tabs from reclassifying
+ // the same private corpus. The lock is automatically released on tab close.
+ if(navigator.locks?.request){
+  return navigator.locks.request('skynet-category-backfill',{ifAvailable:true},async lock=>{
+   if(!lock){updateCategoryCounts('다른 탭에서 분류 작업 진행 중');return}
+   await runFastClassificationUnlocked();
+  });
+ }
+ return runFastClassificationUnlocked();
+}
+async function runFastClassificationUnlocked(){
+ if(categoryRunning)return;
  categoryRunning=true;
  categoryStartedAt=Date.now();
  updateCategoryCounts('분류 작업 시작');
  try{
   for(const prefix of sourcePrefixes){
    if(categoryState['done:'+prefix])continue;
-   let cursor=typeof categoryState[prefix]==='string'?categoryState[prefix]:undefined;
+   const saved=categoryState[prefix];
+   let cursor=typeof saved==='string'?saved:(saved?.cursor||undefined);
+   let offset=typeof saved==='object'?Number(saved?.offset)||0:0;
    // Retry a previously failed prefix in the next explicit session, not
    // endlessly within one failing request.
    while(categoryRunning){
@@ -128,7 +142,7 @@ async function runFastClassification(){
     }
     const started=Date.now();
     let result;
-    try{result=await requestCategoryBatch({prefix,cursor,limit:prefix==='skynet/imports/'?4:8})}
+    try{result=await requestCategoryBatch({prefix,cursor,offset,limit:prefix==='skynet/imports/'?8:16})}
     catch(e){
      categoryState['error:'+prefix]=String(e.message).slice(0,180);
      categorySave();updateCategoryCounts('분류 중단: '+e.message);
@@ -144,8 +158,10 @@ async function runFastClassification(){
       (result.errors||[]).map(x=>x.source+' '+x.error).slice(0,3).join('; ').slice(0,400);
     incorporateCategories(result.updates);
     window.dispatchEvent(new CustomEvent('skynet:category-index-changed',{detail:{updates:result.updates,progress:p}}));
-    if(result.hasMore&&result.nextCursor){
-     cursor=result.nextCursor;categoryState[prefix]=cursor;categorySave();
+    if(result.hasMore){
+     cursor=result.nextCursor||undefined;
+     offset=Number(result.nextOffset)||0;
+     categoryState[prefix]={cursor:cursor||null,offset};categorySave();
     }else{
      delete categoryState[prefix];categoryState['done:'+prefix]=true;
      categorySave();break;
@@ -177,7 +193,17 @@ const retryCategory=()=>{
 const retryButton=document.getElementById('skynetCategoryRetry');
 if(retryButton)retryButton.onclick=retryCategory;
 renderSidebarCategories();loadCategories();
-setTimeout(()=>{void runFastClassification();void loadCategoryTotal()},1500);
+// Do not scan all six Blob roots merely to estimate the number of files;
+// doing so doubles listing traffic while the real classification is running.
+setTimeout(()=>{void runFastClassification()},1500);
+window.addEventListener('skynet:source-added',event=>{
+ const prefix=String(event.detail?.prefix||'');
+ if(!sourcePrefixes.includes(prefix))return;
+ delete categoryState['done:'+prefix];delete categoryState['error:'+prefix];delete categoryState[prefix];
+ categorySave();categoryLoadedAll=false;
+ updateCategoryCounts('새 원본 등록 · 분류 갱신 대기');
+ setTimeout(()=>{void runFastClassification();void loadCategories({force:true})},600);
+});
 function renderSidebarCategories(){memoryList.replaceChildren();for(const [i,row] of [...categories.querySelector('#skynetCategoryRows').children].entries()){const label=row.textContent;const el=document.createElement('div');el.textContent=label;el.style.cssText='padding:9px 10px;font-size:12px;white-space:nowrap';if(label.includes('프라이버시')){el.style.opacity='.55';el.title='암구호 전용 · 목록 접근 불가';}if(!label.includes('프라이버시')){el.style.cursor='pointer';el.onclick=()=>openMemoryCategory(i)}memoryList.append(el)}}const sideIcons=['users','scale','briefcase-business','code-2','wallet','heart-pulse','book-open','sliders-horizontal','lock-keyhole'];
 const sideSvg=paths=>'<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+paths+'</svg>';
 const glyphs=[
