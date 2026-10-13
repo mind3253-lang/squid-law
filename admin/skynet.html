@@ -256,13 +256,12 @@ function drawSkynetLiveProgress(area){
  const count=document.createElement('span');count.dataset.count='1';
  count.className='skynet-working-count';count.textContent='작업 시작';
  header.append(title,count);
- const progress=document.createElement('progress');progress.max=100;
- progress.setAttribute('aria-label','실제 검토 완료 구간');
+
  const stage=document.createElement('div');stage.dataset.stage='1';stage.className='skynet-working-stage';
  const note=document.createElement('div');note.className='skynet-working-note';
  note.dataset.waitNote='1';
  note.textContent='처리 구간만 실제 진행률에 반영해. AI 응답 대기 중에는 막대가 멈춰 있을 수 있어.';
- row.append(header,progress,stage,note);area.append(row);
+ row.append(header,stage,note);area.append(row);
  updateSkynetLiveWork(skynetLiveWork.stage);
 }
 function saveLocalChatSnapshot(){
@@ -594,7 +593,7 @@ async function showReviewJobStatus({showReport=false}={}){
  }};
  rememberReview(next);
  if(showReport&&data.complete&&typeof data.report==='string'&&data.report.trim()){
-  const answer='[직접 첨부 문서 분석 · '+data.name+' · 텍스트 전 구간 검토 완료 / 이미지 증거는 별도 검증 필요]\n\n'+data.report;
+  const answer='[PDF 분석 보고서 · '+data.name+']\n\n'+data.report;
   const uniqueId='review-'+activeReview.documentHash.slice(0,25)+'-'+
     activeReview.questionHash.slice(0,25)+'-report';
   if(!history.some(x=>x.role==='assistant'&&x.content.includes(data.report.slice(0,100)))){
@@ -1220,12 +1219,9 @@ el("sendChat").onclick=async()=>{
     'PDF 전체 분석을 마쳤다고 볼 수 없어. 기존 문서로 이어서 분석을 누르면 '+
     '새 작업표를 생성하고 서버에 실제 완료 구간을 기록할게.':
     data.complete?
-    '첨부 문서 텍스트 '+data.totalChunks+'/'+data.totalChunks+
-    '구간 검토 및 최종 보고서 저장 완료야. 화면 위의 분석 상태에서 확인할 수 있어. '+
-    '다만 이미지/OCR 증거는 별도 검증이 필요해.':
-    '아니, 아직 끝나지 않았어. 서버 확인 결과 PDF '+data.pageCount+'쪽 가운데 '+
-    '텍스트 검토 '+data.completedChunks+'/'+data.totalChunks+'구간 완료야. '+
-    '최종 종합 보고서는 저장되지 않았어. 완료 구간은 서버에 남아 있고 '+
+    '첨부 PDF 검토와 분석보고서 저장이 완료됐어. 결과는 대화에 표시했어.':
+    '아직 분석 중이야. 서버에서 원문을 검토하고 있고 최종 보고서는 아직 저장되지 않았어. '+
+    '완료된 부분은 서버에 남아 있어. '+
     '위의 「미완료 구간 이어서 분석」으로 이어갈 수 있어. '+
     '브라우저가 분석을 수행하지 않는 동안에는 자동으로 진행되지 않아.';
    await saveTurn('assistant',statusMessage,statusTurnId+'-status');
