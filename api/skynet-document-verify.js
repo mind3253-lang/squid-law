@@ -47,17 +47,30 @@ export default async function handler(req,res){
   }
   if(missing.length)return send(res,409,{error:'INDEX_SEGMENTS_MISSING',
    verified:false,missingBatches:missing.length});
-  let originalVerified=null;
-  const batch=String(req.query?.batch||''),parts=Number(req.query?.parts);
+  // Look up the actual raw upload registration by immutable original SHA.
+  // Searching a Genome/chat record alone is not evidence that bytes remain.
+  let originalVerified=false;
+  let batch=String(req.query?.batch||''),parts=Number(req.query?.parts);
   if(batch||req.query?.parts!==undefined){
    if(!/^[a-zA-Z0-9_-]{8,80}$/.test(batch)||!Number.isSafeInteger(parts)||
     parts<1||parts>99999)return send(res,400,{error:'INVALID_ORIGINAL_REFERENCE'});
+  }else{
+   const registered=await scan('skynet/warehouse/');
+   for(let i=0;i<registered.length;i+=24){
+    const rows=await Promise.all(registered.slice(i,i+24).map(x=>
+     read(x.pathname).catch(()=>null)));
+    const match=rows.find(x=>x?.hash===hash&&
+     /^[a-zA-Z0-9_-]{8,80}$/.test(String(x?.batch||''))&&
+     Number.isSafeInteger(x?.parts)&&x.parts>0&&x.parts<=99999);
+    if(match){batch=match.batch;parts=match.parts;break}
+   }
+  }
+  if(batch&&Number.isSafeInteger(parts)&&parts>0){
    const reg=await read('skynet/warehouse/'+batch+'.json');
-   originalVerified=reg?.hash===hash&&reg?.batch===batch&&reg?.parts===parts&&
-    Number.isSafeInteger(reg.size)&&reg.size>0;
-   if(originalVerified){
+   if(reg?.hash===hash&&reg?.batch===batch&&reg?.parts===parts&&
+    Number.isSafeInteger(reg.size)&&reg.size>0){
     const uploads=new Map((await scan('skynet/uploads/'+batch+'/')).map(x=>[x.pathname,x]));
-    let bytes=0;
+    let bytes=0;originalVerified=true;
     for(let i=0;i<parts;i++){
      const o=uploads.get('skynet/uploads/'+batch+'/'+String(i).padStart(5,'0')+'.bin');
      if(!o||!o.size){originalVerified=false;break}bytes+=o.size;
