@@ -320,8 +320,11 @@ async function askSkynet(prompt,previous,effort,memories=[],retrievalQuery='',ba
     (result?.upstreamStatus?' · AI '+result.upstreamStatus:'')+
     (result?.upstreamCode?' · '+result.upstreamCode:'')+')');
    error.status=response.status;
-   error.retryable=result?.retryable===true||(!result&&[429,502,503,504].includes(response.status));
-   error.code=result?.code||null;
+   error.code=result?.upstreamCode||result?.code||null;
+   error.quotaExhausted=result?.quotaExhausted===true||
+    ['credit_balance_exhausted','insufficient_quota','billing_hard_limit_reached'].includes(error.code);
+   error.retryable=!error.quotaExhausted&&
+    (result?.retryable===true||(!result&&[429,502,503,504].includes(response.status)));
    throw error;
   }
   ensureSkynetAnalysisActive();
@@ -757,6 +760,51 @@ async function showReviewJobStatus({showReport=false}={}){
  }
  return data;
 }
+// Questions about whether a PDF exists are storage operations, not requests
+// for legal analysis; never invoke a billed model merely to answer yes/no.
+function isSkynetPdfExistenceQuestion(value){
+ const q=String(value||'').trim();
+ return q.length>0&&q.length<=180&&
+  /(?:파일|PDF|피디에프|원본|문서|사건기록)/i.test(q)&&
+  /(?:서버|저장|보관|존재|있는|있어|있니|확실|남아|확인)/.test(q)&&
+  !/(?:분석해|분석해줘|검토해|검토해줘|요약해|정리해|읽어줘|재분석)/.test(q);
+}
+async function verifySkynetPdfPresence(doc){
+ if(!/^[a-f0-9]{64}$/.test(String(doc?.hash||'')))
+  return '정확한 PDF 원본 식별번호가 연결되지 않아 서버 존재 여부를 확인할 수 없어. 게놈 검색 결과로 존재한다고 답하지 않았어.';
+ const params=new URLSearchParams({hash:doc.hash});
+ if(doc.batch&&Number.isSafeInteger(doc.parts)){
+  params.set('batch',doc.batch);params.set('parts',String(doc.parts));
+ }
+ const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),25000);
+ try{
+  const response=await fetch('/admin/skynet-document-verify?'+params,{
+   credentials:'same-origin',cache:'no-store',signal:controller.signal
+  });
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok||data.verified!==true){
+   const error=String(data.error||'HTTP '+response.status);
+   return '아직 이 PDF 원문이 서버에 온전히 있다고 확인할 수 없어 ('+error+
+    '). 업로드 대화 기록만으로 저장을 확정하지 않았어. AI 분석도 시작하지 않았어.';
+  }
+  if(data.hash!==doc.hash||data.name!==doc.name||
+   (Number.isSafeInteger(doc.pages)&&doc.pages!==data.pageCount))
+   return '서버 원문 식별값·파일명·쪽수가 요청 파일과 달라. 같은 파일로 확인하지 않았고 분석을 시작하지 않았어.';
+  return '**서버 저장 확인됨 — PDF '+data.pageCount+'쪽.**\\n\\n'+
+   '파일: '+data.name+'\\n'+
+   '원문 SHA-256: '+data.hash+'\\n'+
+   '서버의 색인 문서와 원문 구간 파일 '+data.verifiedBatches+
+   '개 묶음을 실제 조회해 존재 여부를 확인했어. 게놈 DB의 사건번호만 보고 답한 게 아니야.\\n\\n'+
+   (data.originalVerified===true?'업로드 PDF 원본 조각도 서버에서 확인했어.\\n':
+    data.originalVerified===false?'업로드 PDF 원본 조각은 확인에 실패했어.\\n':
+    '원본 PDF 파일 자체의 보관 여부는 이번 조회에서 별도 검증하지 않았어.\\n')+
+   '스캔 이미지와 OCR 판독 정확성은 별개야. **AI 분석은 실행하지 않았어.**';
+ }catch(e){
+  return 'PDF 서버 저장 상태 조회 실패 ('+String(e?.message||e).slice(0,110)+
+   '). 확인 전에는 있다고 단정하지 않아. AI 분석도 실행하지 않았어.';
+ }finally{clearTimeout(timeout)}
+}
+
 function isReviewStatusQuestion(value){
  const text=String(value||'').trim();
  return text.length<=160&&/(?:끝이야|끝났|완료됐|진행\s*상태|어디까지|지금\s*뭐|왜\s*멈|분석\s*상태|얼마나\s*남|아직\s*분석|왜\s*답변|이게\s*다야)/.test(text);
@@ -1273,6 +1321,10 @@ async function analyzeAttachedDocuments(docs,question,previous,effort,saveAnswer
     const saved=await documentReviewCheckpoint(doc,questionHash,hash,chunk.index,summary,chunk.pages);
     return {summary:saved.summary||summary,cached:false};
    }));
+   const quotaError=results.find(result=>result.status==='rejected'&&
+    (result.reason?.quotaExhausted===true||
+     ['credit_balance_exhausted','insufficient_quota'].includes(result.reason?.code)));
+   if(quotaError)throw quotaError.reason;
    const errors=[];
    for(let j=0;j<results.length;j++){
     const result=results[j],at=i+j;
@@ -1509,11 +1561,23 @@ el("sendChat").onclick=async()=>{
   drawChat();
  };
  try{
-  if(uploadedDocs.length){
+  if(isSkynetPdfExistenceQuestion(msg)){
+   const candidates=uploadedDocs.length?uploadedDocs:
+    (previousAttachedReview()?.docs||[]);
+   const answer=candidates.length===1?
+    await verifySkynetPdfPresence(candidates[0]):
+    candidates.length>1?
+    'PDF가 여러 개 연결돼 있어 어떤 파일인지 확정할 수 없어. 정확한 원본을 선택해 줘. AI 분석은 시작하지 않았어.':
+    '현재 대화에서 원본 PDF 해시를 찾지 못했어. 게놈의 사건번호만으로 서버 저장을 주장하지 않아. AI 분석은 시작하지 않았어.';
+   await saveAnswer(answer,'pdf-presence');
+  }else if(uploadedDocs.length){
    try{
     await analyzeAttachedDocuments(uploadedDocs,reviewQuestion,previous,effort,saveAnswer,turnId);
    }catch(e){if(skynetAnalysisStopped)throw skynetStoppedError();
-    failures.push('첨부 원문 분석 오류: '+String(e.message||e))}
+    if(e.quotaExhausted){
+     clearSkynetPipelineProgress();
+     failures.push('AI API 크레딧 소진 (credit_balance_exhausted) · 자동 재시도 중단 · 저장된 원문과 완료된 검토 기록은 보존됨 · API 결제/사용 한도 확인 필요');
+    }else failures.push('첨부 원문 분석 오류: '+String(e.message||e))}
    finally{
     reviewIsRunning=false;
     if(activeReview&&!activeReview.complete)
