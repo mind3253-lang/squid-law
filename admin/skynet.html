@@ -91,7 +91,15 @@ async function askSkynet(prompt,previous,effort,memories=[],retrievalQuery='',ba
     skipMemorySearch:options.skipMemorySearch===true,
     ...(batchInfo?.batchId?{retrievalBatchId:batchInfo.batchId,retrievalBatchIndex:batchInfo.item}: {})}),signal:controller.signal});
   const result=await response.json().catch(()=>null);
-  if(!response.ok)throw Error((result?.error||'AI 서버 오류')+' (HTTP '+response.status+(result?.upstreamCode?', '+result.upstreamCode:'')+')');
+  if(!response.ok){
+   const error=new Error((result?.error||'AI 서버 오류')+' (HTTP '+response.status+
+    (result?.upstreamStatus?' · AI '+result.upstreamStatus:'')+
+    (result?.upstreamCode?' · '+result.upstreamCode:'')+')');
+   error.status=response.status;
+   error.retryable=result?.retryable===true||(!result&&[429,502,503,504].includes(response.status));
+   error.code=result?.code||null;
+   throw error;
+  }
   if(!result||typeof result.reply!=='string'||!result.reply.trim())throw Error('AI 응답이 비어 있습니다.');
   if(options.suppressSearchNote)return result.reply;
   const sources=Array.isArray(result.searchSources)?result.searchSources:[];
