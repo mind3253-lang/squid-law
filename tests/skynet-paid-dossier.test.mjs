@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {CASE_DOSSIER_VERSION,CASE_DOSSIER_SECTIONS,
- dossierSectionPrompt,assembleCaseDossier} from '../lib/skynet-case-dossier.mjs';
+ dossierSectionPrompt,assembleCaseDossier,directIndexedPdfExcerpt,reportRequestsAlreadyIndexedPdf} from '../lib/skynet-case-dossier.mjs';
 const read=path=>readFileSync(new URL('../'+path,import.meta.url),'utf8');
 
 test('full-record report has four independently grounded evidence chapters',()=>{
@@ -11,8 +11,15 @@ test('full-record report has four independently grounded evidence chapters',()=>
  assert.deepEqual(CASE_DOSSIER_SECTIONS.map(s=>s.id),
   ['claim-map','chronology-rebuttals','money-and-offsets','evidence-and-issues']);
  for(const chapter of CASE_DOSSIER_SECTIONS){
+  const sourceExcerpts=directIndexedPdfExcerpt([
+   {pages:[1],text:'[PDF 1쪽] 2026가단12498 준비서면 최초 주장'},
+   {pages:[245],text:'[PDF 245쪽] 보증금 상계에 대한 원고 주장'},
+   {pages:[257],text:'[PDF 257쪽] 2026.10.12 최신 준비서면 재반박'}
+  ],chapter);
   const prompt=dossierSectionPrompt(chapter,{question:'원문 전체 검토',pageCount:258,
-   mainNotes:'원고 주장: [PDF 245쪽]',lateNotes:'최근 피고 반박 [PDF 257쪽]'});
+   mainNotes:'원고 주장: [PDF 245쪽]',lateNotes:'최근 피고 반박 [PDF 257쪽]',sourceExcerpts});
+  assert.match(prompt,/\[실제 색인 PDF 원문/);
+  assert.match(prompt,/보증금 상계/);
   assert.match(prompt,/245쪽/);
   assert.match(prompt,/257쪽/);
   assert.match(prompt,/서버 내부 Blob 경로/);
@@ -34,7 +41,7 @@ test('SKYNET does not append internal server paths to customer-visible answers',
  assert.doesNotMatch(source,/const note='\[서버 자동검색:/);
  assert.match(source,/function hideSkynetServerSearchFooter\(/);
  const from=source.indexOf('function hideSkynetServerSearchFooter(');
- const to=source.indexOf('try{localStorage.removeItem(chatKey)}catch{}',from);
+ const to=source.indexOf('function drawChat(){',from);
  assert.ok(from>=0&&to>from);
  const fn=new Function(source.slice(from,to)+'return hideSkynetServerSearchFooter;')();
  const old='[PDF 257쪽] 피고의 주장과 상계 문제\n\n[서버 자동검색: 과거 원본·문서 12건 / 대화기록 4건 · 관련 출처: skynet/document-segments/abc/batch-00000100.json (9)]';
@@ -44,18 +51,21 @@ test('SKYNET does not append internal server paths to customer-visible answers',
 
 test('large PDF review routes through chapter persistence not the one-call fast summary',()=>{
  const source=read('admin/skynet.html');
- assert.match(source,/async function compileSkynetCaseDossier\\(/,
-  'A PDF may read successfully and then crash if the dossier compiler was deleted');
- assert.match(source,/compileSkynetCaseDossier\\(/);
+ assert.match(source,/async function compileSkynetCaseDossier\(/);
+ assert.match(source,/compileSkynetCaseDossier\(/);
  assert.match(source,/contract\.CASE_DOSSIER_SECTIONS/);
  assert.match(source,/contract\.assembleCaseDossier/);
- assert.match(source,/documentReviewCheckpoint\(doc,qhash,hashes\[i\],i\+1/);
+ assert.match(source,/documentReviewCheckpoint\(doc,fingerprint,digests\[i\],i\+1/);
  assert.match(source,/questionHash,report:reply/);
  assert.match(source,/last|최근|최신/);
  assert.match(source,/for\(let d=0;d<docs\.length;d\+\+\)/);
  assert.match(source,/pageCounts\.push\(pageCount\)/);
  assert.match(source,/const reply=docs\.length===1/);
- assert.match(source,/한두\\s\*줄|한두/);
+ assert.ok(source.includes('/\\.pdf$/i.test(String(docs[0].name||\'\'))'),
+  'real .pdf filename must enter deep dossier instead of notes-only fallback');
+ assert.equal(reportRequestsAlreadyIndexedPdf('이번 메시지는 중간 분석 노트야. 실제 추출 텍스트를 보내줘'),true);
+ assert.equal(reportRequestsAlreadyIndexedPdf('[PDF 140쪽] 상계 합의 증거는 미제출됐다'),false);
+ assert.match(source,/한두|간단히/);
  const script=[...source.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/g)];
  for(const m of script){if(m[0].includes('src='))continue;assert.doesNotThrow(()=>new Function(m[1]));}
 });
