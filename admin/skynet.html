@@ -199,12 +199,25 @@ el("sendChat").onclick=async()=>{
  const msg=typed.trim()?typed:(attached.length?'첨부한 파일 내용을 읽고 기억해 줘.':'');
  if((!msg&&!archiveFiles.length)||el('sendChat').disabled||el('file').disabled)return;
  if(history.length>=199999){el('chatErrorStatus').hidden=false;el('chatErrorStatus').textContent='대화 기록 한도입니다. 기존 자료는 삭제하지 마세요.';return}
- if(archiveFiles.length){pendingArchiveFiles=[];renderArchiveQueue();el('sendChat').disabled=true;
-  try{await sendArchiveFiles(archiveFiles)}finally{el('sendChat').disabled=false}
+ let uploadedDocs=[];
+ if(archiveFiles.length){
+  pendingArchiveFiles=[];renderArchiveQueue();el('sendChat').disabled=true;
+  let outcomes=[];
+  try{outcomes=await sendArchiveFiles(archiveFiles)}finally{el('sendChat').disabled=false}
+  const failed=outcomes.filter(x=>x.error);
+  if(failed.length){
+   el('chatErrorStatus').hidden=false;
+   el('chatErrorStatus').textContent='첨부 파일 연결 실패: '+failed.map(x=>x.name+' · '+x.error).join(' / ').slice(0,1200)+
+    ' · 원문을 읽지 못했으므로 과거 기록으로 대신 답하지 않았어.';
+   return;
+  }
+  uploadedDocs=outcomes.filter(x=>x.hash&&/\.(pdf|docx|xlsx|xls|txt|md|csv|json)$/i.test(x.name));
   if(!msg)return;
  }
  const context=attached.map(f=>'\n[첨부: '+f.name+']\n'+f.content).join('\n');
- const composed=msg+context;
+ const reference=uploadedDocs.map(x=>'\n[이번 대화에 직접 첨부: '+x.name+' / 문서 식별번호 '+x.hash+
+  (x.pages?' / '+x.pages+'쪽':'')+']').join('');
+ const composed=msg+context+reference;
  const turnId=crypto.randomUUID(),effort=el('skynetReasoning')?.value||'low';
  const previous=history.slice(-8).filter(x=>['user','assistant'].includes(x.role)).map(x=>({role:x.role,content:x.content.slice(-3500)}));
  while(previous.length&&previous[0].role==='assistant')previous.shift();
@@ -223,6 +236,11 @@ el("sendChat").onclick=async()=>{
   savedReplies++;drawChat();
  };
  try{
+  if(uploadedDocs.length){
+   try{
+    await analyzeAttachedDocuments(uploadedDocs,msg,previous,effort,saveAnswer,turnId);
+   }catch(e){failures.push('첨부 원문 분석 오류: '+String(e.message||e))}
+  }else{
   const planned=splitQuestions(composed);
   if(planned&&planned.length>=4){
    el('chatErrorStatus').textContent='문항 '+planned.length+'개 · 게놈 인덱스 일괄 검색 중…';
@@ -291,6 +309,7 @@ el("sendChat").onclick=async()=>{
    el('chatErrorStatus').textContent='기억 검색 및 AI 답변 생성 중…';
    const answer=await askSkynet(composed,previous,effort,localCandidates(composed));
    await saveAnswer(answer,'');
+  }
   }
   if(!failures.length){
    const important=t=>/꼭\s*기억|반드시\s*기억|기억해\s*(줘|둬|놔)|잊지\s*마|앞으로\s*(계속|항상)|확정(?:하자|했어|한다)|결정(?:했어|하자|한다)|변경(?:했어|한다)|폐기(?:해|한다)|취소(?:해|한다)/.test(t);
