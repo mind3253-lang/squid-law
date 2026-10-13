@@ -308,7 +308,7 @@ function splitLongText(text,max=20000){
 }
 async function askSkynet(prompt,previous,effort,memories=[],retrievalQuery='',batchInfo=null,options={}){
  const outgoing=[...previous,{role:'user',content:prompt}];
- const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),180000);
+ const controller=trackSkynetPending(new AbortController());const timeout=setTimeout(()=>controller.abort(),180000);
  try{
   const response=await fetch('/admin/skynet-chat',{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},
    body:JSON.stringify({messages:outgoing,memories,retrievalQuery,reasoningEffort:effort,
@@ -324,11 +324,12 @@ async function askSkynet(prompt,previous,effort,memories=[],retrievalQuery='',ba
    error.code=result?.code||null;
    throw error;
   }
+  ensureSkynetAnalysisActive();
   if(!result||typeof result.reply!=='string'||!result.reply.trim())throw Error('AI 응답이 비어 있습니다.');
   // Source search paths remain available in the internal API response only.
   // Public-facing provenance uses original PDF page numbers and evidence positions.
   return result.reply;
- }finally{clearTimeout(timeout)}
+ }finally{clearTimeout(timeout);releaseSkynetPending(controller)}
 }
 function localCandidates(prompt){
  // Server performs authoritative full-history retrieval. Browser memory is a
@@ -346,7 +347,8 @@ async function reviewFingerprint(raw){
 async function documentReviewCheckpoint(doc,questionHash,chunkHash,chunkNumber,summary,pages=[]){
  const base={documentHash:doc.hash,questionHash,chunkHash,chunkNumber};
  const saving=typeof summary==='string';
- const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),30000);
+ const controller=trackSkynetPending(new AbortController());
+ const timer=setTimeout(()=>controller.abort(),30000);
  try{
   const response=await fetch('/admin/skynet-document-review'+(saving?'':'?'+new URLSearchParams(base)),{
    method:saving?'POST':'GET',credentials:'same-origin',cache:'no-store',
@@ -357,13 +359,15 @@ async function documentReviewCheckpoint(doc,questionHash,chunkHash,chunkNumber,s
   if(!response.ok||!data.ok){
    throw Error('원문 검토 기록 '+(saving?'저장':'조회')+' 실패: '+(data.error||response.status));
   }
+  ensureSkynetAnalysisActive();
   return data;
- }finally{clearTimeout(timer)}
+ }finally{clearTimeout(timer);releaseSkynetPending(controller)}
 }
 const waitReview=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 async function askReviewNoteWithRetry(prompt,effort,label){
  let failure;
  for(let attempt=1;attempt<=3;attempt++){
+  ensureSkynetAnalysisActive();
   try{
    return await askSkynet(prompt,[],effort,[],'',null,{
     skipMemorySearch:true,suppressSearchNote:true
@@ -392,6 +396,7 @@ async function reviewSourceText(doc,chunk,total,question,effort,depth=0){
   '이 단계는 중간 검토야. 전체 사건에 대한 최종 결론을 내리지 마.\n\n'+heading+chunk.text;
  let failure;
  for(let attempt=1;attempt<=3;attempt++){
+  ensureSkynetAnalysisActive();
   try{
    return await askSkynet(prompt,[],effort,[],'',null,{
     skipMemorySearch:true,suppressSearchNote:true
@@ -662,6 +667,7 @@ function animateVerifiedReviewProgress({key,target}){
  },90);
 }
 function setSkynetPipelineProgress(phase,completed,total,label,name){
+ ensureSkynetAnalysisActive();
  const target=verifiedPipelinePercent(phase,completed,total);
  const key=String(skynetPipeline?.key||
   activeReview?.documentHash||'new-upload-'+Date.now());
@@ -705,18 +711,28 @@ function renderReviewState(stage){
 }
 
 async function reviewJobRequest(action,payload){
+ if(action!=='cancel')ensureSkynetAnalysisActive();
  const post=action!=='status';
  const params=new URLSearchParams({documentHash:payload.documentHash,questionHash:payload.questionHash});
- const response=await fetch('/admin/skynet-document-job'+(post?'':'?'+params),{
-  method:post?'POST':'GET',credentials:'same-origin',cache:'no-store',
-  ...(post?{headers:{'content-type':'application/json'},body:JSON.stringify({...payload,action})}:{})
- });
- const data=await response.json().catch(()=>({}));
+ const controller=action==='cancel'?new AbortController():trackSkynetPending(new AbortController());
+ let response,data;
+ try{
+  response=await fetch('/admin/skynet-document-job'+(post?'':'?'+params),{
+   method:post?'POST':'GET',credentials:'same-origin',cache:'no-store',
+   ...(post?{headers:{'content-type':'application/json'},body:JSON.stringify({...payload,action})}:{}),
+   signal:controller.signal
+  });
+  data=await response.json().catch(()=>({}));
+  if(action!=='cancel')ensureSkynetAnalysisActive();
+ }finally{if(action!=='cancel')releaseSkynetPending(controller)}
  if(!response.ok||!data.ok){
   const failure=new Error('문서 분석 작업 상태 '+(action==='status'?'조회':'저장')+
    ' 실패: '+(data.error||response.status));
   failure.status=response.status;throw failure;
  }
+ if(action==='start')skynetRunningJobs.set(payload.documentHash+':'+payload.questionHash,
+  {documentHash:payload.documentHash,questionHash:payload.questionHash});
+ if(action==='finish')skynetRunningJobs.delete(payload.documentHash+':'+payload.questionHash);
  return data;
 }
 async function showReviewJobStatus({showReport=false}={}){
@@ -1185,13 +1201,15 @@ async function analyzeAttachedDocuments(docs,question,previous,effort,saveAnswer
    el('chatErrorStatus').textContent='첨부 원문 '+(d+1)+'/'+docs.length+' · '+doc.name+
     ' · 원문 판독 범위 확인 '+(tries+1)+'회';
    const params=new URLSearchParams({hash:doc.hash,offset:String(offset),position:String(position)});
-   const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),30000);
+   const controller=trackSkynetPending(new AbortController());
+   const timer=setTimeout(()=>controller.abort(),30000);
    let response;
    try{
     response=await fetch('/admin/skynet-document-context?'+params.toString(),{
      credentials:'same-origin',cache:'no-store',signal:controller.signal
     });
-   }finally{clearTimeout(timer)}
+   }finally{clearTimeout(timer);releaseSkynetPending(controller)}
+   ensureSkynetAnalysisActive();
    const data=await response.json().catch(()=>({}));
    if(!response.ok||!data.ok)throw Error(doc.name+': 원문 조회 실패 ('+
     (data.detail||data.error||response.status)+')');
@@ -1600,7 +1618,9 @@ el("sendChat").onclick=async()=>{
 };el('loadMoreChat').onclick=()=>el('chatLoadMore').click();el('chatLoadMore').onclick=async()=>{const button=el('chatLoadMore');button.disabled=true;try{chatDisplayLimit+=80;if(serverHasMore&&history.length<chatDisplayLimit){const r=await fetch('/admin/skynet-memory?page='+serverPage,{credentials:'same-origin'});const data=await r.json();if(!r.ok||!Array.isArray(data.messages))throw Error(data.error||'서버 대화 조회 실패');const known=new Set(history.map(x=>x.role+':'+x.content));const older=data.messages.filter(x=>x&&['user','assistant'].includes(x.role)&&typeof x.content==='string'&&!known.has(x.role+':'+x.content));history=[...older,...history];serverHasMore=Boolean(data.hasMore);serverPage++}drawChat();el('conversation').scrollTop=0}catch(e){el('chatErrorStatus').hidden=false;el('chatErrorStatus').textContent='이전 대화 조회 실패: '+e.message}finally{button.disabled=false}};el("clearChat").onclick=()=>{if(el('file').disabled){el('status').textContent='파일 가져오기 중에는 대화를 지울 수 없습니다.';return}if(el('sendChat').disabled){el('status').textContent='AI 응답 중에는 대화를 지울 수 없습니다.';return}if(confirm("현재 대화 기록을 이 브라우저에서 삭제할까요? 기억 보관소는 유지되지만 삭제된 대화는 백업 없이는 복원할 수 없습니다.")){try{localStorage.removeItem(chatKey);history=[];chatDisplayLimit=30;drawChat();el('status').textContent='대화 기록을 삭제했습니다. 기억 보관소는 유지됩니다.'}catch{el('status').textContent='대화 기록 삭제에 실패했습니다. 다시 시도하세요.'}}};let pendingAttachments=[];function renderPending(){const area=el('pendingFiles');area.replaceChildren();for(const [i,f] of pendingAttachments.entries()){const d=document.createElement('span');d.className='chat-attachment';const t=document.createElement('span');t.textContent='📎 '+f.name;const b=document.createElement('button');b.type='button';b.textContent='×';b.title='첨부 제거';b.onclick=()=>{pendingAttachments.splice(i,1);renderPending()};d.append(t,b);area.append(d)}}async function queueChatFiles(files){if(el('sendChat').disabled)return;if(files.length+pendingAttachments.length>20){el('status').textContent='대화 첨부는 한 번에 최대 20개입니다.';return}for(const f of files){if(!/[.](txt|md|json|csv)$/i.test(f.name)){el('status').textContent='현재 채팅 첨부는 TXT·MD·JSON·CSV만 지원합니다: '+f.name;continue}if(f.size>512*1024){el('status').textContent='채팅 첨부 파일은 개당 512KB 이하입니다: '+f.name;continue}const content=await f.text();if(content.includes('\u0000')){el('status').textContent='텍스트 파일이 아닙니다: '+f.name;continue}pendingAttachments.push({name:f.name,content})}renderPending()}el('chatFiles').onchange=async e=>{await queueChatFiles([...e.target.files]);e.target.value=''};let pendingArchiveFiles=[],pendingRestoredDocs=[];function renderArchiveQueue(){const area=el('pendingFiles');area.querySelectorAll('[data-archive-pending]').forEach(x=>x.remove());pendingArchiveFiles.forEach((f,i)=>{const d=document.createElement('div');d.dataset.archivePending='1';d.textContent='📎 '+f.name+' · '+(f.size/1048576).toFixed(1)+'MB · 전송 대기 ';const b=document.createElement('button');b.type='button';b.textContent='삭제';b.onclick=()=>{pendingArchiveFiles.splice(i,1);renderArchiveQueue()};d.append(b);area.append(d)});el('archiveStatus').textContent=pendingArchiveFiles.length?pendingArchiveFiles.length+'개 첨부 대기 · 보내기를 누르면 서버에 저장됩니다.':'파일을 선택해 첨부한 뒤 보내기를 누르세요.'}function archiveDroppedFiles(files){const combined=[...pendingArchiveFiles,...files];const allowed=/\.(pdf|png|jpg|jpeg|xls|xlsx|doc|docx|ppt|pptx|hwp|hwpx|json|txt|md|csv|zip)$/i;if(combined.some(f=>!allowed.test(f.name)||!Number.isSafeInteger(f.size)||f.size<1||Math.ceil(f.size/(3*1048576))>99999)){el('archiveStatus').textContent='지원하지 않는 형식 또는 파일 조각 인덱스 범위 초과';return}pendingArchiveFiles=combined;renderArchiveQueue()}async function indexArchivedPdfInWindows(batch,parts,name,progress){
  let nextPage=1,totalPages=null;
  for(let iteration=0;iteration<100000;iteration++){
-  const ctrl=new AbortController(),timer=setTimeout(()=>ctrl.abort(),295000);
+  ensureSkynetAnalysisActive();
+  const ctrl=trackSkynetPending(new AbortController());
+  const timer=setTimeout(()=>ctrl.abort(),295000);
   let response,info;
   try{
    response=await fetch('/admin/skynet-document-range',{
@@ -1609,7 +1629,8 @@ el("sendChat").onclick=async()=>{
     body:JSON.stringify({batch,parts,name,startPage:nextPage}),signal:ctrl.signal
    });
    info=await response.json().catch(()=>({}));
-  }finally{clearTimeout(timer)}
+  }finally{clearTimeout(timer);releaseSkynetPending(ctrl)}
+  ensureSkynetAnalysisActive();
   if(!response.ok||!info.ok)throw Error(info.detail||info.error||
    'PDF 원문 구간 추출 실패: HTTP '+response.status);
   if(!/^[a-f0-9]{64}$/.test(String(info.hash||''))||
