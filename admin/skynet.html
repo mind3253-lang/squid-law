@@ -455,14 +455,6 @@ function mismatchedPdfCase(question,doc){
   actual:inFilename.map(x=>x.id).join(', '),
   filename:doc.name};
 }
-function pdfSourceScope(question,doc){
- const difference=mismatchedPdfCase(question,doc);
- if(!difference)return '';
- return '실제로 접근 가능한 PDF는 '+difference.actual+' 사건의 「'+doc.name+
-  '」이고 요청 대상은 '+difference.requested+' 사건이야. 이 원본은 관련 사건 자료로만 사용해. '+
-  '다른 사건의 원본 소장·답변서·준비서면을 직접 확인했다고 말하지 마. '+
-  '해당 PDF 자체에 실린 주장과 증거만 [PDF N쪽]으로 검토하고, 다른 사건에 관한 전언과 구분해.';
-}
 async function resolveCaseRelevantPdf(question,doc){
  const mismatch=mismatchedPdfCase(question,doc);
  if(!mismatch)return {doc,sourceScope:'',autoSelected:false,reason:''};
