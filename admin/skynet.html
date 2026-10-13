@@ -82,15 +82,18 @@ function splitLongText(text,max=20000){
  }
  return parts;
 }
-async function askSkynet(prompt,previous,effort,memories=[],retrievalQuery='',batchInfo=null){
+async function askSkynet(prompt,previous,effort,memories=[],retrievalQuery='',batchInfo=null,options={}){
  const outgoing=[...previous,{role:'user',content:prompt}];
  const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),180000);
  try{
   const response=await fetch('/admin/skynet-chat',{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},
-   body:JSON.stringify({messages:outgoing,memories,retrievalQuery,reasoningEffort:effort,...(batchInfo?.batchId?{retrievalBatchId:batchInfo.batchId,retrievalBatchIndex:batchInfo.item}: {})}),signal:controller.signal});
+   body:JSON.stringify({messages:outgoing,memories,retrievalQuery,reasoningEffort:effort,
+    skipMemorySearch:options.skipMemorySearch===true,
+    ...(batchInfo?.batchId?{retrievalBatchId:batchInfo.batchId,retrievalBatchIndex:batchInfo.item}: {})}),signal:controller.signal});
   const result=await response.json().catch(()=>null);
   if(!response.ok)throw Error((result?.error||'AI 서버 오류')+' (HTTP '+response.status+(result?.upstreamCode?', '+result.upstreamCode:'')+')');
   if(!result||typeof result.reply!=='string'||!result.reply.trim())throw Error('AI 응답이 비어 있습니다.');
+  if(options.suppressSearchNote)return result.reply;
   const sources=Array.isArray(result.searchSources)?result.searchSources:[];
   const original=sources.filter(x=>['skynet/imports/','skynet/documents/','skynet/document-segments/','skynet/records/','skynet/db/'].some(p=>String(x.source||'').startsWith(p)));
   const memory=sources.length-original.length;
@@ -107,6 +110,89 @@ function localCandidates(prompt){
  const words=[...new Set(norm(prompt).split(/\s+/).filter(w=>w.length>1))].slice(0,12);
  return data.slice(-600).map(x=>({x,score:words.reduce((n,w)=>n+(String(x.text||'').includes(w)?1:0),0)}))
   .filter(x=>x.score>=2).sort((a,b)=>b.score-a.score).slice(0,5).map(x=>x.x.text.slice(0,1800));
+}
+async function analyzeAttachedDocuments(docs,question,previous,effort,saveAnswer,turnId){
+ if(docs.length>5)throw Error('한 번에 분석할 수 있는 문서는 최대 5개야.');
+ const allNotes=[],meta=[];
+ for(let d=0;d<docs.length;d++){
+  const doc=docs[d];let offset=0,position=0,chunks=[],pageCount=null,ocrRequired=[];
+  let kind=null,totalChars=null;
+  const pageSet=new Set();
+  for(let tries=0;tries<250;tries++){
+   el('chatErrorStatus').textContent='첨부 원문 '+(d+1)+'/'+docs.length+' · '+doc.name+
+    ' · 문서 텍스트 판독 및 범위 확인 '+(tries+1)+'회';
+   const params=new URLSearchParams({hash:doc.hash,offset:String(offset),position:String(position)});
+   const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),30000);
+   let response;
+   try{response=await fetch('/admin/skynet-document-context?'+params.toString(),{
+    credentials:'same-origin',cache:'no-store',signal:controller.signal
+   })}finally{clearTimeout(timer)}
+   const data=await response.json().catch(()=>({}));
+   if(!response.ok||!data.ok)throw Error(doc.name+': 첨부 원문 조회 실패 ('+(data.detail||data.error||response.status)+')');
+   if(data.hash!==doc.hash)throw Error(doc.name+': 문서 식별자 불일치');
+   if(data.kind!=='pdf'&&data.kind!=='text')throw Error(doc.name+': 지원하지 않는 문서 형식');
+   kind=data.kind;pageCount=data.pageCount;totalChars=data.totalCharacters;
+   ocrRequired=Array.isArray(data.ocrRequired)?data.ocrRequired:[];
+   for(const n of data.pages||[])pageSet.add(n);
+   if(typeof data.text==='string'&&data.text.trim()){
+    chunks.push({text:data.text,pages:data.pages||[],index:chunks.length+1});
+   }
+   const advanced=Number(data.offset)!==offset||Number(data.position)!==position;
+   offset=Number(data.offset);position=Number(data.position);
+   if(data.done)break;
+   if(!advanced)throw Error(doc.name+': 원문 판독 진행 위치가 움직이지 않아 중단');
+   if(tries===249)throw Error(doc.name+': 원문 구간 수 250회 제한 초과 · 검토 미완료');
+  }
+  if(!chunks.length)throw Error(doc.name+': 분석할 수 있는 문서 텍스트가 없어. 원본은 보관돼 있어.');
+  const notes=new Array(chunks.length);
+  // Independent chunk analysis can proceed concurrently, but the eventual
+  // synthesis must include every chunk or explicitly fail.
+  for(let i=0;i<chunks.length;i+=3){
+   const group=chunks.slice(i,i+3);
+   el('chatErrorStatus').textContent=doc.name+' · 원문 검토 '+(i+1)+'~'+
+    Math.min(i+3,chunks.length)+'/'+chunks.length+'구간';
+   const results=await Promise.allSettled(group.map(async chunk=>{
+    const content='[직접 첨부 문서 '+doc.name+' / 구간 '+chunk.index+'/'+chunks.length+
+      (chunk.pages.length?' / 원문 '+chunk.pages.join(',')+'쪽':'')+']\n'+chunk.text;
+    return askSkynet('다음은 사용자가 방금 첨부한 문서의 실제 원문 일부야. 이 구간에서 확인되는 사건의 사실관계, 당사자별 주장, 문서에 있는 금액·날짜, 상충하는 진술과 증거의 위치를 정확하게 검토해. 사용자 질문은 "'+
+      question.slice(0,2400)+'". 원문 이외는 추측하지 말고 확인되지 않은 것은 구분해. 간결하되 증거 위치와 불리한 사실을 누락하지 말아줘. 이 단계는 중간 검토이며 문서 전체에 대한 결론을 내리지 마.\n\n'+
+      content,[],effort,[],'',null,{skipMemorySearch:true,suppressSearchNote:true});
+   }));
+   for(let j=0;j<results.length;j++){
+    const result=results[j],at=i+j;
+    if(result.status!=='fulfilled')throw Error(doc.name+' '+(at+1)+'/'+chunks.length+
+      '구간 분석 실패: '+String(result.reason?.message||result.reason));
+    notes[at]='[구간 '+(at+1)+'/'+chunks.length+' · 원문 '+(chunks[at].pages.join(',')||'위치 미상')+'쪽]\n'+result.value;
+    // Preserve completed partial analyses so a later API failure does not
+    // erase all review work; original document is already in the Blob archive.
+    await saveTurn('assistant',notes[at],turnId+'-doc'+(d+1)+'-part'+String(at+1).padStart(4,'0'));
+   }
+  }
+  meta.push(doc.name+(kind==='pdf'?' · '+pageCount+'쪽':'')+
+   ' · 원문 검토 '+chunks.length+'구간'+
+   (ocrRequired.length?' · 텍스트 판독 불가 '+ocrRequired.join(',')+'쪽':''));
+  allNotes.push('[직접 첨부 문서 '+doc.name+' / '+(pageCount||'쪽수 미상')+'쪽 / 분할 원문 전 구간을 검토함'+
+   (ocrRequired.length?' / 이미지 또는 OCR 미확인 페이지 '+ocrRequired.join(','):'')+
+   ' / 원문 총 문자 '+(totalChars??'미상')+']\n'+notes.join('\n\n'));
+ }
+ let summaries=allNotes.join('\n\n');
+ for(let wave=0;summaries.length>45000&&wave<8;wave++){
+  const groups=splitLongText(summaries,26000),compressed=[];
+  for(let i=0;i<groups.length;i+=3){
+   const segment=groups.slice(i,i+3);
+   const result=await Promise.all(segment.map((chunk,j)=>askSkynet(
+    '첨부 문서 중간 검토 노트를 정확한 출처·쪽수·금액·충돌 근거를 유지하며 압축해. 새로운 사실이나 결론을 만들지 마. 원문 내용이 아니라 이전 분석 노트라는 점도 유지해.\n\n'+chunk,
+    [],effort,[],'',null,{skipMemorySearch:true,suppressSearchNote:true})));
+   compressed.push(...result);
+  }
+  summaries=compressed.join('\n\n');
+ }
+ if(summaries.length>45000)throw Error('첨부 문서 중간검토 노트가 모델 입력 한도를 초과했어. 원본 검토는 저장됐지만 최종 종합은 미완료야.');
+ el('chatErrorStatus').textContent='첨부 원문 전체 구간 확인 · 최종 종합 분석 중…';
+ const reply=await askSkynet('사용자 요청: '+question+
+  '\n\n다음 자료는 이번 요청에 실제로 첨부된 원본의 모든 텍스트 구간을 순서대로 검토한 중간 분석 노트야. 노트는 원문 자체가 아니므로 판단 근거는 노트에 명시된 원문 쪽수로 연결해. 확인된 사실·당사자 주장·추론을 구분하고, 중요한 불일치나 불리한 증거를 포함해 독립적으로 분석해. 단, OCR이 필요한 쪽은 읽었다고 말하지 마. 이전의 다른 사건 기억을 원문 분석으로 대체하지 마.\n\n'+summaries,
+  previous,effort,[],'',null,{skipMemorySearch:true,suppressSearchNote:true});
+ await saveAnswer('[직접 첨부 문서 분석 · '+meta.join(' / ')+']\n\n'+reply,'document-final');
 }
 el("sendChat").onclick=async()=>{
  const typed=el('chatInput').value,attached=pendingAttachments.slice(),archiveFiles=pendingArchiveFiles.slice();
