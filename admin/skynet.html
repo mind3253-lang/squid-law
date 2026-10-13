@@ -425,6 +425,44 @@ async function reviewSourceText(doc,chunk,total,question,effort,depth=0){
 function isResumeReviewRequest(message){
  return /^(?:이어서|계속|재개|다시)\s*(?:(?:원문\s*)?(?:분석|검토|진행)(?:해줘|해|해주세요)?)?\s*(?:해줘|해|해주세요|부탁해)?[.!?\s]*$/u.test(String(message||'').trim());
 }
+function courtCaseReferences(text){
+ const raw=String(text||''),found=[],seen=new Set();
+ // Full court docket, e.g. 2026가단12878.
+ for(const match of raw.matchAll(/(20\d{2})\s*(가단|가합|가소|나|다|카기|카단|카합)\s*(\d{4,8})(?!\d)/g)){
+  const id=match[1]+match[2]+match[3];
+  if(!seen.has(id)){seen.add(id);found.push({id,number:match[3],full:true})}
+ }
+ // Short forms only when explicitly described as a case, not monetary amounts.
+ for(const match of raw.matchAll(/(?<!\d)(\d{4,6})\s*(?:번\s*)?(?:사건|본소|반소)(?!번호)/g)){
+  const number=match[1];
+  if(!found.some(x=>x.number===number)){const id='#'+number;
+   if(!seen.has(id)){seen.add(id);found.push({id,number,full:false})}
+  }
+ }
+ return found;
+}
+function mismatchedPdfCase(question,doc){
+ if(!doc||!/\.pdf$/i.test(String(doc.name||'')))return null;
+ const requested=courtCaseReferences(question),inFilename=courtCaseReferences(doc.name);
+ if(!requested.length||!inFilename.length)return null;
+ // A legal comparison can legitimately mention multiple related actions.
+ // Fail closed only when the question identifies a case absent from the
+ // selected original and no explicitly compared case matches its filename.
+ const overlap=requested.some(a=>inFilename.some(b=>
+  a.number===b.number&&(!a.full||!b.full||a.id===b.id)));
+ if(overlap)return null;
+ return {requested:requested.map(x=>x.id).join(', '),
+  actual:inFilename.map(x=>x.id).join(', '),
+  filename:doc.name};
+}
+function ensurePdfMatchesQuestion(question,doc){
+ const mismatch=mismatchedPdfCase(question,doc);
+ if(mismatch)throw Error('질문 대상 사건 '+mismatch.requested+
+  '과 현재 선택한 PDF 사건 '+mismatch.actual+'이 달라. ('+
+  mismatch.filename+') 서버에 올린 별도 문서의 내용을 이 사건의 원문처럼 분석하지 않았어. '+
+  '「분석할 PDF 선택」에서 정확한 사건 원본을 연결하거나 비교할 두 사건을 명시해.');
+}
+
 function expectedPdfPageCount(question){
  const q=String(question||'');
  // A user explicitly asking about the 258-page source must not receive a
@@ -843,6 +881,7 @@ async function readPdfPageSpan(doc,startPage,endPage){
 }
 async function analyzeIndexedPdfFollowup(question,effort,saveAnswer){
  let doc=resolveSkynetPdfForFollowup();
+ if(doc)ensurePdfMatchesQuestion(question,doc);
  const requestedPages=expectedPdfPageCount(question);
  if(requestedPages&&doc?.pages&&doc.pages!==requestedPages){
   const matches=indexedSourceCandidates().filter(x=>x.pages===requestedPages);
@@ -853,6 +892,7 @@ async function analyzeIndexedPdfFollowup(question,effort,saveAnswer){
  }
  if(!doc)throw Error('현재 대화에 연결된 PDF 원본 식별정보를 찾지 못했어. '+
   '과거 일반 검색 발췌로 답하지 않고, 보관 문서 연결 상태부터 복구해야 해.');
+ ensurePdfMatchesQuestion(question,doc);
  // Manifest is the authority for existence, page count and version; the
  // browser localStorage is only a hint and may contain an unfinished job.
  const check=await fetchIndexedPdfPageWindow(doc.hash,1,1,null,0);
@@ -1020,7 +1060,8 @@ async function analyzeAttachedDocuments(docs,question,previous,effort,saveAnswer
  const allNotes=[],meta=[],lateSourceNotes=[],pageCounts=[],ocrByDocument=[],originalSourceWindows=[];
  const questionHash=await reviewFingerprint('skynet-pdf-review-v5-dossier-with-original-text\n'+question.trim()+'\n'+effort);
  for(let d=0;d<docs.length;d++){
-  const doc=docs[d];let offset=0,position=0,chunks=[],pageCount=null,ocrRequired=[];
+  const doc=docs[d];ensurePdfMatchesQuestion(question,doc);
+  let offset=0,position=0,chunks=[],pageCount=null,ocrRequired=[];
   let kind=null,totalChars=null;
   const pageSet=new Set();
   for(let tries=0;tries<250;tries++){
@@ -1271,6 +1312,16 @@ el("sendChat").onclick=async()=>{
     el('chatInput').value=msg;resizeSkynetComposer();
     return;
    }
+  }
+ }
+ if(!archiveFiles.length&&uploadedDocs.length===1){
+  const mismatch=mismatchedPdfCase(reviewQuestion,uploadedDocs[0]);
+  if(mismatch){
+   el('chatErrorStatus').hidden=false;
+   el('chatErrorStatus').textContent='사건 원본 불일치 · 요청 '+mismatch.requested+
+    ' / 선택한 PDF '+mismatch.actual+' · '+mismatch.filename+
+    '. 다른 사건 파일을 잘못 분석하지 않았어. 「분석할 PDF 선택」에서 원본을 확인해.';
+   return;
   }
  }
  if(archiveFiles.length){
