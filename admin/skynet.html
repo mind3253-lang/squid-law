@@ -36,10 +36,10 @@ succeeded++}catch(err){failed++;fresh=fileFresh;total=fileTotal;data=fileMemoryS
 if(!persist())throw Error('브라우저 저장 공간 부족. 기억 가져오기를 취소했습니다. 파일을 나누어 다시 시도하세요.');try{localStorage.setItem(chatKey,JSON.stringify(history))}catch(e){data=memorySnapshot;memoryIndex.clear();for(const x of data)memoryIndex.set(x.key,x);if(!persist())throw Error('대화 저장 실패 후 기억 원본 복구에도 실패했습니다. 전체 백업을 보관하세요.');throw Error('대화 기록 저장 실패. 가져오기를 취소했습니다.')}render();status.textContent='파일 '+succeeded+'개 성공, '+failed+'개 실패 · '+total+'개 중 '+fresh+'개 새 기억, '+(total-fresh)+'개 중복'+(errors.length?' / 일부 파일 오류: '+errors.join('; '):'');
 }catch(err){data=memorySnapshot;memoryIndex.clear();for(const x of data)memoryIndex.set(x.key,x);history=historySnapshot;let restoreError='';try{if(localStorage.getItem(chatKey)!==JSON.stringify(historySnapshot))localStorage.setItem(chatKey,JSON.stringify(historySnapshot))}catch{restoreError=' · 대화 복구 저장 실패: 전체 백업을 보관하세요.'}drawChat();render();status.textContent='가져오기 중단: '+err.message+(errors.length?' / '+errors.join('; '):'')+restoreError}finally{input.value='';input.disabled=false;el('sendChat').disabled=false;el('clearChat').disabled=false;el('save').disabled=false;el('backup').disabled=false;el('fullBackup').disabled=false}};
 const chatKey="skynet_chat_v1";el("syncHistory").onclick=async()=>{const b=el("syncHistory");b.disabled=true;try{const pages=[];for(let p=0;p<250;p++){const r=await fetch("/admin/skynet-memory?page="+p);if(!r.ok)throw Error("HTTP "+r.status);const j=await r.json();pages.unshift(j.messages);if(!j.hasMore)break;}const incoming=pages.flat();const seen=new Set();const merged=[];for(const m of [...incoming,...history]){if(!m||typeof m.content!=="string")continue;const k=m.role+":"+m.content;if(seen.has(k))continue;seen.add(k);merged.push(m)}history=merged;drawChat();el("status").textContent="서버 대화 "+incoming.length+"개 복원 완료"}catch(e){el("status").textContent="복원 실패: "+e.message}finally{b.disabled=false}};el("fullBackup").onclick=()=>{const payload={format:"skynet_full_backup_v1",exportedAt:new Date().toISOString(),memories:data,history:history.map(m=>({role:m.role,content:m.content,...(m.archive?{archive:m.archive}:{})}))};const u=URL.createObjectURL(new Blob([JSON.stringify(payload,null,2)],{type:"application/json"}));const a=document.createElement("a");a.href=u;a.download="SKYNET_full_backup_"+new Date().toISOString().slice(0,10)+".json";a.click();setTimeout(()=>URL.revokeObjectURL(u),2000)};let history=[];let chatDisplayLimit=80;let serverHasMore=false;let serverPage=1;
-async function saveTurn(role,content,turnId){
+async function saveTurn(role,content,turnId,recentTurns=[]){
  const raw=String(content);
  if(raw.length<=80000){
-  const r=await fetch('/admin/skynet-memory',{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},body:JSON.stringify({action:'save-turn',role,content:raw,turnId})});
+  const r=await fetch('/admin/skynet-memory',{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},body:JSON.stringify({action:'save-turn',role,content:raw,turnId,...(role==='user'&&recentTurns.length?{recentTurns:recentTurns.slice(-8).map(x=>({role:x.role,content:String(x.content||'').slice(-3200)}))}:{})})});
   if(!r.ok)throw Error('서버 대화 저장 실패 ('+r.status+')');
   return r.json();
  }
@@ -640,7 +640,7 @@ el("sendChat").onclick=async()=>{
  const previous=history.slice(-8).filter(x=>['user','assistant'].includes(x.role)).map(x=>({role:x.role,content:x.content.slice(-3500)}));
  while(previous.length&&previous[0].role==='assistant')previous.shift();
  el('sendChat').disabled=true;el('chatErrorStatus').hidden=false;el('chatErrorStatus').textContent='질문 원문을 서버에 저장 중…';
- try{await saveTurn('user',composed,turnId)}catch(e){
+ try{await saveTurn('user',composed,turnId,previous)}catch(e){
   el('chatErrorStatus').textContent='질문 저장 실패: '+e.message;el('sendChat').disabled=false;return;
  }
  const submittedTurn={role:'user',content:composed,attachments:attached};
