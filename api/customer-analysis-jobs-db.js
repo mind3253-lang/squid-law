@@ -2,6 +2,7 @@ import {createHash,randomUUID} from 'node:crypto';
 import {withLeaseDb} from './customer-analysis-lease-db.js';
 import {assertCompletionTransition} from '../lib/analysis-stage-gates.mjs';
 import {scheduleCustomerWorker} from '../lib/customer-worker-dispatch.mjs';
+import {CUSTOMER_PRODUCT_CONTRACT} from '../lib/customer-product-contract.mjs';
 const key=user=>createHash('sha256').update(user).digest('hex');
 const publicJob=r=>r&&({jobId:r.job_id,caseId:r.case_id,documentVersion:r.document_version,status:r.status,stage:r.stage,checkpoint:r.checkpoint,attempts:r.attempts,maxAttempts:r.max_attempts,errorCode:r.error_code,updatedAt:r.updated_at,createdAt:r.created_at});
 export const documentVersion=docs=>createHash('sha256').update(JSON.stringify([...docs].map(d=>[d.id,d.sha256,d.pageCount]).sort((a,b)=>a[0].localeCompare(b[0])))).digest('hex');
@@ -16,8 +17,34 @@ export async function enqueueJob(user,caseId,version){
  });
 }
 export async function getJob(user,caseId,id){return withLeaseDb(async db=>{const r=await db.query('SELECT * FROM customer_analysis_jobs WHERE customer_key=$1 AND case_id=$2 AND job_id=$3',[key(user),caseId,id]);return publicJob(r.rows[0])})}
+/**
+ * A single GLOBAL customer-analysis lane. SKIP LOCKED on a job row is NOT a
+ * global concurrency guard: simultaneous requests can lock distinct rows.
+ *
+ * The transaction-scoped advisory lock serializes the active-job check and
+ * candidate claim across all worker processes. The durable running lease
+ * blocks later workers until checkpoint/retry/completion (or lease expiry).
+ * No customer data is dropped and leases remain fenced by owner token.
+ */
 export async function claimJob(){
- return withLeaseDb(async db=>{const token=randomUUID(),r=await db.query(`WITH candidate AS (
+ return withLeaseDb(async db=>{
+  if(CUSTOMER_PRODUCT_CONTRACT.analysisConcurrency!==1)
+   throw Error('CUSTOMER_SINGLE_ANALYSIS_POLICY_VIOLATION');
+  const client=await db.connect();
+  try{
+   await client.query('BEGIN');
+   // Reserved fixed advisory-lock namespace for the customer analysis lane.
+   // Lock is held only during this transaction, not for the full AI call.
+   await client.query('SELECT pg_advisory_xact_lock(208387541, 1)');
+   const active=await client.query(
+    "SELECT 1 FROM customer_analysis_jobs WHERE status='running' AND lease_expires_at>now() LIMIT 1"
+   );
+   if(active.rows.length){
+    await client.query('COMMIT');
+    return null;
+   }
+   const token=randomUUID();
+   const r=await client.query(`WITH candidate AS (
  SELECT customer_key,case_id,job_id FROM customer_analysis_jobs
  WHERE (status IN ('queued','retry') AND next_run_at<=now())
  OR (status='running' AND lease_expires_at<now())
@@ -25,7 +52,15 @@ export async function claimJob(){
 ) UPDATE customer_analysis_jobs j SET status='running',owner_token=$1,fence=fence+1,
  lease_expires_at=now()+interval '90 seconds',updated_at=now()
  FROM candidate c WHERE j.customer_key=c.customer_key AND j.case_id=c.case_id AND j.job_id=c.job_id
- RETURNING j.*`,[token]);return r.rows[0]?{...publicJob(r.rows[0]),customerKey:r.rows[0].customer_key,token,fence:String(r.rows[0].fence)}:null});
+ RETURNING j.*`,[token]);
+   await client.query('COMMIT');
+   return r.rows[0]?{...publicJob(r.rows[0]),customerKey:r.rows[0].customer_key,token,
+    fence:String(r.rows[0].fence)}:null;
+  }catch(e){
+   await client.query('ROLLBACK').catch(()=>{});
+   throw e;
+  }finally{client.release()}
+ });
 }
 export async function advanceJob(job,stage,checkpoint,status='running',errorCode=null){
  if(!['running','retry','blocked','completed','failed'].includes(status))throw Error('INVALID_STATUS');
