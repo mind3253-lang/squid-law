@@ -19,7 +19,7 @@
 .case-chat-empty{color:#64748b;text-align:center;margin:auto;line-height:1.9}
 .case-chat-message{max-width:86%;padding:13px 17px;border-radius:14px;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.7}
 .case-chat-message.user{align-self:flex-end;background:#e8f2ff}
-.case-chat-message.system{align-self:flex-start;background:#f4f6fa}
+.case-chat-message.system{align-self:flex-start;background:#f4f6fa}.case-chat-message.system{max-width:98%}.case-table-wrap{max-width:100%;overflow-x:auto;margin:12px 0}.case-markdown-table{border-collapse:collapse;min-width:560px;width:100%;font-size:14px;line-height:1.6;background:#fff;white-space:normal}.case-markdown-table th,.case-markdown-table td{border:1px solid #cbd5e1;padding:9px 11px;vertical-align:top;text-align:left;overflow-wrap:anywhere}.case-markdown-table th{background:#eaf1fa;font-weight:700}.case-markdown-text{white-space:pre-wrap}.case-markdown-heading{font-weight:700;margin:10px 0 6px;font-size:17px}
 .case-chat-compose{border-top:1px solid #e5eaf0;padding:14px}
 .case-chat-compose textarea{width:100%;box-sizing:border-box;min-height:110px;resize:vertical;border:0;outline:0;padding:12px;font:inherit;color:#17233b}
 .case-chat-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
@@ -71,7 +71,51 @@ window.addEventListener("error",function(e){const el=document.getElementById("ca
 (()=>{const $=id=>document.getElementById(id),log=$('caseChatLog'),input=$('caseChatInput'),status=$('caseChatStatus'),select=$('activeCase'),pick=$('caseChatPick'),area=$('caseChatFiles');let pending=[],busy=false,epoch=0,retryRequest=null;const key='squidlaw-customer-request';try{retryRequest=JSON.parse(sessionStorage.getItem(key)||'null')}catch{}
 const url=(id=select.value)=>'/api/customer-case?caseId='+encodeURIComponent(id);
 async function api(method,body){const r=await fetch(url(),{method,credentials:'same-origin',cache:'no-store',headers:body?{'content-type':'application/json'}:{},body:body?JSON.stringify(body):undefined});const j=await r.json();if(!r.ok)throw Error(j.error||'서버 오류');return j}
-function bubble(text,role,doc){log.querySelector('.case-chat-empty')?.remove();const e=document.createElement('div');e.className='case-chat-message '+(role==='user'?'user':'system');e.textContent=text;if(doc){const a=document.createElement('a');a.href=url()+'&view='+encodeURIComponent(doc.id);a.target='_blank';a.rel='noopener';a.textContent=' · PDF 바로 열기';e.append(a)}log.append(e);log.scrollTop=log.scrollHeight}
+
+function caseTableCells(line){
+ const value=String(line||'').trim();if(!value.includes('|'))return null;
+ const cells=[];let part='',escaped=false;
+ const row=value.replace(/^\|/,'').replace(/\|$/,'');
+ for(const ch of row){
+  if(escaped){part+=ch;escaped=false;continue}
+  if(ch==='\\'){escaped=true;continue}
+  if(ch==='|'){cells.push(part.trim());part='';continue}
+  part+=ch;
+ }
+ cells.push(part.trim());return cells.length>=2?cells:null;
+}
+function renderCaseMarkdown(target,source){
+ const lines=String(source||'').replace(/\r\n/g,'\n').split('\n');let pending=[];
+ const flush=()=>{
+  if(!pending.length)return;
+  const node=document.createElement('div');node.className='case-markdown-text';
+  node.textContent=pending.join('\n');target.append(node);pending=[];
+ };
+ for(let i=0;i<lines.length;){
+  const headers=caseTableCells(lines[i]),sep=i+1<lines.length?caseTableCells(lines[i+1]):null;
+  if(headers&&sep&&headers.length===sep.length&&sep.every(x=>/^:?-{3,}:?$/.test(x))){
+   flush();const scroll=document.createElement('div');scroll.className='case-table-wrap';
+   const table=document.createElement('table');table.className='case-markdown-table';
+   const head=document.createElement('thead'),tr=document.createElement('tr');
+   for(const value of headers){const th=document.createElement('th');th.scope='col';th.textContent=value;tr.append(th)}
+   head.append(tr);table.append(head);const body=document.createElement('tbody');i+=2;
+   while(i<lines.length){
+    const cells=caseTableCells(lines[i]);if(!cells||cells.length!==headers.length)break;
+    const row=document.createElement('tr');
+    for(const cell of cells){const td=document.createElement('td');td.textContent=cell;row.append(td)}
+    body.append(row);i++;
+   }
+   table.append(body);scroll.append(table);target.append(scroll);continue;
+  }
+  const h=/^(#{1,4})\s+(.+)$/.exec(lines[i]);
+  if(h){flush();const title=document.createElement('div');
+   title.className='case-markdown-heading';title.textContent=h[2];target.append(title);i++;continue}
+  pending.push(lines[i]);i++;
+ }
+ flush();
+}
+
+function bubble(text,role,doc){log.querySelector('.case-chat-empty')?.remove();const e=document.createElement('div');e.className='case-chat-message '+(role==='user'?'user':'system');if(role==='user')e.textContent=text;else renderCaseMarkdown(e,text);if(doc){const a=document.createElement('a');a.href=url()+'&view='+encodeURIComponent(doc.id);a.target='_blank';a.rel='noopener';a.textContent=' · PDF 바로 열기';e.append(a)}log.append(e);log.scrollTop=log.scrollHeight}
 async function refresh(){const token=++epoch,caseId=select.value;log.replaceChildren();if(!select.value){status.textContent='새 사건을 등록해 주세요.';return}try{const data=await api('GET');if(token!==epoch||caseId!==select.value)return;const entries=[...data.documents.map(d=>({at:d.createdAt,role:'user',text:'📎 '+d.name+' · '+d.pageCount+'쪽 · '+d.status,doc:d})),...data.messages.map(m=>({at:m.createdAt,role:m.role,text:m.content}))].sort((a,b)=>a.at.localeCompare(b.at));for(const x of entries)bubble(x.text,x.role,x.doc);if(!entries.length){const p=document.createElement('p');p.className='case-chat-empty';p.textContent='자료를 첨부하거나 사건 내용을 질문해 주세요.';log.append(p)}status.textContent='서버 보관 문서 '+data.documents.length+'개 · 저장된 대화 '+data.messages.length+'개'}catch(e){if(token===epoch)status.textContent='자료 조회 실패: '+e.message}}
 const feedback=$('caseChatFeedback');function notice(message,kind='info'){feedback.textContent=message;feedback.dataset.kind=kind;feedback.style.display='block'}function showPending(){area.replaceChildren();pending.forEach((f,i)=>{const span=document.createElement('span');span.className='case-chat-file';span.textContent=(/\.pdf$/i.test(f.name)?'📄 ':'📎 ')+f.name+(/\.pdf$/i.test(f.name)?' · 업로드 대기':' · 변환 기능 준비 중 (분석 제외)')+' ';const x=document.createElement('button');x.textContent='×';x.onclick=()=>{pending.splice(i,1);showPending();notice(pending.length?pending.length+'개 파일 선택됨':'첨부 목록이 비었습니다.')};span.append(x);area.append(span)})}
 async function loadCases(){const r=await fetch('/api/customer-cases',{credentials:'same-origin',cache:'no-store'});const j=await r.json();if(!r.ok)throw Error(j.error||'사건 목록 조회 실패');select.replaceChildren();for(const c of j.cases){const o=document.createElement('option');o.value=c.id;o.textContent=c.id+' · '+c.title;select.append(o)}const preferred=new URLSearchParams(location.search).get('case');if(j.cases.some(c=>c.id===preferred))select.value=preferred;else if(j.cases.length)select.value=j.cases[0].id;await refresh();await inspectRequest();await restoreFullReview()}
