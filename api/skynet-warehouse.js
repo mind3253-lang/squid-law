@@ -54,6 +54,30 @@ export default async function handler(req,res){
    return send(res,failed?207:200,{ok:failed===0,scanned:verified.length,duplicateGroups:duplicateGroups.length,deleted,failed,failures});
   }
   if(req.method!=='GET')return send(res,405,{error:'GET/POST only'});
+  // Select a VERIFIED indexed PDF directly, without uploading or re-extracting.
+  // Every option is bound to the immutable document SHA-256 and pageCount.
+  if(req.query?.mode==='indexed-pdfs'){
+   const docs=(await scan('skynet/documents/',5000))
+    .filter(x=>/^skynet\\/documents\\/[a-f0-9]{64}\\.json$/.test(x.pathname))
+    .sort((a,b)=>String(b.uploadedAt||'').localeCompare(String(a.uploadedAt||'')))
+    .slice(0,100);
+   const indexed=[];
+   for(let i=0;i<docs.length;i+=12){
+    const batch=await Promise.all(docs.slice(i,i+12).map(async x=>{
+     const row=await readJson(x.pathname).catch(()=>null);
+     return row&&/^[a-f0-9]{64}$/.test(row.hash||'')&&
+      x.pathname==='skynet/documents/'+row.hash+'.json'&&
+      Number.isSafeInteger(row.pageCount)&&row.pageCount>0&&
+      Number.isSafeInteger(row.segmentCount)&&row.segmentCount>0&&
+      /\\.pdf$/i.test(row.name||'')?
+      {name:row.name,hash:row.hash,pageCount:row.pageCount,
+       indexedAt:row.completedAt||x.uploadedAt}:null;
+    }));
+    indexed.push(...batch.filter(Boolean));
+   }
+   return send(res,200,{items:indexed,total:indexed.length,mode:'indexed-pdfs'});
+  }
+
   // Fast retry selector: the original upload is already stored. Avoid scanning
   // every chat memory, search index and uploaded chunk just to find a PDF name.
   if(req.query?.mode==='pdf-retry'){
