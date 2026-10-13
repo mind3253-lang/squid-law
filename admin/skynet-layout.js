@@ -127,7 +127,7 @@ async function runFastClassification(){
     }
     const started=Date.now();
     let result;
-    try{result=await requestCategoryBatch({prefix,cursor,limit:prefix==='skynet/imports/'?5:prefix==='skynet/db/'?8:16})}
+    try{result=await requestCategoryBatch({prefix,cursor,limit:prefix==='skynet/imports/'?4:8})}
     catch(e){
      categoryState['error:'+prefix]=String(e.message).slice(0,180);
      categorySave();updateCategoryCounts('분류 중단: '+e.message);
