@@ -617,13 +617,14 @@
       "priority": "P0",
       "title": "고객이 크기 무관하게 사건 전체 파일 한 번에 제출하도록 내부 분할·스트리밍·재개 구축",
       "codeLocations": "api/skynet-document.js; api/customer-pdf-extract.js; api/customer-analysis-worker.js; admin/skynet.html",
-      "status": "todo",
-      "implementation": "partial_fixed_100MB_limit_and_memory_concat_remain",
+      "status": "in_progress",
+      "implementation": "admin_pdf_range_window_indexing_implemented_customer_path_pending",
       "acceptance": "25MB/100MB 등 파일 크기를 고객 상품 한도로 사용하지 않음. 대용량 PDF 포함 전체 파일 단일 제출과 데이터 보존, 페이지 추출 체크포인트, 원본 재전송 없는 복구 및 누락 0 확인",
       "evidence": [
-        "2026-10-13: user observed 258-page uploaded PDF failed at extraction 25MB; 100MB increase was only temporary workaround and does not meet approved design"
+        "2026-10-13: user observed 258-page uploaded PDF failed at extraction 25MB; 100MB increase was only temporary workaround and does not meet approved design",
+        "2026-10-14: admin SKYNET now uses private Blob byte ranges, 16-page window extraction, cumulative segment offsets, durable per-window receipts, retry from original archive; range reader 36MB simulation passed; no real 258-page PDF E2E verification."
       ],
-      "checkpoint": "Replace full Buffer.concat path with bounded staged PDF processing, keep Vercel runtime constraints inside worker",
+      "checkpoint": "Commits 5673b6b,9303bb5,429e235,de78c80,302832d,a5bac2f,36fef2a,3f01009. NEXT: production 258page test, actual pdfjs transport verify, customer legal pipeline range input, OCR and complete reporting",
       "blockedReason": null,
       "dependencies": []
     },
