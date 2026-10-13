@@ -83,6 +83,14 @@ SKYNET 관리자 PDF는 현재 바이트 범위 읽기·16페이지 구간 추�
 - `tests/skynet-case-identity-guard.test.mjs`에서 본건 미발견 / 본건 색인 성공 / 원본 저장·색인 복구 / 다수 후보·조회 실패 / UI 32% 차단 5개 회귀검사 통과.
 - **실제 12878 원본이 저장됐는지, 운영에서 찾을 수 있는지 확인되지 않음.** 관리자의 실제 로그인 세션에서 검색 필요. 최신 Vercel READY 여부도 별도 확인.
 
+## 2026-10-14 · 37% 진행률 멈춤·새로고침 후 자동 재개·중단 불가능 사고
+- 사용자 관측: 12878 재분석인데 이전 12498 문서가 이어지며 37%에서 멈춤. 새로고침해도 `미완료 구간 이어서 분석`과 저장된 activeReview가 되살아남. 사용자 요구: 업로드 5%, 원문 분석 85%, 결과 보고서 작성·저장 10%; **사용자가 직접 분석을 중단할 수 있어야 하며 새로고침 시 자동 부활 금지**.
+- 변경: `admin/skynet.html`의 통합 진행률 배분 `upload:[0,5],index:[5,20],review:[20,90],report:[90,99],delivery:[99,100]`; 99%는 검증된 단계 표시이며 최종 답변 저장 후 그래프 즉시 숨김. 숫자는 검증된 완료 구간을 초과하지 않음.
+- 기존 `미완료 구간 이어서 분석` 버튼을 없애고 진행 카드에 `분석 중단` 버튼 추가. 클릭 시 진행 중 AI/문서 조회/검토 체크포인트/색인 fetch의 AbortController를 abort, client activeReview 메모리 및 localStorage 포인터만 해제, 타이머·진행 바·실행 중 표시를 제거. 원본 업로드·색인·기존 작성된 검토 체크포인트·대화 원문 삭제 금지. 재접속 때 기존 activeReview 포인터 자동 복구·상태 조회·자동 재개 금지.
+- `api/skynet-document-job.js`: `canceled.json` 별도 취소 기록. `POST action=cancel` 승인 후 같은 작업의 `finish` 금지(`REVIEW_CANCELED_BY_USER`). 차후 명시적 새 분석에서 `start`가 취소 표식을 해제해 같은 원본·체크포인트를 다시 활용 가능. 브라우저 요청 취소가 이미 공급자에 들어간 모델 연산까지 즉시 중지하는 것을 보장하지는 않음.
+- `tests/skynet-pdf-stop-and-progress.test.mjs` 신규 4종 + `tests/skynet-pdf-source-progress.test.mjs` 진행률 배분 갱신; 관련 모의/구문 검사 8종 통과. 운영 E2E 중단 및 서버 취소 표시 동작은 아직 검증 전. Vercel 최신 READY 확인 필요.
+- 중요: 현재 사용자가 열어 둔 이전 JavaScript는 새 커밋에 의해 자동 갱신되지 않음. 새 버전 READY 후에 새로고침해야 버튼과 새 프로세스가 적용됨. 그 전에 오래된 탭을 닫으면 해당 브라우저 실행은 멈추지만 서버가 이미 받은 AI 요청은 완료될 수 있음.
+
 ## 세션 시작 시 무조건 실행
 1. GitHub `mind3253-lang/squid-law`의 **최신 main**을 읽는다. `docs/SKYNET_CONTINUITY_AND_IMPLEMENTATION.md`, **이 파일**, `docs/SKYNET_TASK_MANIFEST.json`을 읽는다.
 2. Vercel `squid-law` 최신 배포와 최근 커밋/테스트/로그를 확인한다. 권한 오류가 나면 구체적 차단 요인을 기록하고 다른 가능한 작업을 진행한다.
