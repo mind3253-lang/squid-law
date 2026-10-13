@@ -616,15 +616,16 @@
       "group": "고객 전체파일 접수",
       "priority": "P0",
       "title": "고객이 크기 무관하게 사건 전체 파일 한 번에 제출하도록 내부 분할·스트리밍·재개 구축",
-      "codeLocations": "api/skynet-document.js; api/customer-pdf-extract.js; api/customer-analysis-worker.js; admin/skynet.html",
+      "codeLocations": "api/customer-large-upload.js; lib/customer-pdf-source.mjs; lib/customer-pdf-visual-range.mjs; api/customer-analysis-worker.js; api/customer-case.js; customer.html; tests/customer-multipart-tables.test.mjs; tests/customer-pdf-visual-range.test.mjs",
       "status": "in_progress",
-      "implementation": "admin_pdf_range_window_indexing_implemented_customer_path_pending",
+      "implementation": "customer_multipart_range_upload_and_pdf_text_visual_worker_code_added_runtime_500MB_unverified",
       "acceptance": "25MB/100MB 등 파일 크기를 고객 상품 한도로 사용하지 않음. 대용량 PDF 포함 전체 파일 단일 제출과 데이터 보존, 페이지 추출 체크포인트, 원본 재전송 없는 복구 및 누락 0 확인",
       "evidence": [
         "2026-10-13: user observed 258-page uploaded PDF failed at extraction 25MB; 100MB increase was only temporary workaround and does not meet approved design",
-        "2026-10-14: admin SKYNET now uses private Blob byte ranges, 16-page window extraction, cumulative segment offsets, durable per-window receipts, retry from original archive; range reader 36MB simulation passed; no real 258-page PDF E2E verification."
+        "2026-10-14: admin SKYNET now uses private Blob byte ranges, 16-page window extraction, cumulative segment offsets, durable per-window receipts, retry from original archive; range reader 36MB simulation passed; no real 258-page PDF E2E verification.",
+        "2026-10-14: customer UI 100MB cap removed; all PDF uploads via 1MiB resumable private chunks; staging streams SHA-256, reads page count by PDF.js ranges and persists multipart metadata; worker extracts 20-page windows by range, rerenders bounded visual and OCR page windows via native canvas; customer Markdown and legal report tables render DOM tables. 500MB production E2E not yet verified."
       ],
-      "checkpoint": "Commits 5673b6b,9303bb5,429e235,de78c80,302832d,a5bac2f,36fef2a,3f01009. NEXT: production 258page test, actual pdfjs transport verify, customer legal pipeline range input, OCR and complete reporting",
+      "checkpoint": "New customer upload+analysis range support committed, pending Vercel native-canvas integration test and real 258/500MB E2E; preserve existing original objects and PostgreSQL analysis queue; original legacy base64 API retained only for backwards compatibility.",
       "blockedReason": null,
       "dependencies": []
     },
