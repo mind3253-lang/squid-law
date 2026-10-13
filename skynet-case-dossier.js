@@ -79,6 +79,12 @@ function directIndexedPdfExcerpt(windows,section,{maxCharacters=33000}={}){
   return head+excerpt;
  }).join('\n\n');
 }
+function reportHasInvalidPageCitations(text,pageCount){
+ if(!Number.isSafeInteger(pageCount)||pageCount<1)return true;
+ const matches=String(text||'').matchAll(/\[PDF\s*(\d+)\s*쪽\]/g);
+ for(const m of matches)if(Number(m[1])<1||Number(m[1])>pageCount)return true;
+ return false;
+}
 function reportRequestsAlreadyIndexedPdf(text){
  const answer=String(text||'');
  return /(?:실제\s*추출\s*텍스트|PDF\s*\d+\s*[~\-]\s*\d+\s*쪽.{0,16}(?:보내|제공)|원문(?:을|이)\s*(?:보내|제공)|첨부.{0,25}원문이\s*아니라\s*(?:중간\s*)?분석\s*노트|이번\s*메시지.{0,50}중간\s*분석\s*노트)/su.test(answer);
@@ -107,7 +113,7 @@ function dossierSectionPrompt(section,{question,mainNotes,lateNotes,pageCount,so
   '아래 직접 원문 발췌는 각 장에서 인용 가능한 일부 구간이고 모든 페이지가 전부 재인용된 것은 아니야. 중간 노트는 다른 구간의 선행 검토 결과야.',
   'PDF의 사건번호와 질문에서 다룰 다른 사건번호를 혼동하지 마. 다른 사건 문서가 현재 PDF에 없으면 현재 PDF에서 확인 가능한 범위만 명확히 구분해.',
   '실제로 없는 증거나 별건 판결을 창작하지 말되, 현재 PDF의 실제 원문을 읽고도 그 원문을 다시 보내 달라는 답은 절대 작성하지 마.',
-  '\\n[서버 색인에서 직접 추출한 PDF 원문 발췌]\n'+sourceExcerpts,
+  '\n[서버 색인에서 직접 추출한 PDF 원문 발췌]\n'+sourceExcerpts,
   '\n[전 구간 원문 검토 노트]\n'+mainNotes,
   '\n[뒤쪽 제출서면 검토 노트]\n'+lateNotes
  ].join('\n\n');
@@ -132,4 +138,4 @@ function assembleCaseDossier({sections,pageCount,sourceName,ocrRequired=[]}){
 }
 
 // Shared between the customer-quality server tests and SKYNET browser report generator.
-globalThis.SkynetCaseDossier=Object.freeze({CASE_DOSSIER_VERSION,CASE_DOSSIER_SECTIONS,dossierSectionPrompt,assembleCaseDossier,directIndexedPdfExcerpt,reportRequestsAlreadyIndexedPdf});
+globalThis.SkynetCaseDossier=Object.freeze({CASE_DOSSIER_VERSION,CASE_DOSSIER_SECTIONS,dossierSectionPrompt,assembleCaseDossier,directIndexedPdfExcerpt,reportRequestsAlreadyIndexedPdf,reportHasInvalidPageCitations});
