@@ -143,6 +143,23 @@ async function documentReviewCheckpoint(doc,questionHash,chunkHash,chunkNumber,s
  }finally{clearTimeout(timer)}
 }
 const waitReview=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+async function askReviewNoteWithRetry(prompt,effort,label){
+ let failure;
+ for(let attempt=1;attempt<=3;attempt++){
+  try{
+   return await askSkynet(prompt,[],effort,[],'',null,{
+    skipMemorySearch:true,suppressSearchNote:true
+   });
+  }catch(e){
+   failure=e;
+   if(!e.retryable||attempt===3)break;
+   el('chatErrorStatus').textContent=label+' · AI 응답 오류 · '+
+    (attempt+1)+'/3회 자동 재시도';
+   await waitReview(attempt*1800);
+  }
+ }
+ throw failure;
+}
 async function reviewSourceText(doc,chunk,total,question,effort,depth=0){
  const heading='[직접 첨부 문서 '+doc.name+' / 원문 구간 '+chunk.index+'/'+total+
   (chunk.pages.length?' / 페이지 후보 '+chunk.pages.join(','):'')+
@@ -297,11 +314,11 @@ async function analyzeAttachedDocuments(docs,question,previous,effort,saveAnswer
   const groups=splitLongText(summaries,24000),compressed=[];
   for(let i=0;i<groups.length;i+=2){
    const segment=groups.slice(i,i+2);
-   const result=await Promise.allSettled(segment.map(chunk=>reviewSourceText(
-    {name:'전체 첨부 문서 검토 노트'}, {text:chunk,index:1,pages:[]},
-    1,'원문 출처와 쪽수를 유지한 채 사실·금액·대립 주장을 정확하게 압축해. '+
-    '이 자료는 이미 작성된 중간 검토 노트이며 원문이 아니야. 새로운 사실을 추가하지 마.',
-    effort
+   const result=await Promise.allSettled(segment.map(chunk=>askReviewNoteWithRetry(
+    '다음은 PDF 원문이 아니라 이미 작성된 중간 검토 노트 일부야. '+
+    '원문에서 확인된 내용과 그 근거 쪽수, 양측 주장·금액·불일치를 유지하면서 압축해. '+
+    '없던 사실이나 쪽수는 절대 만들지 마.\n\n'+chunk,
+    effort,'중간 검토 노트 압축'
    )));
    const errors=[];
    for(let j=0;j<result.length;j++){
@@ -318,20 +335,7 @@ async function analyzeAttachedDocuments(docs,question,previous,effort,saveAnswer
   '\n\n다음은 이번에 실제로 첨부된 PDF의 모든 판독 가능 텍스트 구간을 차례로 검토한 중간 분석 노트야. '+
   '노트에 없는 사실·근거·쪽수는 만들지 말고 당사자 주장과 확인된 사실, 상충 증거, 불확실성을 분리해 독립적으로 분석해. '+
   '이미지/OCR이 미검증인 경우 문서 전체가 완전히 판독됐다고 주장하면 안 돼.\n\n'+summaries;
- let reply;
- for(let attempt=1;attempt<=3;attempt++){
-  try{
-   reply=await askSkynet(finalPrompt,[],effort,[],'',null,{
-    skipMemorySearch:true,suppressSearchNote:true
-   });
-   break;
-  }catch(e){
-   if(!e.retryable||attempt===3)throw e;
-   el('chatErrorStatus').textContent='최종 종합 분석 일시적 오류 · '+
-    (attempt+1)+'/3회 자동 재시도 중';
-   await waitReview(attempt*1800);
-  }
- }
+ const reply=await askReviewNoteWithRetry(finalPrompt,effort,'최종 종합 분석');
  await saveAnswer('[직접 첨부 문서 분석 · '+meta.join(' / ')+']\n\n'+reply,'document-final');
 }
 el("sendChat").onclick=async()=>{
