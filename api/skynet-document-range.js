@@ -67,8 +67,9 @@ async function digestOriginal(files){
  }
  return sha.digest('hex');
 }
-const receiptPath=(hash,startPage)=>
- 'skynet/document-ingest/'+hash+'/step-'+String(startPage).padStart(8,'0')+'.json';
+const receiptPath=(hash,startPage,mode='normal')=>
+ (mode==='rebuild-v2'?'skynet/document-ingest-rebuild-v2/':'skynet/document-ingest/')+
+ hash+'/step-'+String(startPage).padStart(8,'0')+'.json';
 const segmentPath=(hash,start)=>
  'skynet/document-segments/'+hash+'/batch-'+String(start).padStart(8,'0')+'.json';
 const summaryOf=(receipt,duplicate=false)=>({
@@ -117,6 +118,7 @@ export default async function handler(req,res){
  const body=typeof req.body==='string'?(()=>{try{return JSON.parse(req.body)}catch{return {}}})():req.body||{};
  const batch=String(body.batch||''),name=String(body.name||''),parts=Number(body.parts);
  const startPage=Number(body.startPage||1);
+ const recoveryMode=body.recoveryMode==='rebuild-v2'?'rebuild-v2':'normal';
  if(!/^[a-zA-Z0-9_-]{8,80}$/.test(batch)||!/\.pdf$/i.test(name)||
   name.length>255||!Number.isSafeInteger(parts)||parts<1||parts>100000||
   !Number.isSafeInteger(startPage)||startPage<1||
@@ -138,13 +140,15 @@ export default async function handler(req,res){
     processedPages:manifest.pageCount,nextPage:manifest.pageCount+1,
     segments:manifest.segmentCount,characters:manifest.characters,
     ocrRequired:manifest.ocrRequired||[],complete:true,duplicate:true,analyzed:false});
-  const receipt=await readJSON(receiptPath(hash,startPage),2*1048576);
+  const receipt=await readJSON(receiptPath(hash,startPage,recoveryMode),2*1048576);
   if(receipt?.hash===hash&&receipt.nextPage>startPage)
    return respond(res,200,summaryOf(receipt,true));
   const previous=startPage===1?null:
-   await readJSON(receiptPath(hash,startPage-WINDOW_PAGES),2*1048576);
+   await readJSON(receiptPath(hash,startPage-WINDOW_PAGES,recoveryMode),2*1048576);
   if(startPage!==1&&(!previous||previous.hash!==hash||previous.nextPage!==startPage))
-   return respond(res,409,{error:'PREVIOUS_PDF_WINDOW_MISSING',nextPage:previous?.nextPage||1});
+   return respond(res,409,{error:'PREVIOUS_PDF_WINDOW_MISSING',
+    nextPage:previous?.nextPage||1,recoverable:recoveryMode==='normal',
+    recoveryMode,expectedPreviousStart:startPage-WINDOW_PAGES});
   const extracted=await extractPdfPagesByRange(range,{
    startPage,pageCount:WINDOW_PAGES,fastTextOnly:true
   });
@@ -192,7 +196,7 @@ export default async function handler(req,res){
    }),{access:'private',addRandomSuffix:false,allowOverwrite:true,
     contentType:'application/json'});
   }
-  await put(receiptPath(hash,startPage),JSON.stringify(next),{
+  await put(receiptPath(hash,startPage,recoveryMode),JSON.stringify(next),{
    access:'private',addRandomSuffix:false,allowOverwrite:true,
    contentType:'application/json'
   });
