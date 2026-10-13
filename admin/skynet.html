@@ -1045,7 +1045,12 @@ el("sendChat").onclick=async()=>{
  if(activeReview&&!archiveFiles.length&&!attached.length&&isReviewStatusQuestion(msg)){
   el('sendChat').disabled=true;el('chatErrorStatus').hidden=false;
   el('chatErrorStatus').textContent='서버의 실제 PDF 분석 진행 기록 확인 중…';
+  const statusTurnId=crypto.randomUUID();
+  const statusUserTurn={role:'user',content:msg,pending:true,turnId:statusTurnId};
+  history.push(statusUserTurn);beginSkynetLiveWork('질문 등록됨 · PDF 분석 상태 확인 중');
   try{
+   await saveTurn('user',msg,statusTurnId);
+   statusUserTurn.pending=false;saveLocalChatSnapshot();
    let data=null,legacy=false;
    try{data=await showReviewJobStatus({showReport:true})}
    catch(e){
@@ -1065,17 +1070,14 @@ el("sendChat").onclick=async()=>{
     '최종 종합 보고서는 저장되지 않았어. 완료 구간은 서버에 남아 있고 '+
     '위의 「미완료 구간 이어서 분석」으로 이어갈 수 있어. '+
     '브라우저가 분석을 수행하지 않는 동안에는 자동으로 진행되지 않아.';
-   const statusTurnId=crypto.randomUUID();
-   await saveTurn('user',msg,statusTurnId);
-   history.push({role:'user',content:msg});
    await saveTurn('assistant',statusMessage,statusTurnId+'-status');
    history.push({role:'assistant',content:statusMessage});
-   el('chatInput').value='';drawChat();
+   el('chatInput').value='';resizeSkynetComposer();saveLocalChatSnapshot();drawChat();
    el('chatErrorStatus').hidden=true;
   }catch(e){
    el('chatErrorStatus').textContent='PDF 분석 상태 확인 실패: '+e.message+
     ' · 이전 대화 검색 결과로 완료 여부를 추측하지 않았어.';
-  }finally{el('sendChat').disabled=false}
+  }finally{finishSkynetLiveWork();el('sendChat').disabled=false;drawChat()}
   return;
  }
 
