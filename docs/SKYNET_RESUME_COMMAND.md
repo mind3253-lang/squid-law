@@ -55,4 +55,4 @@ SQUIDLAW 내부 관리자 AI **SKYNET**을 ChatGPT API에서 실제 제공되는
 - 법률 엔진의 **38개 고유 작업**: `docs/SQUIDLAW_FULL_TASK_MANIFEST.json`.
 - 이어서 실행할 명령: `docs/SQUIDLAW_FULL_RESUME_COMMAND.md`.
 - 기존 338페이지 실운영 장애 기록: `docs/SQUIDLAW_338PAGE_INCIDENT_AND_RESUME.md`.
-- 다음 방은 스카이넷 22개, 스키드로우 38개를 별도 상태로 관리하고 검증 완료한 항목만 제외한다.
+- 다음 방은 스카이넷 22개, 스키드로우 41개를 별도 상태로 관리하고 검증 완료한 항목만 제외한다.
