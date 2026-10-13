@@ -351,6 +351,15 @@ async function analyzeAttachedDocuments(docs,question,previous,effort,saveAnswer
   if(!chunks.length)throw Error(doc.name+': 판독 가능한 문서 텍스트가 없어. 원본은 보관돼 있어.');
   const notes=new Array(chunks.length);
   const digest=await Promise.all(chunks.map(x=>reviewFingerprint(x.text)));
+  await reviewJobRequest('start',{documentHash:doc.hash,questionHash,
+   question:question.trim(),effort,chunks:digest});
+  reviewIsRunning=true;
+  rememberReview({documentHash:doc.hash,questionHash,question:question.trim(),
+   effort,name:doc.name,pageCount,ocrRequired,totalChunks:chunks.length,
+   completedChunks:0,complete:false});
+  try{await showReviewJobStatus()}catch(e){
+   renderReviewState('서버 진행률 조회 지연: '+e.message);
+  }
   let resumed=0;
   // Save all successful results (including those in a partially failed group).
   // A request that fails in the middle can resume from the exact document,
@@ -386,6 +395,9 @@ async function analyzeAttachedDocuments(docs,question,previous,effort,saveAnswer
    }
    el('chatErrorStatus').textContent=doc.name+' · '+Math.min(i+2,chunks.length)+'/'+
     chunks.length+'구간 검토 완료'+(resumed?' · 이전 완료 '+resumed+'건 재사용':'');
+   try{await showReviewJobStatus()}catch(e){
+    renderReviewState('구간 저장 완료 · 진행률 조회 지연: '+e.message);
+   }
   }
   if(notes.some(x=>typeof x!=='string'||!x.trim()))throw Error(doc.name+': 원문 구간 검토 누락');
   meta.push(doc.name+(kind==='pdf'?' · '+pageCount+'쪽':'')+
@@ -417,12 +429,18 @@ async function analyzeAttachedDocuments(docs,question,previous,effort,saveAnswer
  }
  if(summaries.length>45000)throw Error('첨부 검토 노트가 입력 한도를 초과해 최종 종합 미완료야.');
  el('chatErrorStatus').textContent='원문 텍스트 전 구간 검토 · 최종 종합 분석 중…';
+ renderReviewState('텍스트 구간 검토 완료 · 종합 보고서 작성 중 (아직 최종 완료 아님)');
  const finalPrompt='사용자 요청: '+question+
   '\n\n다음은 이번에 실제로 첨부된 PDF의 모든 판독 가능 텍스트 구간을 차례로 검토한 중간 분석 노트야. '+
   '노트에 없는 사실·근거·쪽수는 만들지 말고 당사자 주장과 확인된 사실, 상충 증거, 불확실성을 분리해 독립적으로 분석해. '+
   '이미지/OCR이 미검증인 경우 문서 전체가 완전히 판독됐다고 주장하면 안 돼.\n\n'+summaries;
  const reply=await askReviewNoteWithRetry(finalPrompt,effort,'최종 종합 분석');
+ if(docs.length===1){
+  await reviewJobRequest('finish',{documentHash:docs[0].hash,questionHash,report:reply});
+  rememberReview({...activeReview,complete:true,completedChunks:activeReview.totalChunks});
+ }
  await saveAnswer('[직접 첨부 문서 분석 · '+meta.join(' / ')+']\n\n'+reply,'document-final');
+ renderReviewState('텍스트 검토 및 최종 종합 보고서 저장 완료');
 }
 el("sendChat").onclick=async()=>{
  const typed=el('chatInput').value,attached=pendingAttachments.slice(),archiveFiles=pendingArchiveFiles.slice();
