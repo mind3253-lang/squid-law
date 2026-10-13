@@ -23,7 +23,7 @@ const makeResolver=({items=[],error=null,rawIndex=null}={})=>{
  return new Function('fetch','AbortController','setTimeout','clearTimeout',
   'encodeURIComponent','setSkynetPipelineProgress','indexArchivedPdfInWindows',
   code)(fetch,fakeAbort,()=>1,()=>{},encodeURIComponent,()=>{},
-  rawIndex||async()=>{throw Error('unexpected reindex')});
+  rawIndex||(async()=>{throw Error('unexpected reindex')}));
 };
 test('12878 request never analyzes a 12498 PDF when exact original is missing',async()=>{
  const resolver=makeResolver();
