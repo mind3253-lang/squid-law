@@ -529,7 +529,7 @@ async function fetchIndexedPdfPageWindow(hash,startPage,endPage,offset,position)
 }
 async function readPdfPageSpan(doc,startPage,endPage){
  const chunks=[],seenPages=new Set();
- let offset=null,position=0,totalPages=null,segmentCount=null,complete=false;
+ let offset=null,position=0,totalPages=null,segmentCount=null,complete=false,lastPage=0;
  for(let step=0;step<2000;step++){
   el('chatErrorStatus').textContent='원본 PDF '+startPage+'~'+endPage+
    '쪽 · 원문 대조 '+(seenPages.size)+'/'+(endPage-startPage+1)+'쪽';
@@ -543,7 +543,8 @@ async function readPdfPageSpan(doc,startPage,endPage){
   for(const page of data.pages||[]){
    if(!Number.isSafeInteger(page)||page<startPage||page>endPage)
     throw Error('PDF 요청 범위를 벗어난 페이지 발견');
-   seenPages.add(page);
+   if(page<lastPage)throw Error('PDF 페이지 순서가 역행했어 · 색인 오류 가능성');
+   lastPage=page;seenPages.add(page);
   }
   if(typeof data.text==='string'&&data.text.trim()){
    chunks.push({text:data.text,pages:data.pages||[],index:chunks.length+1});
@@ -575,7 +576,6 @@ async function analyzeIndexedPdfFollowup(question,effort,saveAnswer){
   throw Error('보관 PDF 페이지 수를 확인하지 못했어');
  const pageCount=check.pageCount;
  const startPage=Math.floor(pageCount/2)+1;
- const span=await readPdfPageSpan(doc,startPage,pageCount);
  let previous=null;
  if(activeReview?.documentHash===doc.hash&&
   /^[a-f0-9]{64}$/.test(String(activeReview.questionHash||''))){
@@ -591,6 +591,7 @@ async function analyzeIndexedPdfFollowup(question,effort,saveAnswer){
    question,[],effort,saveAnswer,crypto.randomUUID());
   return;
  }
+ const span=await readPdfPageSpan(doc,startPage,pageCount);
  // Retain the completed prior report, but re-read the ACTUAL later pages,
  // including 143..258. Each partial note is cached by source fingerprint.
  const fingerprint=await reviewFingerprint('skynet-pdf-page-followup-v2\n'+
