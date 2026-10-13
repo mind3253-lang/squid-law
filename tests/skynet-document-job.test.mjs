@@ -31,7 +31,7 @@ function fixture(){
   const req={method,headers:{...auth},query:method==='GET'?body:{},body:method==='POST'?body:{}},
    res=createResponse();
   await handler(req,res);
-  return {status:res.statusCode,...res.body};
+  return {httpStatus:res.statusCode,...res.body};
  };
  return {store,run};
 }
@@ -44,15 +44,15 @@ test('PDF review final report requires every original source window receipt',asy
  store.set(sourcePath,{hash:doc,name:'case.pdf',pageCount:146,segmentCount:146,ocrRequired:[12,38]});
  let res=await run('POST',{action:'start',documentHash:doc,questionHash:question,
   question:'원문을 빠짐없이 검토해',effort:'low',chunks});
- assert.equal(res.status,200);
+ assert.equal(res.httpStatus,200);
  assert.equal(res.ok,true);
  res=await run('GET',{documentHash:doc,questionHash:question});
- assert.equal(res.status,200);
+ assert.equal(res.httpStatus,200);
  assert.equal(res.completedChunks,0);
  assert.deepEqual(res.missingChunks,[1,2,3]);
  res=await run('POST',{action:'finish',documentHash:doc,questionHash:question,
   report:'완성 보고서 '.repeat(40)});
- assert.equal(res.status,409);
+ assert.equal(res.httpStatus,409);
  assert.equal(res.error,'REVIEW_TEXT_CHUNKS_INCOMPLETE');
  // Unknown or wrong source digests cannot pass the completion gate.
  store.set('skynet/document-review/v1/'+doc+'/'+question+'/0001-'+'f'.repeat(64)+'.json',{summary:'wrong source'});
@@ -64,7 +64,7 @@ test('PDF review final report requires every original source window receipt',asy
  assert.equal(res.totalChunks,3);
  res=await run('POST',{action:'finish',documentHash:doc,questionHash:question,
   report:'완성 보고서 '.repeat(40)});
- assert.equal(res.status,200);
+ assert.equal(res.httpStatus,200);
  res=await run('GET',{documentHash:doc,questionHash:question});
  assert.equal(res.complete,true);
  assert.equal(res.status,'TEXT_COMPLETE_VISUAL_PENDING');
@@ -76,17 +76,17 @@ test('PDF review cannot start without registered source or with forged source bo
  const {store,run}=fixture();
  let res=await run('POST',{action:'start',documentHash:doc,questionHash:question,
   question:'이 문서 분석',effort:'low',chunks});
- assert.equal(res.status,404);
+ assert.equal(res.httpStatus,404);
  store.set(sourcePath,{hash:doc,name:'case.pdf',pageCount:146,segmentCount:146,ocrRequired:[]});
  res=await run('POST',{action:'start',documentHash:doc,questionHash:question,
   question:'이 문서 분석',effort:'low',chunks:[...chunks,'invalid']});
- assert.equal(res.status,400);
+ assert.equal(res.httpStatus,400);
  res=await run('POST',{action:'start',documentHash:doc,questionHash:question,
   question:'이 문서 분석',effort:'low',chunks});
- assert.equal(res.status,200);
+ assert.equal(res.httpStatus,200);
  res=await run('POST',{action:'start',documentHash:doc,questionHash:question,
   question:'다른 요청',effort:'low',chunks});
- assert.equal(res.status,409);
+ assert.equal(res.httpStatus,409);
 });
 test('SKYNET PDF status questions do not fall through to memory-only chat',()=>{
  const html=readFileSync(new URL('../admin/skynet.html',import.meta.url),'utf8');
