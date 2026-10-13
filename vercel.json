@@ -1,6 +1,10 @@
 {
   "rewrites": [
     {
+      "source": "/admin/skynet-document-verify",
+      "destination": "/api/skynet-document-verify"
+    },
+    {
       "source": "/admin/skynet-document-page-context",
       "destination": "/api/skynet-document-page-context"
     },
