@@ -226,6 +226,92 @@ function previousAttachedReview(){
  }
  return docs?{docs,question:origin||'첨부 문서 전체의 핵심 사실과 문제점을 원문에 근거하여 분석해 줘.'}:null;
 }
+
+const reviewStateKey='skynet_pdf_analysis_active_v1';
+let activeReview=null,reviewIsRunning=false;
+try{
+ const stored=JSON.parse(localStorage.getItem(reviewStateKey)||'null');
+ if(stored&&/^[a-f0-9]{64}$/.test(stored.documentHash||'')&&
+  /^[a-f0-9]{64}$/.test(stored.questionHash||'')&&typeof stored.question==='string')
+  activeReview=stored;
+}catch{}
+function rememberReview(value){
+ activeReview=value;
+ if(value)try{localStorage.setItem(reviewStateKey,JSON.stringify(value))}catch{}
+ renderReviewState();
+}
+function renderReviewState(stage){
+ const panel=el('skynetReviewPanel');
+ if(!panel)return;
+ if(!activeReview){panel.hidden=true;return}
+ panel.hidden=false;
+ const total=Number(activeReview.totalChunks)||0,done=Number(activeReview.completedChunks)||0;
+ const completed=activeReview.complete===true;
+ const percent=total?Math.min(100,Math.round(done*100/total)):0;
+ el('skynetReviewHeader').textContent='📄 '+String(activeReview.name||'첨부 PDF');
+ el('skynetReviewCount').textContent=(total?done+'/'+total+'개 텍스트 구간 · '+percent+'%':'분석 범위 확인 중')+
+  (activeReview.pageCount?' · PDF '+activeReview.pageCount+'쪽':'');
+ el('skynetReviewProgress').value=percent;
+ const ocr=Array.isArray(activeReview.ocrRequired)?activeReview.ocrRequired.length:0;
+ const visual=ocr?' · 이미지/스캔 텍스트 미검증 '+ocr+'쪽':' · 이미지 내용 별도 검증 필요';
+ const current=stage||(completed?'텍스트 구간 검토 및 종합 보고서 저장 완료':
+  reviewIsRunning?'원문 구간 분석 중 · 최종 보고서 작성 전':'분석 미완료 · 이어서 분석할 수 있음');
+ el('skynetReviewStage').textContent=current+visual;
+ el('skynetReviewResume').hidden=reviewIsRunning||completed;
+}
+async function reviewJobRequest(action,payload){
+ const post=action!=='status';
+ const params=new URLSearchParams({documentHash:payload.documentHash,questionHash:payload.questionHash});
+ const response=await fetch('/admin/skynet-document-job'+(post?'':'?'+params),{
+  method:post?'POST':'GET',credentials:'same-origin',cache:'no-store',
+  ...(post?{headers:{'content-type':'application/json'},body:JSON.stringify({...payload,action})}:{})
+ });
+ const data=await response.json().catch(()=>({}));
+ if(!response.ok||!data.ok)throw Error('문서 분석 작업 상태 '+(action==='status'?'조회':'저장')+
+  ' 실패: '+(data.error||response.status));
+ return data;
+}
+async function showReviewJobStatus({showReport=false}={}){
+ if(!activeReview)return null;
+ const data=await reviewJobRequest('status',activeReview);
+ const next={...activeReview,...{
+  name:data.name||activeReview.name,pageCount:data.pageCount,
+  totalChunks:data.totalChunks,completedChunks:data.completedChunks,
+  ocrRequired:data.ocrRequired,complete:data.complete,
+  finishedAt:data.finishedAt||null
+ }};
+ rememberReview(next);
+ if(showReport&&data.complete&&typeof data.report==='string'&&data.report.trim()){
+  const answer='[직접 첨부 문서 분석 · '+data.name+' · 텍스트 전 구간 검토 완료 / 이미지 증거는 별도 검증 필요]\n\n'+data.report;
+  const uniqueId='review-'+activeReview.documentHash.slice(0,25)+'-'+
+    activeReview.questionHash.slice(0,25)+'-report';
+  if(!history.some(x=>x.role==='assistant'&&x.content.includes(data.report.slice(0,100)))){
+   await saveTurn('assistant',answer,uniqueId);
+   history.push({role:'assistant',content:answer});drawChat();
+  }
+ }
+ return data;
+}
+function isReviewStatusQuestion(value){
+ const text=String(value||'').trim();
+ return text.length<=160&&/(?:끝이야|끝났|완료됐|진행\s*상태|어디까지|지금\s*뭐|왜\s*멈|분석\s*상태|얼마나\s*남|아직\s*분석|왜\s*답변|이게\s*다야)/.test(text);
+}
+el('skynetReviewResume').onclick=()=>{
+ if(reviewIsRunning||!activeReview)return;
+ el('chatInput').value='이어서 분석해';
+ el('sendChat').click();
+};
+el('skynetReviewRefresh').onclick=async()=>{
+ const button=el('skynetReviewRefresh');button.disabled=true;
+ try{await showReviewJobStatus({showReport:true})}
+ catch(e){renderReviewState('서버 작업 상태 확인 실패: '+e.message)}
+ finally{button.disabled=false}
+};
+if(activeReview){
+ renderReviewState('이전 PDF 분석 상태 확인 중…');
+ void showReviewJobStatus({showReport:true}).catch(e=>
+  renderReviewState('서버 분석 상태 조회 실패: '+e.message));
+}
 async function analyzeAttachedDocuments(docs,question,previous,effort,saveAnswer,turnId){
  if(docs.length>5)throw Error('한 번에 분석할 수 있는 문서는 최대 5개야.');
  const allNotes=[],meta=[];
