@@ -118,7 +118,7 @@ export default async function handler(req,res){
    return send(res,200,{ok:true,complete:true});
   }
   return send(res,200,{ok:true,found:true,name:job.name,question:job.question,
-   pageCount:job.pageCount,...counts,complete:!!completed,
+   pageCount:job.pageCount,sourceSegmentCount:job.sourceSegmentCount,...counts,complete:!!completed,
    status:completed?.status||'TEXT_REVIEW_INCOMPLETE',
    ocrRequired:job.ocrRequired,visualVerified:false,
    createdAt:job.createdAt,finishedAt:completed?.finishedAt||null,
