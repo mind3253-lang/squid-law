@@ -28,40 +28,52 @@ test('an explicit 258-page source cannot silently use the last active 146-page P
  assert.match(html,/선택한 PDF '\+doc.pages\+'쪽과 실제 색인 '\+pageCount/);
 });
 
-test('percentage never exceeds confirmed checkpoint progress and advances by integer 1% increments',()=>{
+test('one bar covers upload through final report, advances by verified 1% steps and disappears',()=>{
  const begin=html.indexOf('let displayedReviewPercent=0,reviewPercentTimer');
  const end=html.indexOf('function renderReviewState(',begin);
  assert.ok(begin>=0&&end>begin);
- const dom={skynetReviewProgress:{value:0},skynetReviewPercent:{textContent:'0%'}};
+ const dom={skynetReviewProgress:{value:0},skynetReviewPercent:{textContent:'0%'},
+  skynetReviewPanel:{hidden:false}};
  const intervals=[];
  const f=new Function('el','setInterval','clearInterval',
   html.slice(begin,end)+
-  'return {target:reviewPercentTarget,animate:animateVerifiedReviewProgress,read:()=>displayedReviewPercent};')(
+  'return {target:verifiedPipelinePercent,animate:animateVerifiedReviewProgress,'+
+  'read:()=>displayedReviewPercent,clear:clearSkynetPipelineProgress};')(
    name=>dom[name],fn=>{intervals.push(fn);return intervals.length},()=>{}
   );
- assert.equal(f.target(2,8),25);
- assert.equal(f.target(1,8),12);
- assert.equal(f.target(0,8),0);
- f.animate({key:'source-one',target:25,finished:false});
+ assert.equal(f.target('upload',1,2),6);
+ assert.equal(f.target('index',1,2),22);
+ assert.equal(f.target('review',2,8),43);
+ assert.equal(f.target('review',8,8),78);
+ assert.equal(f.target('report',4,4),97);
+ assert.equal(f.target('delivery',1,1),99);
+ f.animate({key:'146page-case',target:43});
  assert.equal(f.read(),0);
- const step=intervals[0];
- for(let i=1;i<=25;i++){step();assert.equal(f.read(),i);assert.equal(dom.skynetReviewProgress.value,i)}
- assert.equal(dom.skynetReviewPercent.textContent,'25%');
- f.animate({key:'source-one',target:50,finished:false});
- assert.equal(f.read(),25);
- assert.match(html,/let displayedReviewPercent=0/);
+ const tick=intervals[0];
+ for(let n=1;n<=43;n++){tick();assert.equal(f.read(),n);assert.equal(dom.skynetReviewProgress.value,n)}
+ f.animate({key:'146page-case',target:78});
+ assert.equal(f.read(),43);
+ f.clear();
+ assert.equal(dom.skynetReviewPanel.hidden,true);
+ assert.match(html,/setSkynetPipelineProgress\('upload'/);
+ assert.match(html,/setSkynetPipelineProgress\('index'/);
+ assert.match(html,/setSkynetPipelineProgress\('review'/);
+ assert.match(html,/setSkynetPipelineProgress\('report'/);
+ assert.match(html,/setSkynetPipelineProgress\('delivery'/);
+ assert.doesNotMatch(html,/id="skynetReviewRefresh"/);
  assert.match(html,/lastCheckpointAt:data.lastCheckpointAt/);
  assert.match(job,/lastCheckpointAt:lastCheckpointAt\?new Date\(lastCheckpointAt\)/);
  assert.match(style,/skynet-review-pulse/);
 });
-
-test('report not yet complete must not masquerade as verified source pages',()=>{
- assert.match(html,/원문 분석 '\+done\+'\/'\+total\+'구간 확인 완료/);
- assert.match(html,/완료한 구간만 실제 %에 반영/);
- assert.match(html,/documentKey=String\(activeReview.documentHash/);
- assert.match(html,/if\(kind==='pdf'&&Number.isSafeInteger\(doc.pages\)&&doc.pages!==pageCount\)/);
+test('completed report hides its progress and never exposes internal chunk counts',()=>{
+ const section=html.slice(html.indexOf('function renderReviewState('),
+  html.indexOf('async function reviewJobRequest(',html.indexOf('function renderReviewState(')));
+ assert.match(section,/panel\.hidden=true;return/);
+ assert.doesNotMatch(section,/원문 분석 '\+done\+'\/'\+total\+'구간/);
+ assert.doesNotMatch(section,/텍스트 구간 검토 및 종합 보고서 저장 완료/);
+ assert.match(html,/if\(skynetPipeline\?\.active\)clearSkynetPipelineProgress\(\)/);
+ assert.match(html,/if\(kind==='pdf'&&Number\.isSafeInteger\(doc\.pages\)&&doc\.pages!==pageCount\)/);
 });
-
 test('indexed source picker selects immutable stored PDF records without re-extracting',()=>{
  assert.match(html,/id="skynetReviewChooseSource"/);
  assert.match(html,/mode=indexed-pdfs/);
