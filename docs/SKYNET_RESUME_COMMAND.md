@@ -99,6 +99,15 @@ SKYNET 관리자 PDF는 현재 바이트 범위 읽기·16페이지 구간 추�
 - `tests/skynet-pdf-window-recovery.test.mjs` 모의 3건: legacy 정상 1쪽→17쪽에서 409→재구성 1/17/33으로 완료; 복구 구간에서도 409일 경우 실패; 서버와 클라이언트 경로/모드 연동. 세 테스트 + JS 구문 확인 통과. **실제 12878 원본이 끝까지 색인되는 운영 E2E는 미검증.**
 - Vercel 최신 배포가 READY인 것을 확인하기 전 사용자에게 재실행을 요구하지 말 것. 사용자는 빨리 법원형 관련 대화로 복귀하기 원함.
 
+## 2026-10-14 · 258쪽 12878 PDF 존재 질문을 AI 분석으로 오인 + API 크레딧 소진
+- 사용자 화면: `2026가단12878(이서현).pdf · 원본 저장 및 색인 확인 · 258쪽` 업로드 후 `이 파일 서버에 있는것은 확실해?` 질문에 답변하지 않고 자동 전체 PDF 분석 시작, 90%대 진행 뒤 `HTTP 429 - credit_balance_exhausted` 오류. 첨부 대화 원문에는 **실제 SHA-256 해시 식별자**가 있으며 단순 게놈 사건번호 검색만으로 파일 존재를 단정하면 안 됨.
+- 원인 A: `admin/skynet.html` 질문 제출 분기에서 `uploadedDocs` 또는 PDF 후속 질문 판단이 우선돼 **파일 존재 확인 질문까지 분석**함. 원인 B: `api/skynet-chat.js`는 공급자의 모든 429를 재시도 가능한 호출 제한으로 판단, `credit_balance_exhausted`의 **과금 한도 소진**도 지연으로 오표기. 크레딧 부족은 모델 사용 전 결제/한도 조치가 필요하고 ChatGPT Plus 구독과 별개.
+- 수정 A: 인증 필수 `/admin/skynet-document-verify?hash=<sha256>` 추가 (`api/skynet-document-verify.js`, `vercel.json` rewrite). 서버 manifest의 해시·파일명·쪽수·`textCoverageComplete` 확인 후 **기대되는 20개 단위 원문 색인 Blob을 전부 존재/크기로 확인**. 등록된 원본 업로드 `skynet/warehouse`에서 해시가 같은 batch를 찾아 분할 보관 `skynet/uploads/<batch>`를 개수·크기로 별도 검증하여 `originalVerified` 표시. 단지 게놈/대화 기록만 읽고 저장 완료 주장 금지. 실제 이미지 OCR/법률적 사실 검증과는 분리.
+- 수정 B: `isSkynetPdfExistenceQuestion`, `verifySkynetPdfPresence`로 `이 파일 서버에 있는 것은 확실해?` 질문은 **유료 모델 요청 없이 서버에 직접 조회**하고 답변을 채팅/서버에 영속 저장. 파일명/해시/쪽수 불일치나 구간 누락 시 "확인 불가" 명시. PDF 내용 분석은 명시적인 분석 질문에서만 수행.
+- 수정 C: `credit_balance_exhausted`, `insufficient_quota`, `billing_hard_limit_reached`는 API 응답 `quotaExhausted:true,retryable:false`, 프론트 자동 재시도 금지. 첨부 분석 과정에서 발생하면 진행 그래프 해제 + 오류 원인을 채팅에 명시 저장; 이미 저장된 PDF 원문·검토 기록은 지우지 않음.
+- 신규 회귀검사 `tests/skynet-source-confirm-and-credit.test.mjs` 5건: 존재 질문과 분석 질문 구분, 실제 해시/258쪽 확인, 다른 146쪽 문서 거부, 불완전 색인 불가 판정, 크레딧 소진 비재시도. 5건 모의 검사와 JS 문법검사 통과.
+- **실제 사용자의 258쪽 원본 서버 보관 상태는 모델의 백엔드 접근 권한이 없어 직접 확인하지 못했음.** 새 버전 배포 READY 확인 후 SKYNET 대화에 `이 파일 서버에 있는것은 확실해?`만 보내면 실제 서버 검증 보고서를 받을 수 있음. **원문 분석은 API 크레딧 결제·사용 한도 조치 전 재실행 금지.**
+
 ## 세션 시작 시 무조건 실행
 1. GitHub `mind3253-lang/squid-law`의 **최신 main**을 읽는다. `docs/SKYNET_CONTINUITY_AND_IMPLEMENTATION.md`, **이 파일**, `docs/SKYNET_TASK_MANIFEST.json`을 읽는다.
 2. Vercel `squid-law` 최신 배포와 최근 커밋/테스트/로그를 확인한다. 권한 오류가 나면 구체적 차단 요인을 기록하고 다른 가능한 작업을 진행한다.
