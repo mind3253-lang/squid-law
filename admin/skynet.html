@@ -146,10 +146,11 @@ function skynetReadProgress(stage){
   !Number.isSafeInteger(total)||total<1||upper>total||lower<1)
   return null;
  // A named active range (1~2/30) has not completed its last unit yet.
- const done=Math.max(0,(match[2]?lower-1:lower-1));
+ const done=Math.max(0,/완료|저장됨|검토됨/.test(value)?upper:lower-1);
  return {done,total,display:match[2]?match[1]+'~'+match[2]+'/'+total:lower+'/'+total};
 }
 function beginSkynetLiveWork(stage){
+ el('chatErrorStatus').classList.add('skynet-status-working');
  skynetLiveWork={active:true,stage:String(stage||'원문 저장 및 작업 준비 중'),
   startedAt:Date.now(),progress:null,phase:'running'};
  drawChat();
@@ -177,6 +178,7 @@ function updateSkynetLiveWork(stage){
  }
 }
 function finishSkynetLiveWork(){
+ el('chatErrorStatus').classList.remove('skynet-status-working');
  skynetLiveWork=null;
  const row=el('skynetLiveProgress');
  if(row)row.remove();
@@ -852,7 +854,9 @@ async function analyzeAttachedDocuments(docs,question,previous,effort,saveAnswer
   // question and source-window fingerprints without an extra file upload.
   for(let i=0;i<chunks.length;i+=2){
    const group=chunks.slice(i,i+2);
-   el('chatErrorStatus').textContent=doc.name+' · 원문 검토 '+(i+1)+'~'+
+   const activePages=group.flatMap(x=>x.pages).filter(Number.isSafeInteger);
+   const pageSpan=activePages.length?'PDF '+Math.min(...activePages)+'~'+Math.max(...activePages)+'쪽 · ':'';
+   el('chatErrorStatus').textContent=doc.name+' · '+pageSpan+'원문 검토 '+(i+1)+'~'+
     Math.min(i+2,chunks.length)+'/'+chunks.length+'구간 · 기존 완료분 확인';
    const results=await Promise.allSettled(group.map(async chunk=>{
     const hash=digest[chunk.index-1];
@@ -879,8 +883,9 @@ async function analyzeAttachedDocuments(docs,question,previous,effort,saveAnswer
     throw Error(doc.name+' · '+errors.join(' / ')+
      ' · 정상 처리한 구간은 서버에 보존됨. 같은 문서로 이어서 분석 가능');
    }
-   el('chatErrorStatus').textContent=doc.name+' · '+Math.min(i+2,chunks.length)+'/'+
-    chunks.length+'구간 검토 완료'+(resumed?' · 이전 완료 '+resumed+'건 재사용':'');
+   el('chatErrorStatus').textContent=doc.name+' · '+pageSpan+
+    Math.min(i+2,chunks.length)+'/'+chunks.length+'구간 검토 완료'+
+    (resumed?' · 이전 완료 '+resumed+'건 재사용':'');
    try{await showReviewJobStatus()}catch(e){
     renderReviewState('구간 저장 완료 · 진행률 조회 지연: '+e.message);
    }
@@ -1067,7 +1072,7 @@ el("sendChat").onclick=async()=>{
   const id=suffix?turnId+'-'+suffix:turnId;
   await saveTurn('assistant',reply,id);
   history.push({role:'assistant',content:reply});
-  savedReplies++;saveLocalChatSnapshot();finishSkynetLiveWork();drawChat();
+  savedReplies++;saveLocalChatSnapshot();drawChat();
  };
  try{
   if(uploadedDocs.length){
