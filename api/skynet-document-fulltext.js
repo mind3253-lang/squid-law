@@ -73,7 +73,9 @@ export default async function handler(req,res){
     }
    }
   }
-  if(count!==manifest.segmentCount)throw Error('SOURCE_SEGMENT_COVERAGE_INCOMPLETE');
+  if(count!==manifest.segmentCount||pageNumbers.size!==manifest.pageCount||
+   Array.from({length:manifest.pageCount},(_,i)=>i+1).some(n=>!pageNumbers.has(n)))
+   throw Error('SOURCE_PAGE_AND_SEGMENT_COVERAGE_INCOMPLETE');
   if(!text.trim())return respond(res,409,{error:'DOCUMENT_TEXT_EMPTY'});
   return respond(res,200,{ok:true,kind:'pdf',mode:'whole_extracted_text',hash,
    name:manifest.name||'',pageCount:manifest.pageCount,segmentCount:count,
