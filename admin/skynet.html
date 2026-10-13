@@ -183,7 +183,7 @@ function hideSkynetServerSearchFooter(value){
  return String(value||'').replace(/\n{1,3}\[서버 자동검색: [^\]\n]*\]\s*$/u,'');
 }
 
-let skynetLiveWork=null;
+let skynetLiveWork=null,skynetLiveClock=null;
 function skynetReadProgress(stage){
  const value=String(stage||'').trim();
  const match=[...value.matchAll(/(\d+)(?:\s*~\s*(\d+))?\s*\/\s*(\d+)\s*(?:쪽|구간|장|부분|회|개)?/g)].at(-1);
@@ -199,13 +199,16 @@ function skynetReadProgress(stage){
 function beginSkynetLiveWork(stage){
  el('chatErrorStatus').classList.add('skynet-status-working');
  skynetLiveWork={active:true,stage:String(stage||'원문 저장 및 작업 준비 중'),
-  startedAt:Date.now(),progress:null,phase:'running'};
+  startedAt:Date.now(),lastUpdateAt:Date.now(),progress:null,phase:'running'};
+ if(skynetLiveClock)clearInterval(skynetLiveClock);
+ skynetLiveClock=setInterval(refreshSkynetLiveClock,12000);
  drawChat();
 }
 function updateSkynetLiveWork(stage){
  if(!skynetLiveWork?.active)return;
  const value=String(stage||'').trim();
  if(!value)return;
+ if(skynetLiveWork.stage!==value)skynetLiveWork.lastUpdateAt=Date.now();
  skynetLiveWork.stage=value;
  const progress=skynetReadProgress(value);
  // A new phase may use a separate denominator; reset rather than claim that
@@ -224,7 +227,20 @@ function updateSkynetLiveWork(stage){
   if(count)count.textContent=progress?'진행 중 · '+progress.display:'단계 처리 중';
  }
 }
+function refreshSkynetLiveClock(){
+ if(!skynetLiveWork?.active)return;
+ const node=el('skynetLiveProgress');
+ if(!node)return;
+ const note=node.querySelector('[data-wait-note]');
+ if(!note)return;
+ const elapsed=Math.max(0,Math.floor((Date.now()-skynetLiveWork.startedAt)/1000));
+ const quiet=Math.max(0,Math.floor((Date.now()-skynetLiveWork.lastUpdateAt)/1000));
+ const running=elapsed>=60?' · 총 '+Math.floor(elapsed/60)+'분 '+elapsed%60+'초 진행 중':'';
+ const waiting=quiet>=90?' · 마지막 단계가 '+quiet+'초째 진행 중 (서버 응답 대기)':'';
+ note.textContent='처리 구간만 실제 진행률에 반영해. AI 응답 대기 중에는 막대가 멈춰 있을 수 있어.'+running+waiting;
+}
 function finishSkynetLiveWork(){
+ if(skynetLiveClock){clearInterval(skynetLiveClock);skynetLiveClock=null}
  el('chatErrorStatus').classList.remove('skynet-status-working');
  skynetLiveWork=null;
  const row=el('skynetLiveProgress');
@@ -244,7 +260,8 @@ function drawSkynetLiveProgress(area){
  progress.setAttribute('aria-label','실제 검토 완료 구간');
  const stage=document.createElement('div');stage.dataset.stage='1';stage.className='skynet-working-stage';
  const note=document.createElement('div');note.className='skynet-working-note';
- note.textContent='AI 작업이 완료된 뒤 이 진행 표시는 사라져. 근거는 최종 답변에 남아.';
+ note.dataset.waitNote='1';
+ note.textContent='처리 구간만 실제 진행률에 반영해. AI 응답 대기 중에는 막대가 멈춰 있을 수 있어.';
  row.append(header,progress,stage,note);area.append(row);
  updateSkynetLiveWork(skynetLiveWork.stage);
 }
