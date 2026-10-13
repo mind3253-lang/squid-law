@@ -640,6 +640,64 @@ async function analyzeIndexedPdfFollowup(question,effort,saveAnswer){
   '쪽 페이지별 원문 대조 완료 / 이미지·스캔 미검증]\n\n'+answer,'pdf-followup');
 }
 
+
+/**
+ * Four persistent, source-backed sections. Failed stages resume using the
+ * original source fingerprints; no completed source notes are discarded.
+ */
+async function compileSkynetCaseDossier({
+ doc,question,effort,mainNotes,lateNotes,pageCount,ocrRequired=[]
+}){
+ const contract=globalThis.SkynetCaseDossier;
+ if(!contract||!Array.isArray(contract.CASE_DOSSIER_SECTIONS)||
+  typeof contract.dossierSectionPrompt!=='function'||
+  typeof contract.assembleCaseDossier!=='function')
+  throw Error('심층 보고서 모듈을 불러오지 못했어. 입력·기존 자료는 저장돼 있어.');
+ if(!/^[a-f0-9]{64}$/.test(String(doc?.hash||''))||
+  !Number.isSafeInteger(pageCount)||pageCount<1)
+  throw Error('심층 보고서 원본·쪽수 검증 실패');
+ const contentHash=await reviewFingerprint(mainNotes+'\n'+lateNotes);
+ const fingerprint=await reviewFingerprint(contract.CASE_DOSSIER_VERSION+'\n'+
+  doc.hash+'\n'+question.trim()+'\n'+effort+'\n'+contentHash);
+ const sections=contract.CASE_DOSSIER_SECTIONS;
+ const prompts=sections.map(section=>contract.dossierSectionPrompt(section,{
+  question,mainNotes,lateNotes,pageCount
+ }));
+ if(prompts.some(prompt=>prompt.length>115000))
+  throw Error('심층 보고서의 원문 근거가 입력 제한을 초과했어. 자료를 빼고 분석하지 않아.');
+ const digests=await Promise.all(prompts.map(reviewFingerprint));
+ const job={documentHash:doc.hash,questionHash:fingerprint};
+ await reviewJobRequest('start',{...job,
+  question:question.trim().slice(0,4950)||'PDF 전체 원문 심층분석',
+  effort,chunks:digests});
+ const previous=await reviewJobRequest('status',job);
+ if(previous.complete&&typeof previous.report==='string'&&previous.report.trim())
+  return previous.report;
+ const collected=[];
+ for(let i=0;i<sections.length;i++){
+  const section=sections[i];
+  el('chatErrorStatus').textContent='원문 종합 보고서 작성 '+(i+1)+'/'+sections.length+
+   '장 · '+section.title;
+  renderReviewState('앞서 검토한 원문 유지 · '+(i+1)+'/'+sections.length+
+   '장 작성 중 · 해당 장 완료분은 서버에 저장');
+  const existing=await documentReviewCheckpoint(doc,fingerprint,digests[i],i+1);
+  let summary=existing?.found&&typeof existing.summary==='string'?existing.summary:null;
+  if(!summary){
+   summary=await askReviewNoteWithRetry(prompts[i],effort,'PDF 심층보고서 '+(i+1)+'/'+sections.length);
+   if(summary.trim().length<120||!summary.includes('|'))
+    throw Error(section.title+' 장의 원문 비교표가 없으므로 완료 처리할 수 없어.');
+   const saved=await documentReviewCheckpoint(doc,fingerprint,digests[i],i+1,summary,[]);
+   summary=saved.summary||summary;
+  }
+  collected.push({id:section.id,text:summary});
+ }
+ const report=contract.assembleCaseDossier({
+  sections:collected,pageCount,sourceName:doc.name,ocrRequired
+ });
+ await reviewJobRequest('finish',{...job,report});
+ return report;
+}
+
 async function analyzeAttachedDocuments(docs,question,previous,effort,saveAnswer,turnId){
  if(docs.length>5)throw Error('한 번에 분석할 수 있는 문서는 최대 5개야.');
  // Short one-call paths are reserved for explicit short requests; a substantive
