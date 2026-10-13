@@ -1,6 +1,10 @@
 {
   "rewrites": [
     {
+      "source": "/admin/skynet-document-page-context",
+      "destination": "/api/skynet-document-page-context"
+    },
+    {
       "source": "/admin/skynet-document-range",
       "destination": "/api/skynet-document-range"
     },
