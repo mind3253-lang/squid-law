@@ -52,7 +52,7 @@ export default async function handler(req,res){
  if(!authorized(req))return send(res,401,{error:'ADMIN_REQUIRED'});
  if(!process.env.BLOB_READ_WRITE_TOKEN)return send(res,503,{error:'STORAGE_UNAVAILABLE'});
  if(!['GET','POST'].includes(req.method))return send(res,405,{error:'GET_POST_ONLY'});
- if(req.method==='POST'&&Number(req.headers['content-length']||0)>150000)
+ if(req.method==='POST'&&Number(req.headers['content-length']||0)>900000)
   return send(res,413,{error:'REVIEW_REQUEST_TOO_LARGE'});
  let body=req.method==='GET'?req.query:req.body;
  if(typeof body==='string')try{body=JSON.parse(body)}catch{return send(res,400,{error:'INVALID_JSON'})}
@@ -95,14 +95,14 @@ export default async function handler(req,res){
   const job=await read(manifest);
   if(!job)return send(res,404,{error:'REVIEW_NOT_REGISTERED'});
   const counts=await countChunks(job);
-  const completed=await read(final,260000);
+  const completed=await read(final,900000);
   if(req.method==='POST'){
    if(body.action!=='finish')return send(res,400,{error:'INVALID_JOB_ACTION'});
    if(counts.missingChunks.length)return send(res,409,{
     error:'REVIEW_TEXT_CHUNKS_INCOMPLETE',...counts});
    if(completed)return send(res,200,{ok:true,complete:true,reused:true});
    const report=String(body.report||'');
-   if(report.length<100||report.length>150000)
+   if(report.length<100||report.length>250000)
     return send(res,400,{error:'INVALID_FINAL_REPORT'});
    const payload={documentHash,questionHash,report,finishedAt:new Date().toISOString(),
     completedChunks:counts.completedChunks,totalChunks:counts.totalChunks,
