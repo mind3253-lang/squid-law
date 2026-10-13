@@ -19,7 +19,7 @@ import {auditSourceUnitIndex} from '../lib/legal-reasoning-audit.mjs';
 import {buildVisualReferenceManifest} from '../lib/source-continuity.mjs';
 import {analyzeLegalWindow} from '../lib/gpt-legal-orchestrator.mjs';
 import {analyzePdfVisualEvidence} from '../lib/openai-vision-provider.mjs';
-import {splitPdfVisualWindow,splitPdfVisualWindows,mergeVisualWindows} from '../lib/pdf-visual-windows.mjs';
+import {splitPdfVisualWindow,splitPdfVisualWindows,splitPdfVisualPageSet,mergeVisualWindows} from '../lib/pdf-visual-windows.mjs';
 import {auditVisualProviderCoverage,compareIndependentVisualPass} from '../lib/visual-review-audit.mjs';
 import {buildSemanticReviewRequest,validateSemanticReview,invokeSemanticReview} from '../lib/independent-semantic-review.mjs';
 import {buildLegalCustomerReport} from '../lib/legal-customer-report.mjs';
@@ -573,42 +573,84 @@ export default async function handler(req,res){
  // Recover only genuinely scanned text pages. Each model pass is separately persisted
  // so a retry cannot silently duplicate an already completed API call.
  const missingOcr=verifiedPages.filter(p=>!String(p.text||'').trim()&&Number(p.imageOperatorCount)>0);
- for(const page of missingOcr){
+ // Reuse existing independently verified OCR receipts before generating anything.
+ const completedOcr=await Promise.all(missingOcr.map(async page=>{
   const base=prefix+'ocr/'+d.id+'/page-'+String(page.page).padStart(8,'0');
-  const done=await load(base+'-verified.json');
-  if(done){
-   if(done.sourcePdfSha256!==d.sha256||done.page!==page.page||done.originalTextSha256!==page.textSha256||typeof done.text!=='string'||!done.text.trim())throw Error('OCR_CACHE_SOURCE_MISMATCH');
-   const i=verifiedPages.findIndex(p=>p.page===page.page);
-   verifiedPages=[...verifiedPages];verifiedPages[i]={...page,text:done.text,textSha256:createHash('sha256').update(done.text).digest('hex'),ocrRecovered:true,ocrVerified:true,ocrSourcePdfSha256:d.sha256};
-   continue;
-  }
+  return {page,done:await load(base+'-verified.json')};
+ }));
+ const pendingOcr=[];
+ for(const {page,done} of completedOcr){
+  if(!done){pendingOcr.push(page);continue}
+  if(done.sourcePdfSha256!==d.sha256||done.page!==page.page||
+   done.originalTextSha256!==page.textSha256||
+   typeof done.text!=='string'||!done.text.trim())
+   throw Error('OCR_CACHE_SOURCE_MISMATCH');
+  const i=verifiedPages.findIndex(p=>p.page===page.page);
+  verifiedPages=[...verifiedPages];
+  verifiedPages[i]={...page,text:done.text,
+   textSha256:createHash('sha256').update(done.text).digest('hex'),
+   ocrRecovered:true,ocrVerified:true,ocrSourcePdfSha256:d.sha256};
+ }
+ if(pendingOcr.length){
   if(!process.env.OPENAI_API_KEY){
-   await advanceJob(job,'ocr_api_missing',{...previous,nextDocument:index,nextPage:pageOffset},'blocked','OPENAI_API_KEY_MISSING');
+   await advanceJob(job,'ocr_api_missing',
+    {...previous,nextDocument:index,nextPage:pageOffset},'blocked','OPENAI_API_KEY_MISSING');
    return res.status(200).json({status:'blocked',reason:'OPENAI_API_KEY_MISSING'});
   }
+  const selected=pendingOcr.slice(0,VISUAL_WINDOW_CONCURRENCY);
   const source=await loadBinary(prefix+'pdf/'+d.id+'.pdf');
-  if(!source||createHash('sha256').update(source).digest('hex')!==d.sha256)throw Error('OCR_PDF_SOURCE_MISMATCH');
-  const pdfWindow=await splitPdfVisualWindow({pdfBytes:source,startPage:page.page,pageCount:1});
-  const primaryPath=base+'-primary.json',secondPath=base+'-independent.json';
-  let primary=await load(primaryPath);
-  if(!primary){
-   primary=await analyzePdfVisualEvidence({documentId:d.id,pdfBytes:pdfWindow.bytes,apiKey:process.env.OPENAI_API_KEY,model:process.env.SQUIDLAW_VISION_MODEL||'gpt-4.1-mini',pageOffset:page.page-1,originalPdfSha256:d.sha256});
-   await put(primaryPath,JSON.stringify(primary),{access:'private',allowOverwrite:false,addRandomSuffix:false,contentType:'application/json'});
-   await advanceJob(job,'ocr_primary_checkpoint',{...previous,nextDocument:index,nextPage:pageOffset},'retry');
-   return res.status(200).json({status:'retry',stage:'ocr_primary_checkpoint',page:page.page});
-  }
-  let secondary=await load(secondPath);
-  if(!secondary){
-   secondary=await analyzePdfVisualEvidence({documentId:d.id,pdfBytes:pdfWindow.bytes,apiKey:process.env.OPENAI_API_KEY,model:process.env.SQUIDLAW_VISION_MODEL||'gpt-4.1-mini',auditOf:primary,pageOffset:page.page-1,originalPdfSha256:d.sha256});
-   await put(secondPath,JSON.stringify(secondary),{access:'private',allowOverwrite:false,addRandomSuffix:false,contentType:'application/json'});
-   await advanceJob(job,'ocr_independent_checkpoint',{...previous,nextDocument:index,nextPage:pageOffset},'retry');
-   return res.status(200).json({status:'retry',stage:'ocr_independent_checkpoint',page:page.page});
-  }
-  const reconciled=reconcileVisualOcr({pages:[page],primary,independent:secondary,sourcePdfSha256:d.sha256});
-  const recovered=reconciled.pages[0];
-  await put(base+'-verified.json',JSON.stringify({page:page.page,text:recovered.text,sourcePdfSha256:d.sha256,originalTextSha256:page.textSha256}),{access:'private',allowOverwrite:false,addRandomSuffix:false,contentType:'application/json'});
-  await advanceJob(job,'ocr_verified_checkpoint',{...previous,nextDocument:index,nextPage:pageOffset},'retry');
-  return res.status(200).json({status:'retry',stage:'ocr_verified_checkpoint',page:page.page});
+  if(!source||createHash('sha256').update(source).digest('hex')!==d.sha256)
+   throw Error('OCR_PDF_SOURCE_MISMATCH');
+  const windows=await splitPdfVisualPageSet({pdfBytes:source,
+   pages:selected.map(page=>page.page)});
+  // Each page still requires BOTH independent image/model passes and strict
+  // reconciliation. Only unrelated pages run concurrently.
+  const settled=await Promise.allSettled(selected.map(async(page,i)=>{
+   const base=prefix+'ocr/'+d.id+'/page-'+String(page.page).padStart(8,'0');
+   const pdfWindow=windows[i];
+   if(!pdfWindow||pdfWindow.startPage!==page.page||
+    pdfWindow.originalSha256!==d.sha256)throw Error('OCR_WINDOW_SOURCE_MISMATCH');
+   const primaryPath=base+'-primary.json',secondPath=base+'-independent.json';
+   let primary=await load(primaryPath);
+   if(!primary){
+    primary=await analyzePdfVisualEvidence({documentId:d.id,pdfBytes:pdfWindow.bytes,
+     apiKey:process.env.OPENAI_API_KEY,
+     model:process.env.SQUIDLAW_VISION_MODEL||'gpt-4.1-mini',
+     pageOffset:page.page-1,originalPdfSha256:d.sha256});
+    await put(primaryPath,JSON.stringify(primary),{access:'private',
+     allowOverwrite:false,addRandomSuffix:false,contentType:'application/json'});
+   }
+   if(primary.sourcePdfSha256!==d.sha256||primary.documentId!==d.id)
+    throw Error('OCR_PRIMARY_SOURCE_MISMATCH');
+   let secondary=await load(secondPath);
+   if(!secondary){
+    secondary=await analyzePdfVisualEvidence({documentId:d.id,pdfBytes:pdfWindow.bytes,
+     apiKey:process.env.OPENAI_API_KEY,
+     model:process.env.SQUIDLAW_VISION_MODEL||'gpt-4.1-mini',
+     auditOf:primary,pageOffset:page.page-1,originalPdfSha256:d.sha256});
+    await put(secondPath,JSON.stringify(secondary),{access:'private',
+     allowOverwrite:false,addRandomSuffix:false,contentType:'application/json'});
+   }
+   if(secondary.sourcePdfSha256!==d.sha256||secondary.documentId!==d.id)
+    throw Error('OCR_INDEPENDENT_SOURCE_MISMATCH');
+   const reconciled=reconcileVisualOcr({pages:[page],primary,
+    independent:secondary,sourcePdfSha256:d.sha256});
+   const recovered=reconciled.pages[0];
+   if(!String(recovered?.text||'').trim())throw Error('OCR_RECOVERY_EMPTY');
+   await put(base+'-verified.json',JSON.stringify({page:page.page,
+    text:recovered.text,sourcePdfSha256:d.sha256,
+    originalTextSha256:page.textSha256}),{access:'private',
+     allowOverwrite:false,addRandomSuffix:false,contentType:'application/json'});
+   return page.page;
+  }));
+  // Wait for every in-flight model request before releasing the current owner.
+  // Any successful page remains in the durable store after a partial failure.
+  const failed=settled.find(result=>result.status==='rejected');
+  if(failed)throw failed.reason;
+  await advanceJob(job,'ocr_verified_checkpoint',
+   {...previous,nextDocument:index,nextPage:pageOffset},'retry');
+  return res.status(200).json({status:'retry',stage:'ocr_verified_checkpoint',
+   verifiedOcrPages:settled.map(x=>x.value),remainingOcrPages:pendingOcr.length-selected.length});
  }
  // Persist source-verified legacy pages once, so a resumed analysis never needs
  // to re-download and re-parse the original PDF for the same page window.
