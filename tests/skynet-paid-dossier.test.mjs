@@ -44,7 +44,9 @@ test('SKYNET does not append internal server paths to customer-visible answers',
 
 test('large PDF review routes through chapter persistence not the one-call fast summary',()=>{
  const source=read('admin/skynet.html');
- assert.match(source,/compileSkynetCaseDossier\(/);
+ assert.match(source,/async function compileSkynetCaseDossier\\(/,
+  'A PDF may read successfully and then crash if the dossier compiler was deleted');
+ assert.match(source,/compileSkynetCaseDossier\\(/);
  assert.match(source,/contract\.CASE_DOSSIER_SECTIONS/);
  assert.match(source,/contract\.assembleCaseDossier/);
  assert.match(source,/documentReviewCheckpoint\(doc,qhash,hashes\[i\],i\+1/);
