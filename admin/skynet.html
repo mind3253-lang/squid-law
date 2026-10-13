@@ -855,7 +855,7 @@ el('retryStoredPdf').onclick=async()=>{
   if(pdfs.length>1){
    const lines=pdfs.map((f,i)=>(i+1)+'. '+String(f.name).slice(0,80)+
     ' ('+(Number(f.size||0)/1048576).toFixed(1)+'MB)');
-   const picked=prompt('서버에서 다시 연결할 PDF 번호를 선택해. (업로드는 다시 하지 않아)\\n\\n'+lines.join('\\n'),'1');
+   const picked=prompt('서버에서 다시 연결할 PDF 번호를 선택해. (업로드는 다시 하지 않아)\n\n'+lines.join('\n'),'1');
    if(picked===null){status.textContent='PDF 재연결 취소';return}
    const number=Number(picked);
    if(!Number.isInteger(number)||number<1||number>pdfs.length)throw Error('PDF 번호 선택 오류');
