@@ -21,6 +21,9 @@ test('an explicit 258-page source cannot silently use the last active 146-page P
  assert.equal(f.parse('이어서 분석해'),null);
  assert.deepEqual(f.candidates().map(x=>x.pages),[146,258]);
  assert.match(html,/uploadedDocs=\[matches\[0\]\]/);
+ assert.match(html,/requestedPages&&requestedPages!==pageCount/);
+ assert.match(html,/「분석할 PDF 선택」에서 맞는 파일을 선택해/);
+ assert.match(html,/expectedPdfPageCount\(question\)!==pageCount/);
  assert.match(html,/146쪽을 258쪽으로 간주하지 않았어/);
  assert.match(html,/선택한 PDF '\+doc.pages\+'쪽과 실제 색인 '\+pageCount/);
 });
