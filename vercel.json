@@ -1,6 +1,22 @@
 {
   "rewrites": [
     {
+      "source": "/admin/skynet-long-turn",
+      "destination": "/api/skynet-long-turn"
+    },
+    {
+      "source": "/admin/skynet-recall-batch",
+      "destination": "/api/skynet-recall-batch"
+    },
+    {
+      "source": "/admin/skynet-categories",
+      "destination": "/api/skynet-categories"
+    },
+    {
+      "source": "/admin/skynet-category-fast-backfill",
+      "destination": "/api/skynet-category-fast-backfill"
+    },
+    {
       "source": "/admin/skynet-code-lease",
       "destination": "/api/skynet-code-lease"
     },
