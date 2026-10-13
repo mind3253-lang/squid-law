@@ -21,7 +21,7 @@ async function read(path,limit=3000000){
  }
  return parsed;
 }
-const rootSources=['skynet/imports/','skynet/memory/','skynet/documents/','skynet/document-segments/','skynet/records/','skynet/db/'];
+const rootSources=['skynet/episodes/','skynet/imports/','skynet/memory/','skynet/documents/','skynet/document-segments/','skynet/records/','skynet/db/'];
 async function inventory(){
  if(fileListCache&&Date.now()-fileListCachedAt<15000)return fileListCache;
  const groups=await Promise.all(rootSources.map(async prefix=>{
