@@ -58,7 +58,7 @@ export default async function handler(req,res){
   // Every option is bound to the immutable document SHA-256 and pageCount.
   if(req.query?.mode==='indexed-pdfs'){
    const docs=(await scan('skynet/documents/',5000))
-    .filter(x=>/^skynet\\/documents\\/[a-f0-9]{64}\\.json$/.test(x.pathname))
+    .filter(x=>/^skynet\/documents\/[a-f0-9]{64}\.json$/.test(x.pathname))
     .sort((a,b)=>String(b.uploadedAt||'').localeCompare(String(a.uploadedAt||'')))
     .slice(0,100);
    const indexed=[];
@@ -69,7 +69,7 @@ export default async function handler(req,res){
       x.pathname==='skynet/documents/'+row.hash+'.json'&&
       Number.isSafeInteger(row.pageCount)&&row.pageCount>0&&
       Number.isSafeInteger(row.segmentCount)&&row.segmentCount>0&&
-      /\\.pdf$/i.test(row.name||'')?
+      /\.pdf$/i.test(row.name||'')?
       {name:row.name,hash:row.hash,pageCount:row.pageCount,
        indexedAt:row.completedAt||x.uploadedAt}:null;
     }));
