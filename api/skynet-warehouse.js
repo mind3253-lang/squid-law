@@ -54,6 +54,56 @@ export default async function handler(req,res){
    return send(res,failed?207:200,{ok:failed===0,scanned:verified.length,duplicateGroups:duplicateGroups.length,deleted,failed,failures});
   }
   if(req.method!=='GET')return send(res,405,{error:'GET/POST only'});
+  // Query a specific docket across BOTH indexed PDF manifests and original
+  // uploaded-file registrations. A 100-most-recent index is not sufficient.
+  if(req.query?.mode==='case-pdf'){
+   const docket=String(req.query?.docket||'').replace(/\s+/g,'');
+   if(!/^20\d{2}(?:가단|가합|가소|나|다|카기|카단|카합)\d{4,8}$/.test(docket))
+    return send(res,400,{error:'INVALID_CASE_DOCKET'});
+   const matches=name=>{
+    const normalized=String(name||'').replace(/\s+/g,'');
+    // Followed by a nondigit prevents 12878 from matching 128789.
+    return normalized.includes(docket)&&
+     new RegExp(docket+'(?!\\d)').test(normalized)&&/\.pdf$/i.test(name||'');
+   };
+   const [documentFiles,originalFiles]=await Promise.all([
+    scan('skynet/documents/',12000),scan('skynet/warehouse/',12000)
+   ]);
+   const docs=[];
+   for(let i=0;i<documentFiles.length;i+=20){
+    const group=await Promise.all(documentFiles.slice(i,i+20).map(async f=>{
+     if(!/^skynet\/documents\/[a-f0-9]{64}\.json$/.test(f.pathname))return null;
+     const row=await readJson(f.pathname).catch(()=>null);
+     if(!row||!matches(row.name)||row.hash+'.json'!==f.pathname.split('/').at(-1)||
+      !Number.isSafeInteger(row.pageCount)||row.pageCount<1||
+      !Number.isSafeInteger(row.segmentCount)||row.segmentCount<1)return null;
+     return {name:row.name,hash:row.hash,pageCount:row.pageCount,
+      indexed:true,updatedAt:row.completedAt||f.uploadedAt};
+    }));
+    docs.push(...group.filter(Boolean));
+   }
+   const existing=new Set(docs.map(x=>x.hash));
+   const originals=[];
+   for(let i=0;i<originalFiles.length;i+=20){
+    const group=await Promise.all(originalFiles.slice(i,i+20).map(async f=>{
+     const row=await readJson(f.pathname).catch(()=>null);
+     if(!row||!matches(row.name)||!/^[a-f0-9]{64}$/.test(row.hash||'')||
+      existing.has(row.hash)||!/^[a-zA-Z0-9_-]{8,80}$/.test(row.batch||'')||
+      !Number.isInteger(row.parts)||row.parts<1||row.parts>99999)return null;
+     return {name:row.name,hash:row.hash,batch:row.batch,parts:row.parts,
+      indexed:false,updatedAt:row.uploadedAt||f.uploadedAt};
+    }));
+    originals.push(...group.filter(Boolean));
+   }
+   const unique=new Map();
+   for(const item of [...docs,...originals]){
+    if(!unique.has(item.hash)||item.indexed)unique.set(item.hash,item);
+   }
+   return send(res,200,{mode:'case-pdf',docket,
+    items:[...unique.values()].sort((a,b)=>String(b.updatedAt||'').localeCompare(String(a.updatedAt||''))),
+    indexedCount:docs.length,originalCount:originals.length});
+  }
+
   // Select a VERIFIED indexed PDF directly, without uploading or re-extracting.
   // Every option is bound to the immutable document SHA-256 and pageCount.
   if(req.query?.mode==='indexed-pdfs'){
