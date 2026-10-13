@@ -54,6 +54,25 @@ export default async function handler(req,res){
    return send(res,failed?207:200,{ok:failed===0,scanned:verified.length,duplicateGroups:duplicateGroups.length,deleted,failed,failures});
   }
   if(req.method!=='GET')return send(res,405,{error:'GET/POST only'});
+  // Fast retry selector: the original upload is already stored. Avoid scanning
+  // every chat memory, search index and uploaded chunk just to find a PDF name.
+  if(req.query?.mode==='pdf-retry'){
+   const registered=await scan('skynet/warehouse/');
+   const latest=registered.sort((a,b)=>String(b.uploadedAt||'').localeCompare(String(a.uploadedAt||''))).slice(0,80);
+   const parsed=[];
+   for(let i=0;i<latest.length;i+=15){
+    const group=await Promise.all(latest.slice(i,i+15).map(x=>readJson(x.pathname).catch(()=>null)));
+    parsed.push(...group);
+   }
+   const items=parsed.filter(x=>x&&/\\.pdf$/i.test(x.name||'')&&
+    /^[a-zA-Z0-9_-]{8,80}$/.test(x.batch||'')&&
+    Number.isInteger(x.parts)&&x.parts>=1&&x.parts<=100&&
+    Number.isSafeInteger(x.size)&&x.size>0&&x.size<=104857600)
+    .sort((a,b)=>String(b.uploadedAt||'').localeCompare(String(a.uploadedAt||'')))
+    .slice(0,15).map(x=>({name:x.name,batch:x.batch,parts:x.parts,size:x.size,
+     uploadedAt:x.uploadedAt,type:'PDF',source:'original'}));
+   return send(res,200,{items,total:items.length,mode:'pdf-retry'});
+  }
   const [manifests,documents,memories,uploads]=await Promise.all([scan('skynet/warehouse/'),scan('skynet/documents/'),scan('skynet/memory/'),scan('skynet/uploads/')]);
   const items=[],known=new Set(),seenHashes=new Set();
   for(let i=0;i<manifests.length;i+=15){const part=await Promise.all(manifests.slice(i,i+15).map(async f=>{try{return await readJson(f.pathname)}catch{return null}}));for(const d of part)if(d?.name&&d?.batch){known.add(d.batch);if(d.hash&&seenHashes.has(d.hash))continue;if(d.hash)seenHashes.add(d.hash);items.push({name:d.name,uploadedAt:(uploads.filter(f=>f.pathname.startsWith('skynet/uploads/'+d.batch+'/')).map(f=>f.uploadedAt).sort()[0]||d.uploadedAt),size:d.size,parts:d.parts,type:d.name.split('.').pop().toUpperCase(),source:'original',id:d.batch,batch:d.batch})}}
