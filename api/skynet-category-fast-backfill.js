@@ -1,5 +1,6 @@
 import {get,list,put} from '@vercel/blob';
-import {createHash} from 'node:crypto';
+import {createHash,randomUUID} from 'node:crypto';
+import {topicDbEnabled,claimTopicBackfill,finishTopicBackfill,releaseTopicBackfill,upsertTopics} from '../lib/skynet-topic-db.mjs';
 import {categoryDigestEntries,sourceTopicEntries,TOPIC_SCHEMA_VERSION} from '../lib/skynet-topic-categories.mjs';
 
 const ROOTS=['skynet/imports/','skynet/memory/','skynet/documents/','skynet/document-segments/','skynet/records/','skynet/db/'];
@@ -24,7 +25,7 @@ async function one(file){
  const target=CATEGORY_BASE+id+'.json';
  let existing=null;
  try{existing=await readJSON(target,170000)}catch(e){console.error('SKYNET_TOPIC_SIDECAR_READ',path,String(e.message).slice(0,120))}
- if(existing?.version===TOPIC_SCHEMA_VERSION&&existing.source===path)return {status:'cached',record:null};
+ if(existing?.version===TOPIC_SCHEMA_VERSION&&existing.source===path&&existing.counts)return {status:'cached',record:existing};
  let data=await readJSON(path,24*1024*1024);
  if(!data)throw Error('원본을 읽을 수 없음');
  if(path.startsWith('skynet/document-segments/')&&!data.name){
@@ -44,7 +45,7 @@ async function one(file){
 }
 async function batchWork(files,started){
  let handled=0,classified=0,cached=0,noText=0,failed=0;
- const updates=[],errors=[];
+ const updates=[],records=[],errors=[];
  const concurrency=files.some(f=>Number(f.size)>3*1024*1024)?3:8;
  for(let i=0;i<files.length;i+=concurrency){
   const group=files.slice(i,i+concurrency);
@@ -57,12 +58,12 @@ async function batchWork(files,started){
     if(x.value.status==='cached')cached++;
     if(x.value.status==='classified')classified++;
     if(x.value.status==='no_text')noText++;
-    if(x.value.record)updates.push(x.value.record);
+    if(x.value.record){records.push(x.value.record);if(x.value.status!=='cached')updates.push(x.value.record)}
    }
   }
   if(Date.now()-started>TIME_BUDGET_MS)break;
  }
- return {handled,classified,cached,noText,failed,updates,errors};
+ return {handled,classified,cached,noText,failed,updates,records,errors};
 }
 async function countByPrefix(prefix,upperBound=200000){
  let total=0,cursor=null,pages=0;
@@ -80,6 +81,42 @@ export default async function handler(req,res){
  if(!process.env.BLOB_READ_WRITE_TOKEN)return send(res,503,{error:'비공개 기억 저장소 미연결'});
  let input=req.body;try{if(typeof input==='string')input=JSON.parse(input)}catch{return send(res,400,{error:'JSON 형식 오류'})}
  const started=Date.now();
+ if(input?.action==='step'){
+  if(!topicDbEnabled())return send(res,503,{error:'빠른 분류 DB 미연결'});
+  const prefix=String(input.prefix||'');
+  if(!ROOTS.includes(prefix))return send(res,400,{error:'분류 자료영역 오류'});
+  const owner=randomUUID();
+  let lease;
+  try{lease=await claimTopicBackfill(prefix,owner)}
+  catch(e){return send(res,503,{error:'분류 작업 상태 조회 실패',detail:String(e.message).slice(0,160)})}
+  if(!lease.claimed)return send(res,200,{ok:true,prefix,busy:lease.busy,complete:lease.complete,processed:0});
+  try{
+   // The SQL cursor and lease are shared by all browsers/server instances.
+   const page=await list({prefix,limit:64,...(lease.cursor?{cursor:lease.cursor}:{})});
+   const files=page.blobs.filter(f=>f.pathname.endsWith('.json')&&!f.pathname.endsWith('/index.json'));
+   if(lease.offset>files.length)throw Error('SOURCE_PAGE_CHANGED');
+   const results=await batchWork(files.slice(lease.offset),started);
+   if(!results.handled&&files.length>lease.offset)throw Error('BACKFILL_NO_PROGRESS');
+   // Commit the idempotent source records before checkpointing the cursor.
+   // A function crash may replay a page but can never lose completed sources.
+   await upsertTopics(results.records);
+   const within=lease.offset+results.handled<files.length;
+   const complete=!within&&!page.hasMore;
+   const cursor=within?lease.cursor||null:page.hasMore?page.cursor:null;
+   const offset=within?lease.offset+results.handled:0;
+   await finishTopicBackfill(prefix,owner,{
+    cursor,offset,processed:results.handled,failed:results.failed,complete,
+    error:results.errors.length?results.errors.map(x=>x.source+' '+x.error).slice(0,2).join('; '):null
+   });
+   return send(res,200,{ok:true,prefix,complete,busy:false,
+    processed:results.handled,classified:results.classified,cached:results.cached,
+    failed:results.failed,errors:results.errors,elapsedMs:Date.now()-started});
+  }catch(e){
+   console.error('SKYNET_TOPIC_STEP_FAILED',prefix,String(e.message).slice(0,200));
+   await releaseTopicBackfill(prefix,owner,String(e.message)).catch(()=>{});
+   return send(res,503,{error:'분류 작업 일시 실패 · 진행 위치 보존',detail:String(e.message).slice(0,170)});
+  }
+ }
  if(input?.action==='totals'){
   try{
    const stats=await Promise.all(ROOTS.map(async p=>[p,await countByPrefix(p)]));
@@ -97,6 +134,7 @@ export default async function handler(req,res){
   const files=page.blobs.filter(f=>f.pathname.endsWith('.json')&&!f.pathname.endsWith('/index.json'));
   if(offset>files.length)return send(res,409,{error:'분류 페이지가 변경됨: 시작 위치 재설정 필요'});
   const results=await batchWork(files.slice(offset),started);
+  if(topicDbEnabled())await upsertTopics(results.records).catch(e=>console.error('SKYNET_TOPIC_DB_SYNC',String(e.message).slice(0,100)));
   // Resume inside this exact list page when the time budget is reached.
   // Advancing the Blob cursor early silently skipped unprocessed records.
   const withinPage=offset+results.handled<files.length;
