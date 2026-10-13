@@ -183,6 +183,9 @@ async function reviewSourceText(doc,chunk,total,question,effort,depth=0){
  }
  throw failure;
 }
+function isResumeReviewRequest(message){
+ return /^(?:이어서|계속|재개|다시)\s*(?:(?:원문\s*)?(?:분석|검토|진행)(?:해줘|해|해주세요)?)?\s*(?:해줘|해|해주세요|부탁해)?[.!?\s]*$/u.test(String(message||'').trim());
+}
 function previousAttachedReview(){
  const extract=content=>{
   const result=[];
@@ -200,8 +203,7 @@ function previousAttachedReview(){
   if(!docs)docs=found;
   if(found[0].hash!==docs[0].hash)continue;
   const request=h.content.split('\n[이번 대화에 직접 첨부: ')[0].trim();
-  if(!/^(?:이어서|계속|재개|다시)\b/.test(request)&&
-     !/^(?:이어서|계속|재개|다시)\s*(?:분석|검토|진행)/.test(request)){
+  if(!isResumeReviewRequest(request)){
    origin=request;break;
   }
  }
@@ -337,7 +339,11 @@ el("sendChat").onclick=async()=>{
  const msg=typed.trim()?typed:(attached.length?'첨부한 파일 내용을 읽고 기억해 줘.':'');
  if((!msg&&!archiveFiles.length)||el('sendChat').disabled||el('file').disabled)return;
  if(history.length>=199999){el('chatErrorStatus').hidden=false;el('chatErrorStatus').textContent='대화 기록 한도입니다. 기존 자료는 삭제하지 마세요.';return}
- let uploadedDocs=[];
+ let uploadedDocs=[],reviewQuestion=msg;
+ if(!archiveFiles.length&&!attached.length&&isResumeReviewRequest(msg)){
+  const resume=previousAttachedReview();
+  if(resume){uploadedDocs=resume.docs;reviewQuestion=resume.question;}
+ }
  if(archiveFiles.length){
   pendingArchiveFiles=[];renderArchiveQueue();el('sendChat').disabled=true;
   let outcomes=[];
@@ -376,7 +382,7 @@ el("sendChat").onclick=async()=>{
  try{
   if(uploadedDocs.length){
    try{
-    await analyzeAttachedDocuments(uploadedDocs,msg,previous,effort,saveAnswer,turnId);
+    await analyzeAttachedDocuments(uploadedDocs,reviewQuestion,previous,effort,saveAnswer,turnId);
    }catch(e){failures.push('첨부 원문 분석 오류: '+String(e.message||e))}
   }else{
   const planned=splitQuestions(composed);
