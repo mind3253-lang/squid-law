@@ -49,7 +49,7 @@ test('uncertain originals remain transparently related material rather than arbi
 test('case-aware provenance is injected in whole PDF and follow-up analysis paths',()=>{
  assert.match(html,/const selections=await Promise\.all\(docs\.map\(doc=>resolveCaseRelevantPdf\(question,doc\)\)\)/);
  assert.match(html,/reviewPromptQuestion=sourceScope/);
- assert.match(html,/sourceScope\?'\\[관련 사건 원문 분석/);
+ assert.ok(html.includes("sourceScope?'[관련 사건 원문 분석"));
  assert.match(html,/const resolvedSource=await resolveCaseRelevantPdf\(question,doc\)/);
  assert.doesNotMatch(html,/ensurePdfMatchesQuestion/);
  assert.doesNotMatch(html,/사건 원본 불일치 · 요청/);
