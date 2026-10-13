@@ -26,10 +26,10 @@ export default async function handler(req,res){
      const obj=await get(file.pathname,{access:'private'});
      if(!obj||obj.statusCode!==200)throw Error('기억 파일을 읽을 수 없습니다');
      const chunks=[];let length=0;
-     for await(const part of obj.stream){const chunk=Buffer.from(part);length+=chunk.length;if(length>50000)throw Error('기억 파일 크기 초과');chunks.push(chunk)}
+     for await(const part of obj.stream){const chunk=Buffer.from(part);length+=chunk.length;if(length>32000000)throw Error('기억 파일 크기 초과');chunks.push(chunk)}
      const item=JSON.parse(Buffer.concat(chunks).toString('utf8'));
      if(!item||!Array.isArray(item.messages))throw Error('기억 데이터 형식 오류');
-     return item.messages.filter(m=>m&&['user','assistant'].includes(m.role)&&typeof m.content==='string').map(m=>({role:m.role,content:m.content.slice(0,12000)}));
+     return item.messages.filter(m=>m&&['user','assistant'].includes(m.role)&&typeof m.content==='string').map(m=>({role:m.role,content:m.content}));
     }));
     groups.push(...batch);
    }
@@ -46,7 +46,7 @@ export default async function handler(req,res){
   const role=String(body.role||'');
   const content=String(body.content||'');
   const turnId=String(body.turnId||'');
-  if(!['user','assistant'].includes(role)||!content.trim()||content.length>12000||!/^[a-zA-Z0-9_-]{12,100}$/.test(turnId))return send(res,400,{error:'대화 저장 형식 오류'});
+  if(!['user','assistant'].includes(role)||!content.trim()||content.length>100000||!/^[a-zA-Z0-9_-]{12,100}$/.test(turnId))return send(res,400,{error:'대화 저장 형식 오류'});
   try{
    const pathname=prefix+'turns/'+turnId+'/'+role+'.json';
    const existing=await get(pathname,{access:'private'});
