@@ -103,7 +103,21 @@ function renderFullReview(job,queue,progress){
  const title=document.createElement('strong');title.textContent=labels[state]||state;
  const detail=document.createElement('p');detail.style.cssText='margin:8px 0;font-size:14px';
  if(waiting){const ahead=queue?.ahead;const eta=queue?.estimatedStartSeconds;detail.textContent='대기 순번: '+(Number.isInteger(ahead)?ahead+1+'번째':'확인 중')+' · 예상 시작: '+(eta!==null&&Number.isFinite(eta)?'약 '+Math.max(1,Math.ceil(eta/60))+'분 후':'처리 기록 부족으로 산정 중');}
- else detail.textContent='현재 단계: '+stage+' · 확인된 문서 '+done+'/'+(total||'?')+(job.errorCode?' · '+job.errorCode:'');
+ else{
+  const created=new Date(job.createdAt||0).getTime();
+  const updated=new Date(job.updatedAt||0).getTime();
+  const clock=state==='completed'&&Number.isFinite(updated)?updated:Date.now();
+  const elapsed=created>0&&Number.isFinite(created)?
+   ' · 총 경과 '+Math.max(0,Math.floor((clock-created)/60_000))+'분':'';
+  const currentWindow=Number(cp.visualWindowStartPage||cp.visualAuditWindowStartPage||0);
+  const windowLabel=currentWindow>0&&(stage.startsWith('visual_')||
+   stage.startsWith('ocr_'))?' · 검증 중인 구간 시작 '+currentWindow+'쪽':'';
+  const semanticLabel=stage.startsWith('semantic_')?
+   ' · 증거 대조 '+Math.max(0,Number(cp.semanticAuditCursor)||0)+'/'+
+    (Number(cp.semanticAuditTotal)||'?')+'개 주장':'';
+  detail.textContent='현재 단계: '+stage+' · 확인된 문서 '+done+'/'+(total||'?')+
+   windowLabel+semanticLabel+elapsed+(job.errorCode?' · '+job.errorCode:'');
+ }
  const track=document.createElement('div');track.style.cssText='height:12px;background:#e2e8f0;border-radius:20px;overflow:hidden';
  const fill=document.createElement('div');fill.style.cssText='height:100%;background:#2563eb;width:'+(pct??0)+'%;transition:width .3s';track.appendChild(fill);
  const metric=document.createElement('p');metric.style.cssText='margin:7px 0;font-weight:600';metric.textContent=waiting?'대기 중':pct===null?'진행률 산정 중':state==='completed'?'전체 분석 100%':'원문 검증 '+pct+'% ('+processed+'/'+totalPages+'페이지)';
