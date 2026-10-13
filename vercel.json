@@ -1,6 +1,10 @@
 {
   "rewrites": [
     {
+      "source": "/admin/skynet-search-backfill",
+      "destination": "/api/skynet-search-backfill"
+    },
+    {
       "source": "/admin/skynet-document-fulltext",
       "destination": "/api/skynet-document-fulltext"
     },
@@ -182,6 +186,10 @@
     {
       "path": "/api/customer-analysis-worker",
       "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/skynet-search-backfill",
+      "schedule": "*/10 * * * *"
     }
   ]
 }
