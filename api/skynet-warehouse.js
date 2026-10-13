@@ -64,7 +64,7 @@ export default async function handler(req,res){
     const group=await Promise.all(latest.slice(i,i+15).map(x=>readJson(x.pathname).catch(()=>null)));
     parsed.push(...group);
    }
-   const items=parsed.filter(x=>x&&/\\.pdf$/i.test(x.name||'')&&
+   const items=parsed.filter(x=>x&&/\.pdf$/i.test(x.name||'')&&
     /^[a-zA-Z0-9_-]{8,80}$/.test(x.batch||'')&&
     Number.isInteger(x.parts)&&x.parts>=1&&x.parts<=100&&
     Number.isSafeInteger(x.size)&&x.size>0&&x.size<=104857600)
