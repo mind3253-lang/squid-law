@@ -71,7 +71,7 @@ function splitQuestions(text){
  }
  if(best.length<4)return null;
  const prefix=text.slice(0,best[0].start).trim();
- return best.map((x,i)=>({number:x.n,prompt:(prefix?prefix+'\n\n':'')+text.slice(x.start,i+1<best.length?best[i+1].start:text.length).trim()}));
+ return best.map((x,i)=>{const body=text.slice(x.start,i+1<best.length?best[i+1].start:text.length).trim();return {number:x.n,prompt:(prefix?prefix+'\n\n':'')+body,retrievalQuery:body}});
 }
 function splitLongText(text,max=20000){
  const parts=[];for(let i=0;i<text.length;){
@@ -82,12 +82,12 @@ function splitLongText(text,max=20000){
  }
  return parts;
 }
-async function askSkynet(prompt,previous,effort,memories=[]){
+async function askSkynet(prompt,previous,effort,memories=[],retrievalQuery=''){
  const outgoing=[...previous,{role:'user',content:prompt}];
  const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),100000);
  try{
   const response=await fetch('/admin/skynet-chat',{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},
-   body:JSON.stringify({messages:outgoing,memories,reasoningEffort:effort}),signal:controller.signal});
+   body:JSON.stringify({messages:outgoing,memories,retrievalQuery,reasoningEffort:effort}),signal:controller.signal});
   const result=await response.json().catch(()=>null);
   if(!response.ok)throw Error((result?.error||'AI 서버 오류')+' (HTTP '+response.status+(result?.upstreamCode?', '+result.upstreamCode:'')+')');
   if(!result||typeof result.reply!=='string'||!result.reply.trim())throw Error('AI 응답이 비어 있습니다.');
@@ -138,7 +138,7 @@ el("sendChat").onclick=async()=>{
    for(let i=0;i<planned.length;i+=2){
     const group=planned.slice(i,i+2);
     const results=await Promise.allSettled(group.map(async q=>{
-     return await askSkynet(q.prompt,previous,effort,localCandidates(q.prompt));
+     return await askSkynet(q.prompt,previous,effort,localCandidates(q.retrievalQuery),q.retrievalQuery);
     }));
     for(let j=0;j<group.length;j++){
      const q=group[j],result=results[j];
