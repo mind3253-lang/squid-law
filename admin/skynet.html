@@ -1625,7 +1625,7 @@ el("sendChat").onclick=async()=>{
   drawChat();render();
  }
 };el('loadMoreChat').onclick=()=>el('chatLoadMore').click();el('chatLoadMore').onclick=async()=>{const button=el('chatLoadMore');button.disabled=true;try{chatDisplayLimit+=80;if(serverHasMore&&history.length<chatDisplayLimit){const r=await fetch('/admin/skynet-memory?page='+serverPage,{credentials:'same-origin'});const data=await r.json();if(!r.ok||!Array.isArray(data.messages))throw Error(data.error||'서버 대화 조회 실패');const known=new Set(history.map(x=>x.role+':'+x.content));const older=data.messages.filter(x=>x&&['user','assistant'].includes(x.role)&&typeof x.content==='string'&&!known.has(x.role+':'+x.content));history=[...older,...history];serverHasMore=Boolean(data.hasMore);serverPage++}drawChat();el('conversation').scrollTop=0}catch(e){el('chatErrorStatus').hidden=false;el('chatErrorStatus').textContent='이전 대화 조회 실패: '+e.message}finally{button.disabled=false}};el("clearChat").onclick=()=>{if(el('file').disabled){el('status').textContent='파일 가져오기 중에는 대화를 지울 수 없습니다.';return}if(el('sendChat').disabled){el('status').textContent='AI 응답 중에는 대화를 지울 수 없습니다.';return}if(confirm("현재 대화 기록을 이 브라우저에서 삭제할까요? 기억 보관소는 유지되지만 삭제된 대화는 백업 없이는 복원할 수 없습니다.")){try{localStorage.removeItem(chatKey);history=[];chatDisplayLimit=30;drawChat();el('status').textContent='대화 기록을 삭제했습니다. 기억 보관소는 유지됩니다.'}catch{el('status').textContent='대화 기록 삭제에 실패했습니다. 다시 시도하세요.'}}};let pendingAttachments=[];function renderPending(){const area=el('pendingFiles');area.replaceChildren();for(const [i,f] of pendingAttachments.entries()){const d=document.createElement('span');d.className='chat-attachment';const t=document.createElement('span');t.textContent='📎 '+f.name;const b=document.createElement('button');b.type='button';b.textContent='×';b.title='첨부 제거';b.onclick=()=>{pendingAttachments.splice(i,1);renderPending()};d.append(t,b);area.append(d)}}async function queueChatFiles(files){if(el('sendChat').disabled)return;if(files.length+pendingAttachments.length>20){el('status').textContent='대화 첨부는 한 번에 최대 20개입니다.';return}for(const f of files){if(!/[.](txt|md|json|csv)$/i.test(f.name)){el('status').textContent='현재 채팅 첨부는 TXT·MD·JSON·CSV만 지원합니다: '+f.name;continue}if(f.size>512*1024){el('status').textContent='채팅 첨부 파일은 개당 512KB 이하입니다: '+f.name;continue}const content=await f.text();if(content.includes('\u0000')){el('status').textContent='텍스트 파일이 아닙니다: '+f.name;continue}pendingAttachments.push({name:f.name,content})}renderPending()}el('chatFiles').onchange=async e=>{await queueChatFiles([...e.target.files]);e.target.value=''};let pendingArchiveFiles=[],pendingRestoredDocs=[];function renderArchiveQueue(){const area=el('pendingFiles');area.querySelectorAll('[data-archive-pending]').forEach(x=>x.remove());pendingArchiveFiles.forEach((f,i)=>{const d=document.createElement('div');d.dataset.archivePending='1';d.textContent='📎 '+f.name+' · '+(f.size/1048576).toFixed(1)+'MB · 전송 대기 ';const b=document.createElement('button');b.type='button';b.textContent='삭제';b.onclick=()=>{pendingArchiveFiles.splice(i,1);renderArchiveQueue()};d.append(b);area.append(d)});el('archiveStatus').textContent=pendingArchiveFiles.length?pendingArchiveFiles.length+'개 첨부 대기 · 보내기를 누르면 서버에 저장됩니다.':'파일을 선택해 첨부한 뒤 보내기를 누르세요.'}function archiveDroppedFiles(files){const combined=[...pendingArchiveFiles,...files];const allowed=/\.(pdf|png|jpg|jpeg|xls|xlsx|doc|docx|ppt|pptx|hwp|hwpx|json|txt|md|csv|zip)$/i;if(combined.some(f=>!allowed.test(f.name)||!Number.isSafeInteger(f.size)||f.size<1||Math.ceil(f.size/(3*1048576))>99999)){el('archiveStatus').textContent='지원하지 않는 형식 또는 파일 조각 인덱스 범위 초과';return}pendingArchiveFiles=combined;renderArchiveQueue()}async function indexArchivedPdfInWindows(batch,parts,name,progress){
- let nextPage=1,totalPages=null;
+ let nextPage=1,totalPages=null,recoveryMode='normal',rebuildStarted=false;
  for(let iteration=0;iteration<100000;iteration++){
   ensureSkynetAnalysisActive();
   const ctrl=trackSkynetPending(new AbortController());
@@ -1635,11 +1635,22 @@ el("sendChat").onclick=async()=>{
    response=await fetch('/admin/skynet-document-range',{
     method:'POST',credentials:'same-origin',cache:'no-store',
     headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({batch,parts,name,startPage:nextPage}),signal:ctrl.signal
+    body:JSON.stringify({batch,parts,name,startPage:nextPage,recoveryMode}),signal:ctrl.signal
    });
    info=await response.json().catch(()=>({}));
   }finally{clearTimeout(timer);releaseSkynetPending(ctrl)}
   ensureSkynetAnalysisActive();
+  if(response.status===409&&info.error==='PREVIOUS_PDF_WINDOW_MISSING'){
+   if(rebuildStarted||info.recoverable!==true)
+    throw Error('PDF 이전 구간 저장기록이 복구용 색인에서도 연결되지 않아 중단했어. '+name);
+   // Do not skip missing pages or promote a partial index to a full report.
+   // Regenerate a separate receipt chain from the already stored raw PDF.
+   rebuildStarted=true;recoveryMode='rebuild-v2';nextPage=1;totalPages=null;
+   el('chatErrorStatus').textContent=name+
+    ' · 기존 색인 구간 누락 발견 · 저장된 원본으로 자동 재구성 시작';
+   setSkynetPipelineProgress('index',0,1,'저장된 PDF 원본 색인 자동 복구 중',name);
+   continue;
+  }
   if(!response.ok||!info.ok)throw Error(info.detail||info.error||
    'PDF 원문 구간 추출 실패: HTTP '+response.status);
   if(!/^[a-f0-9]{64}$/.test(String(info.hash||''))||
