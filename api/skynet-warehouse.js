@@ -20,8 +20,8 @@ export default async function handler(req,res){
   if(req.method==='POST'){
    const b=typeof req.body==='string'?JSON.parse(req.body):req.body||{};
    const batch=String(b.batch||''),name=String(b.name||''),parts=Number(b.parts),size=Number(b.size);
-   if(!/^[a-zA-Z0-9_-]{8,80}$/.test(batch)||!name||name.length>255||!Number.isInteger(parts)||parts<1||parts>100||!Number.isSafeInteger(size)||size<1||size>104857600)return send(res,400,{error:'파일 정보 오류'});
-   const chunks=await scan('skynet/uploads/'+batch+'/',101);
+   if(!/^[a-zA-Z0-9_-]{8,80}$/.test(batch)||!name||name.length>255||!Number.isInteger(parts)||parts<1||parts>99999||!Number.isSafeInteger(size)||size<1)return send(res,400,{error:'파일 정보 오류'});
+   const chunks=await scan('skynet/uploads/'+batch+'/',parts+1);
    if(chunks.length!==parts||chunks.reduce((n,f)=>n+f.size,0)!==size||Array.from({length:parts},(_,i)=>'skynet/uploads/'+batch+'/'+String(i).padStart(5,'0')+'.bin').some(p=>!chunks.some(c=>c.pathname===p)))return send(res,409,{error:'원본 업로드 확인 실패'});
    const hash=await contentHash(chunks);
    const registered=await scan('skynet/warehouse/');
@@ -66,8 +66,8 @@ export default async function handler(req,res){
    }
    const items=parsed.filter(x=>x&&/\.pdf$/i.test(x.name||'')&&
     /^[a-zA-Z0-9_-]{8,80}$/.test(x.batch||'')&&
-    Number.isInteger(x.parts)&&x.parts>=1&&x.parts<=100&&
-    Number.isSafeInteger(x.size)&&x.size>0&&x.size<=104857600)
+    Number.isInteger(x.parts)&&x.parts>=1&&x.parts<=99999&&
+    Number.isSafeInteger(x.size)&&x.size>0)
     .sort((a,b)=>String(b.uploadedAt||'').localeCompare(String(a.uploadedAt||'')))
     .slice(0,15).map(x=>({name:x.name,batch:x.batch,parts:x.parts,size:x.size,
      uploadedAt:x.uploadedAt,type:'PDF',source:'original'}));
