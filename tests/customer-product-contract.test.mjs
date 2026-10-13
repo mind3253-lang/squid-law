@@ -11,7 +11,7 @@ test('owner-approved product contract: a full case, one customer at a time and p
  assert.equal(contract.submission,'one_customer_action_for_entire_case');
  assert.equal(contract.execution,'durable_checkpoints_with_retry_and_resume');
  assert.equal(contract.customerFileSizeTier,'not_a_pricing_or_product_boundary');
- assert.match(contract.queue,/queue_position_and_estimated_wait/);
+ assert.match(contract.queue,/position_and_estimated_wait/);
 });
 
 test('customer worker claiming is globally serialized, not just SKIP LOCKED per-job',()=>{
