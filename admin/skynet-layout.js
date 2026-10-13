@@ -7,7 +7,7 @@ let categoryState;
 try{categoryState=JSON.parse(localStorage.getItem(categoryKey)||'{}')}catch{categoryState={}};
 if(!categoryState||typeof categoryState!=='object')categoryState={};
 categoryState.progress=categoryState.progress||{processed:0,classified:0,cached:0,notext:0,failed:0,elapsedMs:0};
-let categoryLoading=false,categoryLoadedAll=false,categoryReadErrors=0,categoryRunning=false;
+let categoryLoading=false,categoryLoadedAll=false,categoryReadErrors=0,categoryRunning=false,categoryRefreshPending=false;
 let categoryRefreshTimer=null,categoryLastProgress='',categoryStartedAt=0;
 let categoryTotals=null,categoryStatus='';
 const categorySave=()=>{try{localStorage.setItem(categoryKey,JSON.stringify(categoryState))}catch{}};
@@ -60,7 +60,7 @@ function incorporateCategories(records){
  return changed;
 }
 async function loadCategories({force=false}={}){
- if(categoryLoading)return;
+ if(categoryLoading){if(force)categoryRefreshPending=true;return}
  if(categoryLoadedAll&&!force)return;
  categoryLoading=true;
  updateCategoryCounts('저장된 분류 결과 불러오는 중');
@@ -88,7 +88,7 @@ async function loadCategories({force=false}={}){
   categoryReadErrors++;
   categoryStatus='분류 목록 조회 오류: '+e.message;
   updateCategoryCounts(categoryStatus);
- }finally{categoryLoading=false}
+ }finally{categoryLoading=false;if(categoryRefreshPending){categoryRefreshPending=false;setTimeout(()=>void loadCategories({force:true}),1000)}}
 }
 async function requestCategoryBatch(body,timeout=24000){
  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),timeout);
