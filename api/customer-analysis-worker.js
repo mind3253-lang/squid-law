@@ -1,5 +1,7 @@
 import {claimJob,advanceJob,renewJobLease} from './customer-analysis-jobs-db.js';
 import {get} from '@vercel/blob';
+export const maxDuration=300;
+const VISUAL_WINDOW_CONCURRENCY=3;
 import {createHash,timingSafeEqual} from 'node:crypto';
 import {segmentRecord,auditSegments} from '../lib/record-chunks.mjs';
 import {analyzeUnit,independentlyVerify,crosscheckObservations} from '../lib/legal-evidence-review.mjs';
@@ -17,7 +19,7 @@ import {auditSourceUnitIndex} from '../lib/legal-reasoning-audit.mjs';
 import {buildVisualReferenceManifest} from '../lib/source-continuity.mjs';
 import {analyzeLegalWindow} from '../lib/gpt-legal-orchestrator.mjs';
 import {analyzePdfVisualEvidence} from '../lib/openai-vision-provider.mjs';
-import {splitPdfVisualWindow,mergeVisualWindows} from '../lib/pdf-visual-windows.mjs';
+import {splitPdfVisualWindow,splitPdfVisualWindows,mergeVisualWindows} from '../lib/pdf-visual-windows.mjs';
 import {auditVisualProviderCoverage,compareIndependentVisualPass} from '../lib/visual-review-audit.mjs';
 import {buildSemanticReviewRequest,validateSemanticReview,invokeSemanticReview} from '../lib/independent-semantic-review.mjs';
 import {buildLegalCustomerReport} from '../lib/legal-customer-report.mjs';
@@ -307,18 +309,48 @@ export default async function handler(req,res){
    const root='squidlaw/analysis-jobs/'+job.customerKey+'/'+job.caseId+'/'+job.jobId+'/visual-provider/';
    const startPage=previous.visualWindowStartPage||1;
    if(startPage<=doc.pageCount){
-    const path=root+doc.id+'-window-'+String(startPage).padStart(8,'0')+'.json';
-    let output=await load(path);
-    if(!output){
+    const starts=Array.from({length:VISUAL_WINDOW_CONCURRENCY},(_,i)=>startPage+i*12)
+     .filter(page=>page<=doc.pageCount);
+    const cached=await Promise.all(starts.map(page=>
+     load(root+doc.id+'-window-'+String(page).padStart(8,'0')+'.json')));
+    const missing=starts.filter((_,i)=>!cached[i]);
+    let windows=new Map();
+    if(missing.length){
      const bytes=await loadBinary(prefix+'pdf/'+doc.id+'.pdf');
-     if(!bytes||createHash('sha256').update(bytes).digest('hex')!==doc.sha256)throw Error('VISUAL_SOURCE_PDF_DIGEST_MISMATCH');
-     const window=await splitPdfVisualWindow({pdfBytes:bytes,startPage,pageCount:12});
-     output=await analyzePdfVisualEvidence({documentId:doc.id,pdfBytes:window.bytes,apiKey:process.env.OPENAI_API_KEY,model:process.env.SQUIDLAW_VISION_MODEL||'gpt-4.1-mini',pageOffset:startPage-1,originalPdfSha256:doc.sha256});
-     await put(path,JSON.stringify(output),{access:'private',allowOverwrite:false,addRandomSuffix:false,contentType:'application/json'});
+     if(!bytes||createHash('sha256').update(bytes).digest('hex')!==doc.sha256)
+      throw Error('VISUAL_SOURCE_PDF_DIGEST_MISMATCH');
+     const pieces=await splitPdfVisualWindows({pdfBytes:bytes,startPage,
+      count:starts.length,pageCount:12});
+     windows=new Map(pieces.map(piece=>[piece.startPage,piece]));
     }
-    if(output.sourcePdfSha256!==doc.sha256||output.documentId!==doc.id)throw Error('VISUAL_WINDOW_SOURCE_MISMATCH');
-    await advanceJob(job,'visual_provider_window_checkpoint',{...previous,visualDocIndex:next,visualWindowStartPage:startPage+12},'retry');
-    return res.status(200).json({status:'retry',stage:'visual_provider_window_checkpoint',document:next+1,startPage});
+    // All scheduled calls must settle before releasing this fenced lease. Every
+    // successful result is written independently so partial retries reuse it.
+    const settled=await Promise.allSettled(starts.map(async(page,i)=>{
+     const path=root+doc.id+'-window-'+String(page).padStart(8,'0')+'.json';
+     let output=cached[i];
+     if(!output){
+      const window=windows.get(page);
+      if(!window)throw Error('VISUAL_WINDOW_SPLIT_MISSING');
+      output=await analyzePdfVisualEvidence({documentId:doc.id,pdfBytes:window.bytes,
+       apiKey:process.env.OPENAI_API_KEY,
+       model:process.env.SQUIDLAW_VISION_MODEL||'gpt-4.1-mini',
+       pageOffset:page-1,originalPdfSha256:doc.sha256});
+      if(output.sourcePdfSha256!==doc.sha256||output.documentId!==doc.id)
+       throw Error('VISUAL_WINDOW_SOURCE_MISMATCH');
+      await put(path,JSON.stringify(output),{access:'private',
+       allowOverwrite:false,addRandomSuffix:false,contentType:'application/json'});
+     }
+     if(output.sourcePdfSha256!==doc.sha256||output.documentId!==doc.id)
+      throw Error('VISUAL_WINDOW_SOURCE_MISMATCH');
+     return page;
+    }));
+    const failed=settled.find(item=>item.status==='rejected');
+    if(failed)throw failed.reason;
+    const nextPage=starts.at(-1)+12;
+    await advanceJob(job,'visual_provider_window_checkpoint',
+     {...previous,visualDocIndex:next,visualWindowStartPage:nextPage},'retry');
+    return res.status(200).json({status:'retry',stage:'visual_provider_window_checkpoint',
+     document:next+1,processedWindowStarts:starts,nextPage});
    }
    const windows=[];
    for(let page=1;page<=doc.pageCount;page+=12){
@@ -362,19 +394,49 @@ export default async function handler(req,res){
    const primary=await load(root+doc.id+'.json');
    const startPage=previous.visualAuditWindowStartPage||1;
    if(startPage<=doc.pageCount){
-    const auditPath=root+doc.id+'-independent-window-'+String(startPage).padStart(8,'0')+'.json';
-    let independent=await load(auditPath);
-    if(!independent){
+    const starts=Array.from({length:VISUAL_WINDOW_CONCURRENCY},(_,i)=>startPage+i*12)
+     .filter(page=>page<=doc.pageCount);
+    const cached=await Promise.all(starts.map(page=>
+     load(root+doc.id+'-independent-window-'+String(page).padStart(8,'0')+'.json')));
+    const missing=starts.filter((_,i)=>!cached[i]);
+    let windows=new Map();
+    if(missing.length){
      const bytes=await loadBinary(prefix+'pdf/'+doc.id+'.pdf');
-     if(!bytes||createHash('sha256').update(bytes).digest('hex')!==doc.sha256)throw Error('VISUAL_AUDIT_PDF_SOURCE_MISMATCH');
-     const window=await splitPdfVisualWindow({pdfBytes:bytes,startPage,pageCount:12});
-     const originalWindow=await load(root+doc.id+'-window-'+String(startPage).padStart(8,'0')+'.json');
-     if(!originalWindow)throw Error('VISUAL_PRIMARY_WINDOW_MISSING');
-     independent=await analyzePdfVisualEvidence({documentId:doc.id,pdfBytes:window.bytes,apiKey:process.env.OPENAI_API_KEY,model:process.env.SQUIDLAW_VISION_MODEL||'gpt-4.1-mini',auditOf:originalWindow,pageOffset:startPage-1,originalPdfSha256:doc.sha256});
-     await put(auditPath,JSON.stringify(independent),{access:'private',allowOverwrite:false,addRandomSuffix:false,contentType:'application/json'});
+     if(!bytes||createHash('sha256').update(bytes).digest('hex')!==doc.sha256)
+      throw Error('VISUAL_AUDIT_PDF_SOURCE_MISMATCH');
+     const pieces=await splitPdfVisualWindows({pdfBytes:bytes,startPage,
+      count:starts.length,pageCount:12});
+     windows=new Map(pieces.map(piece=>[piece.startPage,piece]));
     }
-    await advanceJob(job,'visual_independent_window_checkpoint',{...previous,visualAuditDocIndex:auditIndex,visualAuditWindowStartPage:startPage+12},'retry');
-    return res.status(200).json({status:'retry',stage:'visual_independent_window_checkpoint'});
+    const original=await Promise.all(starts.map((page,i)=>cached[i]?null:
+     load(root+doc.id+'-window-'+String(page).padStart(8,'0')+'.json')));
+    const settled=await Promise.allSettled(starts.map(async(page,i)=>{
+     if(cached[i]){
+      if(cached[i].sourcePdfSha256!==doc.sha256||cached[i].documentId!==doc.id)
+       throw Error('VISUAL_AUDIT_CACHE_SOURCE_MISMATCH');
+      return page;
+     }
+     if(!original[i])throw Error('VISUAL_PRIMARY_WINDOW_MISSING');
+     const window=windows.get(page);
+     if(!window)throw Error('VISUAL_AUDIT_WINDOW_SPLIT_MISSING');
+     const independent=await analyzePdfVisualEvidence({documentId:doc.id,
+      pdfBytes:window.bytes,apiKey:process.env.OPENAI_API_KEY,
+      model:process.env.SQUIDLAW_VISION_MODEL||'gpt-4.1-mini',
+      auditOf:original[i],pageOffset:page-1,originalPdfSha256:doc.sha256});
+     if(independent.sourcePdfSha256!==doc.sha256||independent.documentId!==doc.id)
+      throw Error('VISUAL_INDEPENDENT_SOURCE_MISMATCH');
+     await put(root+doc.id+'-independent-window-'+String(page).padStart(8,'0')+'.json',
+      JSON.stringify(independent),{access:'private',allowOverwrite:false,
+       addRandomSuffix:false,contentType:'application/json'});
+     return page;
+    }));
+    const failed=settled.find(item=>item.status==='rejected');
+    if(failed)throw failed.reason;
+    const nextPage=starts.at(-1)+12;
+    await advanceJob(job,'visual_independent_window_checkpoint',
+     {...previous,visualAuditDocIndex:auditIndex,visualAuditWindowStartPage:nextPage},'retry');
+    return res.status(200).json({status:'retry',stage:'visual_independent_window_checkpoint',
+     processedWindowStarts:starts,nextPage});
    }
    const windows=[];
    for(let page=1;page<=doc.pageCount;page+=12){
