@@ -10,7 +10,7 @@ export default async function handler(req,res){if(req.method!=='POST')return sen
  const categoryPath='skynet/category-index/'+id+'.json';
  const categorized=await readJSON(categoryPath,160000).catch(()=>null);
  const indexedSearch=existing?.version===4&&(existing.shards>0||(Array.isArray(existing.entries)&&existing.entries.length>0));
- if(indexedSearch&&categorized?.version===1){skipped++;continue}
+ if(indexedSearch&&categorized?.version===2){skipped++;continue}
  let data=await readJSON(f.pathname,12000000).catch(()=>null);
  if(data&&f.pathname.startsWith('skynet/document-segments/')&&!data.name){
   const hash=f.pathname.split('/')[2];
