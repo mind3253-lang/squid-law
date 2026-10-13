@@ -232,10 +232,25 @@ function showLegalReport(report){
  add('p',report.warning||'검증 상태를 확인하세요.');
  add('p','상태: '+report.status+' · 원문 참조 검사: '+(report.sourceReferenceAuditPassed?'통과':'미완료')+' · 독립 의미 검증: '+(report.independentSemanticAuditPassed?'통과':'미완료'));
  if(report.notForCourtSubmission)add('strong','⚠ 검증 전 초안 — 법원 제출용 아님');
- for(const finding of report.findings||[]){
-  const box=document.createElement('article');box.style.cssText='padding:12px 0;border-top:1px solid #cbd5e1';legalReportPanel.appendChild(box);
-  const heading=document.createElement('strong');heading.textContent='['+(finding.type||'분석')+'] '+String(finding.claim||'');box.appendChild(heading);
-  const citation=document.createElement('p');citation.textContent=(finding.sources||[]).map(ref=>'문서 '+ref.documentId+' · '+ref.page+'쪽 · '+ref.part+'부분').join(' / ')||'출처 없음';box.appendChild(citation);
+ if(Array.isArray(report.findings)&&report.findings.length){
+  const wrap=document.createElement('div');wrap.className='case-table-wrap';
+  const table=document.createElement('table');table.className='case-markdown-table';
+  const head=document.createElement('thead'),top=document.createElement('tr');
+  for(const h of ['구분','주장·분석 결과','원문 근거']){
+   const th=document.createElement('th');th.scope='col';th.textContent=h;top.append(th);
+  }
+  head.append(top);table.append(head);
+  const rows=document.createElement('tbody');
+  for(const finding of report.findings){
+   const row=document.createElement('tr');
+   const evidence=(finding.sources||[]).map(ref=>
+    '문서 '+ref.documentId+' · '+ref.page+'쪽 · '+ref.part+'부분').join(' / ')||'출처 없음';
+   for(const value of [finding.type||'분석',finding.claim||'',evidence]){
+    const td=document.createElement('td');td.textContent=String(value);row.append(td);
+   }
+   rows.append(row);
+  }
+  table.append(rows);wrap.append(table);legalReportPanel.append(wrap);
  }
  if(report.uncertainties?.length)add('p','확인 필요: '+report.uncertainties.join(' / '));
  if(report.issues?.length)add('p','남은 검증: '+report.issues.join(' / '));
@@ -254,12 +269,30 @@ textReportButton.onclick=async()=>{
   const add=(tag,t)=>{const el=document.createElement(tag);el.textContent=t;legalReportPanel.appendChild(el)};
   add('h3',report.title);add('strong',report.warning);
   add('p','원문 '+report.sourceCoverage.reduce((n,d)=>n+d.pages,0)+'페이지 · 모순 후보 '+report.opposingStatementCandidates.length+'건 · 관련 증거 '+report.crossDocumentEvidenceLinks.length+'건');
-  for(const c of report.opposingStatementCandidates){
-   add('p','[모순 후보] '+c.first.text+' (문서 '+c.first.source.documentId+' '+c.first.source.page+'쪽) / '+c.second.text+' (문서 '+c.second.source.documentId+' '+c.second.source.page+'쪽)');
-  }
-  for(const e of report.crossDocumentEvidenceLinks){
-   add('p','[관련 증거 후보] '+e.kind+': '+e.value+' / '+e.sources.map(x=>'문서 '+x.documentId+' '+x.page+'쪽').join(', '));
-  }
+  const tableFromRows=(headers,data)=>{
+   if(!data.length)return;
+   const wrap=document.createElement('div');wrap.className='case-table-wrap';
+   const table=document.createElement('table');table.className='case-markdown-table';
+   const thead=document.createElement('thead'),head=document.createElement('tr');
+   for(const h of headers){const th=document.createElement('th');th.textContent=h;head.append(th)}
+   thead.append(head);table.append(thead);
+   const tbody=document.createElement('tbody');
+   for(const items of data){const tr=document.createElement('tr');
+    for(const value of items){const td=document.createElement('td');td.textContent=String(value);tr.append(td)}
+    tbody.append(tr);
+   }
+   table.append(tbody);wrap.append(table);legalReportPanel.append(wrap);
+  };
+  tableFromRows(['모순 후보 A','모순 후보 B','근거 위치'],
+   report.opposingStatementCandidates.map(c=>[
+    c.first.text,c.second.text,
+    '문서 '+c.first.source.documentId+' '+c.first.source.page+'쪽 / 문서 '+
+     c.second.source.documentId+' '+c.second.source.page+'쪽'
+   ]));
+  tableFromRows(['관련 증거 후보','금액·날짜 등','원문 근거'],
+   report.crossDocumentEvidenceLinks.map(e=>[
+    e.kind,e.value,e.sources.map(x=>'문서 '+x.documentId+' '+x.page+'쪽').join(', ')
+   ]));
   add('p','남은 단계: '+report.pending.join(', '));
  }catch(e){notice(e.message,'error')}
 };
