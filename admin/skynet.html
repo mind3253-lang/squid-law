@@ -790,14 +790,14 @@ async function verifySkynetPdfPresence(doc){
   if(data.hash!==doc.hash||data.name!==doc.name||
    (Number.isSafeInteger(doc.pages)&&doc.pages!==data.pageCount))
    return '서버 원문 식별값·파일명·쪽수가 요청 파일과 달라. 같은 파일로 확인하지 않았고 분석을 시작하지 않았어.';
-  return '**서버 저장 확인됨 — PDF '+data.pageCount+'쪽.**\\n\\n'+
-   '파일: '+data.name+'\\n'+
-   '원문 SHA-256: '+data.hash+'\\n'+
+  return '**서버 저장 확인됨 — PDF '+data.pageCount+'쪽.**\n\n'+
+   '파일: '+data.name+'\n'+
+   '원문 SHA-256: '+data.hash+'\n'+
    '서버의 색인 문서와 원문 구간 파일 '+data.verifiedBatches+
-   '개 묶음을 실제 조회해 존재 여부를 확인했어. 게놈 DB의 사건번호만 보고 답한 게 아니야.\\n\\n'+
-   (data.originalVerified===true?'업로드 PDF 원본 조각도 서버에서 확인했어.\\n':
-    data.originalVerified===false?'업로드 PDF 원본 조각은 확인에 실패했어.\\n':
-    '원본 PDF 파일 자체의 보관 여부는 이번 조회에서 별도 검증하지 않았어.\\n')+
+   '개 묶음을 실제 조회해 존재 여부를 확인했어. 게놈 DB의 사건번호만 보고 답한 게 아니야.\n\n'+
+   (data.originalVerified===true?'업로드 PDF 원본 조각도 서버에서 확인했어.\n':
+    data.originalVerified===false?'업로드 PDF 원본 조각은 확인에 실패했어.\n':
+    '원본 PDF 파일 자체의 보관 여부는 이번 조회에서 별도 검증하지 않았어.\n')+
    '스캔 이미지와 OCR 판독 정확성은 별개야. **AI 분석은 실행하지 않았어.**';
  }catch(e){
   return 'PDF 서버 저장 상태 조회 실패 ('+String(e?.message||e).slice(0,110)+
