@@ -19,7 +19,25 @@ const id=String(req.query?.caseId||'');if(!caseOk(id))return respond(res,400,{er
 const prefix=casePrefix(user,id);
 try{const registry=await readJson(casePrefix(user,'_index').replace(/_index\/$/,'')+'registry/'+id+'.json');if(!registry||registry.id!==id)return respond(res,404,{error:'등록된 사건이 없습니다'})}catch{return respond(res,502,{error:'사건 권한 확인 실패'})}
 if(req.method==='GET'){
-try{if(req.query?.view){const doc=String(req.query.view);if(!/^[0-9a-f-]{36}$/.test(doc))return respond(res,400,{error:'문서 ID 오류'});const meta=await readJson(prefix+'docs/'+doc+'.json');if(!meta)return respond(res,404,{error:'문서 없음'});const blob=await get(prefix+'pdf/'+doc+'.pdf',{access:'private'});if(!blob||blob.statusCode!==200)return respond(res,404,{error:'파일 없음'});res.setHeader('Content-Type','application/pdf');res.setHeader('Content-Disposition','inline; filename="document.pdf"');res.setHeader('Cache-Control','private, no-store');res.setHeader('X-Content-Type-Options','nosniff');for await(const c of blob.stream)res.write(c);return res.end()}
+try{if(req.query?.view){const doc=String(req.query.view);if(!/^[0-9a-f-]{36}$/.test(doc))return respond(res,400,{error:'문서 ID 오류'});const meta=await readJson(prefix+'docs/'+doc+'.json');if(!meta)return respond(res,404,{error:'문서 없음'});res.setHeader('Content-Type','application/pdf');res.setHeader('Content-Disposition','inline; filename="document.pdf"');res.setHeader('Cache-Control','private, no-store');res.setHeader('X-Content-Type-Options','nosniff');
+if(meta.sourceKind==='private_chunked_pdf_v1'){
+ const {customerPdfChunkPaths}=await import('../lib/customer-pdf-source.mjs');
+ const parts=customerPdfChunkPaths(prefix,meta.chunkUploadId,meta.sourceParts,meta.sourceChunkSize,meta.size);
+ for(const part of parts){
+  const blob=await get(part.pathname,{access:'private'});
+  if(!blob||blob.statusCode!==200)throw Error('ORIGINAL_FRAGMENT_MISSING');
+  let bytes=0;
+  for await(const c of blob.stream){
+   bytes+=c.length;if(bytes>part.size)throw Error('ORIGINAL_FRAGMENT_OVERSIZED');
+   res.write(c);
+  }
+  if(bytes!==part.size)throw Error('ORIGINAL_FRAGMENT_TRUNCATED');
+ }
+ return res.end();
+}
+const blob=await get(prefix+'pdf/'+doc+'.pdf',{access:'private'});
+if(!blob||blob.statusCode!==200)return respond(res,404,{error:'파일 없음'});
+for await(const c of blob.stream)res.write(c);return res.end()}
 return respond(res,200,{documents:await documents(user,id),messages:await messages(user,id)});
 }catch(e){return respond(res,502,{error:'사건 자료 조회 실패'})}}
 if(req.method!=='POST')return respond(res,405,{error:'GET/POST만 허용'});
