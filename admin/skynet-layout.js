@@ -177,8 +177,7 @@ const retryButton=document.getElementById('skynetCategoryRetry');
 if(retryButton)retryButton.onclick=retryCategory;
 renderSidebarCategories();loadCategories();
 setTimeout(()=>{void runFastClassification();void loadCategoryTotal()},1500);
-function renderSidebarCategories(){memoryList.replaceChildren();for(const [i,row] of [...categories.querySelector('#skynetCategoryRows').children].entries()){const label=row.textContent;const el=document.createElement('div');el.textContent=label;el.style.cssText='padding:9px 10px;font-size:12px;white-space:nowrap';if(label.includes('프라이버시')){el.style.opacity='.55';el.title='암구호 전용 · 목록 접근 불가';}if(!label.includes('프라이버시')){el.style.cursor='pointer';el.onclick=()=>openMemoryCategory(i)}memoryList.append(el)}}renderSidebarCategories();loadCategories();
-const sideIcons=['users','scale','briefcase-business','code-2','wallet','heart-pulse','book-open','sliders-horizontal','lock-keyhole'];
+function renderSidebarCategories(){memoryList.replaceChildren();for(const [i,row] of [...categories.querySelector('#skynetCategoryRows').children].entries()){const label=row.textContent;const el=document.createElement('div');el.textContent=label;el.style.cssText='padding:9px 10px;font-size:12px;white-space:nowrap';if(label.includes('프라이버시')){el.style.opacity='.55';el.title='암구호 전용 · 목록 접근 불가';}if(!label.includes('프라이버시')){el.style.cursor='pointer';el.onclick=()=>openMemoryCategory(i)}memoryList.append(el)}}const sideIcons=['users','scale','briefcase-business','code-2','wallet','heart-pulse','book-open','sliders-horizontal','lock-keyhole'];
 const sideSvg=paths=>'<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+paths+'</svg>';
 const glyphs=[
 '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>',
