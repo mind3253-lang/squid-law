@@ -6,12 +6,50 @@ import {indexSource} from './skynet-search-index.js';
 import {waitUntil} from '@vercel/functions';
 import {list,get,put} from '@vercel/blob';
 import {createHash} from 'node:crypto';
+// Uploaded PDFs are already stored as bounded private Blob fragments.
+// Retry extraction from that original rather than re-uploading it.
+export const maxDuration=300;
+const PDF_MAX_BYTES=100*1048576,OTHER_MAX_BYTES=25*1048576;
 const respond=(res,n,obj)=>res.status(n).setHeader('Cache-Control','no-store').json(obj);
 async function bytes(path,limit){const item=await get(path,{access:'private'});if(!item||item.statusCode!==200)throw Error('파일 조각 없음');let n=0;const out=[];for await(const x of item.stream){const b=Buffer.from(x);n+=b.length;if(n>limit)throw Error('파일 용량 초과');out.push(b)}return Buffer.concat(out)}
 function auth(req){const value=String(req.headers.authorization||'');try{return !!process.env.ADMIN_PASSWORD&&value.startsWith('Basic ')&&Buffer.from(value.slice(6),'base64').toString()==='admin:'+process.env.ADMIN_PASSWORD}catch{return false}}
 function kind(name){return String(name).toLowerCase().split('.').pop()}
 function topic(text){const s=text.toLowerCase();return /법원|소송|준비서면|피고|원고|고소/.test(s)?'법률·소송':/서브마린|다이빙|프리다이빙/.test(s)?'서브마린·다이빙':/시화성|중식당|짜장|짬뽕/.test(s)?'시화성·식당':/github|vercel|api|개발|코드/.test(s)?'개발·IT':'일반 자료'}
-export default async function handler(req,res){if(req.method!=='POST')return respond(res,405,{error:'POST only'});if(!auth(req))return respond(res,401,{error:'관리자 인증 필요'});try{const b=typeof req.body==='string'?JSON.parse(req.body):req.body||{};const batch=String(b.batch||''),name=String(b.name||'').slice(0,255),parts=Number(b.parts);if(!/^[a-zA-Z0-9_-]{8,80}$/.test(batch)||!Number.isInteger(parts)||parts<1||parts>100||!name)return respond(res,400,{error:'파일 정보 오류'});const listing=await list({prefix:'skynet/uploads/'+batch+'/',limit:100});const found=listing.blobs.filter(x=>/\/\d{5}\.bin$/.test(x.pathname)).sort((a,b)=>a.pathname.localeCompare(b.pathname));if(found.length!==parts)throw Error('파일 조각 누락');const buffers=[];let total=0;for(let i=0;i<parts;i++){if(!found[i].pathname.endsWith('/'+String(i).padStart(5,'0')+'.bin'))throw Error('조각 순서 오류');const chunk=await bytes(found[i].pathname,4*1048576);total+=chunk.length;if(total>25*1048576)throw Error('내용 추출 파일은 25MB 이하만 지원');buffers.push(chunk)}const data=Buffer.concat(buffers),hash=createHash('sha256').update(data).digest('hex');const path='skynet/documents/'+hash+'.json';const previous=await get(path,{access:'private'}).catch(()=>null);if(previous&&previous.statusCode===200)return respond(res,200,{ok:true,duplicate:true,hash});const ext=kind(name);let text='';if(['txt','md','csv','json'].includes(ext)){text=data.toString('utf8')}else if(ext==='pdf'){const {pages,totalPages}=await extractPdfPages(data,{fastTextOnly:true});if(pages.length!==totalPages)throw Error('PDF_PAGE_COVERAGE');const corpus=prepareCorpus('skynet',[{id:hash,name,pageCount:totalPages,pages}]);const result={segments:corpus.units,characters:corpus.summary[0].characters,version:corpus.summary[0].version};const category=topic(name+' '+pages.slice(0,3).map(p=>p.text).join(' ').slice(0,2000));const manifest={name,hash,category,createdAt:new Date().toISOString(),pageCount:totalPages,segmentCount:result.segments.length,characters:result.characters,version:result.version,ocrRequired:result.segments.filter(x=>x.status==='ocr_required').map(x=>x.page),visualInventoryComplete:false,status:'text_extracted_not_fully_reviewed'};const indexing=[];for(let i=0;i<result.segments.length;i+=20){const batch=result.segments.slice(i,i+20);const p='skynet/document-segments/'+hash+'/batch-'+String(i).padStart(8,'0')+'.json';const reviewed=batch.map(analyzeUnit);const visualPlan=planVisualEvidence({documentId:hash,pages:pages.filter(p=>p.page>=batch[0].page&&p.page<=batch.at(-1).page),images:[]});const batchData={hash,firstPage:batch[0].page,lastPage:batch.at(-1).page,segments:batch,review:reviewed,visualPlan,visualInventoryComplete:false,verifiedText:independentlyVerify(batch,reviewed).complete,verifiedVisual:false};await put(p,JSON.stringify(batchData),{access:'private',addRandomSuffix:false,allowOverwrite:false,contentType:'application/json'});const text=batch.map(x=>'[PDF '+x.page+'쪽 / 부분 '+x.part+']\\n'+x.text).join('\\n');if(text.trim())indexing.push({p,data:{name:name+' [PDF '+batch[0].page+'-'+batch.at(-1).page+'쪽]',category,text,createdAt:manifest.createdAt}})}await put(path,JSON.stringify(manifest),{access:'private',addRandomSuffix:false,allowOverwrite:false,contentType:'application/json'});// The text index is durable now. Search indexing is not a prerequisite for
+export default async function handler(req,res){if(req.method!=='POST')return respond(res,405,{error:'POST only'});if(!auth(req))return respond(res,401,{error:'관리자 인증 필요'});try{const b=typeof req.body==='string'?JSON.parse(req.body):req.body||{};const batch=String(b.batch||''),name=String(b.name||'').slice(0,255),parts=Number(b.parts);if(!/^[a-zA-Z0-9_-]{8,80}$/.test(batch)||!Number.isInteger(parts)||parts<1||parts>100||!name)return respond(res,400,{error:'파일 정보 오류'});const listing=await list({prefix:'skynet/uploads/'+batch+'/',limit:100});const found=listing.blobs.filter(x=>/\/\d{5}\.bin$/.test(x.pathname)).sort((a,b)=>a.pathname.localeCompare(b.pathname));if(found.length!==parts)throw Error('파일 조각 누락');const ext=kind(name),maxBytes=ext==='pdf'?PDF_MAX_BYTES:OTHER_MAX_BYTES;
+for(let i=0;i<parts;i++){
+ if(!found[i].pathname.endsWith('/'+String(i).padStart(5,'0')+'.bin'))throw Error('조각 순서 오류');
+}
+if(found.reduce((sum,x)=>sum+x.size,0)>maxBytes)
+ throw Error(ext==='pdf'?'PDF 분석은 100MB 이하 파일 지원':'내용 추출 파일은 25MB 이하만 지원');
+// Bound simultaneous private blob reads and preserve source order.
+const buffers=new Array(parts);
+let total=0;
+for(let start=0;start<parts;start+=4){
+ const group=await Promise.all(found.slice(start,start+4).map(x=>bytes(x.pathname,4*1048576)));
+ for(let j=0;j<group.length;j++){
+  total+=group[j].length;
+  if(total>maxBytes)throw Error('내용 추출 용량 초과');
+  buffers[start+j]=group[j];
+ }
+}
+const data=Buffer.concat(buffers,total),hash=createHash('sha256').update(data).digest('hex');const path='skynet/documents/'+hash+'.json';const previous=await get(path,{access:'private'}).catch(()=>null);
+if(previous&&previous.statusCode===200){
+ let manifest=null;
+ if(ext==='pdf'){
+  let length=0;const fragments=[];
+  for await(const c of previous.stream){const part=Buffer.from(c);length+=part.length;
+   if(length>512000)throw Error('PDF 문서 색인 정보 용량 초과');
+   fragments.push(part);
+  }
+  manifest=JSON.parse(Buffer.concat(fragments).toString('utf8'));
+ }
+ return respond(res,200,{ok:true,duplicate:true,hash,
+  ...(manifest&&Number.isInteger(manifest.pageCount)?{
+   pages:manifest.pageCount,segments:manifest.segmentCount,
+   characters:manifest.characters,ocrRequired:manifest.ocrRequired||[],
+   indexing:'already_stored'}:{})});
+}
+let text='';if(['txt','md','csv','json'].includes(ext)){text=data.toString('utf8')}else if(ext==='pdf'){const {pages,totalPages}=await extractPdfPages(data,{fastTextOnly:true});if(pages.length!==totalPages)throw Error('PDF_PAGE_COVERAGE');const corpus=prepareCorpus('skynet',[{id:hash,name,pageCount:totalPages,pages}]);const result={segments:corpus.units,characters:corpus.summary[0].characters,version:corpus.summary[0].version};const category=topic(name+' '+pages.slice(0,3).map(p=>p.text).join(' ').slice(0,2000));const manifest={name,hash,category,createdAt:new Date().toISOString(),pageCount:totalPages,segmentCount:result.segments.length,characters:result.characters,version:result.version,ocrRequired:result.segments.filter(x=>x.status==='ocr_required').map(x=>x.page),visualInventoryComplete:false,status:'text_extracted_not_fully_reviewed'};const indexing=[];for(let i=0;i<result.segments.length;i+=20){const batch=result.segments.slice(i,i+20);const p='skynet/document-segments/'+hash+'/batch-'+String(i).padStart(8,'0')+'.json';const reviewed=batch.map(analyzeUnit);const visualPlan=planVisualEvidence({documentId:hash,pages:pages.filter(p=>p.page>=batch[0].page&&p.page<=batch.at(-1).page),images:[]});const batchData={hash,firstPage:batch[0].page,lastPage:batch.at(-1).page,segments:batch,review:reviewed,visualPlan,visualInventoryComplete:false,verifiedText:independentlyVerify(batch,reviewed).complete,verifiedVisual:false};await put(p,JSON.stringify(batchData),{access:'private',addRandomSuffix:false,allowOverwrite:true,contentType:'application/json'});const text=batch.map(x=>'[PDF '+x.page+'쪽 / 부분 '+x.part+']\\n'+x.text).join('\\n');if(text.trim())indexing.push({p,data:{name:name+' [PDF '+batch[0].page+'-'+batch.at(-1).page+'쪽]',category,text,createdAt:manifest.createdAt}})}await put(path,JSON.stringify(manifest),{access:'private',addRandomSuffix:false,allowOverwrite:false,contentType:'application/json'});// The text index is durable now. Search indexing is not a prerequisite for
 // reading the just-uploaded document; never block its first AI analysis on
 // background search/category index work.
 const indexingWork=(async()=>{
