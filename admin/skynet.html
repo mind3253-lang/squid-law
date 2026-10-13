@@ -399,8 +399,8 @@ async function reviewSourceText(doc,chunk,total,question,effort,depth=0){
   }catch(e){
    failure=e;
    if(!e.retryable||attempt===3)break;
-   el('chatErrorStatus').textContent=doc.name+' · '+chunk.index+'/'+total+
-    '구간 일시적 AI 오류 · '+(attempt+1)+'/3회 자동 재시도 중';
+   el('chatErrorStatus').textContent=doc.name+
+    ' · 원문 재검토 요청 중 · '+(attempt+1)+'/3회 자동 재시도 중';
    await waitReview(attempt*1800);
   }
  }
@@ -1082,8 +1082,8 @@ async function analyzeAttachedDocuments(docs,question,previous,effort,saveAnswer
    const group=chunks.slice(i,i+2);
    const activePages=group.flatMap(x=>x.pages).filter(Number.isSafeInteger);
    const pageSpan=activePages.length?'PDF '+Math.min(...activePages)+'~'+Math.max(...activePages)+'쪽 · ':'';
-   el('chatErrorStatus').textContent=doc.name+' · '+pageSpan+'원문 검토 '+(i+1)+'~'+
-    Math.min(i+2,chunks.length)+'/'+chunks.length+'구간 · 기존 완료분 확인';
+   el('chatErrorStatus').textContent=doc.name+' · '+pageSpan+
+    '원문 내용과 양측 주장 대조 중';
    const results=await Promise.allSettled(group.map(async chunk=>{
     const hash=digest[chunk.index-1];
     const cached=await documentReviewCheckpoint(doc,questionHash,hash,chunk.index);
@@ -1112,8 +1112,7 @@ async function analyzeAttachedDocuments(docs,question,previous,effort,saveAnswer
    setSkynetPipelineProgress('review',Math.min(i+2,chunks.length),chunks.length,
     'PDF '+pageCount+'쪽 원문 검토 중 · '+pageSpan+'확인 완료',doc.name);
    el('chatErrorStatus').textContent=doc.name+' · '+pageSpan+
-    Math.min(i+2,chunks.length)+'/'+chunks.length+'구간 검토 완료'+
-    (resumed?' · 이전 완료 '+resumed+'건 재사용':'');
+    '원문 근거 확인 완료'+(resumed?' · 기존 분석 결과 재사용':'');
    try{await showReviewJobStatus()}catch(e){
     renderReviewState('구간 저장 완료 · 진행률 조회 지연: '+e.message);
    }
@@ -1122,9 +1121,7 @@ async function analyzeAttachedDocuments(docs,question,previous,effort,saveAnswer
   pageCounts.push(pageCount);ocrByDocument.push(ocrRequired);originalSourceWindows.push(chunks);
   if(kind==='pdf')lateSourceNotes.push('[PDF 후반부 공방 독립 재검토 · '+doc.name+']\n'+
    notes.slice(Math.floor(notes.length*0.6)).join('\n\n'));
-  meta.push(doc.name+(kind==='pdf'?' · '+pageCount+'쪽':'')+
-   ' · '+chunks.length+'개 텍스트 구간 검토'+
-   (ocrRequired.length?' · 텍스트 판독 불가 '+ocrRequired.join(',')+'쪽':''));
+  meta.push(doc.name+(kind==='pdf'?' · '+pageCount+'쪽':''));
   allNotes.push('[직접 첨부 문서 '+doc.name+' / '+(pageCount||'쪽수 미상')+'쪽 / 검토 노트 '+chunks.length+
    '구간 / 판독 불가 '+(ocrRequired.length?ocrRequired.join(','):'없음')+
    ' / 원문 총 문자 '+(totalChars??'미상')+']\n'+notes.join('\n\n'));
