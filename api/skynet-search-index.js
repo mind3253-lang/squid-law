@@ -1,6 +1,7 @@
 import {classifyRecord} from './skynet-case-classifier.js';
 import {retrievalTerms,selectDiverseEvidence} from '../lib/skynet-evidence-rank.mjs';
 import {categoryDigestEntries,sourceTopicEntries} from '../lib/skynet-topic-categories.mjs';
+import {upsertTopics} from '../lib/skynet-topic-db.mjs';
 import {createHash} from 'node:crypto';
 import {put,get,list} from '@vercel/blob';
 // Per-function warm caches avoid repeatedly downloading the same private Blob
@@ -31,6 +32,9 @@ export async function indexSource(path,data){
  // memory categories.
  const categories=categoryDigestEntries(sourceTopicEntries(data),{source:path,name:data.title||data.name||data.category||''});
  await put('skynet/category-index/'+sourceId+'.json',JSON.stringify(categories),{access:'private',addRandomSuffix:false,allowOverwrite:true,contentType:'application/json'});
+ // User can query this category immediately without scanning old Blob files.
+ // A temporary SQL outage cannot discard the independently stored sidecar.
+ try{await upsertTopics([categories])}catch(e){console.error('SKYNET_TOPIC_DB_SYNC_DEFERRED',String(e.message).slice(0,140))}
  const entries=entriesOf(data);
  const docs=entries.map(e=>({...e,source:path,id:digest(path+'|'+e.part+'|'+e.content)}));
  const makeIndex=items=>{
