@@ -14,19 +14,19 @@
 ## 프로젝트
 GitHub: mind3253-lang/squid-law (main)
 Vercel: squid-law
-작업표: docs/SQUIDLAW_FULL_TASK_MANIFEST.json (38개 고유 ID)
+작업표: docs/SQUIDLAW_FULL_TASK_MANIFEST.json (41개 고유 ID)
 실운영 장애 기록: docs/SQUIDLAW_338PAGE_INCIDENT_AND_RESUME.md
 스카이넷 별도 지침: docs/SKYNET_RESUME_COMMAND.md
 
 ## 세션 시작 절차
-1. 최신 main과 작업표 38개를 읽는다.
+1. 최신 main과 작업표 41개를 읽는다.
 2. 상태가 verified이며 현재 코드에도 검증 근거가 유효한 항목만 제외한다.
 3. in_progress 항목은 마지막 checkpoint에서 이어간다. implemented는 검증이 필요하다.
 4. P0 운영 장애 복구를 우선한다. 이후 P1, P2 순으로 진행한다.
 5. 항목별 코드 위치와 수용 기준을 확인한 뒤 조사, 구현, 테스트, 운영 검증을 반복한다.
 6. 진행 중 상태, 검증 증거, 마지막 성공 커밋, 다음 액션, 차단 사유를 GitHub 작업표에 갱신한다.
 7. 작업 중단 또는 대화방 변경 시 검증 완료 항목은 반복하지 않고 미완료만 이어간다.
-8. 새 과제는 LAW-039부터 번호를 추가한다. 기존 작업 번호는 유지한다.
+8. 새 과제는 LAW-042부터 번호를 추가한다. 기존 작업 번호는 유지한다.
 
 ## 338페이지 운영 장애 우선 처리
 원문 검증 338/338, 약 70분, text_review_finalize_checkpoint에서 정체, 보고서 미생성, 비JSON 응답 파싱 오류가 보고되었다.
