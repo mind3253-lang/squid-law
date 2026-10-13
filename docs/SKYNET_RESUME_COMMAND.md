@@ -60,6 +60,12 @@ SKYNET 관리자 PDF는 현재 바이트 범위 읽기·16페이지 구간 추�
 - 진행률 상태는 `admin/skynet.html`의 `SKYNET_PIPELINE_PHASES`와 `setSkynetPipelineProgress` 및 각 업로드/추출/검토/장별 작성/전달 호출에 반영. 인라인 상태 카드에는 중복 그래프 제거. 완료된 서버 작업의 그래프는 숨김.
 - 테스트: `tests/skynet-paid-dossier.test.mjs`, `tests/skynet-chat-ui-reliability.test.mjs`, `tests/skynet-pdf-source-progress.test.mjs`, `tests/skynet-dossier-direct-source.test.mjs`의 코드·모의 실행 검사. **실제 보관된 146쪽 문서의 PDF 원문 재분석 및 운영 사용자 화면까지 E2E 완료 검증은 별도**. 새 모델 답변의 사실관계·후반 서면 증거는 검수할 것.
 
+## 2026-10-14 · 12878 질문에 12498 PDF가 사용된 사고
+- 사용자 최종 정정: 사건번호는 사용자가 정확히 썼음. SKYNET이 별개 `2026가단12498`의 146쪽 원문을 사용하면서 `2026가단12878`에 관한 답을 작성함. 바로 앞의 "146쪽 파일이 맞다"는 해명은 **원래 질문 대상 사건의 일치 여부를 확인하지 않은 오류**였음.
+- 질문의 사건번호와 실제 색인 원본의 사건번호가 다른 경우에는 **원본 교체를 추정하지 않고 분석 전에 중단**해야 함. `admin/skynet.html`에 `courtCaseReferences` / `mismatchedPdfCase` / `ensurePdfMatchesQuestion`을 구현했고, 일반 PDF 첨부 검토·원문 후속 조회·복원된 이전 분석/전송 전 검수에서 적용. 두 사건이 질문에 명시된 실제 교차 비교는 허용.
+- `tests/skynet-case-identity-guard.test.mjs` 3건 통과, HTML JS 구문검사 통과. **12878 원본이 서버에 애초 저장되지 않은 것인지, 저장됐지만 첨부 해시 연결이나 색인이 실패한 것인지는 운영 기록을 직접 조회하지 않아 미확인**. 사용자에게 저장 안 했다고 단정 금지.
+- 실제 운영에서는 `api/skynet-warehouse?mode=indexed-pdfs`에서 12878 PDF가 있는지 검사하고, 원본 해시/manifest 페이지/문서명을 12498과 명시적으로 대조한 뒤에만 재분석. 사용자 피로 누적 2시간+, 불필요한 재분석과 상태 버튼 요구 금지. 사용자는 개발 이후 법원형 관련 대화를 원함.
+
 ## 세션 시작 시 무조건 실행
 1. GitHub `mind3253-lang/squid-law`의 **최신 main**을 읽는다. `docs/SKYNET_CONTINUITY_AND_IMPLEMENTATION.md`, **이 파일**, `docs/SKYNET_TASK_MANIFEST.json`을 읽는다.
 2. Vercel `squid-law` 최신 배포와 최근 커밋/테스트/로그를 확인한다. 권한 오류가 나면 구체적 차단 요인을 기록하고 다른 가능한 작업을 진행한다.
