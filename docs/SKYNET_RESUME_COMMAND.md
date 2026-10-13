@@ -3,6 +3,16 @@
 ## 목표
 SQUIDLAW 내부 관리자 AI **SKYNET**을 ChatGPT API에서 실제 제공되는 기능을 최대한 통합한 영구 대화·개발 동료로 완성한다. 축소판 챗봇을 만들지 않는다. 사용하지 않는 기능은 마지막에 제거한다. 현재 사용자가 확정한 방향은 `docs/SKYNET_CONTINUITY_AND_IMPLEMENTATION.md`에 있다.
 
+## SQUIDLAW 고객 분석 확정 설계 (SKYNET과 혼동 금지)
+다음 방에서도 `AGENTS.md` 제4절, `lib/customer-product-contract.mjs`,
+`docs/SQUIDLAW_FULL_RESUME_COMMAND.md`를 읽는다. 고객 한 명의 사건
+전체 자료를 한 번에 접수하고, **전체 고객 분석을 1건씩 직렬 처리**한다.
+대기열 순번·예상 시간을 제공하고 페이지당 과금한다. 내부 PDF
+처리 25/100MB 숫자를 올리는 것으로 문제 해결 보고 금지.
+기존 원본은 보존, 대용량 작업은 분할/체크포인트/중단 재개.
+현재 SKYNET 관리자 PDF 추출에는 100MB 결합 처리 격차가 남아 있으며
+실제 대용량 E2E 성공으로 오해하지 않는다.
+
 ## 세션 시작 시 무조건 실행
 1. GitHub `mind3253-lang/squid-law`의 **최신 main**을 읽는다. `docs/SKYNET_CONTINUITY_AND_IMPLEMENTATION.md`, **이 파일**, `docs/SKYNET_TASK_MANIFEST.json`을 읽는다.
 2. Vercel `squid-law` 최신 배포와 최근 커밋/테스트/로그를 확인한다. 권한 오류가 나면 구체적 차단 요인을 기록하고 다른 가능한 작업을 진행한다.
