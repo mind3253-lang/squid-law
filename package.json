@@ -9,6 +9,7 @@
     "pdfjs-dist": "^4.10.38",
     "pdf-lib": "^1.17.1",
     "jose": "^6.1.0",
-    "@vercel/functions": "^2.0.0"
+    "@vercel/functions": "^2.0.0",
+    "@napi-rs/canvas": "^0.1.72"
   }
 }
