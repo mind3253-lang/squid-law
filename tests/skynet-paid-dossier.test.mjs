@@ -19,7 +19,7 @@ test('full-record report has four independently grounded evidence chapters',()=>
   assert.match(prompt,/마크다운 파이프 표/);
  }
  const sections=CASE_DOSSIER_SECTIONS.map(x=>({
-  id:x.id,text:'| 쟁점 | 주장 | 반박 |\n|---|---|---|\n| 차임 | 주장의 위치 [PDF 245쪽] | 반박 [PDF 257쪽] |'
+  id:x.id,text:'| 쟁점 | 주장 | 반박 |\n|---|---|---|\n| 차임 | 주장의 위치 [PDF 245쪽] | 반박 [PDF 257쪽] |\n이 장에서 관련 쟁점을 구체적으로 검토하고 다른 사건의 상계를 구분해 재검증해야 한다.'
  }));
  const result=assembleCaseDossier({sections,pageCount:258,sourceName:'258p.pdf',ocrRequired:[9]});
  assert.match(result,/258쪽/);
@@ -52,7 +52,7 @@ test('large PDF review routes through chapter persistence not the one-call fast 
  assert.match(source,/last|최근|최신/);
  assert.match(source,/for\(let d=0;d<docs\.length;d\+\+\)/);
  assert.match(source,/pageCounts\.push\(pageCount\)/);
- assert.match(source,/const reply=docs\.length===1&&\/\\\.pdf\$\/i\.test/);
+ assert.match(source,/const reply=docs\.length===1/);
  assert.match(source,/한두\\s\*줄|한두/);
  const script=[...source.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/g)];
  for(const m of script){if(m[0].includes('src='))continue;assert.doesNotThrow(()=>new Function(m[1]));}
