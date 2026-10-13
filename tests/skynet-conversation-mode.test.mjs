@@ -82,3 +82,51 @@ test('tone adaptation is active only for natural SKYNET chat, not single-pass PD
  assert.match(code,/input\.skipMemorySearch===true\?\[/);
  assert.doesNotMatch(src('lib/skynet-conversation-mode.mjs'),/@vercel\/blob|from 'pg'|fetch\(/);
 });
+
+test('common Korean tears, shy smiles, annoyance and startled symbols are recognized as uncertain tone cues',()=>{
+ const cases=[
+  ['ㅠㅠ','gentle','tear_markers'],
+  ['ㅜㅜ','gentle','tear_markers'],
+  ['T_T','gentle','tear_markers'],
+  ['-_-','strained','flat_or_annoyed_markers'],
+  ['ㅡㅡ','strained','flat_or_annoyed_markers'],
+  ['^^','playful','smile_markers'],
+  ['^^;','awkward','awkward_markers'],
+  [';;','awkward','awkward_markers'],
+  ['ㄷㄷ','surprised','surprise_markers'],
+  ['ㅎㄷㄷ','surprised','surprise_markers']
+ ];
+ for(const [symbol,mode,cue] of cases){
+  const moment=classifyConversationMoment(turns(symbol));
+  assert.equal(moment.mode,mode,symbol);
+  assert.ok(moment.cues.includes(cue),symbol);
+ }
+});
+test('legacy Korean ASCII art is recognized without hardcoding a universal creature or emotion',()=>{
+ const moment=classifyConversationMoment(turns('(^^)))))))))))))))))))~');
+ assert.equal(moment.mode,'awkward');
+ assert.ok(moment.cues.includes('ascii_pictogram'));
+ const directive=conversationStyleDirective(moment);
+ assert.match(directive,/사용자마다 다르게 해석/);
+ assert.match(directive,/사용자가 직접 설명한 의미/);
+});
+test('discussing emoticon examples does not automatically label the speakers own mood',()=>{
+ const moment=classifyConversationMoment(turns('이모티콘 목록: ^^, ㅠㅠ, -_-, ㅡㅡ, ^^;'));
+ assert.equal(moment.mode,'neutral');
+ assert.ok(moment.cues.includes('symbol_example_discussion'));
+});
+test('contradictory laughter and tear markers remain mixed and not diagnosed',()=>{
+ const moment=classifyConversationMoment(turns('ㅋㅋㅋ ㅠㅠ 이게 뭐냐 ㅎㅎ'));
+ assert.equal(moment.mode,'mixed');
+ assert.ok(moment.cues.includes('mixed_tone_markers'));
+ assert.match(conversationStyleDirective(moment),/단정하지/);
+});
+test('urgent work and concrete criticism override emoticon-only style guesses',()=>{
+ const moment=classifyConversationMoment(turns('ㅠㅠ 또 오류야 ㅋㅋ 다시 코딩해서 고쳐'));
+ assert.equal(moment.mode,'frustrated_task');
+ assert.equal(moment.priority,'execute_or_answer_task');
+ assert.equal(classifyConversationMoment(turns('^^; 지금 배포해')).mode,'task');
+});
+test('serious source review remains focused despite symbolic tears',()=>{
+ assert.equal(classifyConversationMoment(turns('ㅠㅠ 법원 판결 근거 검토')).mode,'focused');
+});
