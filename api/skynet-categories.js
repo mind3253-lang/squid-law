@@ -10,7 +10,7 @@ async function readSmall(path){
  const chunks=[];let bytes=0;
  for await(const item of file.stream){const b=Buffer.from(item);bytes+=b.length;if(bytes>160000)throw Error('CATEGORY_INDEX_TOO_LARGE');chunks.push(b)}
  const record=JSON.parse(Buffer.concat(chunks).toString('utf8'));
- if(record?.version!==1||typeof record.source!=='string'||!record.counts||!record.examples)throw Error('INVALID_CATEGORY_INDEX');
+ if(record?.version!==2||typeof record.source!=='string'||!record.counts||!record.examples)throw Error('INVALID_CATEGORY_INDEX');
  return {source:record.source,name:String(record.name||'').slice(0,180),units:record.units||0,
   counts:Object.fromEntries(TOPIC_IDS.map(id=>[id,Math.max(0,Number(record.counts[id])||0)])),
   examples:Object.fromEntries(TOPIC_IDS.map(id=>[id,(record.examples[id]||[]).slice(0,7).map(x=>({
