@@ -1,6 +1,7 @@
 import {classifyRecord} from './skynet-case-classifier.js';
 import {retrievalTerms,selectDiverseEvidence} from '../lib/skynet-evidence-rank.mjs';
 import {categoryDigestEntries,sourceTopicEntries} from '../lib/skynet-topic-categories.mjs';
+import {indexSearchExcerpts,querySearchExcerpts} from '../lib/skynet-search-db.mjs';
 import {upsertTopics} from '../lib/skynet-topic-db.mjs';
 import {createHash} from 'node:crypto';
 import {put,get,list} from '@vercel/blob';
@@ -71,6 +72,11 @@ export async function indexSource(path,data){
   await put(base,JSON.stringify(manifest),{access:'private',addRandomSuffix:false,allowOverwrite:true,contentType:'application/json'});
   cacheIndex(base,manifest);
  }
+ // SQL read model is an optimization, never the only copy. Every original
+ // excerpt is already persisted in private Blob before it is indexed here.
+ try{await indexSearchExcerpts(path,docs)}catch(e){
+  console.error('SKYNET_SQL_SEARCH_INDEX_DEFERRED',String(e?.message||e).slice(0,160));
+ }
  listedIndexes=null;
  return {entries:docs.length,shards,buckets:0,categorized:categories.classified};
 }
@@ -97,6 +103,20 @@ export function rankIndex(index,question){
 export async function searchIndex(question,{maxResults=12,maxIndexFiles=250}={}){
  const words=retrievalTerms(question,30);
  if(!words.length)return [];
+ let sqlMatches=[];
+ try{
+  const sql=await querySearchExcerpts(question,{limit:900});
+  if(sql?.entries?.length){
+   sqlMatches=sql.entries;
+   const ranked=selectDiverseEvidence(sqlMatches,question,
+    {limit:maxResults,maxPerSource:2});
+   // Fast return only when the indexed evidence is sufficiently diverse.
+   // Sparse/ambiguous queries still use the legacy exhaustive Blob index
+   // scan until the historical corpus has been fully migrated.
+   const independent=new Set(ranked.map(x=>x.source)).size;
+   if(ranked.length>=maxResults&&independent>=4)return ranked;
+  }
+ }catch(e){console.error('SKYNET_SQL_SEARCH_FALLBACK',String(e?.message||e).slice(0,150))}
  const files=await listIndex();
  const found=new Map();
  for(let offset=0;offset<files.length;offset+=Math.max(1,maxIndexFiles)){
@@ -109,7 +129,7 @@ export async function searchIndex(question,{maxResults=12,maxIndexFiles=250}={})
    }
   }
  }
- return selectDiverseEvidence([...found.values()],question,{limit:maxResults,maxPerSource:2});
+ return selectDiverseEvidence([...sqlMatches,...found.values()],question,{limit:maxResults,maxPerSource:2});
 }
 
 export async function searchIndexMulti(queries,{maxResults=48}={}){
