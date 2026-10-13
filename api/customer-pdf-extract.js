@@ -97,3 +97,13 @@ export function choosePdfExtractionWindow(sizeBytes){
  if(!Number.isSafeInteger(sizeBytes)||sizeBytes<1)throw Error('INVALID_PDF_SIZE');
  return sizeBytes>50*1024*1024?20:sizeBytes>20*1024*1024?40:100;
 }
+
+
+export async function inspectPdfPageCountByRange(source){
+ if(!Number.isSafeInteger(source?.totalBytes)||source.totalBytes<5||typeof source.readRange!=='function')
+  throw Error('INVALID_ARCHIVED_PDF_SOURCE');
+ // Inspect the catalog, not every page's content. This is a bounded staging
+ // operation and does not rebuild the original PDF in memory.
+ const result=await extractPdfPagesByRange(source,{startPage:1,pageCount:1,fastTextOnly:true});
+ return result.totalPages;
+}
