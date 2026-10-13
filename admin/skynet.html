@@ -944,7 +944,7 @@ async function analyzeIndexedPdfFollowup(question,effort,saveAnswer){
   el('chatErrorStatus').textContent='기존 분석 미완료 · 보관 PDF '+pageCount+
    '쪽 전체를 원본부터 다시 대조 중…';
   await analyzeAttachedDocuments([{name:doc.name,hash:doc.hash,pages:pageCount}],
-   question,[],effort,saveAnswer,crypto.randomUUID());
+   question,[],effort,saveAnswer,crypto.randomUUID(),resolvedSource);
   return;
  }
  const span=await readPdfPageSpan(doc,startPage,pageCount);
@@ -1076,8 +1076,9 @@ async function compileSkynetCaseDossier({
  return report;
 }
 
-async function analyzeAttachedDocuments(docs,question,previous,effort,saveAnswer,turnId){
- const selections=await Promise.all(docs.map(doc=>resolveCaseRelevantPdf(question,doc)));
+async function analyzeAttachedDocuments(docs,question,previous,effort,saveAnswer,turnId,preselectedSource=null){
+ const selections=preselectedSource&&docs.length===1?[preselectedSource]:
+  await Promise.all(docs.map(doc=>resolveCaseRelevantPdf(question,doc)));
  docs=selections.map(x=>x.doc);
  const sourceScope=selections.map(x=>x.sourceScope).filter(Boolean).join('\n');
  const reviewPromptQuestion=sourceScope?question+'\n\n[요청 사건과 실제 원문의 범위]\n'+sourceScope:question;
