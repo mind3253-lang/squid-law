@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 const html=readFileSync(new URL('../admin/skynet.html',import.meta.url),'utf8');
 const job=readFileSync(new URL('../api/skynet-document-job.js',import.meta.url),'utf8');
+const warehouse=readFileSync(new URL('../api/skynet-warehouse.js',import.meta.url),'utf8');
 const style=readFileSync(new URL('../admin/skynet-layout.css',import.meta.url),'utf8');
 
 test('an explicit 258-page source cannot silently use the last active 146-page PDF',()=>{
@@ -56,4 +57,15 @@ test('report not yet complete must not masquerade as verified source pages',()=>
  assert.match(html,/완료한 구간만 실제 %에 반영/);
  assert.match(html,/documentKey=String\(activeReview.documentHash/);
  assert.match(html,/if\(kind==='pdf'&&Number.isSafeInteger\(doc.pages\)&&doc.pages!==pageCount\)/);
+});
+
+test('indexed source picker selects immutable stored PDF records without re-extracting',()=>{
+ assert.match(html,/id="skynetReviewChooseSource"/);
+ assert.match(html,/mode=indexed-pdfs/);
+ assert.match(html,/pendingRestoredDocs=\[\{name:selected.name,hash:selected.hash,pages:selected.pageCount\}\]/);
+ assert.match(html,/!pendingRestoredDocs.length&&isResumeReviewRequest\(msg\)/);
+ assert.match(warehouse,/if\(req.query\?\.mode==='indexed-pdfs'\)/);
+ assert.match(warehouse,/Number\.isSafeInteger\(row\.pageCount\)/);
+ assert.match(warehouse,/x.pathname==='skynet\/documents\/'\+row.hash\+'\.json'/);
+ assert.doesNotMatch(warehouse,/indexed-pdfs[^]{0,1000}indexArchivedPdfInWindows/);
 });
