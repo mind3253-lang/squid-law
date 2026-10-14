@@ -1251,6 +1251,12 @@ async function analyzeAttachedDocuments(docs,question,previous,effort,saveAnswer
    }
   }catch(e){if(e.status!==404)throw e;}
   if(!deltaBaseline)throw Error('기존 사건의 완료 보고서를 확인하지 못했어. 비용이 드는 전체 재분석 대신 중단했어.');
+  if(deltaBaseline){
+   const caseIds=t=>[...String(t||'').matchAll(/20\\d{2}(?:가단|가합|가소|나|다|카기|카단|카합)\\d{4,8}/g)].map(m=>m[0]);
+   const requested=caseIds(question),prior=new Set(caseIds(deltaBaseline.report));
+   if(!requested.length||!requested.some(id=>prior.has(id)))
+    throw Error('신규 증거 요청에 기존 보고서와 일치하는 사건번호가 없어 병합을 중단했어. 같은 사건번호를 명시해 줘.');
+  }
  }
  const sourceScope=selections.map(x=>x.sourceScope).filter(Boolean).join('\n');
  const reviewPromptQuestion=sourceScope?question+'\n\n[요청 사건과 실제 원문의 범위]\n'+sourceScope:question;
