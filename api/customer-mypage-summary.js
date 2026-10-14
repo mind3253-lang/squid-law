@@ -6,7 +6,7 @@ export default async function handler(req,res){
  if(req.method!=='GET')return respond(res,405,{error:'GET만 허용'});
  const auth=guard(req);if(auth.error)return respond(res,auth.status,{error:auth.error});
  try{
-  const prefix=casePrefix(auth.user,'_index').replace(/_index\\/$/,'')+'registry/';
+  const prefix=casePrefix(auth.user,'_index').replace('/_index/','/')+'registry/';
   const {all}=await import('./customer-case.js');
   const rows=await all(prefix,500);
   const cases=(await Promise.all(rows.filter(x=>x.pathname.endsWith('.json')).map(x=>readJson(x.pathname).catch(()=>null)))).filter(x=>x?.id&&x.id.startsWith('SL-')).sort((a,b)=>String(a.createdAt).localeCompare(String(b.createdAt)));
