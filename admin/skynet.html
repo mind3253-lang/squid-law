@@ -1541,7 +1541,7 @@ el("sendChat").onclick=async()=>{
    {credentials:'same-origin',cache:'no-store'});
   const data=await response.json().catch(()=>({}));
   if(!response.ok||!Array.isArray(data.items))throw Error('저장 원본 목록 조회 실패');
-  const matches=data.items.filter(d=>d.name.includes(person)&&/\\.hwpx?$/i.test(d.name));
+  const matches=data.items.filter(d=>d.name.includes(person)&&/\.hwpx?$/i.test(d.name));
   if(!matches.length)throw Error(person+' 이름의 HWP 서버 원본을 찾지 못함');
   const byName=new Map();
   for(const d of matches)if(!byName.has(d.name))byName.set(d.name,d);
