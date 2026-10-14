@@ -1211,7 +1211,7 @@ async function compileSkynetCaseDossier({
    '분석보고서 작성 중 · '+section.title,doc.name);
  }
  const report=contract.assembleCaseDossier({
-  sections:collected,pageCount,sourceName:doc.name,ocrRequired
+  sections:collected,pageCount,sourceName:doc.name,ocrRequired,question
  });
  await reviewJobRequest('finish',{...job,report});
  setSkynetPipelineProgress('delivery',0,1,'종합 보고서 저장 완료 · 답변 전달 준비 중',doc.name);
@@ -1392,7 +1392,7 @@ async function analyzeAttachedDocuments(docs,question,previous,effort,saveAnswer
  }
  if(recentSource.length>18000)throw Error('PDF 후반부 공방 노트의 보존 검증 실패');
  el('chatErrorStatus').textContent='원문 텍스트 전 구간 검토 · 최신 공방 포함 종합 분석 중…';
- setSkynetPipelineProgress('report',0,4,
+ setSkynetPipelineProgress('report',0,globalThis.SkynetCaseDossier?.CASE_DOSSIER_SECTIONS?.length||2,
   '원문 검토를 마치고 쟁점별 분석보고서를 작성 중',docs[0]?.name);
  const finalPrompt='사용자 요청: '+reviewPromptQuestion+
   '\n\n다음은 이번에 실제로 첨부된 PDF의 모든 판독 가능 텍스트 구간을 차례로 검토한 중간 분석 노트야. '+
