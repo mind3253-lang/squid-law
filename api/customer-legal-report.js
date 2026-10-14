@@ -26,6 +26,7 @@ export default async function handler(req,res){
   if(savedPath!==expected&&savedPath!==final)return respond(res,409,{error:'법률 분석 보고서가 아직 생성되지 않았습니다',status:job.status,stage:job.stage});
   const report=await load(savedPath);
   if(!report||report.caseId!==caseId||report.sourceVersion!==job.documentVersion||report.reportType!=='gpt_legal_analysis')return respond(res,409,{error:'보고서 출처 확인 실패'});
+  if(report.clientRole&&report.clientRole!==registry.intake?.clientRole)return respond(res,409,{code:'ANALYSIS_ROLE_CHANGED',error:'현재 의뢰인 지위가 이 보고서 분석 당시의 원고·피고 선택과 달라, 기존 분석을 그대로 고객에게 제공할 수 없습니다.'});
   if(String(req.query?.summary||'')==='1')return respond(res,200,{summary:{title:report.title,status:report.status,notForCourtSubmission:report.notForCourtSubmission,findings:report.findings?.length||0,issues:report.issues||[],sourceCoverage:report.sourceCoverage}});
   let brief;
   try{brief=buildCustomerAnalysisBrief({caseRecord:registry,report,documents:await documents(auth.user,caseId)})}
