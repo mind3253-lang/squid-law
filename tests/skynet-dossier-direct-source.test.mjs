@@ -36,8 +36,8 @@ test('every dossier chapter sees actual original PDF page text, including late p
   const prompt=dossierSectionPrompt(section,{question:'2026가단12498 최신 공방을 검토해',
    mainNotes:'원고 상계 주장 [PDF 88쪽]',lateNotes:'피고 재반박 [PDF 145쪽]',
    pageCount:146,sourceExcerpts:excerpts});
-  assert.match(prompt,/서버에서 이미 해당 PDF 전체/);
-  assert.match(prompt,/서버 색인에서 직접 추출한 PDF 원문 발췌/);
+  assert.match(prompt,/서버의 원문 전체 검토 기록/);
+  assert.match(prompt,/실제 색인 PDF 원문 발췌/);
   assert.match(prompt,/2026\.10\.12/);
  }
 });
