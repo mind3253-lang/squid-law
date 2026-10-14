@@ -18,15 +18,22 @@ export async function runPrivateAnalysis(documents,{
  const job=createAnalysisJob(documents,{input,batches});
  if(job.plan.batches.length>maxBatches)throw Error('TOO_MANY_BATCHES');
  if(job.input.diagnostics.totalChars>maxTotalChars)throw Error('JOB_TEXT_BUDGET_EXCEEDED');
- const responses=[];
- // Sequential requests prevent accidental concurrency spikes.
- // Stop on error rather than claiming a complete analysis.
- for(const batch of job.plan.batches){
-  const remaining=deadlineAt===undefined?undefined:deadlineAt-Date.now();
-  if(remaining!==undefined&&remaining<1000)throw Error('MODEL_REQUEST_TIMEOUT');
-  const callTimeout=remaining===undefined?timeoutMs:Math.min(timeoutMs??45000,remaining,120000);
-  const payload=await analyzeBatchWithModel(batch,{enabled:true,apiKey,model,fetchImpl,...(callTimeout===undefined?{}:{timeoutMs:Math.floor(callTimeout)})});
-  responses.push({batch:batch.batch,payload});
- }
+ const responses=new Array(job.plan.batches.length);
+ // Two bounded workers avoid serial model latency without unbounded API bursts.
+ let next=0,firstError=null;
+ const worker=async()=>{
+  while(next<job.plan.batches.length&&!firstError){
+   const index=next++,batch=job.plan.batches[index];
+   try{
+    const remaining=deadlineAt===undefined?undefined:deadlineAt-Date.now();
+    if(remaining!==undefined&&remaining<1000)throw Error('MODEL_REQUEST_TIMEOUT');
+    const callTimeout=remaining===undefined?timeoutMs:Math.min(timeoutMs??45000,remaining,120000);
+    const payload=await analyzeBatchWithModel(batch,{enabled:true,apiKey,model,fetchImpl,...(callTimeout===undefined?{}:{timeoutMs:Math.floor(callTimeout)})});
+    responses[index]={batch:batch.batch,payload};
+   }catch(error){firstError=firstError||error;}
+  }
+ };
+ await Promise.all(Array.from({length:Math.min(2,job.plan.batches.length)},()=>worker()));
+ if(firstError)throw firstError;
  return finishAnalysisJob(job,responses);
 }
