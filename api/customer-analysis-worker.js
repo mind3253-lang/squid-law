@@ -1,4 +1,6 @@
-import {claimJob,advanceJob,renewJobLease} from './customer-analysis-jobs-db.js';
+import {claimJob,advanceJob,renewJobLease,completedCaseBaselines} from './customer-analysis-jobs-db.js';
+import {findDeltaBaseline,verifyDeltaPlan} from '../lib/customer-delta-reanalysis.mjs';
+import {runDeltaReviewStep} from './customer-delta-worker.mjs';
 import {get} from '@vercel/blob';
 export const maxDuration=300;
 const VISUAL_WINDOW_CONCURRENCY=3;
@@ -79,9 +81,42 @@ export default async function handler(req,res){
  if(meta.some(x=>!x.id||!Number.isSafeInteger(x.pageCount)||x.pageCount<1||!/^[a-f0-9]{64}$/.test(x.sha256||'')))throw Error('DOCUMENT_METADATA_INVALID');
  if(new Set(meta.map(x=>x.id)).size!==meta.length)throw Error('DUPLICATE_DOCUMENT_METADATA');
  if(meta.length===0)throw Error('EMPTY_CASE_DOCUMENTS');
- const docs=meta.sort((a,b)=>a.id.localeCompare(b.id)),version=createHash('sha256').update(JSON.stringify(docs.map(d=>[d.id,d.sha256,d.pageCount]).sort((a,b)=>a[0].localeCompare(b[0])))).digest('hex');
+ let docs=meta.sort((a,b)=>a.id.localeCompare(b.id));
+ const fullDocs=docs;
+ const version=createHash('sha256').update(JSON.stringify(docs.map(d=>[d.id,d.sha256,d.pageCount]).sort((a,b)=>a[0].localeCompare(b[0])))).digest('hex');
  if(version!==job.documentVersion){await advanceJob(job,'source_changed',{expected:job.documentVersion,actual:version},'blocked','SOURCE_VERSION_CHANGED');return res.status(200).json({status:'blocked',reason:'SOURCE_VERSION_CHANGED'})}
 
+ // Completed reports may be reused ONLY for a strict addition of immutable PDFs.
+ // Never infer a baseline from unverified, replaced, or deleted evidence.
+ if(!job.checkpoint?.delta&&job.checkpoint?.nextDocument===undefined&&
+  !job.checkpoint?.textReviewManifest&&!job.checkpoint?.phase){
+  const candidates=await completedCaseBaselines(job);
+  const baseline=await findDeltaBaseline({jobs:candidates,documents:fullDocs,load});
+  if(baseline){
+   const prior=await load(baseline.baselineReportPath);
+   if(prior?.clientRole===registry.intake?.clientRole){
+    await advanceJob(job,'delta_evidence_selected',{
+     delta:baseline,phase:'extract',nextDocument:0,nextPage:0,
+     documentCount:baseline.addedDocuments.length},'retry');
+    return res.status(200).json({status:'retry',stage:'delta_evidence_selected',
+     addedDocuments:baseline.addedDocuments.length,baselineJobId:baseline.baselineJobId});
+   }
+  }
+ }
+ if(job.checkpoint?.delta){
+  docs=verifyDeltaPlan(job.checkpoint.delta,fullDocs);
+  if(!docs.length)throw Error('DELTA_EVIDENCE_EMPTY');
+  if(['impact','revision','finalize'].includes(job.checkpoint.delta.stage)){
+   if(process.env.SQUIDLAW_LEGAL_API_ENABLED!=='true'||!process.env.OPENAI_API_KEY){
+    await advanceJob(job,'delta_legal_api_approval_pending',job.checkpoint,'blocked','LEGAL_API_NOT_ENABLED');
+    return res.status(200).json({status:'blocked',reason:'LEGAL_API_NOT_ENABLED'});
+   }
+   const outcome=await runDeltaReviewStep({job,previous:job.checkpoint,documents:fullDocs,
+    prefix,load,put,advanceJob,apiKey:process.env.OPENAI_API_KEY,
+    model:process.env.SQUIDLAW_LEGAL_MODEL||'gpt-5.4'});
+   return res.status(200).json(outcome);
+  }
+ }
  const previous=job.checkpoint||{};
  const extractionOnly=previous.phase==='extract'||(previous.nextDocument===undefined&&previous.phase===undefined);
  if(previous.nextDocument!==undefined&&!Number.isSafeInteger(previous.nextDocument))throw Error('INVALID_DOCUMENT_CHECKPOINT');
@@ -358,6 +393,26 @@ export default async function handler(req,res){
    await advanceJob(job,'completion_gates_pending',{...previous,semanticAuditPassed:true,semanticAuditTotal:report.findings.length,completionReconciliation:finalPath,missingGates:completion.missing},'blocked','COMPLETION_GATES_PENDING');
    return res.status(200).json({status:'blocked',reason:'COMPLETION_GATES_PENDING',missing:completion.missing});
   }
+  // Newly submitted documents have passed the full verification gates.
+  // Do not represent the combined report as complete until affected
+  // findings have been compared and independently audited as well.
+  if(previous.delta){
+   const reviewedDelta={...report,status:'reviewed',notForCourtSubmission:false,
+    legalConclusionAvailable:true,independentSemanticAuditPassed:true,
+    issues:report.issues.filter(x=>x!=='INDEPENDENT_SEMANTIC_AUDIT_PENDING'),
+    warning:'신규 제출자료에 한정하여 독립 검증 완료. 기존 분석과의 변경 검토 대기 중.'};
+   const deltaReportPath=root+'delta-new-evidence-reviewed.json';
+   const saved=await load(deltaReportPath);
+   const sig=o=>createHash('sha256').update(JSON.stringify(o)).digest('hex');
+   if(saved&&sig(saved)!==sig(reviewedDelta))throw Error('DELTA_EVIDENCE_REPORT_CONFLICT');
+   if(!saved)await put(deltaReportPath,JSON.stringify(reviewedDelta),
+    {access:'private',allowOverwrite:false,addRandomSuffix:false,contentType:'application/json'});
+   await advanceJob(job,'delta_impact_review_pending',{...previous,semanticAuditPassed:true,
+    delta:{...previous.delta,stage:'impact',impactCursor:0,impactPaths:[],
+     revisionCursor:0,revisionPaths:[],deltaReportPath,deltaGates:completion.gates}},'retry');
+   return res.status(200).json({status:'retry',stage:'delta_impact_review_pending',
+    verifiedNewFindings:reviewedDelta.findings.length});
+  }
   const finalReport={...report,status:'reviewed',notForCourtSubmission:false,legalConclusionAvailable:true,independentSemanticAuditPassed:true,issues:report.issues.filter(x=>x!=='INDEPENDENT_SEMANTIC_AUDIT_PENDING'),warning:'원본과 검증 결과를 확인한 후 제출 여부를 결정하세요.'};
   const finalReportPath=root+'legal-customer-report-final.json';
   await put(finalReportPath,JSON.stringify(finalReport),{access:'private',allowOverwrite:true,addRandomSuffix:false,contentType:'application/json'});
@@ -538,7 +593,7 @@ export default async function handler(req,res){
   return res.status(200).json({status:'retry',stage:'visual_independent_audit_completed'});
  }
  if(index===docs.length&&extractionOnly){
-  await advanceJob(job,'source_collection_completed',{phase:'analyze',nextDocument:0,nextPage:0,documentCount:docs.length,collectionCompletedAt:new Date().toISOString()},'retry');
+  await advanceJob(job,'source_collection_completed',{phase:'analyze',nextDocument:0,nextPage:0,documentCount:docs.length,collectionCompletedAt:new Date().toISOString(),...(previous.delta?{delta:previous.delta}:{})},'retry');
   return res.status(200).json({status:'retry',stage:'source_collection_completed',documents:docs.length});
  }
  if(index>=docs.length){
@@ -768,7 +823,7 @@ export default async function handler(req,res){
   }
  }else await put(output,JSON.stringify(payload),{access:'private',allowOverwrite:false,addRandomSuffix:false,contentType:'application/json'});
  const finished=batchIntegrity.finished;
- const checkpoint={nextDocument:finished?index+1:index,nextPage:finished?0:pageOffset+verifiedPages.length,documentCount:docs.length,lastDocumentId:d.id,lastOutput:output,verifiedTextDocuments:finished?index+1:index,errorAttempts:0};
+ const checkpoint={nextDocument:finished?index+1:index,nextPage:finished?0:pageOffset+verifiedPages.length,documentCount:docs.length,lastDocumentId:d.id,lastOutput:output,verifiedTextDocuments:finished?index+1:index,errorAttempts:0,...(previous.delta?{delta:previous.delta}:{})};
  if(finished&&index+1===docs.length){
   const root='squidlaw/analysis-jobs/'+job.customerKey+'/'+job.caseId+'/'+job.jobId+'/';
   const expected=expectedTextReviewOutputs({root,documents:docs});
