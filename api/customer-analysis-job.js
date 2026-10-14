@@ -1,3 +1,4 @@
+import {validClientRole} from '../lib/customer-case-intake.mjs';
 import {guard,respond,readJson,documents,casePrefix} from './customer-case.js';
 import {enqueueJob,getJob,resumeJob,queueSnapshot,documentVersion} from './customer-analysis-jobs-db.js';
 import {waitUntil} from '@vercel/functions';
@@ -15,6 +16,8 @@ export default async function handler(req,res){
  const caseId=String(req.query?.caseId||'');if(!idOk(caseId))return respond(res,400,{error:'사건 ID 오류'});
  const registry=await readJson(casePrefix(a.user,'_index').replace(/_index\/$/,'')+'registry/'+caseId+'.json').catch(()=>null);
  if(!registry||registry.id!==caseId)return respond(res,404,{error:'등록된 사건이 없습니다'});
+ if(req.method==='POST'&&!validClientRole(registry.intake?.clientRole))
+  return respond(res,409,{code:'CLIENT_ROLE_REQUIRED',error:'원고인가요, 피고인가요? 의뢰인 지위를 먼저 등록해 주세요.'});
  if(req.method==='GET'){
   const jobId=String(req.query?.jobId||'');if(!/^[0-9a-f-]{36}$/.test(jobId))return respond(res,400,{error:'작업 ID 오류'});
   try{const job=await getJob(a.user,caseId,jobId);// Background checkpoint dispatch is the primary path. A browser poll should
