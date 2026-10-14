@@ -82,7 +82,7 @@
   <label>피고 표시 <input id="caseDefendantName" maxlength="120" placeholder="소장에 적힌 피고 명칭"></label>
   <label class="case-claim-field">청구취지 <textarea id="caseClaimRelief" rows="2" maxlength="2800" placeholder="소장에 적힌 청구취지 (문서 업로드 후 확인 가능)"></textarea></label>
  </div>
- <p class="case-intake-note">사건번호·당사자·청구취지는 등록 당시 모르면 비워둘 수 있으며, 보고서 작성 시 제출된 원문으로 대조합니다. 확인되지 않은 내용은 만들어내지 않습니다.</p>
+ <p class="case-intake-note">법원 접수 사건은 분석 신청 전 사건번호·원고·피고·청구취지를 입력해 주세요. 입력한 사항이 보고서 맨 위에 표시됩니다.</p>
  <div class="case-intake-actions"><button type="button" id="saveCaseIntake">의뢰인 정보 저장</button><span id="caseIntakeStatus" role="status"></span></div>
 </section>
 <section class="case-chat" aria-label="내 사건 분석 대화창">
@@ -424,6 +424,10 @@ async function restoreFullReview(){if(!select.value)return;const id=sessionStora
 fullReviewButton.onclick=async()=>{
  if(!select.value){notice('먼저 사건을 등록해 주세요.','error');return}
  if(!currentCase()?.intake?.clientRole){notice('사건 전체 분석 전에 원고·피고 의뢰인 지위를 등록해 주세요.','error');return}
+ const meta=currentCase()?.intake;
+ if(meta?.isFiledCase&&['courtCaseNumber','plaintiffName','defendantName','claimRelief'].some(k=>!String(meta[k]||'').trim())){
+  notice('법원 접수 사건은 사건번호, 원고, 피고, 청구취지를 모두 저장한 뒤 분석을 신청해 주세요.','error');return;
+ }
  const existingId=sessionStorage.getItem('squidlaw-full-review:'+select.value);
  if(existingId){
   try{
