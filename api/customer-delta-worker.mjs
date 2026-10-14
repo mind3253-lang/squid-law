@@ -16,18 +16,6 @@ const uniqueRefs=findings=>{
  }
  return [...result.values()];
 };
-const terms=s=>new Set((String(s||'').toLowerCase().match(/[a-z0-9가-힣]{2,}/g)||[])
- .filter(w=>w.length>1&&!['원고','피고','주장','분석','증거','있다','한다'].includes(w)));
-function relevantNewFindings(oldFinding,newFindings){
- const keys=terms([oldFinding.claim,oldFinding.issueKey,oldFinding.plaintiffPosition,
-  oldFinding.defendantPosition].join(' '));
- return newFindings.map((finding,index)=>{
-  const words=terms([finding.claim,finding.issueKey,finding.contradiction,
-   finding.analysis].join(' '));
-  const overlap=[...words].reduce((s,w)=>s+(keys.has(w)?1:0),0);
-  return {finding,index,score:overlap+(oldFinding.issueKey&&oldFinding.issueKey===finding.issueKey?40:0)};
- }).sort((a,b)=>b.score-a.score||a.index-b.index).slice(0,8).map(x=>x.finding);
-}
 async function originalSourceUnits({findings,documents,prefix,load}){
  const byId=new Map(documents.map(d=>[d.id,d])),refs=uniqueRefs(findings);
  const batches=new Map();
@@ -89,11 +77,12 @@ export async function runDeltaReviewStep({job,previous,documents,prefix,load,put
    if(!apiKey)throw Error('OPENAI_API_KEY_MISSING');
    const response=await invokeDeltaModel({request:req,apiKey});
    cached={decisions:validateDeltaImpact({response:response.result,caseId:job.caseId,
-    sourceVersion:job.documentVersion,cursor,count}),model,usage:response.usage};
+    sourceVersion:job.documentVersion,cursor,count,newFindingCount:fresh.findings.length}),model,usage:response.usage};
    await write(put,path,cached);
   }else if(!Array.isArray(cached.decisions)||
    cached.decisions.length!==count||
-   cached.decisions.some((d,i)=>d.index!==cursor+i||typeof d.affected!=='boolean'))
+   cached.decisions.some((d,i)=>d.index!==cursor+i||typeof d.affected!=='boolean'||
+    !Array.isArray(d.newFindingIndices)||d.newFindingIndices.some(n=>!Number.isSafeInteger(n)||n<0||n>=fresh.findings.length)))
    throw Error('DELTA_IMPACT_CACHE_INVALID');
   await advanceJob(job,'delta_impact_checkpoint',{...previous,
    delta:{...delta,impactCursor:cursor+count,impactPaths:[...(delta.impactPaths||[]),path]}},'retry');
@@ -112,7 +101,7 @@ export async function runDeltaReviewStep({job,previous,documents,prefix,load,put
    return {status:'retry',stage:'delta_revisions_completed'};
   }
   const decision=affected[cursor],old=base.findings[decision.index];
-  const related=relevantNewFindings(old,fresh.findings);
+  const related=decision.newFindingIndices.map(index=>fresh.findings[index]);
   const sources=await originalSourceUnits({findings:[old,...related],documents,prefix,load});
   const sourceLength=sources.reduce((n,u)=>n+u.text.length,0);
   if(sourceLength>120000||sources.length>40)
