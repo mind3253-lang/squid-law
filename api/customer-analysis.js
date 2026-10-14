@@ -24,6 +24,8 @@ const send=respond;
 export default async function handler(req,res){
 if(req.method!=='POST')return send(res,405,{error:'POST만 허용됩니다.'});
 const auth=guard(req);if(auth.error)return send(res,auth.status,{error:auth.error});const user=auth.user;
+// The customer chat records case facts; paid legal analysis runs only through the full-case report job.
+return send(res,409,{code:'LEGAL_CHAT_DISABLED',error:'채팅방에서는 개별 법률 상담을 제공하지 않습니다. 사건 메모를 저장하거나 사건 분석보고서를 신청해 주세요.'});
 if(!process.env.OPENAI_API_KEY)return send(res,503,{error:'AI 서비스 설정이 필요합니다.'});
 if(!(process.env.SQUID_CUSTOMER_DATABASE_URL||process.env.SQUID_CUSTOMER_DATABASE_DATABASE_URL))return send(res,503,{code:'LEASE_UNAVAILABLE',error:'중복 분석 방지용 실행권 저장소가 준비되지 않았습니다. 데이터 보호를 위해 분석을 일시 중단합니다.'});
 if(Number(req.headers['content-length']||0)>85000)return send(res,413,{error:'요청이 너무 큽니다.'});
