@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {normalizeCaseIntake,intakeForReport,validClientRole} from '../lib/customer-case-intake.mjs';
+import {normalizeCaseIntake,intakeForReport,validClientRole,filedCaseHeadingComplete} from '../lib/customer-case-intake.mjs';
 import {buildCustomerAnalysisBrief,SQUIDLAW_REPORT_CLOSING} from '../lib/customer-analysis-brief.mjs';
 import {readFileSync} from 'node:fs';
 const src=p=>readFileSync(new URL('../'+p,import.meta.url),'utf8');
@@ -24,6 +24,9 @@ test('plaintiff or defendant is mandatory; court metadata is optional at intake'
  assert.throws(()=>normalizeCaseIntake({clientRole:'both'}),/원고인가요/);
  assert.deepEqual(normalizeCaseIntake({...metadata}),metadata);
  assert.equal(validClientRole('defendant'),true);
+ assert.equal(filedCaseHeadingComplete(record),true);
+ assert.equal(filedCaseHeadingComplete({intake:{clientRole:'plaintiff',isFiledCase:true}}),false);
+ assert.equal(filedCaseHeadingComplete({intake:{clientRole:'plaintiff',isFiledCase:false}}),true);
  assert.equal(intakeForReport(record).clientRoleLabel,'피고');
 });
 test('court style case, prayer, chapters and client-tailored results appear in that order',()=>{
