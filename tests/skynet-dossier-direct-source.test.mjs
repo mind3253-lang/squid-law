@@ -47,6 +47,8 @@ test('the exact failed answer is rejected, with no fabricated 258-page citations
  assert.equal(reportRequestsAlreadyIndexedPdf(rejected),true);
  assert.equal(reportHasInvalidPageCitations('[PDF 145쪽] 마지막 반박',146),false);
  assert.equal(reportHasInvalidPageCitations('[PDF 258쪽] 미확인 재반박',146),true);
+ assert.equal(reportHasInvalidPageCitations('[^1]: PDF 258쪽, 증거',146),true);
+ assert.equal(reportHasInvalidPageCitations('[^1]: PDF 145쪽, 증거',146),false);
  const chapters=CASE_DOSSIER_SECTIONS.map(section=>({
   id:section.id,
   text:'| 쟁점 | 원고 | 피고 | PDF 근거 |\n|---|---|---|---|\n'+
