@@ -41,7 +41,7 @@ test('full-record report has two concise customer-oriented evidence chapters',()
  assert.match(result,/청구취지/);
  assert.match(result,/채팅방에서 어떠한 법률 상담도 하지 않습니다/);
  assert.doesNotMatch(result,/날짜순 사실관계와 최신 서면 공방/);
- assert.match(result,/추가 시각 검증 대상:\*\* PDF 9쪽/);
+ assert.match(result,/별도 확인할 원본:\*\* PDF 9쪽/);
  for(const chapter of CASE_DOSSIER_SECTIONS)assert.ok(result.includes(chapter.title));
  assert.ok(result.indexOf('245쪽')<result.lastIndexOf('257쪽'));
  assert.throws(()=>assembleCaseDossier({sections:sections.slice(0,1),pageCount:258}),/INCOMPLETE/);
