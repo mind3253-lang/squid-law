@@ -12,20 +12,21 @@
 <div class="stat">진행 중<strong id="casePending">-</strong></div>
 <button id="reportButton" type="button" aria-expanded="false" aria-controls="reportList">완료 보고서<strong id="reportTotal">-</strong></button>
 </div>
-<section class="listing" id="caseList" hidden><h2>접수 사건 목록</h2><p class="hint">접수 순서대로 표시됩니다. 사건을 누르면 해당 사건의 작업 화면으로 이동합니다.</p><div id="caseRows"></div><div class="pager"><button type="button" id="prevPage">이전</button><span id="pageLabel"></span><button type="button" id="nextPage">다음</button></div></section>
+</section><section class="card warehouse" id="warehouse"><div id="warehouseHome"><h2>내 자료창고</h2><p class="hint">위의 내 사건 또는 완료 보고서를 선택하면 이곳에 목록이 표시됩니다.</p></div>
+<section class="listing" id="caseList" hidden><h2>접수 사건 목록</h2><p class="hint">접수 순서대로 10건씩 표시됩니다. 사건명을 누르면 등록 자료를 열람할 수 있습니다.</p><div id="caseRows"></div><div class="pager"><button type="button" id="prevPage">이전</button><span id="pageLabel"></span><button type="button" id="nextPage">다음</button></div></section>
 <section class="listing" id="reportList" hidden><h2>완료 보고서 목록</h2><div id="reportRows"></div></section>
 <section class="listing" id="reportView" hidden><h2 id="reportTitle">보고서</h2><div class="report-actions"><button id="reportBack" type="button">목록으로</button><button id="reportSave" type="button">텍스트 저장</button></div><p class="hint">한글·워드 출력은 별도 과금 기능이며 결제 및 출력 연결 전에는 제공되지 않습니다.</p><div class="report-body" id="reportText"></div></section>
-</section><section class="card warehouse" id="warehouse"><h2 id="warehouseTitle">사건 자료창고</h2><p class="hint">원본 자료는 열람만 가능하며 파일별 수정·삭제는 지원하지 않습니다.</p><h3>등록한 원본 자료</h3><div id="warehouseDocs">사건을 선택하면 등록한 원본 자료가 표시됩니다.</div><h3>분석 보고서</h3><div id="warehouseReports">사건을 선택하면 해당 보고서가 표시됩니다.</div><p id="caseWorkActions" hidden><a id="caseWorkLink" href="customer.html">이 사건의 기존 접수 화면으로 이동 →</a></p></section></main><footer class="site-footer">SQUID LAW · 법은 무료로. 내 사건은 근거로 분석.</footer>
+<section class="listing" id="caseDetail" hidden><h2 id="warehouseTitle">사건 자료</h2><p class="hint">원본 자료는 열람만 가능하며 개별 수정·삭제는 지원하지 않습니다.</p><h3>등록한 원본 자료</h3><div id="warehouseDocs"></div><h3>분석 보고서</h3><div id="warehouseReports"></div><p id="caseWorkActions" hidden><a id="caseWorkLink" href="customer.html">기존 사건 접수 화면으로 이동 →</a></p><button type="button" id="caseBack">사건 목록으로</button></section></section></main><footer class="site-footer">SQUID LAW · 법은 무료로. 내 사건은 근거로 분석.</footer>
 <script>
 (async()=>{
  const $=id=>document.getElementById(id);
  async function json(url){const r=await fetch(url,{credentials:'same-origin',cache:'no-store'});const d=await r.json();if(!r.ok)throw Error(d.error||'조회 실패');return d}
  const cases=[],reports=[];let currentReport=null,page=0,selectedCase=null;
- function switchPanel(panel){for(const id of ['caseList','reportList','reportView'])$(id).hidden=id!==panel;$('caseButton').setAttribute('aria-expanded',String(panel==='caseList'));$('reportButton').setAttribute('aria-expanded',String(panel==='reportList'||panel==='reportView'))}
+ function switchPanel(panel){for(const id of ['caseList','reportList','reportView','caseDetail'])$(id).hidden=id!==panel;$('warehouseHome').hidden=!!panel;$('caseButton').setAttribute('aria-expanded',String(panel==='caseList'));$('reportButton').setAttribute('aria-expanded',String(panel==='reportList'||panel==='reportView'))}
  function line(title,sub){const a=document.createElement('a');a.className='list-item';a.textContent=title;const small=document.createElement('small');small.textContent=sub;a.append(small);return a}
  $('caseButton').onclick=()=>switchPanel($('caseList').hidden?'caseList':null);
  $('reportButton').onclick=()=>switchPanel($('reportList').hidden?'reportList':null);
- $('reportBack').onclick=()=>switchPanel('reportList');
+ $('reportBack').onclick=()=>switchPanel('reportList');$('caseBack').onclick=()=>switchPanel('caseList');
  $('reportSave').onclick=()=>{if(!currentReport)return;const blob=new Blob([currentReport.text],{type:'text/plain;charset=utf-8'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='SQUIDLAW-'+currentReport.id+'.txt';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)};
  function renderCases(){
   const root=$('caseRows');root.replaceChildren();
@@ -33,7 +34,7 @@
   visible.forEach((c,i)=>{
    const row=document.createElement('div');row.className='case-row';
    const open=line((page*10+i+1)+'. '+c.title,new Date(c.createdAt).toLocaleDateString('ko-KR')+' · '+c.id);
-   open.href='#warehouse';open.onclick=e=>{e.preventDefault();void showWarehouse(c)};
+   open.href='#caseDetail';open.onclick=e=>{e.preventDefault();void showWarehouse(c)};
    const remove=document.createElement('button');remove.type='button';remove.className='delete-case';remove.textContent='전체삭제';
    remove.onclick=async()=>{
     if(!confirm('이 사건의 모든 원본 자료와 보고서가 영구 폐기됩니다. 계속하시겠습니까?'))return;
@@ -43,7 +44,7 @@
      const result=await response.json();if(!response.ok)throw Error(result.error||'삭제 실패');
      const idx=cases.findIndex(x=>x.id===c.id);if(idx>=0)cases.splice(idx,1);
      for(let i=reports.length-1;i>=0;i--)if(reports[i].caseId===c.id)reports.splice(i,1);
-     if(selectedCase===c.id){selectedCase=null;$('warehouseTitle').textContent='사건 자료창고';$('warehouseDocs').textContent='사건을 선택하면 등록한 원본 자료가 표시됩니다.';$('warehouseReports').textContent='사건을 선택하면 해당 보고서가 표시됩니다.';$('caseWorkActions').hidden=true}
+     if(selectedCase===c.id){selectedCase=null;switchPanel('caseList');$('caseWorkActions').hidden=true}
      $('caseTotal').textContent=cases.length;$('reportTotal').textContent=reports.length;
      $('reportRows').querySelectorAll('[data-case-id]').forEach(x=>{if(x.dataset.caseId===c.id)x.remove()});
      if(!reports.length)$('reportRows').textContent='완료된 보고서가 없습니다.';
@@ -61,7 +62,7 @@
  $('prevPage').onclick=()=>{if(page>0){page--;renderCases()}};
  $('nextPage').onclick=()=>{if((page+1)*10<cases.length){page++;renderCases()}};
  async function showWarehouse(c){
-  selectedCase=c.id;$('warehouse').hidden=false;$('caseWorkActions').hidden=false;
+  selectedCase=c.id;switchPanel('caseDetail');$('caseWorkActions').hidden=false;
   $('warehouseTitle').textContent=c.title+' · 사건 자료창고';
   $('caseWorkLink').href='customer.html?case='+encodeURIComponent(c.id);
   const docs=$('warehouseDocs'),out=$('warehouseReports');
