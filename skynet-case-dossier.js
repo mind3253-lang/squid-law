@@ -5,14 +5,14 @@
  * valuable when it retains material claims, their replies and precise source
  * positions, including the final pleadings. Never make up rows to fill a quota.
  */
-const CASE_DOSSIER_VERSION='squidlaw-case-brief-v3-two-chapters';
+const CASE_DOSSIER_VERSION='squidlaw-case-brief-v4-three-part-formal-report';
 const CASE_DOSSIER_SECTIONS=Object.freeze([
  Object.freeze({id:'claim-map',title:'제1장. 쟁점 도표 정리',
   focus:'청구취지와 반소 청구취지에 따라 청구액별 법적 원인, 결정적인 반박, 증거, 현재의 잠정 판단을 선별한다. 고객에게 유리한 점과 불리한 점을 함께 검토한다. 사건의 표지·절차 이력과 무관한 날짜별 주장 나열은 제외한다.',
   tables:'| 청구·핵심 쟁점 | 원고의 청구 이유 | 피고의 핵심 반박 | 결정적 증거·입증 공백 | 잠정 판단·위험 |'}),
- Object.freeze({id:'contradictions',title:'제2장. 모순 분석',
-  focus:'제1장의 쟁점에 영향을 미치는 당사자의 자기모순, 전후 주장 변화, 증거 충돌, 금액 중복 계산과 법리상 약점을 깊이 분석한다. 양측 주장이 다르다는 사실만으로 모순이라고 하지 않는다. 청구·방어에 미치는 효과, 강한 반론 및 약점, 확보해야 할 결정적인 증거를 논증한다.',
-  tables:'| 결정적 모순·충돌 | 대조되는 주장과 증거 | 청구·방어에 미치는 영향 | 반론·잔여 위험 |'})
+ Object.freeze({id:'contradictions',title:'제2장. 분석',
+  focus:'제1장의 핵심 쟁점별로 원고 : 주장, 피고 : 주장, 모순 : 입증 가능한 자기모순 또는 주장 불일치, 분석 : 증거와 입증 책임의 효과를 각각 구분하여 상세하게 기술한다. 주장 대립만으로 모순을 단정하지 않는다. 마지막에 의뢰인 관점의 증거보완과 전문가 검토 필요사항을 결과 1) 2) 3)으로 제시한다.',
+  tables:''})
 ]);
 function dossierClientPerspective(question){
  const q=String(question||'');
@@ -84,10 +84,16 @@ function dossierSectionPrompt(section,{question,mainNotes,lateNotes,pageCount,so
   '실제 질문: '+String(question||'').slice(0,4500)+' / PDF '+pageCount+'쪽 / 작성 범위: '+section.title,
   clientRule,
   '보고서는 오직 2장으로 구성합니다. 이 장에서 분석할 내용: '+section.focus,
-  '마크다운 파이프 표를 실제 생성하십시오. 표 형식: '+section.tables,
+  section.id==='claim-map'?
+   '이 장 맨 위에 정확히 [법원 사건표시]와 [/법원 사건표시] 사이에 4줄을 작성하십시오: 사건번호 : 원문 사건번호와 사건명 / 원고 : 원문에 표시된 원고 / 피고 : 원문에 표시된 피고 / 청구취지 : 소장에 적힌 정식 청구취지. 미확인 항목은 미확인이라고 표시하고 지어내지 마십시오. 이 블록은 결과 조립 시 제1장 위로 이동됩니다.':
+   '분석 뒤에 정확히 [보고서 결과]와 [/보고서 결과] 사이에 1) 의뢰인에게 필요한 상대 주장에 대한 법률적 대응과 증거보완 2) 의뢰인 자신의 전후 진술 불일치가 실제로 있는 경우 그 정리 (확인되지 않았다면 단정하지 않음) 3) 직접증거가 부족할 때 사실확인서 등 대안 검토를 작성하십시오. 결과 블록은 별도 제목으로 이동됩니다.',
+  section.id==='claim-map'?
+   '제1장은 마크다운 파이프 표를 실제 생성하십시오. 표 형식: '+section.tables:
+   '제2장은 표를 강제하지 않습니다. 쟁점별로 원고 : / 피고 : / 모순 : / 분석 : 네 항목을 정확히 분리하십시오.',
   '200~500쪽 원본이어도 전체 보고서는 약 A4 10쪽 이내가 목표입니다. 본 장은 '+(section.id==='claim-map'?'3천~4천5백':'4천5백~7천')+'자 내외로 쓰십시오.',
   '표와 해설에서 같은 사실을 반복하지 마십시오. 상대방 서면의 긴 축약본, 별도 연표, 절차 이력, 사건번호·당사자 소개의 반복을 금지합니다.',
   '쟁점마다 핵심 판단을 내려야 합니다. "확인 불가" 등의 변명성 문장을 반복하지 말고 결론에 영향을 주는 입증 공백만 짚으십시오.',
+  '사건 표시는 처음에 한 번만 적고, 의뢰인 역할을 모르면서 원고에게 맞춘 보고서를 쓰지 마십시오. 고객용 보고서에 대화체 반말을 사용하지 마십시오.',
   '표 아래에서 표 내용을 다시 설명하지 말고, 판단을 바꾸는 핵심 증거와 논리적 강약만 추가로 분석하십시오.',
   '원문 인용을 본문과 혼합하지 마십시오. 본문에 간단한 각주 표시 [^1]을 사용하고 맨 아래 각주 [^1]: PDF 00쪽, 해당 증거번호 등 검증된 위치를 모아 두십시오. 본문과 표에 [PDF 몇 쪽]을 반복해서 붙이지 말고 각 쟁점에 각주 하나를 우선 사용하십시오.',
   '가짜 페이지, 법률, 판결, 증거번호를 만들지 마십시오. 당사자 주장과 실제 법원 판단을 구별하십시오. 소송대리허가 상태 등 청구취지 판단에 무관한 사항은 서술하지 마십시오.',
@@ -99,6 +105,13 @@ function dossierSectionPrompt(section,{question,mainNotes,lateNotes,pageCount,so
   '\n[뒤쪽 제출서면 검토 노트]\n'+lateNotes
  ].join('\n\n');
 }
+function extractDossierBlock(source,startTag,endTag){
+ const begin=source.indexOf(startTag),end=source.indexOf(endTag);
+ if(begin<0||end<=begin)return {text:'',remaining:source};
+ return {text:source.slice(begin+startTag.length,end).trim(),
+  remaining:(source.slice(0,begin)+source.slice(end+endTag.length)).trim()};
+}
+const SQUIDLAW_CUSTOMER_CLOSING='스키드로우는 분석 및 전문가(변호사 등)가 사건을 신속하게 판단하도록, 결과물을 제공하고 있으며, 채팅방에서 어떠한 법률 상담도 하지 않습니다. 자세한 사항은 전문가와 상의를 하시기 바랍니다. 감사합니다.';
 function assembleCaseDossier({sections,pageCount,sourceName,ocrRequired=[],question=''}){
  if(!Array.isArray(sections)||sections.length!==CASE_DOSSIER_SECTIONS.length||
   sections.some((x,i)=>x?.id!==CASE_DOSSIER_SECTIONS[i].id||
@@ -106,9 +119,19 @@ function assembleCaseDossier({sections,pageCount,sourceName,ocrRequired=[],quest
   throw Error('DOSSIER_SECTION_INCOMPLETE');
  if(!Number.isSafeInteger(pageCount)||pageCount<1)throw Error('INVALID_DOSSIER_PAGE_COUNT');
  const side=dossierClientPerspective(question);
- const intro='# 사건기록 분석보고서\n\n**원본:** '+String(sourceName||'PDF')+' ('+pageCount+'쪽) · **검토 관점:** '+(side==='중립'?'양측 비교':side+' 측')+'\n';
- const report=intro+sections.map((s,i)=>'\n\n## '+CASE_DOSSIER_SECTIONS[i].title+'\n\n'+s.text.trim()).join('')+
-  (ocrRequired.length?'\n\n**추가 시각 검증 대상:** PDF '+ocrRequired.join(', ')+'쪽.':'');
+ const header=extractDossierBlock(sections[0].text,'[법원 사건표시]','[/법원 사건표시]');
+ const outcome=extractDossierBlock(sections[1].text,'[보고서 결과]','[/보고서 결과]');
+ const info=header.text||'사건번호 : 원문 확인 필요\n원고 : 원문 확인 필요\n피고 : 원문 확인 필요\n청구취지 : 소장 원문 확인 필요';
+ const intro='# 사건기록 분석보고서\n\n'+info+
+  '\n의뢰인 : '+(side==='중립'?'의뢰인 지위 미지정 (원고·피고 선택 필요)':side)+
+  '\n\n';
+ const conclusion=outcome.text||'1) 의뢰인의 상대방 주장에 대한 증거와 반박을 정리해야 합니다.\n\n2) 주장 변경 및 자료 사이의 불일치가 실제 확인되는지 대조해야 합니다.\n\n3) 입증에 필요한 직접증거와 사실확인서 등 보완 가능성을 전문가와 검토할 필요가 있습니다.';
+ const report=intro+
+  '## '+CASE_DOSSIER_SECTIONS[0].title+'\n\n'+header.remaining+
+  '\n\n## '+CASE_DOSSIER_SECTIONS[1].title+'\n\n'+outcome.remaining+
+  '\n\n## 제3장. 결과\n\n'+conclusion+
+  (ocrRequired.length?'\n\n**별도 확인할 원본:** PDF '+ocrRequired.join(', ')+'쪽.':'')+
+  '\n\n'+SQUIDLAW_CUSTOMER_CLOSING;
  if(report.length>28000)throw Error('DOSSIER_EXCESSIVE_OUTPUT');
  return report;
 }
