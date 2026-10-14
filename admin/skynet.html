@@ -1246,6 +1246,18 @@ async function analyzeAttachedDocuments(docs,question,previous,effort,saveAnswer
  }
  const allNotes=[],meta=[],lateSourceNotes=[],pageCounts=[],ocrByDocument=[],originalSourceWindows=[];
  const questionHash=await reviewFingerprint('skynet-pdf-review-v5-dossier-with-original-text\n'+reviewPromptQuestion.trim()+'\n'+effort);
+ // Reuse a completed immutable report for the exact same source and question.
+ // Check BEFORE fetching every PDF page or starting any billed model step.
+ if(docs.length===1&&/\\.pdf$/i.test(String(docs[0].name||''))){
+  const cachedHash=await reviewFingerprint('skynet-pdf-review-v5-dossier-with-original-text\\n'+reviewPromptQuestion.trim()+'\\n'+effort);
+  try{
+   const cached=await reviewJobRequest('status',{documentHash:docs[0].hash,questionHash:cachedHash});
+   if(cached.complete&&typeof cached.report==='string'&&cached.report.trim()){
+    await saveAnswer('[저장된 PDF 분석 보고서 · 재분석 없음]\\n\\n'+cached.report,'cached-pdf-report');
+    return;
+   }
+  }catch(e){if(e.status!==404)throw e;}
+ }
  for(let d=0;d<docs.length;d++){
   const doc=docs[d];
   let offset=0,position=0,chunks=[],pageCount=null,ocrRequired=[];
