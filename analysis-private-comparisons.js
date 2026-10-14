@@ -19,18 +19,25 @@ export async function runPrivateComparisons(documents,{
  if(report.leads.length===0){
   return {schema:'squidlaw-private-comparisons-v1',comparisons:[],diagnostics:{processed:0,sourceVerified:0,reason:'NO_SHARED_REFERENCE_LEADS'},sourceReady:true,limitation:'공통 증거번호를 통한 비교 후보가 없습니다. 비교 분석을 수행하지 않았으며, 모순이 없거나 전체 검토가 완료되었다는 뜻이 아닙니다.'};
  }
- const comparisons=[];
- for(const lead of report.leads){
-  const remaining=deadlineAt===undefined?undefined:deadlineAt-Date.now();
-  if(remaining!==undefined&&remaining<1000)throw Error('MODEL_REQUEST_TIMEOUT');
-  const callTimeout=remaining===undefined?timeoutMs:Math.min(timeoutMs??30000,remaining,120000);
-  const result=await compare(documents,lead,{enabled:true,apiKey,model,fetchImpl,...(callTimeout===undefined?{}:{timeoutMs:Math.floor(callTimeout)})});
-  if(!result||result.sourceReady!==true)throw Error('COMPARISON_RESULT_NOT_READY');
-  // Never trust a caller-provided sourceReady flag or precomputed checks.
-  const verified=validateComparisonResponse(documents,lead,result);
-  if(!verified.sourceReady)throw Error('COMPARISON_RESULT_NOT_READY');
-  comparisons.push(verified);
- }
+ const comparisons=new Array(report.leads.length);
+ let next=0,firstError=null;
+ const worker=async()=>{
+  while(next<report.leads.length&&!firstError){
+   const index=next++,lead=report.leads[index];
+   try{
+    const remaining=deadlineAt===undefined?undefined:deadlineAt-Date.now();
+    if(remaining!==undefined&&remaining<1000)throw Error('MODEL_REQUEST_TIMEOUT');
+    const callTimeout=remaining===undefined?timeoutMs:Math.min(timeoutMs??30000,remaining,120000);
+    const result=await compare(documents,lead,{enabled:true,apiKey,model,fetchImpl,...(callTimeout===undefined?{}:{timeoutMs:Math.floor(callTimeout)})});
+    if(!result||result.sourceReady!==true)throw Error('COMPARISON_RESULT_NOT_READY');
+    const verified=validateComparisonResponse(documents,lead,result);
+    if(!verified.sourceReady)throw Error('COMPARISON_RESULT_NOT_READY');
+    comparisons[index]=verified;
+   }catch(error){firstError=firstError||error;}
+  }
+ };
+ await Promise.all(Array.from({length:Math.min(2,report.leads.length)},()=>worker()));
+ if(firstError)throw firstError;
  return {
   schema:'squidlaw-private-comparisons-v1',
   comparisons,
