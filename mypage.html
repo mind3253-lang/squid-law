@@ -37,8 +37,7 @@
   for(let i=0;i<reports.length;i++){const r=reports[i];const a=line((i+1)+'. '+r.caseTitle+' · '+(r.question||'분석 보고서'),new Date(r.createdAt).toLocaleDateString('ko-KR'));a.href='#report';a.dataset.caseId=r.caseId;a.onclick=e=>{e.preventDefault();void openReport(r)};$('reportRows').append(a)}
   if(!reports.length)$('reportRows').textContent='완료된 보고서가 없습니다.';
  }catch(e){$('caseTotal').textContent='-';$('reportTotal').textContent='-';$('caseRows').textContent='목록 조회 실패: '+e.message;$('reportRows').textContent='보고서 목록을 불러오지 못했습니다.'}
-})();
-</script></body></html function renderCases(){
+})(); function renderCases(){
   const root=$('caseRows');root.replaceChildren();
   const visible=cases.slice(page*10,page*10+10);
   visible.forEach((c,i)=>{
