@@ -62,8 +62,8 @@ function directIndexedPdfExcerpt(windows,section,{maxCharacters=33000}={}){
 }
 function reportHasInvalidPageCitations(text,pageCount){
  if(!Number.isSafeInteger(pageCount)||pageCount<1)return true;
- const matches=String(text||'').matchAll(/\[PDF\s*(\d+)\s*쪽\]/g);
- for(const m of matches)if(Number(m[1])<1||Number(m[1])>pageCount)return true;
+ const matches=String(text||'').matchAll(/(?:\[PDF\s*(\d+)\s*쪽\]|\bPDF\s*(\d+)\s*쪽)/g);
+ for(const m of matches)if(Number(m[1]||m[2])<1||Number(m[1]||m[2])>pageCount)return true;
  return false;
 }
 function reportRequestsAlreadyIndexedPdf(text){
