@@ -49,7 +49,7 @@ test('cannot invent a self contradiction or assume unidentified party',()=>{
  assert.match(brief.text,/의뢰인 : 원고/);
  assert.match(brief.text,/진술과 제출서면이 서로 다른 부분을 구분/);
  assert.doesNotMatch(brief.text,/진술의 전후 차이가 자료에 나타나므로/);
- assert.match(brief.text,/해당 당사자의 주장이 별도로 특정되지 않았습니다/);
+ assert.match(brief.text,/원문 분석에서 주장 주체 미분류/);
  assert.throws(()=>buildCustomerAnalysisBrief({caseRecord:{intake:{}},report:{findings:[]}}),/CLIENT_ROLE_REQUIRED/);
 });
 test('customer API and UI require intake; customer chat no longer bills AI advice',()=>{
