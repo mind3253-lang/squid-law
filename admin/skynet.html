@@ -1539,8 +1539,7 @@ el("sendChat").onclick=async()=>{
    if(item.role==='assistant'&&item.archive&&/\.hwpx?$/i.test(item.archive.name||'')){
     candidates.unshift(item.archive);continue;
    }
-   if(candidates.length)break;
-   if(item.role==='user'&&!/^\s*📎/u.test(item.content||''))break;
+   if(candidates.length&&item.role==='user')break;
   }
   if(!candidates.length){
    const names=[];
@@ -1548,8 +1547,7 @@ el("sendChat").onclick=async()=>{
     const content=String(history[i].content||'');
     const match=content.match(/^📎\s+(.+?\.hwpx?)\s+·\s+(?:서버 원본 저장 완료|원본 저장 및 색인 확인|서버 저장 완료)/i);
     if(match){names.unshift(match[1]);continue}
-    if(names.length)break;
-    if(history[i].role==='user'&&!/^\s*📎/u.test(content))break;
+    if(names.length&&history[i].role==='user')break;
    }
    if(!names.length)return [];
    const resp=await fetch('/admin/skynet-warehouse?mode=hwp-retry',{credentials:'same-origin',cache:'no-store'});
