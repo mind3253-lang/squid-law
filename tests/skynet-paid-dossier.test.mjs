@@ -23,7 +23,8 @@ test('full-record report has two concise customer-oriented evidence chapters',()
   assert.match(prompt,/245쪽/);
   assert.match(prompt,/257쪽/);
   assert.match(prompt,/서버 내부 Blob 경로/);
-  assert.match(prompt,/마크다운 파이프 표/);
+  if(chapter.id==='claim-map')assert.match(prompt,/마크다운 파이프 표/);
+  else assert.match(prompt,/원고.*피고.*모순/s);
  }
  const sections=CASE_DOSSIER_SECTIONS.map(x=>({
   id:x.id,text:'| 쟁점 | 주장 | 반박 |\n|---|---|---|\n| 차임 | 주장의 위치 [PDF 245쪽] | 반박 [PDF 257쪽] |\n이 장에서 관련 쟁점을 구체적으로 검토하고 다른 사건의 상계를 구분해 재검증해야 한다.'
@@ -35,7 +36,10 @@ test('full-record report has two concise customer-oriented evidence chapters',()
  assert.equal(dossierClientPerspective('사건 전체를 분석해줘'),'중립');
  assert.match(dossierSectionPrompt(CASE_DOSSIER_SECTIONS[0],{question:'피고 입장에서 분석해줘',pageCount:258,mainNotes:'근거',lateNotes:'반박',sourceExcerpts:'[실제 색인 PDF 원문]'}),/의뢰인은 피고입니다/);
  assert.match(result,/제1장\. 쟁점 도표 정리/);
- assert.match(result,/제2장\. 모순 분석/);
+ assert.match(result,/제2장\. 분석/);
+ assert.match(result,/제3장\. 결과/);
+ assert.match(result,/청구취지/);
+ assert.match(result,/채팅방에서 어떠한 법률 상담도 하지 않습니다/);
  assert.doesNotMatch(result,/날짜순 사실관계와 최신 서면 공방/);
  assert.match(result,/추가 시각 검증 대상:\*\* PDF 9쪽/);
  for(const chapter of CASE_DOSSIER_SECTIONS)assert.ok(result.includes(chapter.title));
