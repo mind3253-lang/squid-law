@@ -67,7 +67,7 @@ export async function runDeltaReviewStep({job,previous,documents,prefix,load,put
   throw Error('DELTA_CHECKPOINT_INVALID');
  const base=await load(delta.baselineReportPath);
  const fresh=await load(delta.deltaReportPath);
- if(!base||!fresh||base.caseId!==job.caseId||fresh.caseId!==job.caseId||
+ if(!base||!fresh||sha(json(base))!==delta.baselineReportSha256||base.caseId!==job.caseId||fresh.caseId!==job.caseId||
   base.sourceVersion!==delta.baselineVersion||fresh.sourceVersion!==job.documentVersion||
   base.notForCourtSubmission!==false||fresh.independentSemanticAuditPassed!==true||
   !Array.isArray(base.findings)||!Array.isArray(fresh.findings)||
