@@ -327,6 +327,10 @@ legalReportButton.style.cssText='margin:8px;padding:10px 16px;border-radius:8px;
 feedback.parentElement.appendChild(legalReportButton);
 function showLegalReport(report){
  legalReportPanel.replaceChildren();legalReportPanel.hidden=false;
+ if(typeof report.briefText==='string'&&report.briefText.trim()){
+  renderCaseMarkdown(legalReportPanel,report.briefText);
+  return;
+ }
  const add=(tag,value)=>{const el=document.createElement(tag);el.textContent=String(value);legalReportPanel.appendChild(el);return el};
  add('h3',report.title||'법률 분석 보고서');
  add('p',report.warning||'검증 상태를 확인하세요.');
