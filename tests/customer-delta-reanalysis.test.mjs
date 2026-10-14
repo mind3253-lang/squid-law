@@ -7,6 +7,7 @@ import {findDeltaBaseline,verifyDeltaPlan,buildDeltaImpactRequest,validateDeltaI
  buildDeltaRevisionRequest,validateDeltaRevision,buildMergedDeltaReport,inheritDeltaGates,
  invokeDeltaModel} from '../lib/customer-delta-reanalysis.mjs';
 import {runDeltaReviewStep} from '../api/customer-delta-worker.mjs';
+import {buildCustomerAnalysisBrief} from '../lib/customer-analysis-brief.mjs';
 
 const hash=s=>createHash('sha256').update(s).digest('hex');
 const doc=(id,content)=>({id,sha256:hash(content),pageCount:1});
@@ -99,6 +100,22 @@ test('merged report leaves unrelated old evidence and conclusions unchanged, rec
  assert.throws(()=>buildMergedDeltaReport({baseline:oldReport,deltaReport:freshReport,
   decisions,revisions:[],sourceVersion:nowVersion,baselineVersion:prevVersion,
   addedDocs:[after],documentSnapshot:[before,after]}),/REVISION_MISSING/);
+});
+
+test('customer report exposes new evidence, before/after conclusions and page anchors',()=>{
+ const report=buildMergedDeltaReport({baseline:oldReport,deltaReport:freshReport,
+  decisions:[{index:0,affected:true,reason:'새 계약 관련 자료',newFindingIndices:[0]},
+   {index:1,affected:false,reason:'무관',newFindingIndices:[]}],
+  revisions:[{index:0,finding:{...oldFinding,claim:'신규 증거 반영 결과',
+   sources:[oldRef,newRef]}}],
+  sourceVersion:nowVersion,baselineVersion:prevVersion,
+  addedDocs:[after],documentSnapshot:[before,after]});
+ const brief=buildCustomerAnalysisBrief({caseRecord:{intake:{clientRole:'defendant',
+  isFiledCase:false}},report,documents:[{id:'old',name:'원본.pdf'},{id:'new',name:'추가자료.pdf'}]});
+ assert.match(brief.text,/신규 증거에 따른 변경 내역/);
+ assert.match(brief.text,/기존 판단 : 기간이 5년입니다/);
+ assert.match(brief.text,/변경 판단 : 신규 증거 반영 결과/);
+ assert.match(brief.text,/추가자료.pdf 1쪽/);
 });
 
 test('finalization checkpoint reuses reviewed delta decisions, never calls GPT',async()=>{
