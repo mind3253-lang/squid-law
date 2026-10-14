@@ -224,18 +224,31 @@ async function uploadLarge(f){
   saved.id:crypto.randomUUID();
  const next=saved?.id===id&&Number.isSafeInteger(saved.next)?Math.min(total,saved.next):0;
  sessionStorage.setItem(key,JSON.stringify({id,total,next}));
- for(let i=next;i<total;i++){
-  notice('📤 '+f.name+' · 업로드 '+Math.round(i/total*100)+'%');
-  const r=await fetch('/api/customer-large-upload?caseId='+encodeURIComponent(select.value)+
-   '&action=chunk&uploadId='+id+'&index='+i+'&total='+total,{
-    method:'POST',credentials:'same-origin',
-    headers:{'content-type':'application/octet-stream'},
-    body:f.slice(i*unit,Math.min(f.size,(i+1)*unit))
-   });
-  const j=await r.json().catch(()=>({}));
-  if(!r.ok)throw Error(j.error||'PDF 조각 전송 실패');
-  sessionStorage.setItem(key,JSON.stringify({id,total,next:i+1}));
- }
+ // Upload independent 1 MiB chunks with bounded concurrency. Only persist the
+ // contiguous acknowledged prefix so retries never skip an unconfirmed chunk.
+ let cursor=next,confirmed=next,firstError=null;
+ const finished=new Set();
+ const worker=async()=>{
+  while(cursor<total&&!firstError){
+   const i=cursor++;
+   try{
+    const r=await fetch('/api/customer-large-upload?caseId='+encodeURIComponent(select.value)+
+     '&action=chunk&uploadId='+id+'&index='+i+'&total='+total,{
+      method:'POST',credentials:'same-origin',
+      headers:{'content-type':'application/octet-stream'},
+      body:f.slice(i*unit,Math.min(f.size,(i+1)*unit))
+     });
+    const j=await r.json().catch(()=>({}));
+    if(!r.ok)throw Error(j.error||'PDF 조각 전송 실패');
+    finished.add(i);
+    while(finished.has(confirmed)){finished.delete(confirmed);confirmed++;}
+    sessionStorage.setItem(key,JSON.stringify({id,total,next:confirmed}));
+    notice('📤 '+f.name+' · 업로드 '+Math.round(confirmed/total*100)+'%');
+   }catch(e){firstError=firstError||e;}
+  }
+ };
+ await Promise.all(Array.from({length:Math.min(3,total-next)},()=>worker()));
+ if(firstError)throw firstError;
  notice('📄 '+f.name+' · 서버에서 원본 확인 및 페이지 수 등록 중');
  const r=await fetch('/api/customer-large-upload?caseId='+encodeURIComponent(select.value)+
   '&action=stage&uploadId='+id,{
