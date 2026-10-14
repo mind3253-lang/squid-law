@@ -132,7 +132,8 @@ test('worker routes additions ahead of old-document extraction; non-delta full p
  assert.match(worker,/docs=verifyDeltaPlan\(job\.checkpoint\.delta,fullDocs\)/);
  assert.match(worker,/runDeltaReviewStep/);
  assert.match(worker,/delta_impact_review_pending/);
- assert.match(worker,/deltaDocumentSnapshot/);
+ const incremental=readFileSync(new URL('../api/customer-delta-worker.mjs',import.meta.url),'utf8');
+ assert.match(incremental,/deltaDocumentSnapshot/);
 });
 
 test('GPT usage is never invoked for an invalid or unsuccessful delta response',async()=>{
