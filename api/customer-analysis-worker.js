@@ -211,7 +211,7 @@ export default async function handler(req,res){
    await advanceJob(job,'legal_api_approval_pending',previous,'blocked','LEGAL_API_NOT_ENABLED');
    return res.status(200).json({status:'blocked',reason:'LEGAL_API_NOT_ENABLED'});
   }
-  const authorized={...request,clientRole:registry.intake?.clientRole||request.clientRole||null,ready:true,status:'authorized_after_visual_review'};
+  const authorized={...request,clientRole:request.clientRole||registry.intake?.clientRole||null,ready:true,status:'authorized_after_visual_review'};
   const task=authorized.requestedTasks?.[previous.legalTaskIndex||0];
   if(!task)throw Error('INVALID_LEGAL_TASK');
   const cursor=previous.legalCursor||0;
@@ -278,7 +278,7 @@ export default async function handler(req,res){
   const windows=await Promise.all(paths.map(p=>load(p)));
   // Each task restarts its cursor; build a report per task and keep all outputs as unverified.
   const reports=authorized.requestedTasks.map(t=>buildLegalCustomerReport({request:authorized,windows:windows.filter(w=>w.task===t),sourceIndex:sourceIndex.sources}));
-  const report={...reports[0],findings:reports.flatMap(r=>r.findings),uncertainties:reports.flatMap(r=>r.uncertainties),issues:[...new Set(reports.flatMap(r=>r.issues))],sourceCoverage:{tasks:reports.length,processedUnits:units.length},sourceReviewCoverage:reports.find(r=>r.sourceReviewCoverage?.task==='claims_and_rebuttals')?.sourceReviewCoverage||{complete:false,reviewedUnits:0,totalUnits:units.length},status:'draft_pending_verification',notForCourtSubmission:true,legalConclusionAvailable:false,independentSemanticAuditPassed:false};
+  const report={...reports[0],clientRole:authorized.clientRole,findings:reports.flatMap(r=>r.findings),uncertainties:reports.flatMap(r=>r.uncertainties),issues:[...new Set(reports.flatMap(r=>r.issues))],sourceCoverage:{tasks:reports.length,processedUnits:units.length},sourceReviewCoverage:reports.find(r=>r.sourceReviewCoverage?.task==='claims_and_rebuttals')?.sourceReviewCoverage||{complete:false,reviewedUnits:0,totalUnits:units.length},status:'draft_pending_verification',notForCourtSubmission:true,legalConclusionAvailable:false,independentSemanticAuditPassed:false};
   const reportPath=root+'legal-customer-report.json';
   await put(reportPath,JSON.stringify(report),{access:'private',allowOverwrite:true,addRandomSuffix:false,contentType:'application/json'});
   await advanceJob(job,'legal_reasoning_independent_review_pending',{...previous,legalTaskIndex:nextTask,legalCursor:0,legalWindowPaths:paths,legalCustomerReport:reportPath},'retry');
