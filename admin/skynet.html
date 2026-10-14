@@ -1196,8 +1196,12 @@ async function compileSkynetCaseDossier({
     if(contract.reportRequestsAlreadyIndexedPdf(summary))
      throw Error(section.title+' 장에서 이미 보관된 PDF 원문을 재요청했어. 잘못된 보고서는 완료 처리하지 않아.');
    }
-   if(summary.trim().length<120||!summary.includes('|'))
-    throw Error(section.title+' 장의 원문 비교표가 없으므로 완료 처리할 수 없어.');
+   if(summary.trim().length<120||
+    (section.id==='claim-map'&&!summary.includes('|'))||
+    (section.id==='contradictions'&&!/원고\s*[:：]/.test(summary))||
+    (section.id==='contradictions'&&!/피고\s*[:：]/.test(summary))||
+    (section.id==='contradictions'&&!/모순\s*[:：]/.test(summary)))
+    throw Error(section.title+' 장의 필수 분석 구조가 누락되어 완료 처리할 수 없어.');
    if(contract.reportHasInvalidPageCitations(summary,pageCount))
     throw Error(section.title+' 장에 원본 PDF '+pageCount+
      '쪽을 넘어서는 허위 페이지 근거가 있어 완료 처리하지 않아.');
