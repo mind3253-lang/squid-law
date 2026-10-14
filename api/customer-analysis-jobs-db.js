@@ -16,6 +16,16 @@ export async function enqueueJob(user,caseId,version){
   return publicJob(existing.rows[0]);
  });
 }
+// Completed jobs are potential immutable baselines for evidence-addition reanalysis.
+// Ownership is scoped by the same customer hash and case as the queued job.
+export async function completedCaseBaselines(job,limit=30){
+ if(!job?.customerKey||!job.caseId||!job.jobId)throw Error('INVALID_DELTA_BASELINE_LOOKUP');
+ return withLeaseDb(async db=>{
+  const r=await db.query("SELECT * FROM customer_analysis_jobs WHERE customer_key=$1 AND case_id=$2 AND job_id<>$3 AND status='completed' ORDER BY updated_at DESC LIMIT $4",
+   [job.customerKey,job.caseId,job.jobId,Math.min(100,Math.max(1,limit))]);
+  return r.rows.map(publicJob);
+ });
+}
 export async function getJob(user,caseId,id){return withLeaseDb(async db=>{const r=await db.query('SELECT * FROM customer_analysis_jobs WHERE customer_key=$1 AND case_id=$2 AND job_id=$3',[key(user),caseId,id]);return publicJob(r.rows[0])})}
 /**
  * A single GLOBAL customer-analysis lane. SKIP LOCKED on a job row is NOT a
