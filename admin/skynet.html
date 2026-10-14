@@ -1235,8 +1235,27 @@ async function analyzeAttachedDocuments(docs,question,previous,effort,saveAnswer
   return;
  }
  docs=selections.map(x=>x.doc);
+ // SKYNET delta: only explicit additional-evidence requests may reuse an older report.
+ // The prior PDF must differ, and its completed server report must be verified.
+ let deltaBaseline=null;
+ if(docs.length===1&&activeReview?.documentHash&&activeReview.documentHash!==docs[0].hash&&
+  /^[a-f0-9]{64}$/.test(activeReview.documentHash)&&
+  /^[a-f0-9]{64}$/.test(activeReview.questionHash)&&
+  /(?:추가|신규|새로운).{0,12}(?:증거|자료|서면|PDF|문서)|(?:증거|자료|서면).{0,12}(?:추가|제출)/u.test(question)){
+  try{
+   const old=await reviewJobRequest('status',activeReview);
+   if(old.complete&&typeof old.report==='string'&&old.report.trim()&&
+    old.report.length<=250000){
+    deltaBaseline={documentHash:activeReview.documentHash,questionHash:activeReview.questionHash,
+     name:old.name||activeReview.name,report:old.report};
+   }
+  }catch(e){if(e.status!==404)throw e;}
+  if(!deltaBaseline)throw Error('기존 사건의 완료 보고서를 확인하지 못했어. 비용이 드는 전체 재분석 대신 중단했어.');
+ }
  const sourceScope=selections.map(x=>x.sourceScope).filter(Boolean).join('\n');
  const reviewPromptQuestion=sourceScope?question+'\n\n[요청 사건과 실제 원문의 범위]\n'+sourceScope:question;
+ if(deltaBaseline&&sourceScope)throw Error('기존 사건과 신규 증거의 사건 범위가 일치하지 않아 차이 분석을 중단했어.');
+
  if(docs.length>5)throw Error('한 번에 분석할 수 있는 문서는 최대 5개야.');
  // Short one-call paths are reserved for explicit short requests; a substantive
  // casefile deserves chapter-by-chapter evidence analysis, regardless of size.
@@ -1417,7 +1436,23 @@ async function analyzeAttachedDocuments(docs,question,previous,effort,saveAnswer
   '특히 마지막 40% 구간의 공방과 최근 날짜의 준비서면을 반드시 별도 대조하고, 앞부분만 반복하지 마.\n\n'+
   '[원문 전 구간 검토·압축 노트]\n'+summaries+
   '\n\n[후반부 원문 공방 재검토 전용 노트]\n'+recentSource;
- const reply=docs.length===1&&/\.pdf$/i.test(String(docs[0].name||''))?
+ // Delta synthesis reuses the previous report verbatim as an immutable baseline.
+ // Only the new document goes through PDF text extraction and evidence review.
+ let deltaReply=null;
+ if(deltaBaseline){
+  const deltaPrompt='기존 사건의 확정된 분석 보고서와 이번에 새로 추가된 증거의 검토 노트다. '+
+   '기존 보고서의 쟁점을 하나씩 대조하여 변경 없음/보강/반박/신규 쟁점을 구분하라. '+
+   '기존 보고서에 없던 사실을 추정하지 말고 새 증거의 페이지 근거를 붙여라. '+
+   '기존 분석에서 변경 없는 결론은 유지하고 변경된 결론만 명시하라. '+
+   '최종 결과는 (1) 이전 보고서의 보존 사항 (2) 변경된 쟁점과 근거 (3) 신규 쟁점 (4) 통합 결론으로 구성하라. '+
+   '이전 보고서와 신규 증거가 같은 사건인지 확인할 수 없으면 병합하지 말고 그 이유를 밝혀라.\\n\\n'+
+   '[기존 완료 보고서 · '+deltaBaseline.name+']\\n'+deltaBaseline.report+
+   '\\n\\n[신규 증거 원문 검토 노트]\\n'+summaries+
+   '\\n\\n[신규 증거 후반부 검토 노트]\\n'+recentSource;
+  if(deltaPrompt.length>125000)throw Error('기존 보고서와 신규 증거 노트가 안전한 병합 한도를 초과했어. 유료 병합을 중단했어.');
+  deltaReply=await askReviewNoteWithRetry(deltaPrompt,effort,'신규 증거 차이 분석 및 기존 보고서 병합');
+ }
+ const reply=deltaReply||docs.length===1&&/\.pdf$/i.test(String(docs[0].name||''))?
   await compileSkynetCaseDossier({doc:docs[0],question:reviewPromptQuestion,effort,
    mainNotes:summaries,lateNotes:recentSource,
    pageCount:pageCounts[0],ocrRequired:ocrByDocument[0]||[],
