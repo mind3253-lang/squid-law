@@ -14,6 +14,6 @@ export default async function handler(req,res){
   const jobs=ids.length?await withLeaseDb(async db=>(await db.query("SELECT DISTINCT ON (case_id) case_id,status,created_at FROM customer_analysis_jobs WHERE customer_key=$1 AND case_id=ANY($2::text[]) ORDER BY case_id,created_at DESC",[userKey(auth.user),ids])).rows):[];
   const statuses=new Map(jobs.map(j=>[j.case_id,j.status]));
   const pending=cases.filter(c=>statuses.has(c.id)&&statuses.get(c.id)!=='completed').length;
-  return respond(res,200,{cases:cases.map(c=>({...c,analysisStatus:statuses.get(c.id)||'not_started'})),counts:{cases:cases.length,pending,completed:cases.length-pending}});
+  return respond(res,200,{cases:cases.map(c=>({...c,analysisStatus:statuses.get(c.id)||'not_started'})),counts:{cases:cases.length,pending,completed:cases.filter(c=>statuses.get(c.id)==='completed').length}});
  }catch(e){return respond(res,503,{error:'사건 현황을 불러오지 못했습니다.'})}
 }
