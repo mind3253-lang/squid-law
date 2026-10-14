@@ -94,13 +94,22 @@ export default async function handler(req,res){
   const baseline=await findDeltaBaseline({jobs:candidates,documents:fullDocs,load});
   if(baseline){
    const prior=await load(baseline.baselineReportPath);
-   if(prior?.clientRole===registry.intake?.clientRole){
-    await advanceJob(job,'delta_evidence_selected',{
-     delta:baseline,phase:'extract',nextDocument:0,nextPage:0,
-     documentCount:baseline.addedDocuments.length},'retry');
-    return res.status(200).json({status:'retry',stage:'delta_evidence_selected',
-     addedDocuments:baseline.addedDocuments.length,baselineJobId:baseline.baselineJobId});
+   if(prior?.clientRole!==registry.intake?.clientRole){
+    await advanceJob(job,'delta_client_role_changed',job.checkpoint||{},'blocked','DELTA_CLIENT_ROLE_CHANGED');
+    return res.status(200).json({status:'blocked',reason:'DELTA_CLIENT_ROLE_CHANGED'});
    }
+   await advanceJob(job,'delta_evidence_selected',{
+    delta:baseline,phase:'extract',nextDocument:0,nextPage:0,
+    documentCount:baseline.addedDocuments.length},'retry');
+   return res.status(200).json({status:'retry',stage:'delta_evidence_selected',
+    addedDocuments:baseline.addedDocuments.length,baselineJobId:baseline.baselineJobId});
+  }
+  // A completed prior job exists, but its material cannot safely be
+  // inherited (deleted/replaced sources or missing receipts). Never
+  // surprise-bill the customer for a full rerun as an implicit fallback.
+  if(candidates.length){
+   await advanceJob(job,'delta_baseline_unavailable',job.checkpoint||{},'blocked','DELTA_BASELINE_UNAVAILABLE');
+   return res.status(200).json({status:'blocked',reason:'DELTA_BASELINE_UNAVAILABLE'});
   }
  }
  if(job.checkpoint?.delta){
