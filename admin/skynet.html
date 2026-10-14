@@ -713,6 +713,7 @@ function renderReviewState(stage){
  el('skynetReviewStop').hidden=!running;
 }
 
+const recentlyStartedReviewJobs=new Set();
 async function reviewJobRequest(action,payload){
  if(action!=='cancel')ensureSkynetAnalysisActive();
  const post=action!=='status';
@@ -726,6 +727,22 @@ async function reviewJobRequest(action,payload){
    signal:controller.signal
   });
   data=await response.json().catch(()=>({}));
+  // Blob metadata can briefly lag immediately after registering a new job.
+  // Only retry a status request for a job that this tab actually started.
+  const jobKey=payload.documentHash+':'+payload.questionHash;
+  if(action==='status'&&response.status===404&&data.error==='REVIEW_NOT_REGISTERED'&&
+     recentlyStartedReviewJobs.has(jobKey)){
+   for(let retry=0;retry<4;retry++){
+    await new Promise(resolve=>setTimeout(resolve,250*(retry+1)));
+    ensureSkynetAnalysisActive();
+    response=await fetch('/admin/skynet-document-job?'+params,{
+     method:'GET',credentials:'same-origin',cache:'no-store',signal:controller.signal
+    });
+    data=await response.json().catch(()=>({}));
+    if(response.ok&&data.ok)break;
+    if(response.status!==404||data.error!=='REVIEW_NOT_REGISTERED')break;
+   }
+  }
   if(action!=='cancel')ensureSkynetAnalysisActive();
  }finally{if(action!=='cancel')releaseSkynetPending(controller)}
  if(!response.ok||!data.ok){
@@ -733,8 +750,10 @@ async function reviewJobRequest(action,payload){
    ' 실패: '+(data.error||response.status));
   failure.status=response.status;throw failure;
  }
+ if(action==='start')recentlyStartedReviewJobs.add(payload.documentHash+':'+payload.questionHash);
  if(action==='start')skynetRunningJobs.set(payload.documentHash+':'+payload.questionHash,
   {documentHash:payload.documentHash,questionHash:payload.questionHash});
+ if(action==='finish')recentlyStartedReviewJobs.delete(payload.documentHash+':'+payload.questionHash);
  if(action==='finish')skynetRunningJobs.delete(payload.documentHash+':'+payload.questionHash);
  return data;
 }
