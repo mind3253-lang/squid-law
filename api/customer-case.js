@@ -43,6 +43,12 @@ return respond(res,200,{documents:await documents(user,id),messages:await messag
 if(req.method!=='POST')return respond(res,405,{error:'GET/POST만 허용'});
 if(Number(req.headers['content-length']||0)>8500000)return respond(res,413,{error:'PDF는 파일당 5MB 이하만 지원합니다'});
 let b;try{b=typeof req.body==='string'?JSON.parse(req.body):req.body}catch{return respond(res,400,{error:'업로드 요청 형식 오류'})}
+if(b?.action==='note'){
+ const text=typeof b.text==='string'?b.text.trim():'';
+ if(!text||text.length>9000)return respond(res,400,{error:'사건 메모는 9,000자 이내로 입력해 주세요.'});
+ try{const message=await saveMessage(user,id,'user',text);return respond(res,201,{message,notice:'사건 메모가 저장되었습니다. 채팅 법률 상담은 제공하지 않습니다.'})}
+ catch{return respond(res,503,{error:'사건 메모 저장 실패'})}
+}
 if(b?.action!=='upload'||typeof b.name!=='string'||typeof b.data!=='string'||b.data.length>7500000)return respond(res,400,{error:'업로드 형식 오류'});
 const filename=b.name.replace(/[\\/\x00-\x1f]/g,'').slice(0,140);if(!/\.pdf$/i.test(filename))return respond(res,400,{error:'PDF만 지원'});
 let buf;try{buf=Buffer.from(b.data,'base64')}catch{return respond(res,400,{error:'파일 디코딩 실패'})}
