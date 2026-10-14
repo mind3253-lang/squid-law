@@ -1589,7 +1589,7 @@ el("sendChat").onclick=async()=>{
     ' · 원문을 읽지 못했으므로 과거 기록으로 대신 답하지 않았어.';
    return;
   }
-  uploadedDocs=outcomes.filter(x=>x.hash&&/\.(pdf|docx|xlsx|xls|txt|md|csv|json)$/i.test(x.name));
+  uploadedDocs=outcomes.filter(x=>x.hash&&/\.(pdf|docx|xlsx|xls|hwp|hwpx|txt|md|csv|json)$/i.test(x.name));
   if(!msg){clearSkynetPipelineProgress();return}
  }
  const context=attached.map(f=>'\n[첨부: '+f.name+']\n'+f.content).join('\n');
@@ -1645,7 +1645,36 @@ el("sendChat").onclick=async()=>{
    await saveAnswer(answer,'pdf-presence');
   }else if(uploadedDocs.length){
    try{
-    await analyzeAttachedDocuments(uploadedDocs,reviewQuestion,previous,effort,saveAnswer,turnId);
+    if(uploadedDocs.every(d=>/\.pdf$/i.test(d.name))){
+     await analyzeAttachedDocuments(uploadedDocs,reviewQuestion,previous,effort,saveAnswer,turnId);
+    }else if(uploadedDocs.some(d=>/\.pdf$/i.test(d.name))){
+     throw Error('PDF와 일반 문서가 혼합되어 있어 분석을 중단했어. 원문을 누락하지 않도록 혼합 분석 연결이 필요해.');
+    }else{
+     const sourceTexts=[];
+     for(const d of uploadedDocs){
+      const response=await fetch('/admin/skynet-document?hash='+encodeURIComponent(d.hash),{credentials:'same-origin',cache:'no-store'});
+      const body=await response.json().catch(()=>({}));
+      if(!response.ok||!body.ok||typeof body.text!=='string'||!body.text.trim())
+       throw Error(d.name+' 원문 읽기 실패: '+(body.error||response.status));
+      sourceTexts.push('[문서: '+d.name+' / SHA256 '+d.hash+']\n'+body.text);
+     }
+     const all=sourceTexts.join('\n\n===== 다음 문서 =====\n\n');
+     const parts=splitLongText(all,18000),notes=[];
+     for(let i=0;i<parts.length;i++){
+      el('chatErrorStatus').textContent='HWP 등 문서 본문 분석 '+(i+1)+'/'+parts.length+'부분 진행 중';
+      const note=await askSkynet('사용자 요청: '+reviewQuestion+'\n아래 실제 문서 원문 중 '+(i+1)+'/'+parts.length+'부분을 검토해. 문서명과 확인된 사실·증거·날짜·상충 주장·불확실성을 구분하여 누락 없이 중간 검토 노트를 작성해.\n\n'+parts[i],previous,effort);
+      notes.push('[원문 부분 '+(i+1)+'/'+parts.length+']\n'+note);
+     }
+     let combined=notes.join('\n\n');
+     for(let wave=0;combined.length>40000&&wave<6;wave++){
+      const blocks=splitLongText(combined,22000),next=[];
+      for(let i=0;i<blocks.length;i++)next.push(await askSkynet('다음 검토 노트를 근거·사건번호·날짜를 유지하며 압축해.\n\n'+blocks[i],previous,effort));
+      combined=next.join('\n\n');
+     }
+     if(combined.length>40000)throw Error('중간 노트가 분석 한도를 초과했어. 원본과 노트는 유지돼.');
+     const answer=await askSkynet('사용자 요청: '+reviewQuestion+'\n다음은 방금 업로드한 '+uploadedDocs.length+'개 문서 전체의 실제 본문에서 작성한 검토 노트야. 문서별 주장과 증거를 대조하여 답변하고, 불명확한 부분은 구분해. 파일명만으로 추론하지 마.\n\n'+combined,previous,effort);
+     await saveAnswer(answer,'document-analysis');
+    }
    }catch(e){if(skynetAnalysisStopped)throw skynetStoppedError();
     if(e.quotaExhausted){
      clearSkynetPipelineProgress();
@@ -1850,7 +1879,7 @@ async function sendArchiveFiles(files){
      body:JSON.stringify({name:f.name,batch,parts:total,size:f.size})});
     if(!registry.ok)console.warn('자료창고 파일명 등록 지연',registry.status);
    }catch(err){console.warn('자료창고 등록 실패',err)}
-   if(/\.(pdf|docx|xlsx|xls|txt|md|csv|json|png|jpg|jpeg)$/i.test(f.name)){
+   if(/\.(pdf|docx|xlsx|xls|hwp|hwpx|txt|md|csv|json|png|jpg|jpeg)$/i.test(f.name)){
     try{
      const pdf=/\.pdf$/i.test(f.name);
      const info=pdf?await indexArchivedPdfInWindows(batch,total,f.name,p=>{
