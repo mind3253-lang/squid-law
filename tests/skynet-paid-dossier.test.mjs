@@ -2,14 +2,14 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {CASE_DOSSIER_VERSION,CASE_DOSSIER_SECTIONS,
- dossierSectionPrompt,assembleCaseDossier,directIndexedPdfExcerpt,reportRequestsAlreadyIndexedPdf} from '../lib/skynet-case-dossier.mjs';
+ dossierSectionPrompt,assembleCaseDossier,dossierClientPerspective,directIndexedPdfExcerpt,reportRequestsAlreadyIndexedPdf} from '../lib/skynet-case-dossier.mjs';
 const read=path=>readFileSync(new URL('../'+path,import.meta.url),'utf8');
 
-test('full-record report has four independently grounded evidence chapters',()=>{
+test('full-record report has two concise customer-oriented evidence chapters',()=>{
  assert.equal(typeof CASE_DOSSIER_VERSION,'string');
- assert.equal(CASE_DOSSIER_SECTIONS.length,4);
+ assert.equal(CASE_DOSSIER_SECTIONS.length,2);
  assert.deepEqual(CASE_DOSSIER_SECTIONS.map(s=>s.id),
-  ['claim-map','chronology-rebuttals','money-and-offsets','evidence-and-issues']);
+  ['claim-map','contradictions']);
  for(const chapter of CASE_DOSSIER_SECTIONS){
   const sourceExcerpts=directIndexedPdfExcerpt([
    {pages:[1],text:'[PDF 1쪽] 2026가단12498 준비서면 최초 주장'},
@@ -30,10 +30,17 @@ test('full-record report has four independently grounded evidence chapters',()=>
  }));
  const result=assembleCaseDossier({sections,pageCount:258,sourceName:'258p.pdf',ocrRequired:[9]});
  assert.match(result,/258쪽/);
+ assert.equal(dossierClientPerspective('피고 입장에서 사건 분석해줘'),'피고');
+ assert.equal(dossierClientPerspective('원고 입장에서 사건 분석해줘'),'원고');
+ assert.equal(dossierClientPerspective('사건 전체를 분석해줘'),'중립');
+ assert.match(dossierSectionPrompt(CASE_DOSSIER_SECTIONS[0],{question:'피고 입장에서 분석해줘',pageCount:258,mainNotes:'근거',lateNotes:'반박',sourceExcerpts:'[실제 색인 PDF 원문]'}),/의뢰인은 피고입니다/);
+ assert.match(result,/제1장\. 쟁점 도표 정리/);
+ assert.match(result,/제2장\. 모순 분석/);
+ assert.doesNotMatch(result,/날짜순 사실관계와 최신 서면 공방/);
  assert.match(result,/시각 확인이 필요한 쪽: 9쪽/);
  for(const chapter of CASE_DOSSIER_SECTIONS)assert.ok(result.includes(chapter.title));
  assert.ok(result.indexOf('245쪽')<result.lastIndexOf('257쪽'));
- assert.throws(()=>assembleCaseDossier({sections:sections.slice(0,3),pageCount:258}),/INCOMPLETE/);
+ assert.throws(()=>assembleCaseDossier({sections:sections.slice(0,1),pageCount:258}),/INCOMPLETE/);
 });
 
 test('SKYNET does not append internal server paths to customer-visible answers',()=>{
