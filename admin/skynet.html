@@ -1508,6 +1508,22 @@ el("sendChat").onclick=async()=>{
    }
   }
  }
+ // A linked or previously uploaded PDF is context, NOT permission to rerun paid analysis.
+ // Status/read-only requests must never be routed to analyzeAttachedDocuments.
+ if(!archiveFiles.length&&!attached.length&&uploadedDocs.length&&
+  /(?:조회|확인|점검|보여|표시|상태|결과|보고서|구현|코드|배포|연결|비교)/u.test(msg)&&
+  !/(?:새로|신규|다시|재|추가).{0,12}(?:분석|검토)(?:해|하라|시작|실행)/u.test(msg)){
+  const id=crypto.randomUUID();
+  const answer='기존 PDF 분석 결과 조회 요청으로 처리했어. 원본 재업로드·OCR·AI 재분석은 실행하지 않았어. '+
+   (activeReview?.complete?'현재 브라우저에 완료 기록이 있어. 기존 분석 보고서를 확인해 줘.':
+    '저장된 분석 보고서의 완료 여부는 이 요청만으로 확정할 수 없어. 분석 상태 조회 기능에서 확인해 줘.');
+  await saveTurn('user',msg,id);
+  history.push({role:'user',content:msg});
+  await saveTurn('assistant',answer,id+'-read-only');
+  history.push({role:'assistant',content:answer});
+  el('chatInput').value='';resizeSkynetComposer();saveLocalChatSnapshot();drawChat();
+  return;
+ }
  if(archiveFiles.length){
   pendingArchiveFiles=[];renderArchiveQueue();el('sendChat').disabled=true;
   let outcomes=[];
