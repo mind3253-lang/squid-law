@@ -54,6 +54,17 @@ export default async function handler(req,res){
    return send(res,failed?207:200,{ok:failed===0,scanned:verified.length,duplicateGroups:duplicateGroups.length,deleted,failed,failures});
   }
   if(req.method!=='GET')return send(res,405,{error:'GET/POST only'});
+  if(req.query?.mode==='hwp-retry'){
+   const originals=await scan('skynet/warehouse/',12000);
+   const records=[];
+   for(let i=0;i<originals.length;i+=20){
+    const group=await Promise.all(originals.slice(i,i+20).map(f=>readJson(f.pathname).catch(()=>null)));
+    for(const d of group)if(d&&/\.(hwp|hwpx)$/i.test(d.name||'')&&/^[a-zA-Z0-9_-]{8,80}$/.test(d.batch||'')&&Number.isInteger(d.parts)&&d.parts>0&&d.parts<=100&&d.size<=25*1048576)
+     records.push({name:d.name,batch:d.batch,parts:d.parts,uploadedAt:d.uploadedAt||''});
+   }
+   records.sort((a,b)=>b.uploadedAt.localeCompare(a.uploadedAt));
+   return send(res,200,{items:records.slice(0,30)});
+  }
   // Query a specific docket across BOTH indexed PDF manifests and original
   // uploaded-file registrations. A 100-most-recent index is not sufficient.
   if(req.query?.mode==='case-pdf'){
