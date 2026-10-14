@@ -54,12 +54,12 @@ test('impact classification must cover every baseline finding (no silently untou
  assert.equal(req.store,false);
  assert.equal(JSON.parse(req.input).oldFindings.length,2);
  const decisions=validateDeltaImpact({response:{caseId:'SL-demo',sourceVersion:nowVersion,cursor:0,
-  decisions:[{index:1,affected:false,reason:'해당 없음'},{index:0,affected:true,reason:'신규 반증'}]},
-  caseId:'SL-demo',sourceVersion:nowVersion,cursor:0,count:2});
+  decisions:[{index:1,affected:false,reason:'해당 없음',newFindingIndices:[]},{index:0,affected:true,reason:'신규 반증',newFindingIndices:[0]}]},
+  caseId:'SL-demo',sourceVersion:nowVersion,cursor:0,count:2,newFindingCount:1});
  assert.deepEqual(decisions.map(x=>x.index),[0,1]);
  assert.throws(()=>validateDeltaImpact({response:{caseId:'SL-demo',sourceVersion:nowVersion,cursor:0,
-  decisions:[{index:0,affected:true,reason:'관련됨'}]},caseId:'SL-demo',
-  sourceVersion:nowVersion,cursor:0,count:2}),/COVERAGE/);
+  decisions:[{index:0,affected:true,reason:'관련됨',newFindingIndices:[0]}]},caseId:'SL-demo',
+  sourceVersion:nowVersion,cursor:0,count:2,newFindingCount:1}),/COVERAGE/);
 });
 
 test('revised finding needs literal verified citation from newly submitted PDF',()=>{
@@ -83,7 +83,7 @@ test('revised finding needs literal verified citation from newly submitted PDF',
 
 test('merged report leaves unrelated old evidence and conclusions unchanged, records provenance',()=>{
  const changed={...oldFinding,claim:'기존 계약기간 주장에 신규 자료를 반영',sources:[oldRef,newRef]};
- const decisions=[{index:0,affected:true,reason:'추가 반증'},{index:1,affected:false,reason:'무관'}];
+ const decisions=[{index:0,affected:true,reason:'추가 반증',newFindingIndices:[0]},{index:1,affected:false,reason:'무관',newFindingIndices:[]}];
  const merged=buildMergedDeltaReport({baseline:oldReport,deltaReport:freshReport,
   decisions,revisions:[{index:0,finding:changed}],sourceVersion:nowVersion,
   baselineVersion:prevVersion,addedDocs:[after],documentSnapshot:[before,after]});
@@ -102,7 +102,7 @@ test('merged report leaves unrelated old evidence and conclusions unchanged, rec
 });
 
 test('finalization checkpoint reuses reviewed delta decisions, never calls GPT',async()=>{
- const decisions=[{index:0,affected:true,reason:'신규 자료'},{index:1,affected:false,reason:'무관'}];
+ const decisions=[{index:0,affected:true,reason:'신규 자료',newFindingIndices:[0]},{index:1,affected:false,reason:'무관',newFindingIndices:[]}];
  const revised={...oldFinding,claim:'변경합의 원문을 재검토한 판단',sources:[oldRef,newRef]};
  const delta={baselineVersion:prevVersion,baselineReportSha256:hash(JSON.stringify(oldReport)),
   baselineReportPath:oldPath,addedDocuments:[after],baselineGates:gates(prevVersion),
