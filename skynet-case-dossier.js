@@ -123,6 +123,7 @@ function assembleCaseDossier({sections,pageCount,sourceName,ocrRequired=[],quest
  const outcome=extractDossierBlock(sections[1].text,'[보고서 결과]','[/보고서 결과]');
  const info=header.text||'사건번호 : 원문 확인 필요\n원고 : 원문 확인 필요\n피고 : 원문 확인 필요\n청구취지 : 소장 원문 확인 필요';
  const intro='# 사건기록 분석보고서\n\n'+info+
+  '\n원본 : '+String(sourceName||'PDF')+' ('+pageCount+'쪽)'+
   '\n의뢰인 : '+(side==='중립'?'의뢰인 지위 미지정 (원고·피고 선택 필요)':side)+
   '\n\n';
  const conclusion=outcome.text||'1) 의뢰인의 상대방 주장에 대한 증거와 반박을 정리해야 합니다.\n\n2) 주장 변경 및 자료 사이의 불일치가 실제 확인되는지 대조해야 합니다.\n\n3) 입증에 필요한 직접증거와 사실확인서 등 보완 가능성을 전문가와 검토할 필요가 있습니다.';
