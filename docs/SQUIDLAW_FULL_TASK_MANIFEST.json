@@ -4,7 +4,7 @@
   "repo": "mind3253-lang/squid-law",
   "branch": "main",
   "asOf": "2026-10-14",
-  "taskCount": 42,
+  "taskCount": 43,
   "knownObserved": {
     "pages": 338,
     "verifiedPages": 338,
@@ -664,6 +664,32 @@
       "dependencies": [
         "LAW-040"
       ]
+    },
+    {
+      "id": "LAW-043",
+      "group": "customer_analysis",
+      "priority": "P0",
+      "title": "의뢰인 지위 기반 분석 관점과 네 가지 분석 구분별 실제 로직 연결",
+      "codeLocations": [
+        "analysis-model-prompt.js",
+        "api/customer-analysis-worker.js",
+        "api/customer-analysis-pipeline.js",
+        "docs/SQUIDLAW_FULL_RESUME_COMMAND.md"
+      ],
+      "status": "in_progress",
+      "implementation": "의뢰인이 원고인지 피고인지 선택한 값을 실제 분석 요청에 전달하고, 판사식 중립 판정보다 의뢰인 주장 입증·반박·증거 보강을 우선한다. 사용자 진술은 출발점으로 삼되 검증된 사실과 구분한다. 2026-10-16 analysis-model-prompt.js 공통 프롬프트 수정 b9f39d4 완료, 실제 고객 호출 경로는 미확인.",
+      "acceptance": [
+        "원고·피고 선택값이 UI 저장부터 모든 고객 분석 모델 호출과 보고서까지 유지됨",
+        "네 가지 분석 구분의 원래 요구사항을 코드·기록에서 확인하고 각 구분별 분석 로직 구현",
+        "불리한 자료와 상대방 반론을 의뢰인 대응 및 추가 입증 계획에 연결",
+        "원고·피고 및 증거 부족 시나리오 회귀 테스트와 운영 확인"
+      ],
+      "evidence": [
+        "2026-10-16: 공통 프롬프트 보강 commit b9f39d4; 재개 지침 commit 821cdf6; 전체 적용 미검증"
+      ],
+      "checkpoint": "실제 고객 분석 경로에서 clientRole 전달과 네 가지 분석 구분 정의를 추적하여 미구현 로직 보강",
+      "blockedReason": null,
+      "dependencies": []
     }
   ],
   "lastExecution": {
