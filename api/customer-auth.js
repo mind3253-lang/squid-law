@@ -14,7 +14,7 @@ async function load(id){const x=await get(path(id),{access:'private'}).catch(()=
 export default async function handler(req,res){
 res.setHeader('Cache-Control','no-store');res.setHeader('X-Content-Type-Options','nosniff');
 if(!process.env.SQUID_AUTH_SECRET||!process.env.BLOB_READ_WRITE_TOKEN)return fail(res,503,'회원 서비스 준비 중');
-if(req.method==='GET'){const id=authenticatedUser(req);return id?res.status(200).json({authenticated:true,id}):res.status(200).json({authenticated:false})}
+if(req.method==='GET'){const id=authenticatedUser(req);if(!id)return res.status(200).json({authenticated:false});const u=await load(id).catch(()=>null);return res.status(200).json({authenticated:true,id,name:u?.name||'',gender:u?.gender||'',birthyear:u?.birthyear||'',phone:u?.phone||''})}
 if(req.method!=='POST')return fail(res,405,'허용되지 않은 요청');
 if(Number(req.headers['content-length']||0)>5000)return fail(res,413,'요청이 너무 큽니다');
 const origin=req.headers.origin;const host=req.headers.host;if(origin){let o;try{o=new URL(origin)}catch{return fail(res,403,'요청 출처 오류')}if(o.host!==host||o.protocol!=='https:')return fail(res,403,'요청 출처 오류')}
