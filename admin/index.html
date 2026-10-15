@@ -5,15 +5,15 @@
 :root{font-family:system-ui,-apple-system,"Noto Sans KR",sans-serif;color:#14243a;background:#f3f6fa}
 *{box-sizing:border-box}body{margin:0}header{background:#10243b;color:white;padding:23px max(22px,calc((100% - 1000px)/2))}
 main{max-width:1000px;margin:36px auto;padding:0 20px}h1{font-size:26px;margin:0 0 6px}
-header p{margin:0;color:#b8c9dc}h2{font-size:19px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:16px}
+header p{margin:0;color:#b8c9dc}.admin-auth{float:right;display:flex;align-items:center;gap:8px}.admin-auth input{padding:9px;border-radius:7px;border:1px solid #aab8c7;width:170px}.admin-auth button{padding:9px 13px;border:0;border-radius:7px;background:#2563a6;color:white;cursor:pointer}h2{font-size:19px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:16px}
 article{background:white;border:1px solid #e0e6ed;border-radius:14px;padding:24px;min-height:145px}
 article h3{margin:0 0 12px}article p{color:#526176;line-height:1.6;font-size:14px}
 a{color:#1762b4}small{color:#66758a}footer{margin-top:30px;color:#66758a;font-size:13px}
 </style></head><body>
-<header><h1>SQUIDLAW 관리자</h1><p>공개 홈페이지와 분리된 운영 공간</p></header>
+<header><div class="admin-auth"><input type="password" id="adminPassword" placeholder="관리자 비밀번호" autocomplete="current-password"><button type="button" id="adminLogin">로그인</button><span id="adminAuthStatus" role="status"></span></div><h1>SQUIDLAW 관리자</h1><p>공개 홈페이지와 분리된 운영 공간</p></header>
 <main><section style="background:#fff;border:2px solid #2563a6;border-radius:16px;padding:26px;margin-bottom:26px;box-shadow:0 6px 24px #17345612"><div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px"><div><h2 style="margin:0 0 8px;font-size:23px">🦑 SKYNET</h2><p style="margin:0;color:#526176;line-height:1.7">사장님과 오정의 비공개 작업 공간 · 법률 분석 서비스와 별개</p></div><span style="background:#fff3dc;color:#8a5700;border-radius:20px;padding:7px 12px;font-size:13px;font-weight:700">기억 작업방</span></div><p style="margin:16px 0 0;color:#66758a;font-size:14px"><a href="/admin/skynet.html" style="display:inline-block;background:#1762b4;color:white;padding:10px 16px;border-radius:8px;text-decoration:none">SKYNET 열기 →</a><p>기억 저장·중복 통합·검색 실험판. AI 응답과 서버 영구 저장은 준비 중입니다.</p></p></section><h2>운영 대시보드</h2><div class="grid">
 <article><h3>사건 분석 서비스</h3><p>기존 분석 API를 유지합니다. 운영 현황 및 작업 내역 연동은 다음 단계에서 추가합니다.</p></article>
 <article><h3>고객 회원 관리</h3><p>고객 회원명부 및 검산용 계정을 SKYNET 대화 공간과 분리하여 관리합니다.</p><a href="/admin/members.html">회원명부 관리 →</a></article>
 <article><h3>콘텐츠 관리</h3><p>법률 안내와 게시물 관리 기능을 기존 사이트 구조에 맞춰 연결합니다.</p></article>
 </div><footer>관리자 인증이 적용된 별도 페이지입니다. 메인 홈페이지에는 관리자 링크가 없습니다.</footer></main>
-</body></html>
+<script>document.getElementById('adminLogin').onclick=async()=>{const pw=document.getElementById('adminPassword');const status=document.getElementById('adminAuthStatus');const auth='Basic '+btoa('admin:'+pw.value);pw.value='';status.textContent='확인 중';try{const r=await fetch('/api/customer-members',{headers:{authorization:auth},cache:'no-store'});if(!r.ok)throw Error();status.textContent='인증 완료';location.href='/admin/members.html';}catch{status.textContent='인증 실패';}};</script></body></html>
