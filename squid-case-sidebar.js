@@ -23,6 +23,7 @@ document.addEventListener('DOMContentLoaded',()=>{
   const label=document.createElement('span');label.className='squidSidebarLabel';label.textContent=name;
   link.append(mark,label);nav.append(link);
  });
+ const payLink=document.createElement('a');payLink.href='/payment.html';payLink.title='결제하기';payLink.setAttribute('aria-label','결제하기');payLink.className='squidSidebarLink';if(location.pathname.endsWith('/payment.html'))payLink.classList.add('active');const payIcon=document.createElement('span');payIcon.className='squidSidebarIcon';payIcon.textContent='▣';const payText=document.createElement('span');payText.className='squidSidebarLabel';payText.textContent='결제하기';payLink.append(payIcon,payText);nav.append(payLink);
  sidebar.append(nav);
  const bottom=document.createElement('div');bottom.className='squidSidebarBottom';
  const my=document.createElement('a');my.href='mypage.html';my.className='squidSidebarLink';my.title='마이페이지';my.setAttribute('aria-label','마이페이지');
