@@ -31,6 +31,6 @@ export default async function handler(req,res){
   if(!existing){try{await put(path,JSON.stringify(record),{access:'private',allowOverwrite:false,addRandomSuffix:false,contentType:'application/json'})}catch(e){if(!/already|exist|conflict|409/i.test(String(e?.message)))throw e}}
   const payload=encode({id,exp:Date.now()+TTL*1000});
   res.setHeader('Set-Cookie','squid_session='+payload+'.'+sign(payload)+'; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age='+TTL);
-  return res.redirect(302,origin+'/customer.html');
+  return res.redirect(302,origin+'/index.html');
  }catch(e){console.error('naver auth failed',String(e?.message||e).slice(0,120));return res.status(503).send('네이버 로그인 처리에 실패했습니다. 잠시 후 다시 시도해 주세요.')}
 }
