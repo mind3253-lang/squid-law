@@ -425,7 +425,7 @@ fullReviewButton.onclick=async()=>{
  if(!select.value){notice('먼저 사건을 등록해 주세요.','error');return}
  if(!currentCase()?.intake?.clientRole){notice('사건 전체 분석 전에 원고·피고 의뢰인 지위를 등록해 주세요.','error');return}
  const meta=currentCase()?.intake;
- if(false&&meta?.isFiledCase&&['courtCaseNumber','plaintiffName','defendantName','claimRelief'].some(k=>!String(meta[k]||'').trim())){
+ if(false){
   notice('법원 접수 사건은 사건번호, 원고, 피고, 청구취지를 모두 저장한 뒤 분석을 신청해 주세요.','error');return;
  }
  const existingId=sessionStorage.getItem('squidlaw-full-review:'+select.value);
