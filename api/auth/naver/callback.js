@@ -26,7 +26,7 @@ export default async function handler(req,res){
   if(!profileResponse.ok||profile.resultcode!=='00'||!naverId||naverId.length>256)throw Error('profile failed');
   const id='naver_'+hash(naverId).slice(0,24);
   const path='squidlaw/users/'+hash(id)+'.json';
-  const record={id,provider:'naver',providerHash:hash(naverId),name:String(profile.response.name||'').slice(0,80),email:String(profile.response.email||'').slice(0,180),phone:String(profile.response.mobile||'').slice(0,40),createdAt:new Date().toISOString()};
+  const record={id,provider:'naver',providerHash:hash(naverId),name:String(profile.response.name||'').slice(0,80),email:String(profile.response.email||'').slice(0,180),phone:String(profile.response.mobile||'').slice(0,40),gender:String(profile.response.gender||'').slice(0,10),birthyear:String(profile.response.birthyear||'').slice(0,4),createdAt:new Date().toISOString()};
   const existing=await get(path,{access:'private'}).catch(()=>null);
   if(!existing){try{await put(path,JSON.stringify(record),{access:'private',allowOverwrite:false,addRandomSuffix:false,contentType:'application/json'})}catch(e){if(!/already|exist|conflict|409/i.test(String(e?.message)))throw e}}
   const payload=encode({id,exp:Date.now()+TTL*1000});
