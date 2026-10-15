@@ -14,9 +14,9 @@ document.addEventListener('DOMContentLoaded',()=>{
  sidebar.append(toggle);
  const nav=document.createElement('nav');nav.className='squidSidebarNav';
  const title=document.createElement('strong');title.className='squidSidebarHeading';title.textContent='내 사건 분석';nav.append(title);
- const selected=new URLSearchParams(location.search).get('case');
+ const selected=new URLSearchParams(location.search).get('category')||new URLSearchParams(location.search).get('case');
  categories.forEach(([name,icon],index)=>{
-  const link=document.createElement('a');link.href='customer.html?case='+String(index+1);
+  const link=document.createElement('a');link.href='customer.html?category='+String(index+1);
   link.title=name;link.setAttribute('aria-label',name);link.className='squidSidebarLink';
   if(location.pathname.endsWith('/customer.html')&&selected===String(index+1)){link.classList.add('active');link.setAttribute('aria-current','page')}
   const mark=document.createElement('span');mark.className='squidSidebarIcon';mark.textContent=icons[icon];
