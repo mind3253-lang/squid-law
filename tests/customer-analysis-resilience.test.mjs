@@ -13,7 +13,7 @@ test('source verification is not legal analysis completion',()=>{
  assert.equal(x.sourcePercent,100);assert.equal(x.analysisComplete,false);
 });
 test('finalization resumes from existing digest checkpoint',()=>{
- const part={offset:0,sourceVersion:'v',batchCount:8,unitCount:2,sources:[{},{}]};
+ const part={offset:0,sourceVersion:'v',batchCount:8,unitCount:2,sources:[{},{}],claims:[],observations:[],boundaries:[]};
  const cp={finalizeOffset:8,finalizePartDigests:[hash(part)],finalizeUnitCount:2};
  assert.equal(auditFinalizationCheckpoint({checkpoint:cp,descriptorCount:8}).complete,true);
  assert.equal(auditFinalizationParts({parts:[part],checkpoint:cp,descriptorCount:8,sourceVersion:'v'}).units,2);
