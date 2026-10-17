@@ -25,7 +25,7 @@ test('client can recover latest job after browser session storage is cleared',()
 test('verified-page billing metadata never implies authorized payment',()=>{
  const api=source('api/customer-analysis-job.js');
  assert.match(api,/unit:'verified_source_page'/);
- assert.match(api,/pageCountVerified:allDocs\.length>0/);
+ assert.match(api,/pageCountVerified:verifiedSourcePages\(allDocs\)/);
  assert.match(api,/priceConfirmed:false,chargeAuthorized:false/);
 });
 
