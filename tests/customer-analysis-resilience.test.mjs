@@ -39,3 +39,5 @@ test('request wrapper handles successful JSON and invalid gateway output',async(
 test('request wrapper normalizes transport failure',async()=>{
  await assert.rejects(requestAnalysisJson('/api/test',{fetchImpl:async()=>{throw Error('private network detail')}}),e=>e.code==='ANALYSIS_NETWORK_ERROR'&&!e.message.includes('private'));
 });
+
+test('retry attempt parsing rejects malformed values',async()=>{const {errorRetryDelayMs,shouldPromptlyRedispatch}=await import('../lib/customer-worker-retry.mjs');for(const bad of ['',null,false,true,-1,1.5,'01','1e2',{},[]]){assert.equal(errorRetryDelayMs(bad),null);assert.equal(shouldPromptlyRedispatch(bad),false);}assert.equal(errorRetryDelayMs(0),2250);assert.equal(shouldPromptlyRedispatch('3'),true);assert.equal(shouldPromptlyRedispatch('4'),false);});
