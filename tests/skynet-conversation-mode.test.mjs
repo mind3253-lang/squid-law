@@ -103,7 +103,7 @@ test('common Korean tears, shy smiles, annoyance and startled symbols are recogn
  }
 });
 test('legacy Korean ASCII art is recognized without hardcoding a universal creature or emotion',()=>{
- const moment=classifyConversationMoment(turns('(^^)))))))))))))))))))~');
+ const moment=classifyConversationMoment(turns('(^^)))))))))))))))))))~'));
  assert.equal(moment.mode,'awkward');
  assert.ok(moment.cues.includes('ascii_pictogram'));
  const directive=conversationStyleDirective(moment);
