@@ -46,5 +46,5 @@ test('mixed project memory is ranked not silently discarded',()=>{
  const other={score:2,content:'다른 소송',case:{id:'case:minji'}};
  const results=filterCaseResults([other,mixed],'서브마린 마일리지 정책');
  assert.equal(results.length,2);
- assert.equal(results[0],mixed);
+ assert.equal(results[0],mixed,'matched project memories must rank before unrelated cases');
 });
