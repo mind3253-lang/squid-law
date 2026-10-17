@@ -456,20 +456,28 @@ legalReportButton.onclick=async()=>{
  if(!jobId){notice('분석 작업이 없습니다.','error');return}
  try{const r=await fetch('/api/customer-legal-report?caseId='+encodeURIComponent(caseId)+'&jobId='+encodeURIComponent(jobId),{credentials:'same-origin',cache:'no-store'});const j=await r.json();if(!r.ok)throw Error(j.error||'보고서 조회 실패');showLegalReport(j.report)}catch(e){notice(e.message,'error')}
 };
+function fullReviewFailure(method,url,status,code){
+ const operation=method==='POST'?'분석 신청·재개':'분석 상태 조회';
+ const endpoint=String(url).split('?')[0];
+ const safeCode=/^[A-Z][A-Z0-9_]{1,80}$/.test(String(code||''))?code:'UNSTRUCTURED_RESPONSE';
+ const detail={operation,endpoint,httpStatus:status||0,errorCode:safeCode,at:new Date().toISOString()};
+ console.warn('SQUIDLAW_ANALYSIS_REQUEST_FAILURE',detail);
+ return ' ['+operation+' · HTTP '+(status||'연결 실패')+' · '+safeCode+']';
+}
 async function fullReviewRequest(url,options={}){
  const controller=new AbortController();
  const timeout=setTimeout(()=>controller.abort(),25000);
  try{
   let r;
   try{r=await fetch(url,{credentials:'same-origin',cache:'no-store',...options,signal:controller.signal})}
-  catch(e){throw Error(controller.signal.aborted?'분석 서버 응답 시간 초과. 기존 작업은 보존됩니다.':'분석 서버 연결 실패. 기존 작업은 보존됩니다.')}
+  catch(e){const code=controller.signal.aborted?'REQUEST_TIMEOUT':'NETWORK_ERROR';throw Error((controller.signal.aborted?'분석 서버 응답 시간 초과.':'분석 서버 연결 실패.')+' 기존 작업은 보존됩니다.'+fullReviewFailure(options.method||'GET',url,0,code))}
   let raw;
   try{raw=await r.text()}catch{throw Error('분석 서버 응답을 읽지 못했습니다. 기존 작업은 보존됩니다.')}
-  if(!raw?.trim())throw Error('분석 서버가 빈 응답을 반환했습니다 (HTTP '+r.status+'). 기존 작업은 보존됩니다.');
+  if(!raw?.trim())throw Error('분석 서버가 빈 응답을 반환했습니다. 기존 작업은 보존됩니다.'+fullReviewFailure(options.method||'GET',url,r.status,'EMPTY_RESPONSE'));
   let j;
-  try{j=JSON.parse(raw)}catch{throw Error('분석 서버가 JSON이 아닌 응답을 반환했습니다 (HTTP '+r.status+'). 기존 작업은 보존됩니다.')}
-  if(!j||typeof j!=='object'||Array.isArray(j))throw Error('분석 서버 응답 형식이 올바르지 않습니다. 기존 작업은 보존됩니다.');
-  if(!r.ok)throw Error((typeof j.error==='string'&&j.error.length<180?j.error:'분석 서버 요청 실패')+' (HTTP '+r.status+')'+(j.code?' ['+String(j.code).slice(0,80)+']':''));
+  try{j=JSON.parse(raw)}catch{throw Error('분석 서버가 JSON이 아닌 응답을 반환했습니다. 기존 작업은 보존됩니다.'+fullReviewFailure(options.method||'GET',url,r.status,'NON_JSON_RESPONSE'));}
+  if(!j||typeof j!=='object'||Array.isArray(j))throw Error('분석 서버 응답 형식이 올바르지 않습니다. 기존 작업은 보존됩니다.'+fullReviewFailure(options.method||'GET',url,r.status,'INVALID_PAYLOAD'));
+  if(!r.ok)throw Error('분석 서버 요청 실패. 기존 작업은 보존됩니다.'+fullReviewFailure(options.method||'GET',url,r.status,j.code));
   return j;
  }finally{clearTimeout(timeout)}
 }
