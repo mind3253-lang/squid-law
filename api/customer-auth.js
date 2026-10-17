@@ -14,7 +14,7 @@ async function load(id){const x=await get(path(id),{access:'private'}).catch(()=
 export default async function handler(req,res){
 res.setHeader('Cache-Control','no-store');res.setHeader('X-Content-Type-Options','nosniff');
 if(!process.env.SQUID_AUTH_SECRET||!process.env.BLOB_READ_WRITE_TOKEN)return fail(res,503,'회원 서비스 준비 중');
-if(req.method==='GET'){const id=authenticatedUser(req);if(!id)return res.status(200).json({authenticated:false});const u=await load(id).catch(()=>null);return res.status(200).json({authenticated:true,id,name:u?.name||'',gender:u?.gender||'',birthyear:u?.birthyear||'',phone:u?.phone||''})}
+if(req.method==='GET'){const id=authenticatedUser(req);if(!id)return res.status(200).json({authenticated:false});const u=await load(id).catch(()=>null);return res.status(200).json({authenticated:true,id,name:u?.name||'',gender:u?.gender||'',birthyear:u?.birthyear||'',phone:u?.phone||'',membership:u?.membership||{type:'general',status:'active'}})}
 if(req.method!=='POST')return fail(res,405,'허용되지 않은 요청');
 if(Number(req.headers['content-length']||0)>5000)return fail(res,413,'요청이 너무 큽니다');
 const origin=req.headers.origin;const host=req.headers.host;if(origin){let o;try{o=new URL(origin)}catch{return fail(res,403,'요청 출처 오류')}if(o.host!==host||o.protocol!=='https:')return fail(res,403,'요청 출처 오류')}
@@ -29,7 +29,7 @@ let user=await load(id);
 if(action==='register'){
 if(user)return fail(res,409,'이미 사용 중인 아이디입니다');
 const salt=randomBytes(24).toString('hex'),derived=scryptSync(password,salt,64).toString('hex');
-user={id,salt,derived,createdAt:new Date().toISOString()};
+const professional=b?.membershipType==='professional';if(b?.membershipType&&!['general','professional'].includes(b.membershipType))return fail(res,400,'회원 유형 오류');const credential=String(b?.credentialNumber||'').trim(),business=String(b?.businessNumber||'').replace(/[^0-9]/g,'');const profession=String(b?.profession||'');if(professional&&(!['lawyer','judicial_scrivener'].includes(profession)||credential.length<3||credential.length>80||business.length!==10))return fail(res,400,'전문자격 종류·자격번호·사업자등록번호를 확인해 주세요');user={id,salt,derived,createdAt:new Date().toISOString(),membership:professional?{type:'professional',status:'pending',profession,credentialNumber:credential,businessNumber:business,requestedAt:new Date().toISOString()}:{type:'general',status:'active'}};
 try{await put(path(id),JSON.stringify(user),{access:'private',allowOverwrite:false,addRandomSuffix:false,contentType:'application/json'})}catch(e){if(/already|exist|conflict|409/i.test(String(e?.message)))return fail(res,409,'이미 사용 중인 아이디입니다');throw e}
 }else{
 const fakeSalt='000000000000000000000000000000000000000000000000';

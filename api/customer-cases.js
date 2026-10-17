@@ -25,6 +25,6 @@ export default async function handler(req,res){
  }
  const type=String(body?.type||'');if(!types[type])return respond(res,400,{error:'사건 유형을 선택해 주세요'});
  const id='SL-'+Date.now().toString(36)+'-'+randomUUID().slice(0,8),createdAt=new Date().toISOString();
- const item={id,type,title:types[type],intake,createdAt,updatedAt:createdAt};
+ const title=typeof body?.title==='string'?body.title.trim().slice(0,80):'';const item={id,type,title:title||types[type],intake,createdAt,updatedAt:createdAt};
  try{await put(base(auth.user)+'registry/'+id+'.json',JSON.stringify(item),{access:'private',allowOverwrite:false,addRandomSuffix:false,contentType:'application/json'});return respond(res,201,{case:item})}catch{return respond(res,502,{error:'사건 등록 실패'})}
 }
