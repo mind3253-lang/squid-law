@@ -42,7 +42,7 @@ test('worker progress remains durable and lease fenced',()=>{
  const worker=read('api/customer-analysis-worker.js');
  const db=read('api/customer-analysis-lease-db.js');
  assert.match(jobs,/FOR UPDATE SKIP LOCKED/);
- assert.match(jobs,/AND owner_token=\$4 AND fence=\$5 AND lease_expires_at>now\(\)/);
+ assert.match(jobs,/AND owner_token=\$4[\s\S]*AND fence=\$5 AND status='running' AND lease_expires_at>now\(\)/);
  assert.match(jobs,/if\(status==='retry'&&stage!=='error'\)scheduleCustomerWorker/);
  assert.match(jobs,/export async function renewJobLease/);
  assert.match(worker,/heartbeat=setInterval/);
