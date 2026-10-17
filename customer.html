@@ -363,7 +363,22 @@ function renderFullReview(job,queue,progress,billing){
  const phase=document.createElement('span');phase.textContent=state==='completed'?'전체 분석 완료':state==='blocked'?'검증 또는 분석 보류':!collectionDone?'자료 수집·추출 중':!analysisDone?'통합 법률 분석 중':'결과 검증 중';
  const percent=document.createElement('strong');percent.textContent=overall;caption.append(phase,percent);
  const legend=document.createElement('small');legend.style.cssText='display:block;color:#64748b;margin-top:5px';legend.textContent='단계별 참고 표시 · 전체 분석 완료율은 최종 보고서 생성 전 산정하지 않습니다.';
- const billingLine=document.createElement('small');billingLine.style.cssText='display:block;margin-top:8px;color:#475569';billingLine.textContent=billing?.pageCountVerified&&Number.isSafeInteger(billing.verifiedPages)?'검증된 원본 '+billing.verifiedPages+'페이지 · 페이지 기준 과금 대상 · 결제 미승인 (청구 없음)':'원본 페이지 수 검증 대기 · 요금 미확정 · 청구 없음';fullReviewPanel.replaceChildren(title,detail,single,caption,legend,billingLine);fullReviewPanel.hidden=false;
+ const nextStep=document.createElement('p');
+ nextStep.style.cssText='margin:10px 0 4px;font-size:14px;font-weight:600;color:#0f172a';
+ const nextByStatus={
+  queued:'다음 단계: 대기 순서에 따라 자동으로 분석을 시작합니다. 이 화면을 닫아도 접수된 작업은 유지됩니다.',
+  running:'다음 단계: 자동 분석이 진행 중입니다. 현재 단계와 원문 검증 상태를 확인해 주세요.',
+  retry:'다음 단계: 서버가 기존 체크포인트에서 자동 재시도합니다. 자료를 다시 올리지 마세요.',
+  blocked:'다음 단계: 오류 내용을 확인한 뒤 분석 재개를 선택해 주세요. 기존 자료와 체크포인트는 유지됩니다.',
+  failed:'다음 단계: 오류 코드를 확인해 관리자에게 문의해 주세요. 기존 자료는 유지됩니다.',
+  completed:'다음 단계: 법률 분석 보고서 열기에서 결과와 근거를 확인해 주세요.'
+ };
+ nextStep.textContent=nextByStatus[state]||'다음 단계: 분석 상태를 다시 확인해 주세요.';
+ const errorLine=document.createElement('small');
+ errorLine.style.cssText='display:block;color:#b91c1c;overflow-wrap:anywhere';
+ const safeError=/^[A-Z][A-Z0-9_]{1,80}$/.test(String(job.errorCode||''))?job.errorCode:null;
+ errorLine.textContent=safeError?'오류 코드: '+safeError:'';
+ const billingLine=document.createElement('small');billingLine.style.cssText='display:block;margin-top:8px;color:#475569';billingLine.textContent=billing?.pageCountVerified&&Number.isSafeInteger(billing.verifiedPages)?'검증된 원본 '+billing.verifiedPages+'페이지 · 페이지 기준 과금 대상 · 결제 미승인 (청구 없음)':'원본 페이지 수 검증 대기 · 요금 미확정 · 청구 없음';fullReviewPanel.replaceChildren(title,detail,single,caption,legend,billingLine,nextStep,errorLine);fullReviewPanel.hidden=false;
  fullReviewButton.textContent=state==='blocked'?'분석 재개':state==='failed'?'분석 상태 확인':state==='completed'?'분석 완료 · 상태 확인':'분석 진행 상태 확인';
 }
 
