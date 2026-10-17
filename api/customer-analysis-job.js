@@ -1,3 +1,4 @@
+import {requireOwnedCase} from '../lib/customer-case-access.mjs';
 import {validClientRole} from '../lib/customer-case-intake.mjs';
 import {guard,respond,readJson,documents,casePrefix} from './customer-case.js';
 import {enqueueJob,getJob,resumeJob,queueSnapshot,documentVersion,latestCaseJob} from './customer-analysis-jobs-db.js';
@@ -15,7 +16,7 @@ const verifiedSourcePages=docs=>Array.isArray(docs)&&docs.length>0&&docs.every(d
 export default async function handler(req,res){
  const a=guard(req);if(a.error)return respond(res,a.status,{error:a.error});
  const caseId=String(req.query?.caseId||'');if(!idOk(caseId))return respond(res,400,{error:'사건 ID 오류'});
- const registry=await readJson(casePrefix(a.user,'_index').replace(/_index\/$/,'')+'registry/'+caseId+'.json').catch(()=>null);
+ const registry=await requireOwnedCase(a.user,caseId).catch(()=>null);
  if(!registry||registry.id!==caseId)return respond(res,404,{error:'등록된 사건이 없습니다'});
  if(req.method==='POST'&&!validClientRole(registry.intake?.clientRole))
   return respond(res,409,{code:'CLIENT_ROLE_REQUIRED',error:'원고인가요, 피고인가요? 의뢰인 지위를 먼저 등록해 주세요.'});
