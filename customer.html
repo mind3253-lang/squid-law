@@ -245,7 +245,7 @@ async function routeCaseMessage(message){
  if(awaitingResume||/(?:사건|자료).*(?:불러|가져|이어)|(?:이어|불러).*(?:사건|자료)/.test(q)){notice('해당 사건을 찾지 못했습니다. 마이페이지에서 사건번호를 확인해 주세요.','error');return true}
  return false;
 }
-async function refresh(){const token=++epoch,caseId=select.value;log.replaceChildren();if(!select.value){status.textContent='새 사건을 시작하거나 기존 사건번호로 이어갈 수 있습니다.';if(!selectedFlow&&!awaitingResume)showOnboarding();return}try{const data=await api('GET');if(token!==epoch||caseId!==select.value)return;if(!currentCase()?.intake?.clientRole){showOnboarding();return}const entries=[...data.documents.map(d=>({at:d.createdAt,role:'user',text:'📎 '+d.name+' · '+d.pageCount+'쪽 · '+d.status,doc:d})),...data.messages.map(m=>({at:m.createdAt,role:m.role,text:m.content}))].sort((a,b)=>a.at.localeCompare(b.at));for(const x of entries)bubble(x.text,x.role,x.doc);if(entries.length&&data.documents.length&&log.dataset.analysisPrompt!==caseId){log.dataset.analysisPrompt=caseId;caseChatAction('사건 전체 분석 신청·상태 확인',()=>fullReviewButton.click())}if(!entries.length){const p=document.createElement('p');p.className='case-chat-empty';p.textContent='분석할 사건 자료와 증거를 첨부해 주세요.';log.append(p)}status.textContent='서버 보관 문서 '+data.documents.length+'개 · 저장된 대화 '+data.messages.length+'개'}catch(e){if(token===epoch)status.textContent='자료 조회 실패: '+e.message}}
+async function refresh(){const token=++epoch,caseId=select.value;if(!select.value){status.textContent='새 사건을 시작하거나 기존 사건번호로 이어갈 수 있습니다.';if(!selectedFlow&&!awaitingResume)showOnboarding();return}try{const data=await api('GET');if(token!==epoch||caseId!==select.value)return;if(!currentCase()?.intake?.clientRole){showOnboarding();return}const entries=[...data.documents.map(d=>({at:d.createdAt,role:'user',text:'📎 '+d.name+' · '+d.pageCount+'쪽 · '+d.status,doc:d})),...data.messages.map(m=>({at:m.createdAt,role:m.role,text:m.content}))].sort((a,b)=>a.at.localeCompare(b.at));const signature=JSON.stringify(entries.map(x=>[x.at,x.role,x.text,x.doc?.id]));if(log.dataset.renderSignature!==signature||log.dataset.renderCase!==caseId){log.replaceChildren();for(const x of entries)bubble(x.text,x.role,x.doc);log.dataset.renderSignature=signature;log.dataset.renderCase=caseId}if(entries.length&&data.documents.length&&log.dataset.analysisPrompt!==caseId){log.dataset.analysisPrompt=caseId;caseChatAction('사건 전체 분석 신청·상태 확인',()=>fullReviewButton.click())}if(!entries.length){const p=document.createElement('p');p.className='case-chat-empty';p.textContent='분석할 사건 자료와 증거를 첨부해 주세요.';log.append(p)}status.textContent='서버 보관 문서 '+data.documents.length+'개 · 저장된 대화 '+data.messages.length+'개'}catch(e){if(token===epoch)status.textContent='자료 조회 실패: '+e.message}}
 const feedback=$('caseChatFeedback');function notice(message,kind='info'){feedback.textContent=message;feedback.dataset.kind=kind;feedback.style.display='block'}function showPending(){area.replaceChildren();pending.forEach((f,i)=>{const span=document.createElement('span');span.className='case-chat-file';span.textContent=(/\.pdf$/i.test(f.name)?'📄 ':'📎 ')+f.name+(/\.pdf$/i.test(f.name)?' · 업로드 대기':' · 변환 기능 준비 중 (분석 제외)')+' ';const x=document.createElement('button');x.textContent='×';x.onclick=()=>{pending.splice(i,1);showPending();notice(pending.length?pending.length+'개 파일 선택됨':'첨부 목록이 비었습니다.')};span.append(x);area.append(span)})}
 async function loadCases(){const r=await fetch('/api/customer-cases',{credentials:'same-origin',cache:'no-store'});const j=await r.json();if(!r.ok)throw Error(j.error||'사건 목록 조회 실패');caseRecords=j.cases;select.replaceChildren();for(const c of j.cases){const o=document.createElement('option');o.value=c.id;o.textContent=c.id+' · '+c.title;select.append(o)}const preferred=new URLSearchParams(location.search).get('case'),cat=categoryCode(),item=j.cases.find(c=>c.id===preferred);if(item&&(!cat||item.type===cat))select.value=preferred;else select.value='';syncIntake();await refresh();await inspectRequest();await restoreFullReview();if(!currentCase()?.intake?.clientRole&&select.value)showOnboarding()}
 $('createCase').onclick=()=>{select.value='';newCaseMode=false;history.replaceState(null,'','?category='+encodeURIComponent(new URLSearchParams(location.search).get('category')||''));showOnboarding();status.textContent='어떤 상황인지 선택해 주세요.'};
@@ -262,7 +262,7 @@ async function uploadLarge(f){
  sessionStorage.setItem(key,JSON.stringify({id,total,next}));
  // Upload independent 1 MiB chunks with bounded concurrency. Only persist the
  // contiguous acknowledged prefix so retries never skip an unconfirmed chunk.
- let cursor=next,confirmed=next,firstError=null;
+ let cursor=next,confirmed=next,firstError=null,lastProgress=-1;
  const finished=new Set();
  const worker=async()=>{
   while(cursor<total&&!firstError){
@@ -282,11 +282,11 @@ async function uploadLarge(f){
     finished.add(i);
     while(finished.has(confirmed)){finished.delete(confirmed);confirmed++;}
     sessionStorage.setItem(key,JSON.stringify({id,total,next:confirmed}));
-    notice('📤 '+f.name+' · 업로드 '+Math.round(confirmed/total*100)+'%');
+    const progress=Math.floor(confirmed/total*100);if(progress!==lastProgress){lastProgress=progress;notice('📤 '+f.name+' · 업로드 '+progress+'%');}
    }catch(e){firstError=firstError||e;}
   }
  };
- await Promise.all(Array.from({length:Math.min(3,total-next)},()=>worker()));
+ await Promise.all(Array.from({length:Math.min(6,total-next)},()=>worker()));
  if(firstError)throw firstError;
  notice('📄 '+f.name+' · 서버에서 원본 확인 및 페이지 수 등록 중');
  const r=await fetch('/api/customer-large-upload?caseId='+encodeURIComponent(select.value)+
