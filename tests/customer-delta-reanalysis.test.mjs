@@ -111,7 +111,7 @@ test('customer report exposes new evidence, before/after conclusions and page an
   sourceVersion:nowVersion,baselineVersion:prevVersion,
   addedDocs:[after],documentSnapshot:[before,after]});
  const brief=buildCustomerAnalysisBrief({caseRecord:{intake:{clientRole:'defendant',
-  isFiledCase:false}},report,documents:[{id:'old',name:'원본.pdf'},{id:'new',name:'추가자료.pdf'}]});
+  isFiledCase:false}},report,documents:[{id:'old',name:'원본.pdf',pageCount:1},{id:'new',name:'추가자료.pdf',pageCount:1}]});
  assert.match(brief.text,/신규 증거에 따른 변경 내역/);
  assert.match(brief.text,/기존 판단 : 기간이 5년입니다/);
  assert.match(brief.text,/변경 판단 : 신규 증거 반영 결과/);
