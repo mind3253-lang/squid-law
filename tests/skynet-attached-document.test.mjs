@@ -69,5 +69,6 @@ test('temporary OpenAI errors are retryable but bad model input is not',()=>{
  assert.match(api,/const retryable=!quotaExhausted&&\(upstream\.status===429\|\|upstream\.status>=500\)/);
  assert.match(api,/upstream\.status===400\|\|upstream\.status===422\?422/);
  assert.match(api,/SKYNET_OPENAI_UPSTREAM_ERROR/);
- assert.match(chat,/error\.retryable=result\?\.retryable===true/);
+ assert.match(chat,/error\.retryable=!error\.quotaExhausted&&/);
+ assert.match(chat,/result\?\.retryable===true/);
 });
