@@ -81,7 +81,7 @@ export async function advanceJob(job,stage,checkpoint,status='running',errorCode
  lease_expires_at=CASE WHEN $8='running' THEN now()+interval '90 seconds' ELSE NULL END,
  next_run_at=CASE WHEN $8='retry' THEN now()+CASE WHEN $6='error' THEN LEAST(3600,POWER(2,LEAST(attempts,10))) * interval '1 second' ELSE interval '250 milliseconds' END ELSE next_run_at END,
  owner_token=CASE WHEN $8='running' THEN owner_token ELSE NULL END,updated_at=now()
- WHERE customer_key=$1 AND case_id=$2 AND job_id=$3 AND owner_token=$4 AND fence=$5 AND lease_expires_at>now()
+ WHERE customer_key=$1 AND case_id=$2 AND job_id=$3 AND owner_token=$4 AND fence=$5 AND status='running' AND lease_expires_at>now()
  RETURNING *`,[job.customerKey,job.caseId,job.jobId,job.token,job.fence,stage,JSON.stringify(checkpoint),status,errorCode]);
   if(!r.rows[0])throw Error('JOB_LEASE_LOST');
   return publicJob(r.rows[0]);
