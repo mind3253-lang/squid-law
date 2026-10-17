@@ -121,7 +121,7 @@ export async function queueSnapshot(user,caseId,id){
   const t=target.rows[0];if(!t)return null;
   const r=await db.query(`WITH earlier AS (
    SELECT count(*)::integer AS ahead, count(*) FILTER (WHERE status='running' AND lease_expires_at>now())::integer AS running_ahead FROM customer_analysis_jobs
-   WHERE (status IN ('queued','retry') OR (status='running' AND lease_expires_at>now()))
+   WHERE ((status IN ('queued','retry') AND next_run_at<=now()) OR (status='running' AND lease_expires_at>now()))
    AND (created_at,job_id)<($1::timestamptz,$2::uuid)
   ),running AS (
    SELECT count(*)::integer AS active FROM customer_analysis_jobs WHERE status='running' AND lease_expires_at>now()

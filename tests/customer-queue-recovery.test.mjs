@@ -27,3 +27,9 @@ test('verified-page billing metadata never implies authorized payment',()=>{
  assert.match(api,/unit:'verified_source_page'/);
  assert.match(api,/priceConfirmed:false,chargeAuthorized:false/);
 });
+
+test('FIFO waiting count excludes retry jobs whose backoff has not elapsed',()=>{
+ const db=source('api/customer-analysis-jobs-db.js');
+ const q=db.slice(db.indexOf('export async function queueSnapshot('));
+ assert.match(q,/status IN \('queued','retry'\) AND next_run_at<=now\(\)/);
+});

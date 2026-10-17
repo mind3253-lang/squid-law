@@ -19,7 +19,7 @@ test('source footnotes are not truncated or attached to unknown documents',()=>{
  assert.match(src,/return name&&page\?name\+' '\+page:null;/);
 });
 test('offensive keyword candidates must belong to the selected client',()=>{
- assert.match(src,/f\.party===intake\.clientRole/);
+ assert.match(src,/roleFrom\(f\)===intake\.clientRole/);
 });
 
 test('counterclaims and keyword candidates require the current client party',()=>{
@@ -29,4 +29,16 @@ test('counterclaims and keyword candidates require the current client party',()=
 test('delta review changes are all reported without the former twelve-item cutoff',()=>{
  assert.match(src,/for\(const \[i,change\] of \(delta\.changes\|\|\[\]\)\.entries\(\)\)/);
  assert.doesNotMatch(src,/delta\.changes\|\|\[\]\)\.slice\(0,12\)/);
+});
+
+test('offensive strategy draws only from client findings and labels unsupported claims',()=>{
+ assert.match(src,/const clientFindings=g\.items\.filter\(f=>roleFrom\(f\)===intake\.clientRole\)/);
+ assert.match(src,/clientFindings\.flatMap\(f=>f\.sources\|\|\[\]\)/);
+ assert.match(src,/검증 과제 — 의뢰인 측 원문 증거 위치 미확인/);
+});
+
+test('model prompt attributes offensive claims to the correct party',()=>{
+ const prompt=readFileSync(new URL('../lib/gpt-legal-expert.mjs',import.meta.url),'utf8');
+ assert.match(prompt,/A counterclaim made by the opposing party is an adverse claim/);
+ assert.match(prompt,/When attribution is not supported, mark party unknown/);
 });
