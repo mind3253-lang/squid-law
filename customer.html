@@ -313,7 +313,7 @@ fullReviewPanel.style.cssText='margin:12px 0;padding:16px;border:1px solid #cbd5
 fullReviewPanel.hidden=true;
 fullReviewPanel.setAttribute('aria-live','polite');
 feedback.parentElement.appendChild(fullReviewPanel);
-function renderFullReview(job,queue,progress){
+function renderFullReview(job,queue,progress,billing){
  const cp=job.checkpoint||{},state=job.status;
  const waiting=state==='queued'||(state==='retry'&&queue?.ahead>0);
  const total=Number(cp.documentCount)||0,done=Number(cp.verifiedTextDocuments)||0;
@@ -363,7 +363,7 @@ function renderFullReview(job,queue,progress){
  const phase=document.createElement('span');phase.textContent=state==='completed'?'전체 분석 완료':state==='blocked'?'검증 또는 분석 보류':!collectionDone?'자료 수집·추출 중':!analysisDone?'통합 법률 분석 중':'결과 검증 중';
  const percent=document.createElement('strong');percent.textContent=overall+'%';caption.append(phase,percent);
  const legend=document.createElement('small');legend.style.cssText='display:block;color:#64748b;margin-top:5px';legend.textContent='🟨 수집·추출 20%  ·  🟦 통합 분석 65%  ·  🟩 결과 검증 15%';
- fullReviewPanel.replaceChildren(title,detail,single,caption,legend);fullReviewPanel.hidden=false;
+ const billingLine=document.createElement('small');billingLine.style.cssText='display:block;margin-top:8px;color:#475569';billingLine.textContent=billing?.pageCountVerified&&Number.isSafeInteger(billing.verifiedPages)?'검증된 원본 '+billing.verifiedPages+'페이지 · 페이지 기준 과금 대상 · 결제 미승인 (청구 없음)':'원본 페이지 수 검증 대기 · 요금 미확정 · 청구 없음';fullReviewPanel.replaceChildren(title,detail,single,caption,legend,billingLine);fullReviewPanel.hidden=false;
  fullReviewButton.textContent=state==='blocked'?'분석 재개':state==='failed'?'분석 상태 확인':state==='completed'?'분석 완료 · 상태 확인':'분석 진행 상태 확인';
 }
 
@@ -468,7 +468,7 @@ async function readFullReviewJson(r){
 let fullReviewTimer=null;
 async function fullReviewStatus(jobId,caseId){
  const r=await fetch('/api/customer-analysis-job?caseId='+encodeURIComponent(caseId)+'&jobId='+encodeURIComponent(jobId),{credentials:'same-origin',cache:'no-store'});const j=await readFullReviewJson(r);if(!r.ok)throw Error(j.error||'분석 상태 조회 실패');
- const job=j.job,cp=job.checkpoint||{};renderFullReview(job,j.queue,j.progress);const stageLabels={pdf_extraction_checkpoint:'PDF 원문 페이지별 추출',pdf_extraction_completed:'PDF 추출 완료 · 분석 대기',text_review_checkpoint:'원문 텍스트 검증',text_review_finalize_checkpoint:'전체 문서 교차검증 집계',text_review_completed_visual_pending:'이미지·OCR 검증 대기'};const progress=job.stage==='pdf_extraction_checkpoint'?' · 추출 '+(cp.extractionNextPage?cp.extractionNextPage-1:0)+'페이지':job.stage==='text_review_finalize_checkpoint'?' · 검증 배치 '+(cp.finalizeOffset||0):' · 확인된 문서 '+(cp.verifiedTextDocuments||0)+'/'+(cp.documentCount||'?');notice('전체 분석: '+job.status+' · '+(stageLabels[job.stage]||job.stage)+progress+' · '+(job.errorCode||'진행 중'),job.status==='blocked'?'error':'info');
+ const job=j.job,cp=job.checkpoint||{};renderFullReview(job,j.queue,j.progress,j.billing);const stageLabels={pdf_extraction_checkpoint:'PDF 원문 페이지별 추출',pdf_extraction_completed:'PDF 추출 완료 · 분석 대기',text_review_checkpoint:'원문 텍스트 검증',text_review_finalize_checkpoint:'전체 문서 교차검증 집계',text_review_completed_visual_pending:'이미지·OCR 검증 대기'};const progress=job.stage==='pdf_extraction_checkpoint'?' · 추출 '+(cp.extractionNextPage?cp.extractionNextPage-1:0)+'페이지':job.stage==='text_review_finalize_checkpoint'?' · 검증 배치 '+(cp.finalizeOffset||0):' · 확인된 문서 '+(cp.verifiedTextDocuments||0)+'/'+(cp.documentCount||'?');notice('전체 분석: '+job.status+' · '+(stageLabels[job.stage]||job.stage)+progress+' · '+(job.errorCode||'진행 중'),job.status==='blocked'?'error':'info');
  if(cp.textReviewIntermediateReport){try{const rr=await fetch('/api/customer-text-review-report?caseId='+encodeURIComponent(caseId)+'&jobId='+encodeURIComponent(jobId)+'&summary=1',{credentials:'same-origin',cache:'no-store'});if(rr.ok){const summary=(await rr.json()).summary;notice('원문 중간보고서: '+summary.documents+'개 문서 · '+summary.pages+'페이지 · 모순 후보 '+summary.opposingCandidates+'건 · 관련 증거 '+summary.evidenceLinks+'건 (모두 미검증 후보)','info')}}catch{}}
  if(['blocked','failed','completed'].includes(job.status)){clearInterval(fullReviewTimer);fullReviewTimer=null;if(job.status==='completed'&&log.dataset.reportJob!==jobId){log.dataset.reportJob=jobId;bubble('전체 분석이 완료되었습니다. 보고서를 확인할 수 있습니다.','system');caseChatAction('법률 분석 보고서 열기',()=>legalReportButton.click());caseChatAction('원문 검증 중간보고서',()=>textReportButton.click())}}
  return job.status;
