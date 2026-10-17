@@ -7,7 +7,21 @@ const amounts=s=>[...new Set((s.match(/\d[\d,]*(?:\.\d+)?\s*(?:억\s*)?(?:만\s*
 const terms=s=>[...new Set((s.match(/[가-힣A-Za-z]{2,12}/g)||[]).filter(x=>!['그리고','그러나','계약서','당사자','증거자료','내용증명','준비서면','원고는','피고는'].includes(x)))].slice(0,20);
 export function extractFacts(pages,limit=2500){const facts=[];for(const p of pages){const lines=p.text.split(/[\n。]/).map(s=>s.trim()).filter(s=>s.length>=12);for(const line of lines){const ds=dates(line),ms=amounts(line);if(!ds.length&&!ms.length)continue;const snippet=line.slice(0,380),source={documentId:p.documentId,filename:p.filename,page:p.page};facts.push({id:h(p.id+snippet),kind:'source_observation',status:'원문 발췌·의미 미확정',statement:snippet,dates:ds,amounts:ms,entities:terms(snippet),source,eventDate:null,documentDate:null,filingDate:null,extractedAt:new Date().toISOString()});if(facts.length>=limit)return facts}}return facts}
 export function candidateConflicts(facts,limit=200){const out=[];const byEntity=new Map();for(const f of facts){for(const e of f.entities.slice(0,8)){const a=byEntity.get(e)||[];a.push(f);byEntity.set(e,a)}}const seen=new Set();for(const [entity,fs] of byEntity){if(fs.length>70)continue;for(let i=0;i<fs.length;i++)for(let j=i+1;j<fs.length;j++){const a=fs[i],b=fs[j];if(a.source.documentId===b.source.documentId||(!a.amounts.length&&!a.dates.length)||(!b.amounts.length&&!b.dates.length))continue;const amountDifference=a.amounts.length&&b.amounts.length&&!a.amounts.some(x=>b.amounts.includes(x));const dateDifference=a.dates.length&&b.dates.length&&!a.dates.some(x=>b.dates.includes(x));if(!amountDifference&&!dateDifference)continue;const key=[a.id,b.id].sort().join(':');if(seen.has(key))continue;seen.add(key);out.push({id:h(key),type:amountDifference?'금액 차이 후보':'날짜 차이 후보',entity,status:'미확정·동일 사건인지 확인 필요',left:{factId:a.id,source:a.source,statement:a.statement},right:{factId:b.id,source:b.source,statement:b.statement}});if(out.length>=limit)return out}}return out}
-export function timelineFromFacts(facts){return facts.filter(f=>f.dates.length).flatMap(f=>f.dates.map(date=>({id:h(f.id+date),date,event:f.statement,source:f.source,dateType:'원문에 등장한 날짜·사건일 미확정',status:'검토 필요'}))).sort((a,b)=>a.date.localeCompare(b.date)).slice(0,1000)}
+export function timelineFromFacts(facts){
+ const events=[];
+ for(const f of facts){
+  for(const raw of f.dates||[]){
+   const match=/^((?:19|20)\d{2})[.\/-]\s*(\d{1,2})[.\/-]\s*(\d{1,2})/.exec(raw);
+   if(!match)continue;
+   const year=Number(match[1]),month=Number(match[2]),day=Number(match[3]);
+   const check=new Date(Date.UTC(year,month-1,day));
+   if(check.getUTCFullYear()!==year||check.getUTCMonth()!==month-1||check.getUTCDate()!==day)continue;
+   const date=[match[1],String(month).padStart(2,'0'),String(day).padStart(2,'0')].join('-');
+   events.push({id:h(f.id+date),date,event:f.statement,source:f.source,dateType:'원문에 등장한 날짜·사건일 미확정',status:'검토 필요'});
+  }
+ }
+ return events.sort((a,b)=>a.date.localeCompare(b.date)||String(a.source?.documentId).localeCompare(String(b.source?.documentId))||Number(a.source?.page||0)-Number(b.source?.page||0)).slice(0,1000);
+}
 export const checklist={
 'b':['금전 교부','반환 약정','변제기','변제·상계 항변'],
 'c':['임대차계약','기간·차임','해지·종료','인도·보증금·원상회복'],
