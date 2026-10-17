@@ -126,7 +126,7 @@ test('transient failure in one PDF chunk retries and completed checkpoints are r
   await api.analyzeAttachedDocuments(docs,sourceQuestion,[],'low',
    async answer=>answers.push(answer),'anotherturnid12');
   assert.equal(segmentCalls,after,'cached successful source windows must not re-call AI');
-  assert.equal(finalCalls,2,'synthesis still runs on saved notes');
+  assert.equal(finalCalls,1,'completed immutable report is reused without duplicate synthesis');
   assert.equal(endpoints.getCounts().checkpointWrites,3,'checkpoint writes are idempotent');
  }finally{dispose()}
 });
