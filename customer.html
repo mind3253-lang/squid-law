@@ -394,6 +394,15 @@ legalReportButton.style.cssText='margin:8px;padding:10px 16px;border-radius:8px;
 legalReportButton.hidden=true;feedback.parentElement.appendChild(legalReportButton);
 function showLegalReport(report){
  legalReportPanel.replaceChildren();legalReportPanel.hidden=false;
+ const usage=report.modelUsage;
+ if(usage?.apiCalls){
+  const box=document.createElement('p');
+  box.textContent='실제 AI API 사용량 · 호출 '+usage.apiCalls+'회 · '+
+   (usage.byModel||[]).map(x=>x.model+' 입력 '+x.inputTokens+' / 출력 '+x.outputTokens+' 토큰'+(x.unmeteredCalls?' (미계측 '+x.unmeteredCalls+'회)':'')).join(' · ')+
+   ' · 원가·판매가격 미산정';
+  legalReportPanel.appendChild(box);
+ }
+
  if(typeof report.briefText==='string'&&report.briefText.trim()){
   renderCaseMarkdown(legalReportPanel,report.briefText);
   return;

@@ -41,7 +41,7 @@ export default async function handler(req,res){
    return respond(res,200,{caseId,jobId,sourceVersion:job.documentVersion,
     ...findReportEvidence(report,question),mode:'saved_report_search_only'});
   }
-  if(String(req.query?.summary||'')==='1')return respond(res,200,{summary:{title:report.title,status:report.status,notForCourtSubmission:report.notForCourtSubmission,findings:report.findings?.length||0,issues:report.issues||[],sourceCoverage:report.sourceCoverage}});
+  if(String(req.query?.summary||'')==='1')return respond(res,200,{summary:{title:report.title,status:report.status,notForCourtSubmission:report.notForCourtSubmission,findings:report.findings?.length||0,issues:report.issues||[],sourceCoverage:report.sourceCoverage,modelUsage:report.modelUsage||null}});
   let brief;
   try{brief=buildCustomerAnalysisBrief({caseRecord:registry,report,documents:await documents(auth.user,caseId)})}
   catch(e){

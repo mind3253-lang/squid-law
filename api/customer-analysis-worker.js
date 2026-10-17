@@ -9,6 +9,7 @@ export function shouldCheckpointFinalization({elapsedMs,completedRounds}){
  if(!Number.isFinite(elapsedMs)||elapsedMs<0||!Number.isSafeInteger(completedRounds)||completedRounds<0)throw Error('INVALID_FINALIZATION_BUDGET');
  return completedRounds>0&&elapsedMs>=FINALIZATION_SOFT_BUDGET_MS;
 }
+import {aggregateModelUsage} from '../lib/model-usage-observability.mjs';
 import {createHash,timingSafeEqual} from 'node:crypto';
 import {segmentRecord,auditSegments} from '../lib/record-chunks.mjs';
 import {analyzeUnit,independentlyVerify,crosscheckObservations} from '../lib/legal-evidence-review.mjs';
@@ -345,7 +346,7 @@ export default async function handler(req,res){
   const windows=await Promise.all(paths.map(p=>load(p)));
   // Each task restarts its cursor; build a report per task and keep all outputs as unverified.
   const reports=authorized.requestedTasks.map(t=>buildLegalCustomerReport({request:authorized,windows:windows.filter(w=>w.task===t),sourceIndex:sourceIndex.sources}));
-  const report={...reports[0],clientRole:authorized.clientRole,findings:reports.flatMap(r=>r.findings),uncertainties:reports.flatMap(r=>r.uncertainties),issues:[...new Set(reports.flatMap(r=>r.issues))],sourceCoverage:{tasks:reports.length,processedUnits:units.length},sourceReviewCoverage:reports.find(r=>r.sourceReviewCoverage?.task==='claims_and_rebuttals')?.sourceReviewCoverage||{complete:false,reviewedUnits:0,totalUnits:units.length},status:'draft_pending_verification',notForCourtSubmission:true,legalConclusionAvailable:false,independentSemanticAuditPassed:false};
+  const report={...reports[0],modelUsage:aggregateModelUsage(windows.map(w=>w.modelUsage).filter(Boolean)),clientRole:authorized.clientRole,findings:reports.flatMap(r=>r.findings),uncertainties:reports.flatMap(r=>r.uncertainties),issues:[...new Set(reports.flatMap(r=>r.issues))],sourceCoverage:{tasks:reports.length,processedUnits:units.length},sourceReviewCoverage:reports.find(r=>r.sourceReviewCoverage?.task==='claims_and_rebuttals')?.sourceReviewCoverage||{complete:false,reviewedUnits:0,totalUnits:units.length},status:'draft_pending_verification',notForCourtSubmission:true,legalConclusionAvailable:false,independentSemanticAuditPassed:false};
   const reportPath=root+'legal-customer-report.json';
   await put(reportPath,JSON.stringify(report),{access:'private',allowOverwrite:true,addRandomSuffix:false,contentType:'application/json'});
   await advanceJob(job,'legal_reasoning_independent_review_pending',{...previous,legalTaskIndex:nextTask,legalCursor:0,legalWindowPaths:paths,legalCustomerReport:reportPath},'retry');
