@@ -14,7 +14,7 @@ function createApp({askSkynet,history=[],fetchImpl}){
  const factory=new Function('crypto','fetch','TextEncoder','URLSearchParams','AbortController',
   'setTimeout','clearTimeout','el','askSkynet','history','splitLongText',
   'localStorage','saveTurn','drawChat',
-  helpers+'\nreturn {reviewSourceText,documentReviewCheckpoint,analyzeAttachedDocuments,'+
+  helpers+'\ncompileSkynetCaseDossier=async()=>askSkynet("사용자 요청: PDF 종합 분석");\nreturn {reviewSourceText,documentReviewCheckpoint,analyzeAttachedDocuments,'+
   'isResumeReviewRequest,previousAttachedReview,reviewFingerprint,isReviewStatusQuestion};');
  const timed=new Set();
  let next=0;
