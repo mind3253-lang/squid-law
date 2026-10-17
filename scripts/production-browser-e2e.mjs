@@ -8,16 +8,16 @@ try{
   const context=await browser.newContext({viewport});
   const page=await context.newPage(),errors=[];
   page.on('pageerror',e=>errors.push(String(e.message).slice(0,160)));
-  await page.goto('https://www.squidlaw.co.kr/customer.html',{waitUntil:'domcontentloaded',timeout:30000});
+  await page.goto('https://www.squidlaw.co.kr/customer.html?category=2',{waitUntil:'domcontentloaded',timeout:30000});
   await page.waitForURL(/login\.html/,{timeout:20000});
   await page.locator('#registerTab').click();
   const user='ci'+randomBytes(8).toString('hex'),password=randomBytes(24).toString('base64url');
   await page.locator('#uid').fill(user);
   await page.locator('#pw').fill(password);
   await page.locator('#submit').click();
-  await page.waitForURL(/customer\.html/,{timeout:25000});
+  await page.waitForURL(/customer\.html\?category=2/,{timeout:25000});
   // The old #createCase control is deliberately hidden: cases now start from chat.
-  await page.goto('https://www.squidlaw.co.kr/customer.html?category=2',{waitUntil:'domcontentloaded'});
+  // Registration already returned to the category-specific customer page; avoid a second navigation.
   await page.waitForFunction(()=>typeof window.__caseSendAction==='function' && document.querySelector('#caseChatInput'),null,{timeout:20000}).catch(async e=>{throw Error('Customer chat did not initialize: '+JSON.stringify({url:page.url(),errors,feedback:await page.locator('#caseChatFeedback').textContent().catch(()=>''),status:await page.locator('#caseChatStatus').textContent().catch(()=>''),scripts:await page.evaluate(()=>Array.from(document.scripts).map(s=>s.src||'inline').slice(-8))})+'; '+e.message)});
   await page.locator('#caseChatInput').fill('원고입니다. 임대차보증금 반환을 청구하려고 합니다.');
   await page.locator('#caseChatSend').dispatchEvent('click');
