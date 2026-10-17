@@ -1,3 +1,8 @@
+
+## 제품 역할 분리 — 최상위 확정 설계
+
+`docs/SHARED_SKYNET_SQUIDLAW_ARCHITECTURE.md`를 먼저 읽는다. SQUIDLAW 법률 분석 기능은 SKYNET에 복제하지 않는다. SKYNET은 경량 기억·검색·대화에 집중하며, 대용량 파일 처리·무결성·체크포인트 등 공통 기반 기술만 공유한다.
+
 # SQUIDLAW 전체 법률 엔진 — 재개 실행 명령
 
 ## 제품 확정 원칙 (다음 방에서 첫 번째로 확인할 것)

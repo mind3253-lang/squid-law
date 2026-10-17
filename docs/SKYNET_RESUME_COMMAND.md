@@ -1,3 +1,8 @@
+
+## 최상위 확정 설계 — 필독
+
+`docs/SHARED_SKYNET_SQUIDLAW_ARCHITECTURE.md`를 우선 읽는다. SKYNET은 가벼운 장기기억·검색·대화 전용이며 법률 분석 기능은 SQUIDLAW에만 둔다. 공통 기반 기능만 공유한다. 기존 통합형 법률 SKYNET 구상과 충돌하면 이 원칙이 우선한다.
+
 # SKYNET — 중단·강제 리턴 후 이어하기 최상위 실행 명령
 
 ## 목표
