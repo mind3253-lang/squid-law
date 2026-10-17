@@ -14,6 +14,12 @@ async function readBody(req,limit){
  return Buffer.concat(chunks,n);
 }
 const digest=data=>createHash('sha256').update(data).digest();
+export function verifyCustomerChunkDigest(data,claimedHex){
+ if(typeof claimedHex!=='string'||!/^[a-f0-9]{64}$/.test(claimedHex))throw Error('CUSTOMER_CHUNK_DIGEST_REQUIRED');
+ const actual=digest(data),claimed=Buffer.from(claimedHex,'hex');
+ if(!timingSafeEqual(actual,claimed))throw Error('CUSTOMER_CHUNK_DIGEST_MISMATCH');
+ return true;
+}
 async function isExistingIdentical(path,data){
  const blob=await get(path,{access:'private'}).catch(()=>null);
  if(!blob||blob.statusCode!==200)return false;
@@ -43,6 +49,7 @@ export default async function handler(req,res){
     return respond(res,400,{error:'조각 순서 오류'});
    const buf=await readBody(req,CHUNK+1);
    if(!buf.length||buf.length>CHUNK)return respond(res,413,{error:'전송 조각 크기 초과'});
+   verifyCustomerChunkDigest(buf,String(req.headers['x-chunk-sha256']||''));
    const path=root+index+'.part';
    try{
     await put(path,buf,{access:'private',addRandomSuffix:false,

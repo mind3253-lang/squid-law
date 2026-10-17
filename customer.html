@@ -268,11 +268,14 @@ async function uploadLarge(f){
   while(cursor<total&&!firstError){
    const i=cursor++;
    try{
+    const chunk=f.slice(i*unit,Math.min(f.size,(i+1)*unit));
+    const digestBytes=await crypto.subtle.digest('SHA-256',await chunk.arrayBuffer());
+    const chunkSha256=Array.from(new Uint8Array(digestBytes),b=>b.toString(16).padStart(2,'0')).join('');
     const r=await fetch('/api/customer-large-upload?caseId='+encodeURIComponent(select.value)+
      '&action=chunk&uploadId='+id+'&index='+i+'&total='+total,{
       method:'POST',credentials:'same-origin',
-      headers:{'content-type':'application/octet-stream'},
-      body:f.slice(i*unit,Math.min(f.size,(i+1)*unit))
+      headers:{'content-type':'application/octet-stream','x-chunk-sha256':chunkSha256},
+      body:chunk
      });
     const j=await r.json().catch(()=>({}));
     if(!r.ok)throw Error(j.error||'PDF 조각 전송 실패');
