@@ -1,6 +1,6 @@
 import {validClientRole} from '../lib/customer-case-intake.mjs';
 import {guard,respond,readJson,documents,casePrefix} from './customer-case.js';
-import {enqueueJob,getJob,resumeJob,queueSnapshot,documentVersion} from './customer-analysis-jobs-db.js';
+import {enqueueJob,getJob,resumeJob,queueSnapshot,documentVersion,latestCaseJob} from './customer-analysis-jobs-db.js';
 import {waitUntil} from '@vercel/functions';
 const kickWorker=req=>{
  const secret=process.env.CRON_SECRET;
@@ -19,12 +19,12 @@ export default async function handler(req,res){
  if(req.method==='POST'&&!validClientRole(registry.intake?.clientRole))
   return respond(res,409,{code:'CLIENT_ROLE_REQUIRED',error:'원고인가요, 피고인가요? 의뢰인 지위를 먼저 등록해 주세요.'});
  if(req.method==='GET'){
-  const jobId=String(req.query?.jobId||'');if(!/^[0-9a-f-]{36}$/.test(jobId))return respond(res,400,{error:'작업 ID 오류'});
-  try{const job=await getJob(a.user,caseId,jobId);// Background checkpoint dispatch is the primary path. A browser poll should
+  const jobId=String(req.query?.jobId||'');if(jobId!=='latest'&&!/^[0-9a-f-]{36}$/.test(jobId))return respond(res,400,{error:'작업 ID 오류'});
+  try{const job=jobId==='latest'?await latestCaseJob(a.user,caseId):await getJob(a.user,caseId,jobId);// Background checkpoint dispatch is the primary path. A browser poll should
   // nudge only stale queued work, not launch another function every 15 seconds
   // for every connected customer.
   const stalled=job&&Date.now()-new Date(job.updatedAt||0).getTime()>20000;
-  if(job&&stalled&&['queued','retry'].includes(job.status))kickWorker(req);const queue=job&&['queued','retry'].includes(job.status)?await queueSnapshot(a.user,caseId,jobId):null;const allDocs=job?await documents(a.user,caseId):[];const addedIds=new Set((job?.checkpoint?.delta?.addedDocuments||[]).map(d=>d.id));const docs=addedIds.size?allDocs.filter(d=>addedIds.has(d.id)):allDocs;const totalPages=docs.reduce((n,d)=>n+(Number(d.pageCount)||0),0);const completedDocuments=Math.min(docs.length,Number(job?.checkpoint?.nextDocument)||0);const processedPages=docs.slice(0,completedDocuments).reduce((n,d)=>n+(Number(d.pageCount)||0),0)+(Number(job?.checkpoint?.nextPage)||0);const cp=job?.checkpoint||{};const extractionDone=cp.phase==='analyze'||cp.phase==='verify'||Boolean(cp.textReviewManifest)||job?.status==='completed';const extractedPages=extractionDone?totalPages:Math.min(totalPages,docs.slice(0,completedDocuments).reduce((n,d)=>n+(Number(d.pageCount)||0),0)+Math.max(0,(Number(cp.extractionNextPage)||1)-1));return job?respond(res,200,{job,queue,billing:{unit:'verified_source_page',verifiedPages:allDocs.reduce((n,d)=>n+(Number.isSafeInteger(d.pageCount)&&d.pageCount>0?d.pageCount:0),0),priceConfirmed:false,chargeAuthorized:false},progress:{processedPages:Math.min(totalPages,processedPages),extractedPages,totalPages,completedDocuments,totalDocuments:docs.length}}):respond(res,404,{error:'작업 없음'})}catch{return respond(res,503,{error:'작업 상태 저장소 오류'})}
+  if(job&&stalled&&['queued','retry'].includes(job.status))kickWorker(req);const queue=job&&['queued','retry'].includes(job.status)?await queueSnapshot(a.user,caseId,job.jobId):null;const allDocs=job?await documents(a.user,caseId):[];const addedIds=new Set((job?.checkpoint?.delta?.addedDocuments||[]).map(d=>d.id));const docs=addedIds.size?allDocs.filter(d=>addedIds.has(d.id)):allDocs;const totalPages=docs.reduce((n,d)=>n+(Number(d.pageCount)||0),0);const completedDocuments=Math.min(docs.length,Number(job?.checkpoint?.nextDocument)||0);const processedPages=docs.slice(0,completedDocuments).reduce((n,d)=>n+(Number(d.pageCount)||0),0)+(Number(job?.checkpoint?.nextPage)||0);const cp=job?.checkpoint||{};const extractionDone=cp.phase==='analyze'||cp.phase==='verify'||Boolean(cp.textReviewManifest)||job?.status==='completed';const extractedPages=extractionDone?totalPages:Math.min(totalPages,docs.slice(0,completedDocuments).reduce((n,d)=>n+(Number(d.pageCount)||0),0)+Math.max(0,(Number(cp.extractionNextPage)||1)-1));return job?respond(res,200,{job,queue,billing:{unit:'verified_source_page',verifiedPages:allDocs.reduce((n,d)=>n+(Number.isSafeInteger(d.pageCount)&&d.pageCount>0?d.pageCount:0),0),priceConfirmed:false,chargeAuthorized:false},progress:{processedPages:Math.min(totalPages,processedPages),extractedPages,totalPages,completedDocuments,totalDocuments:docs.length}}):respond(res,404,{error:'작업 없음'})}catch{return respond(res,503,{error:'작업 상태 저장소 오류'})}
  }
  if(req.method!=='POST')return respond(res,405,{error:'GET/POST만 허용'});
  let b=req.body;try{if(typeof b==='string')b=JSON.parse(b)}catch{return respond(res,400,{error:'요청 형식 오류'})}

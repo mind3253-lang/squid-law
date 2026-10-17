@@ -135,3 +135,5 @@ export async function queueSnapshot(user,caseId,id){
    estimateBasis:v.completed,estimateMethod:'historical_completed_jobs_30'};
  });
 }
+
+export async function latestCaseJob(user,caseId){return withLeaseDb(async db=>{const r=await db.query('SELECT * FROM customer_analysis_jobs WHERE customer_key=$1 AND case_id=$2 ORDER BY created_at DESC,job_id DESC LIMIT 1',[key(user),caseId]);return publicJob(r.rows[0]);});}
