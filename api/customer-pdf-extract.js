@@ -12,6 +12,11 @@ export function resolvePdfPageRange(totalPages,options={}){
  if(!Number.isSafeInteger(totalPages)||totalPages<1||!Number.isSafeInteger(startPage)||startPage<1||startPage>totalPages||!(pageCount===Infinity||Number.isSafeInteger(pageCount)&&pageCount>0))throw Error('INVALID_PDF_PAGE_RANGE');
  return {startPage,endPage:Math.min(totalPages,startPage+pageCount-1)};
 }
+export function assertPdfExtractionCoverage({pages,totalPages,startPage,endPage}){
+ if(!Number.isSafeInteger(totalPages)||totalPages<1||!Number.isSafeInteger(startPage)||!Number.isSafeInteger(endPage)||startPage<1||endPage<startPage||endPage>totalPages||!Array.isArray(pages)||pages.length!==endPage-startPage+1)throw Error('PDF_EXTRACTION_PAGE_COVERAGE_MISMATCH');
+ for(let i=0;i<pages.length;i++)if(pages[i]?.page!==startPage+i||typeof pages[i].text!=='string')throw Error('PDF_EXTRACTION_PAGE_SEQUENCE_MISMATCH');
+ return true;
+}
 async function extractPagesFromTask(task,maxPages=Infinity,transportError=null){
  const safe=promise=>transportError?Promise.race([promise,transportError]):promise;
  try{
@@ -51,6 +56,7 @@ async function extractPagesFromTask(task,maxPages=Infinity,transportError=null){
    if(failed)throw failed.reason;
    pages.push(...group.map(x=>x.value));
   }
+  assertPdfExtractionCoverage({pages,totalPages,startPage:range.startPage,endPage:range.endPage});
   return {pages,totalPages,startPage:range.startPage,endPage:range.endPage,finished:range.endPage===totalPages};
  }finally{await task.destroy()}
 }
