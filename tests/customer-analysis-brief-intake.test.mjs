@@ -30,7 +30,7 @@ test('plaintiff or defendant is mandatory; court metadata is optional at intake'
  assert.equal(intakeForReport(record).clientRoleLabel,'피고');
 });
 test('court style case, prayer, chapters and client-tailored results appear in that order',()=>{
- const brief=buildCustomerAnalysisBrief({caseRecord:record,report:{findings,notForCourtSubmission:false,independentSemanticAuditPassed:true},documents:[{id:'d',name:'12878 사건기록.pdf'}]});
+ const brief=buildCustomerAnalysisBrief({caseRecord:record,report:{findings,notForCourtSubmission:false,independentSemanticAuditPassed:true},documents:[{id:'d',name:'12878 사건기록.pdf',pageCount:258}]});
  const text=brief.text;
  for(const key of ['사건번호 : 2026가단12878','원고 : 주식회사 고고다이브','피고 : 이서현',
   '청구취지','제1장. 쟁점 도표 정리','제2장. 분석','원고 : 원고는','피고 : 피고는','모순 :','제3장. 의뢰인 중심 분석 결과 및 보완사항',SQUIDLAW_REPORT_CLOSING]){

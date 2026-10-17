@@ -32,6 +32,7 @@ export default async function handler(req,res){
   try{brief=buildCustomerAnalysisBrief({caseRecord:registry,report,documents:await documents(auth.user,caseId)})}
   catch(e){
    if(e?.message==='CLIENT_ROLE_REQUIRED')return respond(res,409,{code:'CLIENT_ROLE_REQUIRED',error:'원고인가요, 피고인가요? 의뢰인 지위를 먼저 등록해 주세요.'});
+   if(e?.message==='ANALYSIS_ROLE_CHANGED')return respond(res,409,{code:'ANALYSIS_ROLE_CHANGED',error:'분석 당시 의뢰인 지위와 현재 지위가 다릅니다. 다시 분석해 주세요.'});
    throw e;
   }
   return respond(res,200,{report:{...report,briefText:brief.text,briefMeta:{
