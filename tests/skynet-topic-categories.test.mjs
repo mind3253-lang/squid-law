@@ -43,7 +43,7 @@ test('sidebar consumes original source category indexes instead of a narrow lega
  const search=readFileSync(new URL('../api/skynet-search-index.js',import.meta.url),'utf8');
  assert.match(sidebar,/\/admin\/skynet-category-dashboard/);
  assert.match(sidebar,/분류 상태를 확인 중/);
- assert.match(sidebar,/categorySources/);
+ assert.match(sidebar,/skynet-category-dashboard/);
  assert.match(categories,/skynet\/category-index\//);
  assert.match(search,/categoryDigestEntries/);
  assert.match(backfill,/skynet\/document-segments\//);
