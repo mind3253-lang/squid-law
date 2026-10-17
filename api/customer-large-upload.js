@@ -67,6 +67,7 @@ export default async function handler(req,res){
     return respond(res,409,{error:'업로드 식별번호와 파일 정보 불일치'});
    const doc=await readJson(prefix+'docs/'+prior.documentId+'.json');
    if(!doc)return respond(res,503,{error:'업로드 상태 복구 중'});
+   if(doc.sha256!==prior.sha256||doc.name!==name||doc.size!==size||doc.chunkUploadId!==uploadId||doc.sourceParts!==total||!Number.isSafeInteger(doc.pageCount)||doc.pageCount<1)return respond(res,409,{error:'업로드 영수증과 원본 정보 검증 실패'});
    return respond(res,202,{document:doc,extractionPending:doc.status==='extraction_pending',reused:true});
   }
   const source={
@@ -76,7 +77,10 @@ export default async function handler(req,res){
   // Stream every piece through SHA-256. Never construct a whole source Buffer.
   const sha256=await hashCustomerPdfArchive(prefix,source);
   const existing=(await documents(user,id)).find(d=>d.sha256===sha256);
-  if(existing)return respond(res,200,{document:existing,duplicate:true});
+  if(existing){
+   if(!Number.isSafeInteger(existing.pageCount)||existing.pageCount<1||existing.size!==size)return respond(res,409,{error:'기존 중복 원본의 무결성 확인 실패'});
+   return respond(res,200,{document:existing,duplicate:true});
+  }
   const range=createCustomerPdfRangeSource(prefix,source);
   const first=await range.readRange(0,Math.min(5,range.totalBytes));
   if(Buffer.from(first).toString('ascii')!=='%PDF-')
