@@ -17,7 +17,7 @@ test('PDF upload and re-index route through persisted page windows',()=>{
  assert.match(api,/extractPdfPagesByRange\(range/);
  assert.match(api,/PREVIOUS_PDF_WINDOW_MISSING/);
  assert.match(api,/PDF_SEGMENT_COVERAGE_INCOMPLETE/);
- assert.match(api,/receiptPath\(hash,startPage\)/);
+ assert.match(api,/receiptPath\(hash,startPage(?:,mode)?\)/);
  assert.match(api,/if\(isFinal\)\{/);
  assert.match(api,/ingestMethod:'bounded_pdf_byte_ranges'/);
 });
