@@ -120,18 +120,18 @@ export async function queueSnapshot(user,caseId,id){
   const target=await db.query('SELECT created_at,job_id,status FROM customer_analysis_jobs WHERE customer_key=$1 AND case_id=$2 AND job_id=$3',[key(user),caseId,id]);
   const t=target.rows[0];if(!t)return null;
   const r=await db.query(`WITH earlier AS (
-   SELECT count(*)::integer AS ahead FROM customer_analysis_jobs
-   WHERE status IN ('queued','retry','running')
+   SELECT count(*)::integer AS ahead, count(*) FILTER (WHERE status='running' AND lease_expires_at>now())::integer AS running_ahead FROM customer_analysis_jobs
+   WHERE (status IN ('queued','retry') OR (status='running' AND lease_expires_at>now()))
    AND (created_at,job_id)<($1::timestamptz,$2::uuid)
   ),running AS (
    SELECT count(*)::integer AS active FROM customer_analysis_jobs WHERE status='running' AND lease_expires_at>now()
   ),history AS (
    SELECT count(*)::integer AS completed,avg(extract(epoch FROM updated_at-created_at))::float AS avg_seconds
    FROM (SELECT created_at,updated_at FROM customer_analysis_jobs WHERE status='completed' ORDER BY updated_at DESC LIMIT 30) x
-  ) SELECT earlier.ahead,running.active,history.completed,history.avg_seconds FROM earlier,running,history`,[t.created_at,t.job_id]);
+  ) SELECT earlier.ahead,earlier.running_ahead,running.active,history.completed,history.avg_seconds FROM earlier,running,history`,[t.created_at,t.job_id]);
   const v=r.rows[0];const waiting=['queued','retry'].includes(t.status);
   return {ahead:waiting?v.ahead:0,position:waiting?v.ahead+1:null,active:v.active,
-   estimatedStartSeconds:waiting&&v.completed>=3&&v.avg_seconds>0?Math.ceil(v.ahead*v.avg_seconds):null,
+   estimatedStartSeconds:waiting&&v.completed>=3&&v.avg_seconds>0?Math.ceil((v.ahead+Math.max(0,v.active-v.running_ahead))*v.avg_seconds):null,
    estimateBasis:v.completed,estimateMethod:'historical_completed_jobs_30'};
  });
 }
