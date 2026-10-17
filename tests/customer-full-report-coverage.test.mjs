@@ -42,3 +42,10 @@ test('model prompt attributes offensive claims to the correct party',()=>{
  assert.match(prompt,/A counterclaim made by the opposing party is an adverse claim/);
  assert.match(prompt,/When attribution is not supported, mark party unknown/);
 });
+
+test('client-centered chapter presents every issue with concrete evidence gaps',()=>{
+ assert.match(src,/for\(const \[i,g\] of selected\.entries\(\)\)/);
+ assert.match(src,/보완할 증거 : /);
+ assert.match(src,/상대방\('/);
+ assert.doesNotMatch(src,/1\) 분석 결과 의뢰인/);
+});
