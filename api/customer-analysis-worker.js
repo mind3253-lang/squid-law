@@ -4,6 +4,11 @@ import {runDeltaReviewStep} from './customer-delta-worker.mjs';
 import {get} from '@vercel/blob';
 export const maxDuration=300;
 const VISUAL_WINDOW_CONCURRENCY=3;
+const FINALIZATION_SOFT_BUDGET_MS=180000;
+export function shouldCheckpointFinalization({elapsedMs,completedRounds}){
+ if(!Number.isFinite(elapsedMs)||elapsedMs<0||!Number.isSafeInteger(completedRounds)||completedRounds<0)throw Error('INVALID_FINALIZATION_BUDGET');
+ return completedRounds>0&&elapsedMs>=FINALIZATION_SOFT_BUDGET_MS;
+}
 import {createHash,timingSafeEqual} from 'node:crypto';
 import {segmentRecord,auditSegments} from '../lib/record-chunks.mjs';
 import {analyzeUnit,independentlyVerify,crosscheckObservations} from '../lib/legal-evidence-review.mjs';
@@ -147,7 +152,9 @@ export default async function handler(req,res){
    let cursor=offset,countTotal=previous.finalizeUnitCount||0;
    const digests=[...(previous.finalizePartDigests||[])];
    const hash=value=>createHash('sha256').update(JSON.stringify(value)).digest('hex');
+   const finalizationStartedAt=Date.now();
    for(let round=0;round<8&&cursor<descriptors.length;round++){
+    if(shouldCheckpointFinalization({elapsedMs:Date.now()-finalizationStartedAt,completedRounds:round}))break;
     const selected=descriptors.slice(cursor,cursor+8);
     const batches=await Promise.all(selected.map(x=>load(root+x.documentId+'-'+String(x.start).padStart(8,'0')+'.json')));
     const claims=[],observations=[],boundaries=[],sources=[];let count=0;
