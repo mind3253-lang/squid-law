@@ -1,4 +1,5 @@
 import {buildCustomerAnalysisBrief} from '../lib/customer-analysis-brief.mjs';
+import {findReportEvidence} from '../lib/customer-report-evidence-search.mjs';
 import {documents} from './customer-case.js';
 import {get} from '@vercel/blob';
 import {guard,respond,readJson,casePrefix} from './customer-case.js';
@@ -27,6 +28,13 @@ export default async function handler(req,res){
   const report=await load(savedPath);
   if(!report||report.caseId!==caseId||report.sourceVersion!==job.documentVersion||report.reportType!=='gpt_legal_analysis')return respond(res,409,{error:'보고서 출처 확인 실패'});
   if(report.clientRole!==registry.intake?.clientRole)return respond(res,409,{code:'ANALYSIS_ROLE_CHANGED',error:'현재 의뢰인 지위가 이 보고서 분석 당시의 원고·피고 선택과 달라, 기존 분석을 그대로 고객에게 제공할 수 없습니다.'});
+  if(req.query?.question!==undefined){
+   const question=String(req.query.question||'');
+   if(question.length<2||question.length>500)return respond(res,400,{code:'INVALID_REPORT_QUESTION',error:'질문은 2~500자로 입력해 주세요.'});
+   if(job.status!=='completed')return respond(res,409,{code:'REPORT_NOT_COMPLETE',error:'완료된 분석보고서에서만 근거를 검색할 수 있습니다.'});
+   return respond(res,200,{caseId,jobId,sourceVersion:job.documentVersion,
+    ...findReportEvidence(report,question),mode:'saved_report_search_only'});
+  }
   if(String(req.query?.summary||'')==='1')return respond(res,200,{summary:{title:report.title,status:report.status,notForCourtSubmission:report.notForCourtSubmission,findings:report.findings?.length||0,issues:report.issues||[],sourceCoverage:report.sourceCoverage}});
   let brief;
   try{brief=buildCustomerAnalysisBrief({caseRecord:registry,report,documents:await documents(auth.user,caseId)})}
