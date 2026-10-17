@@ -26,7 +26,8 @@ test('storage-only question is recognized and does not begin PDF analysis',()=>{
  const send=ui.slice(ui.indexOf('el("sendChat").onclick=async()=>{'));
  assert.match(send,/if\(isSkynetPdfExistenceQuestion\(msg\)\)\{/);
  assert.match(send,/await verifySkynetPdfPresence\(candidates\[0\]\)/);
- assert.match(send,/else if\(uploadedDocs.length\)\{\s*try\{\s*await analyzeAttachedDocuments/);
+ assert.match(send,/await analyzeAttachedDocuments\(/);
+ assert.match(send,/if\(isSkynetPdfExistenceQuestion\(msg\)\)\{/);
  assert.doesNotMatch(ui.slice(begin,end),/askSkynet\(/);
 });
 test('stored PDF answer requires exact hash, file name and 258 pages',async()=>{
