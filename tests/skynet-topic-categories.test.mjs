@@ -41,8 +41,8 @@ test('sidebar consumes original source category indexes instead of a narrow lega
  const categories=readFileSync(new URL('../api/skynet-categories.js',import.meta.url),'utf8');
  const backfill=readFileSync(new URL('../api/skynet-index-backfill.js',import.meta.url),'utf8');
  const search=readFileSync(new URL('../api/skynet-search-index.js',import.meta.url),'utf8');
- assert.match(sidebar,/\/api\/skynet-categories/);
- assert.match(sidebar,/집계 중/);
+ assert.match(sidebar,/\/admin\/skynet-category-dashboard/);
+ assert.match(sidebar,/분류 상태를 확인 중/);
  assert.match(sidebar,/categorySources/);
  assert.match(categories,/skynet\/category-index\//);
  assert.match(search,/categoryDigestEntries/);
