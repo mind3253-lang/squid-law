@@ -39,6 +39,12 @@ import {boundaryReviewRequest,auditBoundaryReview,compareBoundaryReviews,invokeB
 import {validatePersistedBatch,finalizationDescriptors,validateFinalizationPart,summarizeClaimRoles} from '../lib/text-review-aggregation.mjs';
 import {detectOpposingStatements} from '../lib/case-crosscheck.mjs';
 import {auditFinalizationCheckpoint,auditFinalizationResumePrefix} from '../lib/finalization-checkpoint.mjs';
+export function assertPersistedCustomerReport(expected,reopened){
+ if(!expected||!reopened||expected.caseId!==reopened.caseId||expected.sourceVersion!==reopened.sourceVersion||
+  createHash('sha256').update(JSON.stringify(expected)).digest('hex')!==createHash('sha256').update(JSON.stringify(reopened)).digest('hex'))
+  throw Error('FINAL_CUSTOMER_REPORT_PERSISTENCE_MISMATCH');
+ return true;
+}
 const eq=(a,b)=>{const x=Buffer.from(a||''),y=Buffer.from(b||'');return x.length===y.length&&timingSafeEqual(x,y)};
 async function load(path){const r=await get(path,{access:'private'});if(!r||r.statusCode!==200)return null;let size=0,parts=[];for await(const chunk of r.stream){size+=chunk.length;if(size>32*1024*1024)throw Error('BLOB_TOO_LARGE');parts.push(Buffer.from(chunk))}return JSON.parse(Buffer.concat(parts).toString())}
 async function loadBinary(path,maxBytes=105*1024*1024){const r=await get(path,{access:'private'});if(!r||r.statusCode!==200)return null;let size=0;const chunks=[];for await(const chunk of r.stream){size+=chunk.length;if(size>maxBytes)throw Error('SOURCE_PDF_TOO_LARGE');chunks.push(Buffer.from(chunk))}return Buffer.concat(chunks)}
