@@ -11,6 +11,7 @@ const kickWorker=req=>{
  waitUntil(fetch(url,{method:'POST',headers:{authorization:'Bearer '+secret},signal:AbortSignal.timeout(25000)}).catch(()=>{}));
 };
 const idOk=id=>/^SL-[a-zA-Z0-9-]{5,40}$/.test(id);
+const verifiedSourcePages=docs=>Array.isArray(docs)&&docs.length>0&&docs.every(d=>Number.isSafeInteger(d?.pageCount)&&d.pageCount>0&&/^[0-9a-f]{64}$/i.test(String(d?.sha256||'')));
 export default async function handler(req,res){
  const a=guard(req);if(a.error)return respond(res,a.status,{error:a.error});
  const caseId=String(req.query?.caseId||'');if(!idOk(caseId))return respond(res,400,{error:'사건 ID 오류'});
@@ -31,9 +32,10 @@ export default async function handler(req,res){
  if(b?.approved!==true||!['approve-analysis','resume-analysis'].includes(b?.action))return respond(res,400,{error:'고객의 명시적 전체 분석 승인이 필요합니다'});
  if(b.action==='resume-analysis'){
   if(!/^[0-9a-f-]{36}$/.test(String(b.jobId||'')))return respond(res,400,{error:'작업 ID 오류'});
-  try{const docs=await documents(a.user,caseId);const job=await resumeJob(a.user,caseId,b.jobId,documentVersion(docs));if(job)kickWorker(req);return job?respond(res,202,{job}):respond(res,409,{error:'작업을 재개할 수 없습니다. 이미지 증거 검증 단계가 준비되지 않았거나 원문 버전이 변경되었습니다.'})}catch{return respond(res,503,{error:'작업 재개 실패'})}
+  try{const docs=await documents(a.user,caseId);if(!verifiedSourcePages(docs))return respond(res,409,{code:'SOURCE_PAGES_NOT_VERIFIED',error:'원본 PDF의 페이지 수와 파일 무결성을 먼저 검증해야 합니다.'});const job=await resumeJob(a.user,caseId,b.jobId,documentVersion(docs));if(job)kickWorker(req);return job?respond(res,202,{job}):respond(res,409,{error:'작업을 재개할 수 없습니다. 이미지 증거 검증 단계가 준비되지 않았거나 원문 버전이 변경되었습니다.'})}catch{return respond(res,503,{error:'작업 재개 실패'})}
  }
  try{const docs=await documents(a.user,caseId);if(!docs.length)return respond(res,409,{error:'분석할 문서가 없습니다'});
+ if(!verifiedSourcePages(docs))return respond(res,409,{code:'SOURCE_PAGES_NOT_VERIFIED',error:'원본 PDF의 페이지 수와 파일 무결성을 먼저 검증해야 합니다.'});
  const job=await enqueueJob(a.user,caseId,documentVersion(docs));kickWorker(req);return respond(res,202,{job,notice:'분석 요청이 저장되었습니다. 실행 워커 활성화 여부는 별도로 확인해야 합니다.'})}
  catch(e){const code=e?.name==='LeaseUnavailable'?'DB_URL_MISSING':e?.code==='42P01'?'DB_TABLE_MISSING':e?.code==='28P01'?'DB_AUTH_FAILED':e?.code==='3D000'?'DB_NAME_INVALID':'DB_REGISTRATION_FAILED';return respond(res,503,{error:'분석 작업 등록 실패',code})}
 }
