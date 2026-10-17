@@ -18,8 +18,9 @@ try{
   await page.waitForURL(/customer\.html/,{timeout:25000});
   // The old #createCase control is deliberately hidden: cases now start from chat.
   await page.goto('https://www.squidlaw.co.kr/customer.html?category=2',{waitUntil:'domcontentloaded'});
+  await page.waitForFunction(()=>typeof window.__caseSendAction==='function' && document.querySelector('#caseChatInput'),{timeout:20000});
   await page.locator('#caseChatInput').fill('원고입니다. 임대차보증금 반환을 청구하려고 합니다.');
-  await page.locator('#caseChatSend').click();
+  await page.locator('#caseChatSend').dispatchEvent('click');
   await page.waitForFunction(()=>document.querySelector('#activeCase')?.value?.startsWith('SL-'),{timeout:25000});
   // Upload is now drag-and-drop rather than the removed #caseChatPick input.
   const pdf=readFileSync('tests/fixtures/ci-evidence.pdf');
