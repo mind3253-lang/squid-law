@@ -78,7 +78,7 @@ test('indexed source picker selects immutable stored PDF records without re-extr
  assert.match(html,/id="skynetReviewChooseSource"/);
  assert.match(html,/mode=indexed-pdfs/);
  assert.match(html,/pendingRestoredDocs=\[\{name:selected.name,hash:selected.hash,pages:selected.pageCount\}\]/);
- assert.match(html,/!pendingRestoredDocs.length&&isResumeReviewRequest\(msg\)/);
+ assert.match(html,/!pendingRestoredDocs.length&&!uploadedDocs.length&&isResumeReviewRequest\(msg\)/);
  assert.match(warehouse,/if\(req.query\?\.mode==='indexed-pdfs'\)/);
  assert.match(warehouse,/Number\.isSafeInteger\(row\.pageCount\)/);
  assert.match(warehouse,/x.pathname==='skynet\/documents\/'\+row.hash\+'\.json'/);
