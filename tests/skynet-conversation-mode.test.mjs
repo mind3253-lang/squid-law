@@ -73,12 +73,12 @@ test('empty and malformed dialogue has a safe neutral fallback',()=>{
  assert.equal(classifyConversationMoment([{role:'user',content:''}]).mode,'neutral');
  assert.equal(conversationStyleDirective({mode:'arbitrary'}).includes('자연스럽고 짧게'),true);
 });
-test('tone adaptation is active only for natural SKYNET chat, not single-pass PDF evidence review',()=>{
+test('natural SKYNET chat receives contextual tone guidance but PDF review does not',()=>{
  const code=src('api/skynet-chat.js');
- assert.match(code,/classifyConversationMoment\(clean\)/);
- assert.match(code,/conversationStyleDirective\(conversationMoment\)/);
- assert.match(code,/input\.skipMemorySearch===true\?null:classifyConversationMoment\(clean\)/);
- assert.match(code,/\{role:'system',content:conversationGuidance\},\.\.\.clean/);
+ assert.match(code,/const conversationGuidance=input\.skipMemorySearch===true\?null:/);
+ assert.match(code,/앞뒤 대화와 사용자의 실제 목적/);
+ assert.match(code,/고정된 감정이나 말투로 분류하지 마/);
+ assert.match(code,/\{role:'system',content:conversationGuidance\}/);
  assert.match(code,/input\.skipMemorySearch===true\?\[/);
  assert.doesNotMatch(src('lib/skynet-conversation-mode.mjs'),/@vercel\/blob|from 'pg'|fetch\(/);
 });
