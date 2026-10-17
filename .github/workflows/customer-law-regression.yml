@@ -1,0 +1,33 @@
+name: SQUIDLAW customer LAW regression
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'api/customer-*.js'
+      - 'lib/customer-*.mjs'
+      - 'lib/page-digests.mjs'
+      - 'lib/batch-integrity.mjs'
+      - 'lib/text-review-report.mjs'
+      - 'lib/independent-boundary-review.mjs'
+      - 'customer.html'
+      - 'tests/customer-law-*.test.mjs'
+      - '.github/workflows/customer-law-regression.yml'
+  workflow_dispatch:
+jobs:
+  law-regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --ignore-scripts --no-audit --no-fund
+      - name: LAW source syntax
+        run: |
+          node --check api/customer-analysis-job.js
+          node --check api/customer-large-upload.js
+          node --check api/customer-document-boundaries.js
+          node --check api/customer-text-review-report.js
+      - name: LAW focused regression
+        run: node --test tests/customer-law-*.test.mjs
