@@ -5,10 +5,10 @@
  * valuable when it retains material claims, their replies and precise source
  * positions, including the final pleadings. Never make up rows to fill a quota.
  */
-const CASE_DOSSIER_VERSION='squidlaw-case-brief-v4-three-part-formal-report';
+const CASE_DOSSIER_VERSION='squidlaw-case-brief-v5-evidence-ledger-source-guard';
 const CASE_DOSSIER_SECTIONS=Object.freeze([
  Object.freeze({id:'claim-map',title:'제1장. 쟁점 도표 정리',
-  focus:'청구취지와 반소 청구취지에 따라 청구액별 법적 원인, 결정적인 반박, 증거, 현재의 잠정 판단을 선별한다. 고객에게 유리한 점과 불리한 점을 함께 검토한다. 사건의 표지·절차 이력과 무관한 날짜별 주장 나열은 제외한다.',
+  focus:'청구취지와 반소 청구취지에 따라 청구액별 법적 원인, 결정적인 반박, 증거, 현재의 잠정 판단을 선별한다. 금전 청구마다 원금·지급·공제·상계·잔액·귀속자를 구분하고 계산 근거가 없는 금액은 확정하지 않는다. 고객에게 유리한 점과 불리한 점을 함께 검토한다. 사건의 표지·절차 이력과 무관한 날짜별 주장 나열은 제외한다.',
   tables:'| 청구·핵심 쟁점 | 원고의 청구 이유 | 피고의 핵심 반박 | 결정적 증거·입증 공백 | 잠정 판단·위험 |'}),
  Object.freeze({id:'contradictions',title:'제2장. 분석',
   focus:'제1장의 핵심 쟁점별로 원고 : 주장, 피고 : 주장, 모순 : 입증 가능한 자기모순 또는 주장 불일치, 분석 : 증거와 입증 책임의 효과를 각각 구분하여 상세하게 기술한다. 주장 대립만으로 모순을 단정하지 않는다. 마지막에 의뢰인 관점의 증거보완과 전문가 검토 필요사항을 결과 1) 2) 3)으로 제시한다.',
@@ -90,7 +90,7 @@ function dossierSectionPrompt(section,{question,mainNotes,lateNotes,pageCount,so
   section.id==='claim-map'?
    '제1장은 마크다운 파이프 표를 실제 생성하십시오. 표 형식: '+section.tables:
    '제2장은 표를 강제하지 않습니다. 쟁점별로 원고 : / 피고 : / 모순 : / 분석 : 네 항목을 정확히 분리하십시오.',
-  '200~500쪽 원본이어도 전체 보고서는 약 A4 10쪽 이내가 목표입니다. 본 장은 '+(section.id==='claim-map'?'3천~4천5백':'4천5백~7천')+'자 내외로 쓰십시오.',
+  '원본 페이지 수에 관계없이 전체 보고서는 약 A4 10쪽 이내가 목표입니다. 본 장은 '+(section.id==='claim-map'?'3천~4천5백':'4천5백~7천')+'자 내외로 쓰십시오.',
   '표와 해설에서 같은 사실을 반복하지 마십시오. 상대방 서면의 긴 축약본, 별도 연표, 절차 이력, 사건번호·당사자 소개의 반복을 금지합니다.',
   '쟁점마다 핵심 판단을 내려야 합니다. "확인 불가" 등의 변명성 문장을 반복하지 말고 결론에 영향을 주는 입증 공백만 짚으십시오.',
   '사건 표시는 처음에 한 번만 적고, 의뢰인 역할을 모르면서 원고에게 맞춘 보고서를 쓰지 마십시오. 고객용 보고서에 대화체 반말을 사용하지 마십시오.',
@@ -98,6 +98,7 @@ function dossierSectionPrompt(section,{question,mainNotes,lateNotes,pageCount,so
   '원문 인용을 본문과 혼합하지 마십시오. 본문에 간단한 각주 표시 [^1]을 사용하고 맨 아래 각주 [^1]: PDF 00쪽, 해당 증거번호 등 검증된 위치를 모아 두십시오. 본문과 표에 [PDF 몇 쪽]을 반복해서 붙이지 말고 각 쟁점에 각주 하나를 우선 사용하십시오.',
   '가짜 페이지, 법률, 판결, 증거번호를 만들지 마십시오. 당사자 주장과 실제 법원 판단을 구별하십시오. 소송대리허가 상태 등 청구취지 판단에 무관한 사항은 서술하지 마십시오.',
   '후반부 최신 서면의 실질적인 반박을 검토하고, 날짜가 최신이라는 이유만으로 사실로 단정하지 마십시오.',
+  '금전 청구가 존재하면 채권별 원금·기지급액·공제·상계·잔액·귀속자와 계산 근거를 명확히 구분하십시오. 서로 다른 사건의 채권을 합산하지 마십시오.',
   '스캔·사진·카카오톡 이미지의 내용을 확인하지 못했다면 직접 검증했다고 주장하지 마십시오. 서버 내부 Blob 경로·색인 ID·검색 로그를 출력하지 마십시오.',
   '서버의 원문 전체 검토 기록을 아래에 제공했습니다. 실제 원문 발췌는 일부이고 나머지는 저장된 구간별 노트입니다. 원문 재전송을 요청하지 마십시오.',
   '\n[실제 색인 PDF 원문 발췌]\n'+sourceExcerpts,
@@ -134,6 +135,8 @@ function assembleCaseDossier({sections,pageCount,sourceName,ocrRequired=[],quest
   (ocrRequired.length?'\n\n**별도 확인할 원본:** PDF '+ocrRequired.join(', ')+'쪽.':'')+
   '\n\n'+SQUIDLAW_CUSTOMER_CLOSING;
  if(report.length>28000)throw Error('DOSSIER_EXCESSIVE_OUTPUT');
+ if(reportHasInvalidPageCitations(report,pageCount))throw Error('DOSSIER_INVALID_PAGE_CITATION');
+ if(/(?:skynet\/document-segments\/|squidlaw\/analysis-jobs\/|squidlaw\/cases\/|blob\.vercel-storage\.com)/i.test(report))throw Error('DOSSIER_INTERNAL_SOURCE_PATH_EXPOSED');
  return report;
 }
 
