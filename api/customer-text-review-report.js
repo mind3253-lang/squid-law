@@ -20,7 +20,11 @@ export default async function handler(req,res){
   const chunks=[];let size=0;
   for await(const chunk of result.stream){size+=chunk.length;if(size>32*1024*1024)return respond(res,413,{error:'보고서 용량 초과'});chunks.push(Buffer.from(chunk))}
   const report=JSON.parse(Buffer.concat(chunks).toString('utf8'));
-  if(report.caseId!==caseId||report.sourceVersion!==job.documentVersion||report.reportType!=='text_review_only'||report.notForCourtSubmission!==true)return respond(res,409,{error:'보고서 원본 검증 실패'});
+  const validCoverage=Array.isArray(report.sourceCoverage)&&report.sourceCoverage.length>0&&report.sourceCoverage.every(d=>Number.isSafeInteger(d?.pages)&&d.pages>0);
+  const validCandidates=Array.isArray(report.opposingStatementCandidates)&&report.opposingStatementCandidates.every(x=>x?.status==='unverified_candidate');
+  const validEvidence=Array.isArray(report.crossDocumentEvidenceLinks)&&report.crossDocumentEvidenceLinks.every(x=>x?.status==='unverified_related_evidence');
+  const validPending=Array.isArray(report.pending)&&report.pending.length>0;
+  if(report.caseId!==caseId||report.sourceVersion!==job.documentVersion||report.reportType!=='text_review_only'||report.notForCourtSubmission!==true||report.legalConclusionAvailable!==false||report.visualVerificationAvailable!==false||!validCoverage||!validCandidates||!validEvidence||!validPending)return respond(res,409,{error:'보고서 원본 검증 실패'});
   if(String(req.query?.summary||'')==='1')return respond(res,200,{summary:{reportType:report.reportType,status:report.status,notForCourtSubmission:report.notForCourtSubmission,documents:report.sourceCoverage.length,pages:report.sourceCoverage.reduce((sum,d)=>sum+d.pages,0),opposingCandidates:report.opposingStatementCandidates.length,evidenceLinks:report.crossDocumentEvidenceLinks.length,pending:report.pending}});
   return respond(res,200,{report});
  }catch{return respond(res,503,{error:'중간보고서 조회 실패'})}
