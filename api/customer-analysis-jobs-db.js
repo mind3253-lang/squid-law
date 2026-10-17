@@ -58,7 +58,7 @@ export async function claimJob(){
  SELECT customer_key,case_id,job_id FROM customer_analysis_jobs
  WHERE (status IN ('queued','retry') AND next_run_at<=now())
  OR (status='running' AND lease_expires_at<now())
- ORDER BY next_run_at,created_at FOR UPDATE SKIP LOCKED LIMIT 1
+ ORDER BY created_at,job_id FOR UPDATE SKIP LOCKED LIMIT 1
 ) UPDATE customer_analysis_jobs j SET status='running',owner_token=$1,fence=fence+1,
  lease_expires_at=now()+interval '90 seconds',updated_at=now()
  FROM candidate c WHERE j.customer_key=c.customer_key AND j.case_id=c.case_id AND j.job_id=c.job_id
@@ -117,11 +117,21 @@ export async function resumeJob(user,caseId,jobId,version){
 
 export async function queueSnapshot(user,caseId,id){
  return withLeaseDb(async db=>{
-  const r=await db.query(`WITH target AS (SELECT created_at FROM customer_analysis_jobs WHERE customer_key=$1 AND case_id=$2 AND job_id=$3),
-  earlier AS (SELECT count(*)::integer AS ahead FROM customer_analysis_jobs j,target t WHERE j.status IN ('queued','retry','running') AND (j.created_at,j.job_id)<(t.created_at,$3::uuid)),
-  running AS (SELECT count(*)::integer AS active FROM customer_analysis_jobs WHERE status='running' AND lease_expires_at>now()),
-  history AS (SELECT count(*)::integer AS completed,avg(extract(epoch FROM updated_at-created_at))::float AS avg_seconds FROM (SELECT created_at,updated_at FROM customer_analysis_jobs WHERE status='completed' ORDER BY updated_at DESC LIMIT 30) x)
-  SELECT earlier.ahead,running.active,history.completed,history.avg_seconds FROM earlier,running,history`,[key(user),caseId,id]);
-  const v=r.rows[0];return {ahead:v.ahead,position:v.ahead+1,active:v.active,estimatedStartSeconds:v.completed>=3&&v.avg_seconds>0?Math.ceil(v.ahead*v.avg_seconds):null,estimateBasis:v.completed};
+  const target=await db.query('SELECT created_at,job_id,status FROM customer_analysis_jobs WHERE customer_key=$1 AND case_id=$2 AND job_id=$3',[key(user),caseId,id]);
+  const t=target.rows[0];if(!t)return null;
+  const r=await db.query(`WITH earlier AS (
+   SELECT count(*)::integer AS ahead FROM customer_analysis_jobs
+   WHERE status IN ('queued','retry','running')
+   AND (created_at,job_id)<($1::timestamptz,$2::uuid)
+  ),running AS (
+   SELECT count(*)::integer AS active FROM customer_analysis_jobs WHERE status='running' AND lease_expires_at>now()
+  ),history AS (
+   SELECT count(*)::integer AS completed,avg(extract(epoch FROM updated_at-created_at))::float AS avg_seconds
+   FROM (SELECT created_at,updated_at FROM customer_analysis_jobs WHERE status='completed' ORDER BY updated_at DESC LIMIT 30) x
+  ) SELECT earlier.ahead,running.active,history.completed,history.avg_seconds FROM earlier,running,history`,[t.created_at,t.job_id]);
+  const v=r.rows[0];const waiting=['queued','retry'].includes(t.status);
+  return {ahead:waiting?v.ahead:0,position:waiting?v.ahead+1:null,active:v.active,
+   estimatedStartSeconds:waiting&&v.completed>=3&&v.avg_seconds>0?Math.ceil(v.ahead*v.avg_seconds):null,
+   estimateBasis:v.completed,estimateMethod:'historical_completed_jobs_30'};
  });
 }

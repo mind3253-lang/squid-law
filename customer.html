@@ -326,7 +326,7 @@ function renderFullReview(job,queue,progress){
  const labels={queued:'분석 대기',running:'분석 진행',retry:'분석 처리 중',blocked:'검증 중단',failed:'분석 실패',completed:'분석 완료'};
  const title=document.createElement('strong');title.textContent=labels[state]||state;
  const detail=document.createElement('p');detail.style.cssText='margin:8px 0;font-size:14px';
- if(waiting){const ahead=queue?.ahead;const eta=queue?.estimatedStartSeconds;detail.textContent='대기 순번: '+(Number.isInteger(ahead)?ahead+1+'번째':'확인 중')+' · 예상 시작: '+(eta!==null&&Number.isFinite(eta)?'약 '+Math.max(1,Math.ceil(eta/60))+'분 후':'처리 기록 부족으로 산정 중');}
+ if(waiting){const ahead=queue?.ahead;const eta=queue?.estimatedStartSeconds;detail.textContent='대기 순번: '+(Number.isInteger(queue?.position)?queue.position+'번째':'확인 중')+' · 예상 시작: '+(eta!==null&&Number.isFinite(eta)?'약 '+Math.max(1,Math.ceil(eta/60))+'분 후 (최근 완료 작업 기준)':'처리 기록 부족으로 산정 중');}
  else{
   const created=new Date(job.createdAt||0).getTime();
   const updated=new Date(job.updatedAt||0).getTime();
@@ -383,6 +383,7 @@ function showLegalReport(report){
  const add=(tag,value)=>{const el=document.createElement(tag);el.textContent=String(value);legalReportPanel.appendChild(el);return el};
  add('h3',report.title||'법률 분석 보고서');
  add('p',report.warning||'검증 상태를 확인하세요.');
+ add('p','의뢰인 지위: '+(report.clientRole==='plaintiff'?'원고':report.clientRole==='defendant'?'피고':'미확인')+' · 원문 검토: '+(report.sourceReviewCoverage?.reviewedPages??'확인 중')+'/'+(report.sourceReviewCoverage?.totalPages??'확인 중')+'쪽');
  add('p','상태: '+report.status+' · 원문 참조 검사: '+(report.sourceReferenceAuditPassed?'통과':'미완료')+' · 독립 의미 검증: '+(report.independentSemanticAuditPassed?'통과':'미완료'));
  if(report.notForCourtSubmission)add('strong','⚠ 검증 전 초안 — 법원 제출용 아님');
  if(Array.isArray(report.findings)&&report.findings.length){
