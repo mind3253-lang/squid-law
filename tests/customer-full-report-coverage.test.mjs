@@ -55,3 +55,7 @@ test('complete report keeps every substantive analysis and delta citation',()=>{
  assert.match(src,/contradiction\.join\(' \/ '\)/);
  assert.doesNotMatch(src,/slice\(0,6\)\.join\('; '\)/);
 });
+
+test('offensive source checks tolerate absent source arrays',()=>{
+ assert.match(src,/Array\.isArray\(f\.sources\)&&f\.sources\.some/);
+});
