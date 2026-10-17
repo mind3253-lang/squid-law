@@ -21,3 +21,12 @@ test('source footnotes are not truncated or attached to unknown documents',()=>{
 test('offensive keyword candidates must belong to the selected client',()=>{
  assert.match(src,/f\.party===intake\.clientRole/);
 });
+
+test('counterclaims and keyword candidates require the current client party',()=>{
+ assert.match(src,/roleFrom\(f\)===intake\.clientRole/);
+ assert.doesNotMatch(src,/f\.type==='counterclaim' \|\| \(f\.party===intake\.clientRole/);
+});
+test('delta review changes are all reported without the former twelve-item cutoff',()=>{
+ assert.match(src,/for\(const \[i,change\] of \(delta\.changes\|\|\[\]\)\.entries\(\)\)/);
+ assert.doesNotMatch(src,/delta\.changes\|\|\[\]\)\.slice\(0,12\)/);
+});
