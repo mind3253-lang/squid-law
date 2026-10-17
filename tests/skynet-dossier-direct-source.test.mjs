@@ -7,14 +7,14 @@ import {CASE_DOSSIER_SECTIONS,dossierSectionPrompt,assembleCaseDossier,
 const html=readFileSync(new URL('../admin/skynet.html',import.meta.url),'utf8');
 
 test('a 146-page PDF actually routes to evidence dossier, never the notes-only fallback',()=>{
- const begin=html.indexOf('const reply=docs.length===1&&');
- const end=html.indexOf('?\n',begin);
- assert.ok(begin>=0&&end>begin);
- const expression=html.slice(begin,end).replace('const reply=','');
- const route=new Function('docs','return '+expression+';');
- assert.equal(route([{name:'수원지방법원_2026가단12498.pdf'}]),true);
- assert.equal(route([{name:'legal-notes.txt'}]),false);
- assert.equal(route([]),false);
+ const begin=html.indexOf('const reply=deltaReply||(');
+ assert.ok(begin>=0,'deep dossier must remain the default when no delta answer exists');
+ const route=html.slice(begin,html.indexOf('await compileSkynetCaseDossier({',begin));
+ assert.match(route,/docs\.length===1&&\/\\.pdf\$\/i\.test\(String\(docs\[0\]\.name\|\|''\)\)/);
+ const acceptsPdf=docs=>docs.length===1&&/\\.pdf$/i.test(String(docs[0].name||''));
+ assert.equal(acceptsPdf([{name:'수원지방법원_2026가단12498.pdf'}]),true);
+ assert.equal(acceptsPdf([{name:'legal-notes.txt'}]),false);
+ assert.equal(acceptsPdf([]),false);
  assert.match(html,/sourceWindows:originalSourceWindows\[0\]/);
  assert.match(html,/sourceWindows:span\.chunks/);
  assert.match(html,/skynet-pdf-review-v5-dossier-with-original-text/);
