@@ -62,7 +62,7 @@ test('visual review has fenced, checkpointed parallel independent primary and au
  assert.match(jobs,/interval '250 milliseconds'/);
  assert.match(jobs,/delayMs:600/);
  assert.match(jobs,/FOR UPDATE SKIP LOCKED/);
- assert.match(jobs,/AND owner_token=\$4 AND fence=\$5 AND lease_expires_at>now\(\)/);
+ assert.match(jobs,/AND owner_token=\$4 AND fence=\$5 AND status='running' AND lease_expires_at>now\(\)/);
 });
 
 
@@ -77,8 +77,8 @@ test('legal model window reuses only immutable SHA-verified original source bund
 });
 test('transient job failures restart after bounded SQL backoff, not on a five-minute stall',()=>{
  const jobs=source('api/customer-analysis-jobs-db.js');
- assert.match(jobs,/stage==='error'&&Number\(job\.attempts\|\|0\)<4/);
- assert.match(jobs,/2\*\*Math\.min\(3,Number\(job\.attempts\|\|0\)\)\*1000\+750/);
+ assert.match(jobs,/stage==='error'&&shouldPromptlyRedispatch\(job\.attempts\)/);
+ assert.match(jobs,/errorRetryDelayMs\(job\.attempts\)/);
  assert.match(jobs,/LEAST\(3600,POWER\(2,LEAST\(attempts,10\)\)\)/);
  assert.match(jobs,/interval '250 milliseconds'/);
 });

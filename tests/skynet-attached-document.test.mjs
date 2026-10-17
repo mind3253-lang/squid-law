@@ -66,7 +66,7 @@ test('resumable PDF review uses durable keyed checkpoints and no file reupload',
 test('temporary OpenAI errors are retryable but bad model input is not',()=>{
  const api=read('api/skynet-chat.js');
  const chat=read('admin/skynet.html');
- assert.match(api,/const retryable=upstream\.status===429\|\|upstream\.status>=500/);
+ assert.match(api,/const retryable=!quotaExhausted&&\(upstream\.status===429\|\|upstream\.status>=500\)/);
  assert.match(api,/upstream\.status===400\|\|upstream\.status===422\?422/);
  assert.match(api,/SKYNET_OPENAI_UPSTREAM_ERROR/);
  assert.match(chat,/error\.retryable=result\?\.retryable===true/);

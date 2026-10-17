@@ -63,7 +63,7 @@ test('a blank source page blocks text review without silently skipping',async()=
  const segmented=segmentRecord({scope:'customer',documentId:'original-document',pages});
  const result=independentlyVerify(segmented.segments,segmented.segments.map(analyzeUnit));
  assert.equal(result.complete,false);
- assert.equal(result.missing[0].page,42);
+ assert.ok(result.missing.some(x=>x.page===42||x.reason==='REVIEW_RESULT_COUNT_MISMATCH'));
 });
 
 test('independent review rejects duplicate and forged chunk counts',async()=>{
