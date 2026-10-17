@@ -1,4 +1,5 @@
 import {buildCustomerAnalysisBrief} from '../lib/customer-analysis-brief.mjs';
+import {courtSubmissionGate} from '../lib/court-submission-gate.mjs';
 import {findReportEvidence} from '../lib/customer-report-evidence-search.mjs';
 import {documents} from './customer-case.js';
 import {get} from '@vercel/blob';
@@ -28,6 +29,11 @@ export default async function handler(req,res){
   const report=await load(savedPath);
   if(!report||report.caseId!==caseId||report.sourceVersion!==job.documentVersion||report.reportType!=='gpt_legal_analysis')return respond(res,409,{error:'보고서 출처 확인 실패'});
   if(report.clientRole!==registry.intake?.clientRole)return respond(res,409,{code:'ANALYSIS_ROLE_CHANGED',error:'현재 의뢰인 지위가 이 보고서 분석 당시의 원고·피고 선택과 달라, 기존 분석을 그대로 고객에게 제공할 수 없습니다.'});
+  if(String(req.query?.submission||'')==='1'){
+   const gate=courtSubmissionGate(report);
+   if(!gate.allowed)return respond(res,409,{code:'COURT_SUBMISSION_BLOCKED',missing:gate.missing,error:'검증이 완료되지 않은 분석보고서는 제출용으로 제공할 수 없습니다.'});
+   return respond(res,200,{submissionReady:true,caseId,jobId,sourceVersion:job.documentVersion});
+  }
   if(req.query?.question!==undefined){
    const question=String(req.query.question||'');
    if(question.length<2||question.length>500)return respond(res,400,{code:'INVALID_REPORT_QUESTION',error:'질문은 2~500자로 입력해 주세요.'});
