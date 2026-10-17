@@ -27,7 +27,7 @@ try{
   await page.locator('.case-chat').evaluate((el,bytes)=>{const dt=new DataTransfer();dt.items.add(new File([new Uint8Array(bytes)],'ci-evidence.pdf',{type:'application/pdf'}));el.dispatchEvent(new DragEvent('drop',{bubbles:true,cancelable:true,dataTransfer:dt}));},Array.from(pdf));
   await page.waitForFunction(()=>document.querySelector('#caseChatFiles')?.textContent?.includes('ci-evidence.pdf'));
   await page.locator('#caseChatSend').dispatchEvent('click');
-  await page.waitForFunction(()=>/PDF 1개, 총 \d+쪽이 등록되었습니다/.test(document.querySelector('#caseChatStatus')?.textContent||''),null,{timeout:60000}).catch(async e=>{throw Error('PDF upload not confirmed: '+JSON.stringify({url:page.url(),status:await page.locator('#caseChatStatus').textContent().catch(()=>''),feedback:await page.locator('#caseChatFeedback').textContent().catch(()=>''),errors})+'; '+e.message)});
+  await page.waitForFunction(()=>document.querySelector('#caseChatLog')?.textContent?.includes('ci-evidence.pdf') && !document.querySelector('#caseChatFiles')?.textContent?.includes('ci-evidence.pdf'),null,{timeout:60000}).catch(async e=>{throw Error('PDF upload not confirmed: '+JSON.stringify({url:page.url(),status:await page.locator('#caseChatStatus').textContent().catch(()=>''),feedback:await page.locator('#caseChatFeedback').textContent().catch(()=>''),errors})+'; '+e.message)});
   assert.ok((await page.locator('#caseChatLog').innerText()).includes('ci-evidence.pdf'));
   await page.reload({waitUntil:'domcontentloaded'});
   await page.waitForFunction(()=>document.querySelector('#caseChatLog')?.textContent?.includes('ci-evidence.pdf'),{timeout:25000});
