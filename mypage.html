@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>마이페이지 | SQUID LAW</title><link rel="stylesheet" href="site.css">
+<title>마이페이지 | SQUID LAW</title><link rel="stylesheet" href="site.css"><link rel="stylesheet" href="squid-case-sidebar.css"><script src="squid-case-sidebar.js" defer></script>
 <script>fetch('/api/customer-auth',{credentials:'same-origin',cache:'no-store'}).then(r=>r.json()).then(d=>{if(!d.authenticated)location.replace('login.html?next='+encodeURIComponent(location.pathname+location.search))}).catch(()=>location.replace('login.html'));</script>
 <style>
 .summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}.summary button,.summary .stat{font:inherit;text-align:left;background:#fff;border:1px solid #dce4ed;border-radius:14px;padding:18px;color:#17233b;min-height:100px}.summary button{cursor:pointer}.summary button:hover,.summary button[aria-expanded=true]{border-color:#1762b4;background:#f5f9ff}.summary strong{display:block;font-size:27px;margin-top:12px}.listing{margin-top:20px}.case-row{display:flex;gap:10px;align-items:center}.case-row .list-item{flex:1;min-width:0}.delete-case{border:1px solid #b45353;background:white;color:#a32b2b;border-radius:9px;padding:11px;cursor:pointer;white-space:nowrap}.warehouse{margin-top:20px}.warehouse[hidden]{display:none}.warehouse a{display:block;margin:8px 0}.pager{display:flex;align-items:center;gap:14px;margin-top:12px}.pager button{padding:8px 12px}.listing[hidden]{display:none}.list-item{display:block;width:100%;box-sizing:border-box;text-align:left;background:#fff;border:1px solid #dce4ed;border-radius:12px;padding:16px;margin:8px 0;color:#17233b;font:inherit;text-decoration:none;cursor:pointer}.list-item:hover{border-color:#1762b4;background:#f5f9ff}.list-item small{display:block;margin-top:7px;color:#64748b}.report-body{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.8;border:1px solid #dce4ed;padding:20px;border-radius:12px;margin-top:14px}.report-actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:12px}.report-actions button{padding:9px 15px;border:1px solid #1762b4;border-radius:9px;background:#fff;color:#1762b4;cursor:pointer}.hint{font-size:13px;color:#64748b}@media(max-width:600px){.summary{gap:7px}.summary button,.summary .stat{padding:11px;min-height:90px}.summary strong{font-size:23px}}
@@ -16,7 +16,7 @@
 <section class="listing" id="caseList" hidden><h2>접수 사건 목록</h2><p class="hint">접수 순서대로 10건씩 표시됩니다. 사건명을 누르면 등록 자료를 열람할 수 있습니다.</p><div id="caseRows"></div><div class="pager"><button type="button" id="prevPage">이전</button><span id="pageLabel"></span><button type="button" id="nextPage">다음</button></div></section>
 <section class="listing" id="reportList" hidden><h2>완료 보고서 목록</h2><div id="reportRows"></div></section>
 <section class="listing" id="reportView" hidden><h2 id="reportTitle">보고서</h2><div class="report-actions"><button id="reportBack" type="button">목록으로</button><button id="reportSave" type="button">텍스트 저장</button></div><p class="hint">한글·워드 출력은 별도 과금 기능이며 결제 및 출력 연결 전에는 제공되지 않습니다.</p><div class="report-body" id="reportText"></div></section>
-<section class="listing" id="caseDetail" hidden><h2 id="warehouseTitle">사건 자료</h2><p class="hint">원본 자료는 열람만 가능하며 개별 수정·삭제는 지원하지 않습니다.</p><h3>등록한 원본 자료</h3><div id="warehouseDocs"></div><h3>분석 보고서</h3><div id="warehouseReports"></div><p id="caseWorkActions" hidden><a id="caseWorkLink" href="customer.html">기존 사건 접수 화면으로 이동 →</a></p><button type="button" id="caseBack">사건 목록으로</button></section></section></main><footer class="site-footer">SQUID LAW · 법은 무료로. 내 사건은 근거로 분석.</footer>
+<section class="listing" id="caseDetail" hidden><h2 id="warehouseTitle">사건 자료</h2><p class="hint">원본 자료는 열람만 가능하며 개별 수정·삭제는 지원하지 않습니다.</p><h3>등록한 원본 자료</h3><div id="warehouseDocs"></div><h3>분석 보고서</h3><div id="warehouseReports"></div><p id="caseWorkActions" hidden><a id="caseWorkLink" href="customer.html">이 사건 채팅방으로 이동 →</a></p><button type="button" id="caseBack">사건 목록으로</button></section></section></main><footer class="site-footer">SQUID LAW · 법은 무료로. 내 사건은 근거로 분석.</footer>
 <script>
 (async()=>{
  const $=id=>document.getElementById(id);
@@ -64,7 +64,7 @@
  async function showWarehouse(c){
   selectedCase=c.id;switchPanel('caseDetail');$('caseWorkActions').hidden=false;
   $('warehouseTitle').textContent=c.title+' · 사건 자료창고';
-  $('caseWorkLink').href='customer.html?case='+encodeURIComponent(c.id);
+  $('caseWorkLink').href='customer.html?category='+('bcdefgh'.indexOf(c.type)+1)+'&case='+encodeURIComponent(c.id);
   const docs=$('warehouseDocs'),out=$('warehouseReports');
   docs.textContent='원본을 불러오는 중입니다.';out.textContent='보고서를 불러오는 중입니다.';
   try{
