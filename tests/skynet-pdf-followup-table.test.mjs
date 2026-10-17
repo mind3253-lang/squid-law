@@ -13,7 +13,7 @@ class Element{
  appendChild(child){this.children.push(child);return child}
 }
 test('real Markdown comparison tables become semantic and safely rendered tables',()=>{
- const src=functionBody('function markdownTableCells(', 'try{localStorage.removeItem(chatKey)}catch{}');
+ const src=functionBody('function markdownTableCells(', 'function hideSkynetServerSearchFooter(');
  const renderer=new Function('document',src+'\nreturn renderSkynetMarkdown;')({
   createElement:tag=>new Element(tag)
  });
