@@ -469,10 +469,27 @@ textReportButton.onclick=async()=>{
   add('p','남은 단계: '+report.pending.join(', '));
  }catch(e){notice(e.message,'error')}
 };
+const legalReportDownloadButton=document.createElement('button');
+legalReportDownloadButton.type='button';
+legalReportDownloadButton.textContent='⬇ 법률 분석 보고서 TXT 다운로드';
+legalReportDownloadButton.style.cssText='margin:8px;padding:10px 16px;border-radius:8px;cursor:pointer';
+legalReportDownloadButton.hidden=true;
+legalReportButton.parentElement.appendChild(legalReportDownloadButton);
+legalReportDownloadButton.onclick=async()=>{
+ const caseId=select.value,jobId=sessionStorage.getItem('squidlaw-full-review:'+caseId);
+ if(!jobId)return notice('분석 작업이 없습니다.','error');
+ try{
+  const r=await fetch('/api/customer-legal-report?caseId='+encodeURIComponent(caseId)+'&jobId='+encodeURIComponent(jobId)+'&download=txt',{credentials:'same-origin',cache:'no-store'});
+  if(!r.ok){const j=await r.json().catch(()=>({}));throw Error(j.error||'보고서 다운로드 실패')}
+  const blob=await r.blob(),url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;a.download='squidlaw-legal-report.txt';document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),10000);
+ }catch(e){notice(e.message,'error')}
+};
 legalReportButton.onclick=async()=>{
  const caseId=select.value,jobId=sessionStorage.getItem('squidlaw-full-review:'+caseId);
  if(!jobId){notice('분석 작업이 없습니다.','error');return}
- try{const r=await fetch('/api/customer-legal-report?caseId='+encodeURIComponent(caseId)+'&jobId='+encodeURIComponent(jobId),{credentials:'same-origin',cache:'no-store'});const j=await r.json();if(!r.ok)throw Error(j.error||'보고서 조회 실패');showLegalReport(j.report)}catch(e){notice(e.message,'error')}
+ try{const r=await fetch('/api/customer-legal-report?caseId='+encodeURIComponent(caseId)+'&jobId='+encodeURIComponent(jobId),{credentials:'same-origin',cache:'no-store'});const j=await r.json();if(!r.ok)throw Error(j.error||'보고서 조회 실패');showLegalReport(j.report);legalReportDownloadButton.hidden=false}catch(e){notice(e.message,'error')}
 };
 function fullReviewFailure(method,url,status,code){
  const operation=method==='POST'?'분석 신청·재개':'분석 상태 조회';

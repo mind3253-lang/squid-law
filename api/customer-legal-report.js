@@ -49,6 +49,12 @@ export default async function handler(req,res){
    if(e?.message==='ANALYSIS_ROLE_CHANGED')return respond(res,409,{code:'ANALYSIS_ROLE_CHANGED',error:'분석 당시 의뢰인 지위와 현재 지위가 다릅니다. 다시 분석해 주세요.'});
    throw e;
   }
+  if(String(req.query?.download||'')==='txt'){
+   res.setHeader('Content-Type','text/plain; charset=utf-8');
+   res.setHeader('Content-Disposition','attachment; filename="squidlaw-legal-report.txt"');
+   res.setHeader('X-Content-Type-Options','nosniff');
+   return res.status(200).send(brief.text);
+  }
   return respond(res,200,{report:{...report,briefText:brief.text,briefMeta:{
    clientRole:brief.clientRole,chapters:brief.chapterCount,
    displayedIssues:brief.displayedIssues,undisplayedIssues:brief.undisplayedIssues,
