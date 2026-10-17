@@ -33,7 +33,7 @@ test('court style case, prayer, chapters and client-tailored results appear in t
  const brief=buildCustomerAnalysisBrief({caseRecord:record,report:{findings,notForCourtSubmission:false,independentSemanticAuditPassed:true},documents:[{id:'d',name:'12878 사건기록.pdf'}]});
  const text=brief.text;
  for(const key of ['사건번호 : 2026가단12878','원고 : 주식회사 고고다이브','피고 : 이서현',
-  '청구취지','제1장. 쟁점 도표 정리','제2장. 분석','원고 : 원고는','피고 : 피고는','모순 :','제3장. 결과',SQUIDLAW_REPORT_CLOSING]){
+  '청구취지','제1장. 쟁점 도표 정리','제2장. 분석','원고 : 원고는','피고 : 피고는','모순 :','제3장. 의뢰인 중심 분석 결과 및 보완사항',SQUIDLAW_REPORT_CLOSING]){
   assert.ok(text.includes(key),'missing '+key);
  }
  assert.ok(text.indexOf('청구취지')<text.indexOf('제1장'));
@@ -47,7 +47,7 @@ test('cannot invent a self contradiction or assume unidentified party',()=>{
  const brief=buildCustomerAnalysisBrief({caseRecord:{intake:{clientRole:'plaintiff',isFiledCase:false}},report:{findings:[{type:'claim',claim:'사건 개요만 있습니다.',sources:[]}]}});
  assert.match(brief.text,/법원 미접수 사건/);
  assert.match(brief.text,/의뢰인 : 원고/);
- assert.match(brief.text,/진술과 제출서면이 서로 다른 부분을 구분/);
+ assert.match(brief.text,/의뢰인 중심 분석 결과 및 보완사항/);
  assert.doesNotMatch(brief.text,/진술의 전후 차이가 자료에 나타나므로/);
  assert.match(brief.text,/원문 분석에서 주장 주체 미분류/);
  assert.throws(()=>buildCustomerAnalysisBrief({caseRecord:{intake:{}},report:{findings:[]}}),/CLIENT_ROLE_REQUIRED/);

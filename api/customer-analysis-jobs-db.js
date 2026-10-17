@@ -130,7 +130,7 @@ export async function queueSnapshot(user,caseId,id){
    FROM (SELECT created_at,updated_at FROM customer_analysis_jobs WHERE status='completed' ORDER BY updated_at DESC LIMIT 30) x
   ) SELECT earlier.ahead,earlier.running_ahead,running.active,history.completed,history.avg_seconds FROM earlier,running,history`,[t.created_at,t.job_id]);
   const v=r.rows[0];const waiting=['queued','retry'].includes(t.status);
-  const eligible=waiting&&(t.status==='queued'||t.ready_now===true);
+  const eligible=waiting&&t.ready_now===true;
   return {ahead:eligible?v.ahead:0,position:eligible?v.ahead+1:null,active:v.active,
    estimatedStartSeconds:eligible&&v.completed>=3&&v.avg_seconds>0?Math.ceil((v.ahead+Math.max(0,v.active-v.running_ahead))*v.avg_seconds):null,
    estimateBasis:v.completed,estimateMethod:'historical_completed_jobs_30',retryBackoff:waiting&&!eligible};

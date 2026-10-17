@@ -55,7 +55,8 @@ export const ANALYSIS_SYSTEM_PROMPT=[
 export function createBatchModelRequest(batch){
  if(!batch||batch.schema!=='squidlaw-analysis-batch-v1'||!Array.isArray(batch.pages)||!batch.pages.length)throw Error('INVALID_BATCH');
  if(batch.pages.length>20||batch.pages.some(p=>!p||typeof p.document!=='string'||!p.document||!Number.isInteger(p.page)||p.page<1||typeof p.text!=='string'||!p.text))throw Error('INVALID_BATCH_PAGES');
- const content=JSON.stringify({batch:batch.batch,pages:batch.pages});
+ const clientRole=['plaintiff','defendant'].includes(batch.clientRole)?batch.clientRole:null;
+ const content=JSON.stringify({batch:batch.batch,clientRole,pages:batch.pages});
  if(content.length>40000)throw Error('BATCH_PROMPT_TOO_LARGE');
  return {
   system:ANALYSIS_SYSTEM_PROMPT,

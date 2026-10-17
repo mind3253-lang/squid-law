@@ -33,7 +33,7 @@ test('delta review changes are all reported without the former twelve-item cutof
 
 test('offensive strategy draws only from client findings and labels unsupported claims',()=>{
  assert.match(src,/const clientFindings=g\.items\.filter\(f=>roleFrom\(f\)===intake\.clientRole &&/);
- assert.match(src,/clientFindings\.flatMap\(f=>f\.sources\|\|\[\]\)/);
+ assert.match(src,/clientFindings\.flatMap\(f=>Array\.isArray\(f\.sources\)\?f\.sources:\[\]\)/);
  assert.match(src,/검증 과제 — 의뢰인 측 원문 증거 위치 미확인/);
 });
 

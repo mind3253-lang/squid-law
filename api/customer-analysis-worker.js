@@ -251,6 +251,10 @@ export default async function handler(req,res){
   const request=await load(previous.legalReasoningRequest);
   const sourceIndex=await load(previous.sourceUnitIndex);
   if(!request||!sourceIndex||sourceIndex.sourceVersion!==job.documentVersion||request.sourceVersion!==job.documentVersion)throw Error('LEGAL_SOURCE_VERSION_MISMATCH');
+  if(!['plaintiff','defendant'].includes(request.clientRole)||request.clientRole!==registry.intake?.clientRole){
+   await advanceJob(job,'legal_client_role_changed',previous,'blocked','ANALYSIS_ROLE_CHANGED');
+   return res.status(200).json({status:'blocked',reason:'ANALYSIS_ROLE_CHANGED'});
+  }
   if(process.env.SQUIDLAW_LEGAL_API_ENABLED!=='true'||!process.env.OPENAI_API_KEY){
    await advanceJob(job,'legal_api_approval_pending',previous,'blocked','LEGAL_API_NOT_ENABLED');
    return res.status(200).json({status:'blocked',reason:'LEGAL_API_NOT_ENABLED'});
@@ -332,6 +336,10 @@ export default async function handler(req,res){
   const root='squidlaw/analysis-jobs/'+job.customerKey+'/'+job.caseId+'/'+job.jobId+'/';
   const report=await load(previous.legalCustomerReport);
   if(!report||report.sourceVersion!==job.documentVersion)throw Error('SEMANTIC_REPORT_SOURCE_MISMATCH');
+  if(!['plaintiff','defendant'].includes(report.clientRole)||report.clientRole!==registry.intake?.clientRole){
+   await advanceJob(job,'semantic_client_role_changed',previous,'blocked','ANALYSIS_ROLE_CHANGED');
+   return res.status(200).json({status:'blocked',reason:'ANALYSIS_ROLE_CHANGED'});
+  }
   if(!process.env.OPENAI_API_KEY){await advanceJob(job,'semantic_api_missing',previous,'blocked','OPENAI_API_KEY_MISSING');return res.status(200).json({status:'blocked'})}
   const cursor=previous.semanticAuditCursor||0;
   const size=8;

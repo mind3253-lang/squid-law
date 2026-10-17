@@ -11,6 +11,11 @@ assert.ok(request.system.includes('JSON 객체만'));
 assert.equal(request.expectedSchema,'squidlaw-findings-v1');
 assert.equal(JSON.parse(request.user.slice(request.user.indexOf('{'))).pages[0].text,injection);
 assert.equal(ANALYSIS_SYSTEM_PROMPT.includes(injection),false);
+for(const clientRole of ['plaintiff','defendant']){
+ const roleRequest=createBatchModelRequest({...batch,clientRole});
+ assert.equal(JSON.parse(roleRequest.user.slice(roleRequest.user.indexOf('{'))).clientRole,clientRole);
+}
+assert.equal(JSON.parse(request.user.slice(request.user.indexOf('{'))).clientRole,null);
 assert.throws(()=>createBatchModelRequest({schema:'wrong',pages:[]}),/INVALID_BATCH/);
 assert.throws(()=>createBatchModelRequest({...batch,pages:[{document:'원고.pdf',page:0,text:'abc'}]}),/INVALID_BATCH_PAGES/);
 assert.throws(()=>createBatchModelRequest({...batch,pages:[{document:'원고.pdf',page:1,text:'가'.repeat(40000)}]}),/BATCH_PROMPT_TOO_LARGE/);

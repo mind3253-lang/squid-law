@@ -25,6 +25,7 @@ test('client can recover latest job after browser session storage is cleared',()
 test('verified-page billing metadata never implies authorized payment',()=>{
  const api=source('api/customer-analysis-job.js');
  assert.match(api,/unit:'verified_source_page'/);
+ assert.match(api,/pageCountVerified:allDocs\.length>0/);
  assert.match(api,/priceConfirmed:false,chargeAuthorized:false/);
 });
 
@@ -37,7 +38,7 @@ test('FIFO waiting count excludes retry jobs whose backoff has not elapsed',()=>
 test('backoff retries are not shown as immediately executable',()=>{
  const db=source('api/customer-analysis-jobs-db.js');
  assert.match(db,/\(next_run_at<=now\(\)\) AS ready_now/);
- assert.match(db,/const eligible=waiting&&\(t\.status==='queued'\|\|t\.ready_now===true\)/);
+ assert.match(db,/const eligible=waiting&&t\.ready_now===true/);
  assert.match(db,/position:eligible\?v\.ahead\+1:null/);
  assert.match(db,/retryBackoff:waiting&&!eligible/);
 });
