@@ -100,7 +100,7 @@ export async function advanceJob(job,stage,checkpoint,status='running',errorCode
 export async function renewJobLease(job){
  return withLeaseDb(async db=>{
   const r=await db.query(`UPDATE customer_analysis_jobs SET
-   lease_expires_at=now()+interval '90 seconds',updated_at=now()
+   lease_expires_at=now()+interval '90 seconds'
    WHERE customer_key=$1 AND case_id=$2 AND job_id=$3 AND owner_token=$4
     AND fence=$5 AND status='running' AND lease_expires_at>now()
    RETURNING job_id`,[job.customerKey,job.caseId,job.jobId,job.token,job.fence]);
