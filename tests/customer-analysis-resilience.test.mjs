@@ -43,3 +43,5 @@ test('request wrapper normalizes transport failure',async()=>{
 test('retry attempt parsing rejects malformed values',async()=>{const {errorRetryDelayMs,shouldPromptlyRedispatch}=await import('../lib/customer-worker-retry.mjs');for(const bad of ['',null,false,true,-1,1.5,'01','1e2',{},[]]){assert.equal(errorRetryDelayMs(bad),null);assert.equal(shouldPromptlyRedispatch(bad),false);}assert.equal(errorRetryDelayMs(0),2250);assert.equal(shouldPromptlyRedispatch('3'),true);assert.equal(shouldPromptlyRedispatch('4'),false);});
 
 test('retry delay is capped for large valid attempt counts',async()=>{const {errorRetryDelayMs}=await import('../lib/customer-worker-retry.mjs');assert.equal(errorRetryDelayMs(10),1025250);assert.equal(errorRetryDelayMs(1000),1025250);assert.equal(errorRetryDelayMs(Number.MAX_SAFE_INTEGER),1025250);});
+
+test('retry backoff increases exponentially before the cap',async()=>{const {errorRetryDelayMs}=await import('../lib/customer-worker-retry.mjs');assert.deepEqual([0,1,2,3,4].map(errorRetryDelayMs),[2250,3250,5250,9250,17250]);});
