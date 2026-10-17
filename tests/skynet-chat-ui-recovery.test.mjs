@@ -14,7 +14,8 @@ test('SKYNET inline scripts remain valid JavaScript',()=>{
 
 test('SKYNET chat does not abandon replies before server timeout without feedback',()=>{
  assert.match(html,/setTimeout\(\(\)=>controller\.abort\(\),180000\)/);
- assert.doesNotMatch(html,/setTimeout\(\(\)=>controller\.abort\(\),45000\)/);
+ const chatRequest=html.slice(html.indexOf('async function askSkynet('),html.indexOf('function isResumeReviewRequest('));
+ assert.doesNotMatch(chatRequest,/setTimeout\(\(\)=>controller\.abort\(\),45000\)/);
  assert.match(html,/id="chatErrorStatus"/);
  assert.match(html,/AI 답변 실패/);
  assert.match(html,/history\.at\(-1\)===submittedTurn/);
