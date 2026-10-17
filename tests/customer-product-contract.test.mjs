@@ -38,7 +38,7 @@ test('existing checkpoint and global queue position/estimate paths remain intact
  assert.match(jobs,/export async function renewJobLease\(/);
  assert.match(jobs,/export async function queueSnapshot\(/);
  assert.match(jobs,/estimatedStartSeconds/);
- assert.match(jobs,/position:v\.ahead\+1/);
+ assert.match(jobs,/position:eligible\?v\.ahead\+1:null/);
  assert.match(src('api/customer-analysis-worker.js'),/await claimJob\(\)/);
 });
 

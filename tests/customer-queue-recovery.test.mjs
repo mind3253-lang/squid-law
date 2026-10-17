@@ -33,3 +33,11 @@ test('FIFO waiting count excludes retry jobs whose backoff has not elapsed',()=>
  const q=db.slice(db.indexOf('export async function queueSnapshot('));
  assert.match(q,/status IN \('queued','retry'\) AND next_run_at<=now\(\)/);
 });
+
+test('backoff retries are not shown as immediately executable',()=>{
+ const db=source('api/customer-analysis-jobs-db.js');
+ assert.match(db,/\(next_run_at<=now\(\)\) AS ready_now/);
+ assert.match(db,/const eligible=waiting&&\(t\.status==='queued'\|\|t\.ready_now===true\)/);
+ assert.match(db,/position:eligible\?v\.ahead\+1:null/);
+ assert.match(db,/retryBackoff:waiting&&!eligible/);
+});

@@ -32,7 +32,7 @@ test('delta review changes are all reported without the former twelve-item cutof
 });
 
 test('offensive strategy draws only from client findings and labels unsupported claims',()=>{
- assert.match(src,/const clientFindings=g\.items\.filter\(f=>roleFrom\(f\)===intake\.clientRole\)/);
+ assert.match(src,/const clientFindings=g\.items\.filter\(f=>roleFrom\(f\)===intake\.clientRole &&/);
  assert.match(src,/clientFindings\.flatMap\(f=>f\.sources\|\|\[\]\)/);
  assert.match(src,/검증 과제 — 의뢰인 측 원문 증거 위치 미확인/);
 });
@@ -48,4 +48,10 @@ test('client-centered chapter presents every issue with concrete evidence gaps',
  assert.match(src,/보완할 증거 : /);
  assert.match(src,/상대방\('/);
  assert.doesNotMatch(src,/1\) 분석 결과 의뢰인/);
+});
+
+test('complete report keeps every substantive analysis and delta citation',()=>{
+ assert.match(src,/analyses\.join\(' \/ '\)/);
+ assert.match(src,/contradiction\.join\(' \/ '\)/);
+ assert.doesNotMatch(src,/slice\(0,6\)\.join\('; '\)/);
 });

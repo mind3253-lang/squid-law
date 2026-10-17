@@ -117,7 +117,7 @@ export async function resumeJob(user,caseId,jobId,version){
 
 export async function queueSnapshot(user,caseId,id){
  return withLeaseDb(async db=>{
-  const target=await db.query('SELECT created_at,job_id,status FROM customer_analysis_jobs WHERE customer_key=$1 AND case_id=$2 AND job_id=$3',[key(user),caseId,id]);
+  const target=await db.query('SELECT created_at,job_id,status,(next_run_at<=now()) AS ready_now FROM customer_analysis_jobs WHERE customer_key=$1 AND case_id=$2 AND job_id=$3',[key(user),caseId,id]);
   const t=target.rows[0];if(!t)return null;
   const r=await db.query(`WITH earlier AS (
    SELECT count(*)::integer AS ahead, count(*) FILTER (WHERE status='running' AND lease_expires_at>now())::integer AS running_ahead FROM customer_analysis_jobs
@@ -130,9 +130,10 @@ export async function queueSnapshot(user,caseId,id){
    FROM (SELECT created_at,updated_at FROM customer_analysis_jobs WHERE status='completed' ORDER BY updated_at DESC LIMIT 30) x
   ) SELECT earlier.ahead,earlier.running_ahead,running.active,history.completed,history.avg_seconds FROM earlier,running,history`,[t.created_at,t.job_id]);
   const v=r.rows[0];const waiting=['queued','retry'].includes(t.status);
-  return {ahead:waiting?v.ahead:0,position:waiting?v.ahead+1:null,active:v.active,
-   estimatedStartSeconds:waiting&&v.completed>=3&&v.avg_seconds>0?Math.ceil((v.ahead+Math.max(0,v.active-v.running_ahead))*v.avg_seconds):null,
-   estimateBasis:v.completed,estimateMethod:'historical_completed_jobs_30'};
+  const eligible=waiting&&(t.status==='queued'||t.ready_now===true);
+  return {ahead:eligible?v.ahead:0,position:eligible?v.ahead+1:null,active:v.active,
+   estimatedStartSeconds:eligible&&v.completed>=3&&v.avg_seconds>0?Math.ceil((v.ahead+Math.max(0,v.active-v.running_ahead))*v.avg_seconds):null,
+   estimateBasis:v.completed,estimateMethod:'historical_completed_jobs_30',retryBackoff:waiting&&!eligible};
  });
 }
 
