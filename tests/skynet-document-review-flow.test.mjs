@@ -26,7 +26,7 @@ function createApp({askSkynet,history=[],fetchImpl}){
  const storage=new Map(),elements=new Map();
  const localStorage={getItem:key=>storage.get(key)||null,setItem:(key,value)=>storage.set(key,value)};
  const el=name=>{
-  if(!elements.has(name))elements.set(name,{textContent:'',hidden:false,disabled:false,value:0});
+  if(!elements.has(name))elements.set(name,{textContent:'',hidden:false,disabled:false,value:0,classList:{toggle(){},add(){},remove(){},contains(){return false}}});
   return elements.get(name);
  };
  const api=factory(webcrypto,fetchImpl,TextEncoder,URLSearchParams,AbortController,
