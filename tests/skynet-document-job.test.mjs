@@ -92,7 +92,7 @@ test('SKYNET PDF status questions do not fall through to memory-only chat',()=>{
  const html=readFileSync(new URL('../admin/skynet.html',import.meta.url),'utf8');
  const config=JSON.parse(readFileSync(new URL('../vercel.json',import.meta.url),'utf8'));
  assert.match(html,/function isReviewStatusQuestion/);
- assert.match(html,/서버 확인 결과 PDF/);
+ assert.match(html,/서버의 실제 PDF 분석 진행 기록 확인 중/);
  assert.match(html,/if\(activeReview&&!archiveFiles\.length&&!attached\.length&&isReviewStatusQuestion\(msg\)\)/);
  assert.match(html,/const previous=previousAttachedReview\(\)/);
  assert.match(html,/if\(request&&!\/\^\(\?:이어서\|계속\|재개\)/);
