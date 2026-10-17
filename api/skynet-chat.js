@@ -1,7 +1,7 @@
 import {loadProfile} from './skynet-profile.js';
 // Long-context direct source analysis may need more than the normal chat limit.
 export const maxDuration=180;
-import {tokenUsage} from '../lib/skynet-token-usage.mjs';
+import {tokenUsage,skynetUsageAccounting,estimateSkynetRequestUnits} from '../lib/skynet-token-usage.mjs';
 import {timelineFromEntry,orderTimeline} from './skynet-timeline-core.js';
 import {retrieveMemory} from './skynet-retrieval.js';
 import {buildContextualRecall,isCorrectionMemory} from '../lib/skynet-episodic-context.mjs';
@@ -116,7 +116,14 @@ export default async function handler(req,res){
 // Never treat a provider-truncated legal chapter as an entire source review.
 if(input.skipMemorySearch===true&&data.choices?.[0]?.finish_reason==='length')
  return send(502,{error:'원문 분석 결과가 출력 한도에서 잘려 완료 처리하지 않았어.',code:'REVIEW_RESPONSE_TRUNCATED',retryable:false,finishReason:'length'});
-return send(200,{reply:data.choices[0].message.content,searchStatus:matchedSources.length?'matched':'no_match',searchSources:matchedSources,modelUsed:typeof data.model==='string'?data.model:null,usage:data.usage?(()=>{try{const u=tokenUsage(data.model||'unknown',data.usage);return {promptTokens:u.input,completionTokens:u.output,totalTokens:u.total}}catch{return null}})():null,finishReason:typeof data.choices[0].finish_reason==='string'?data.choices[0].finish_reason:null})}catch(e){
+const usageAccounting=skynetUsageAccounting({
+ model:data.model||process.env.SKYNET_MODEL||'unknown',usage:data.usage||null,
+ estimatedUnits:estimateSkynetRequestUnits({messages:clean,contextCharacters:context.length,maxOutputTokens:input.skipMemorySearch===true?9500:5000})
+});
+console.info('SKYNET_USAGE_ACCOUNTING',JSON.stringify({service:usageAccounting.service,model:usageAccounting.model,
+ estimatedUnits:usageAccounting.quote.minimumBillableUnits,measuredUnits:usageAccounting.settlement.measuredUnits,
+ billableUnits:usageAccounting.settlement.billableUnits,usageStatus:usageAccounting.settlement.usageStatus}));
+return send(200,{usageAccounting,reply:data.choices[0].message.content,searchStatus:matchedSources.length?'matched':'no_match',searchSources:matchedSources,modelUsed:typeof data.model==='string'?data.model:null,usage:data.usage?(()=>{try{const u=tokenUsage(data.model||'unknown',data.usage);return {promptTokens:u.input,completionTokens:u.output,totalTokens:u.total}}catch{return null}})():null,finishReason:typeof data.choices[0].finish_reason==='string'?data.choices[0].finish_reason:null})}catch(e){
  console.error('SKYNET_OPENAI_TRANSPORT_ERROR',String(e?.name||'Error').slice(0,70));
  return send(e?.name==='AbortError'?504:502,{error:e?.name==='AbortError'?'AI 응답 시간 초과':'AI 연결 실패',retryable:true,code:e?.name==='AbortError'?'AI_TIMEOUT':'AI_CONNECTION_FAILED'});
 }finally{clearTimeout(timeout)}
