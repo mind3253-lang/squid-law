@@ -47,7 +47,7 @@ test('resumable PDF review uses durable keyed checkpoints and no file reupload',
  const endpoint=read('api/skynet-document-review.js');
  const config=JSON.parse(read('vercel.json'));
  assert.match(chat,/function previousAttachedReview\(\)/);
- assert.match(chat,/if\(!archiveFiles\.length&&!attached\.length&&isResumeReviewRequest\(msg\)\)/);
+ assert.match(chat,/if\(!archiveFiles\.length&&!attached\.length&&!pendingRestoredDocs\.length&&!uploadedDocs\.length&&isResumeReviewRequest\(msg\)\)/);
  assert.match(chat,/uploadedDocs=resume\.docs;reviewQuestion=resume\.question/);
  assert.match(chat,/function isResumeReviewRequest\(message\)/);
  assert.match(chat,/documentReviewCheckpoint\(doc,questionHash,hash,chunk\.index\)/);
