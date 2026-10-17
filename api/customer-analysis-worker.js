@@ -33,7 +33,7 @@ import {reconcileVisualOcr} from '../lib/ocr-visual-recovery.mjs';
 import {boundaryReviewRequest,auditBoundaryReview,compareBoundaryReviews,invokeBoundaryReview} from '../lib/independent-boundary-review.mjs';
 import {validatePersistedBatch,finalizationDescriptors,validateFinalizationPart,summarizeClaimRoles} from '../lib/text-review-aggregation.mjs';
 import {detectOpposingStatements} from '../lib/case-crosscheck.mjs';
-import {auditFinalizationCheckpoint} from '../lib/finalization-checkpoint.mjs';
+import {auditFinalizationCheckpoint,auditFinalizationResumePrefix} from '../lib/finalization-checkpoint.mjs';
 const eq=(a,b)=>{const x=Buffer.from(a||''),y=Buffer.from(b||'');return x.length===y.length&&timingSafeEqual(x,y)};
 async function load(path){const r=await get(path,{access:'private'});if(!r||r.statusCode!==200)return null;let size=0,parts=[];for await(const chunk of r.stream){size+=chunk.length;if(size>32*1024*1024)throw Error('BLOB_TOO_LARGE');parts.push(Buffer.from(chunk))}return JSON.parse(Buffer.concat(parts).toString())}
 async function loadBinary(path,maxBytes=105*1024*1024){const r=await get(path,{access:'private'});if(!r||r.statusCode!==200)return null;let size=0;const chunks=[];for await(const chunk of r.stream){size+=chunk.length;if(size>maxBytes)throw Error('SOURCE_PDF_TOO_LARGE');chunks.push(Buffer.from(chunk))}return Buffer.concat(chunks)}
@@ -138,6 +138,12 @@ export default async function handler(req,res){
   const offset=previous.finalizeOffset;
   auditFinalizationCheckpoint({checkpoint:previous,descriptorCount:descriptors.length});
   if(offset<descriptors.length){
+   const prefixParts=[];
+   for(let start=0;start<offset;start+=8){
+    const part=await load(root+'finalize-parts/'+String(start).padStart(8,'0')+'.json');
+    prefixParts.push(part);
+   }
+   auditFinalizationResumePrefix({parts:prefixParts,checkpoint:previous,descriptorCount:descriptors.length,sourceVersion:job.documentVersion});
    let cursor=offset,countTotal=previous.finalizeUnitCount||0;
    const digests=[...(previous.finalizePartDigests||[])];
    const hash=value=>createHash('sha256').update(JSON.stringify(value)).digest('hex');
