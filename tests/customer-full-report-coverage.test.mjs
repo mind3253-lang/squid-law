@@ -13,3 +13,11 @@ test('customer report includes a distinct source-grounded offensive review',()=>
  assert.match(src,/sourceFootnote\(g,names\)/);
  assert.match(src,/chapterCount:4/);
 });
+
+test('source footnotes are not truncated or attached to unknown documents',()=>{
+ assert.match(src,/return out\.join\('; '\);/);
+ assert.match(src,/return name&&page\?name\+' '\+page:null;/);
+});
+test('offensive keyword candidates must belong to the selected client',()=>{
+ assert.match(src,/f\.party===intake\.clientRole/);
+});
