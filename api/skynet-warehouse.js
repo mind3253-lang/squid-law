@@ -24,18 +24,25 @@ export default async function handler(req,res){
    const chunks=await scan('skynet/uploads/'+batch+'/',parts+1);
    if(chunks.length!==parts||chunks.reduce((n,f)=>n+f.size,0)!==size||Array.from({length:parts},(_,i)=>'skynet/uploads/'+batch+'/'+String(i).padStart(5,'0')+'.bin').some(p=>!chunks.some(c=>c.pathname===p)))return send(res,409,{error:'원본 업로드 확인 실패'});
    const hash=await contentHash(chunks);
-   const registered=await scan('skynet/warehouse/');
-   for(const f of registered){const existing=await readJson(f.pathname).catch(()=>null);if(existing?.hash===hash&&existing.batch!==batch)return send(res,200,{ok:true,duplicate:true,canonicalBatch:existing.batch,hash});}
+   // Content-addressed lookup: avoid fetching every warehouse manifest on each upload.
+   const indexPath='skynet/warehouse-hashes/'+hash+'.json';
+   const indexed=await readJson(indexPath).catch(()=>null);
+   if(indexed?.batch&&indexed.batch!==batch){
+    const canonical=await readJson('skynet/warehouse/'+indexed.batch+'.json').catch(()=>null);
+    if(canonical?.hash===hash)return send(res,200,{ok:true,duplicate:true,canonicalBatch:indexed.batch,hash});
+   }
    const path='skynet/warehouse/'+batch+'.json';
    const old=await get(path,{access:'private'}).catch(()=>null);
    if(old?.statusCode===200){
     const previous=await readJson(path);
-    if(previous?.hash===hash)return send(res,200,{ok:true,registered:true,hash});
+    if(previous?.hash===hash){await put(indexPath,JSON.stringify({batch,hash}),{access:'private',addRandomSuffix:false,allowOverwrite:true,contentType:'application/json'});return send(res,200,{ok:true,registered:true,hash});}
     if(previous?.hash&&previous.hash!==hash)return send(res,409,{error:'원본 해시 충돌'});
     await put(path,JSON.stringify({...previous,batch,name:previous?.name||name,parts,size,hash,uploadedAt:chunks.map(c=>c.uploadedAt).sort()[0]}),{access:'private',addRandomSuffix:false,allowOverwrite:true,contentType:'application/json'});
+    await put(indexPath,JSON.stringify({batch,hash}),{access:'private',addRandomSuffix:false,allowOverwrite:true,contentType:'application/json'});
     return send(res,200,{ok:true,hash,updated:true});
    }
    await put(path,JSON.stringify({batch,name,parts,size,hash,uploadedAt:chunks.map(c=>c.uploadedAt).sort()[0]}),{access:'private',addRandomSuffix:false,allowOverwrite:false,contentType:'application/json'});
+   await put(indexPath,JSON.stringify({batch,hash}),{access:'private',addRandomSuffix:false,allowOverwrite:false,contentType:'application/json'}).catch(async e=>{const owner=await readJson(indexPath).catch(()=>null);if(owner?.batch!==batch)throw e});
    return send(res,200,{ok:true});
   }
   if(req.method==='PUT'){
@@ -46,7 +53,7 @@ export default async function handler(req,res){
    const groups=new Map();
    for(const file of uploads){const m=file.pathname.match(/^skynet\/uploads\/([^/]+)\/(\d{5})\.bin$/);if(!m)continue;if(!groups.has(m[1]))groups.set(m[1],[]);groups.get(m[1]).push(file)}
    const verified=[];
-   for(const [batch,parts] of groups){const ordered=parts.sort((a,b)=>a.pathname.localeCompare(b.pathname));if(ordered.some((x,i)=>!x.pathname.endsWith('/'+String(i).padStart(5,'0')+'.bin')))continue;verified.push({batch,parts:ordered,hash:await contentHash(ordered),date:String(ordered[0].uploadedAt||''),name:names.get(batch)})}
+   for(const [batch,parts] of groups){const ordered=parts.sort((a,b)=>a.pathname.localeCompare(b.pathname));if(ordered.some((x,i)=>!x.pathname.endsWith('/'+String(i).padStart(5,'0')+'.bin')))continue;verified.push({batch,parts:ordered,hash:names.get(batch)?.hash&&names.get(batch)?.parts===ordered.length&&names.get(batch)?.size===ordered.reduce((n,p)=>n+p.size,0)?names.get(batch).hash:await contentHash(ordered),date:String(ordered[0].uploadedAt||''),name:names.get(batch)})}
    const byHash=new Map();for(const item of verified){if(!byHash.has(item.hash))byHash.set(item.hash,[]);byHash.get(item.hash).push(item)}
    const duplicateGroups=[...byHash.values()].filter(g=>g.length>1);
    let deleted=0,failed=0;const failures=[];
