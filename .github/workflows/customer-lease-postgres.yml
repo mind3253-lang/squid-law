@@ -2,13 +2,6 @@ name: Customer lease PostgreSQL integration
 on:
   push:
     branches: [main]
-    paths:
-      - 'api/customer-analysis-lease-db.js'
-      - 'db/customer-analysis-leases.sql'
-      - 'scripts/customer-db-migrate.mjs'
-      - 'tests/customer-lease-postgres.test.mjs'
-      - '.github/workflows/customer-lease-postgres.yml'
-      - 'vercel.json'
   workflow_dispatch:
 jobs:
   postgres-integration:
