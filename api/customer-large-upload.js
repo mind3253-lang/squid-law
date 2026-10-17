@@ -7,7 +7,7 @@ export const config={api:{bodyParser:false}};
 export const maxDuration=300;
 // The chunk cap is an INTERNAL request transport boundary, not a limit on the
 // source PDF or a tier of page-based customer billing.
-const CHUNK=1024*1024,MAX_PARTS=99999;
+const CHUNK=1024*1024,MAX_PARTS=100,MAX_PDF_BYTES=100*1024*1024;
 async function readBody(req,limit){
  const chunks=[];let n=0;
  for await(const c of req){n+=c.length;if(n>limit)throw Error('요청 조각 크기 초과');chunks.push(Buffer.from(c))}
@@ -64,7 +64,7 @@ export default async function handler(req,res){
   const name=String(b?.name||'').replace(/[\\/\x00-\x1f]/g,'').slice(0,140);
   const total=Number(b?.total),size=Number(b?.size);
   if(!/\.pdf$/i.test(name)||!Number.isSafeInteger(total)||total<1||
-   total>MAX_PARTS||!Number.isSafeInteger(size)||size<100||
+   total>MAX_PARTS||!Number.isSafeInteger(size)||size<100||size>MAX_PDF_BYTES||
    total!==Math.ceil(size/CHUNK))
    return respond(res,400,{error:'PDF 조각 또는 파일 정보 오류'});
   const receiptPath=prefix+'upload-receipts/'+uploadId+'.json';
