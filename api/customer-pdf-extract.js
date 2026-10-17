@@ -26,7 +26,7 @@ async function extractPagesFromTask(task,maxPages=Infinity,transportError=null){
   // Keep memory bounded: the underlying PDF can be up to 100 MB.
   // Independent pages can be extracted concurrently, but every output is
   // returned in page order and retains the existing visual-operator digest.
-  const concurrency=fastTextOnly?4:3;
+  const concurrency=fastTextOnly?6:4;
   const extractPage=async n=>{
    const page=await safe(pdf.getPage(n));
    try{
