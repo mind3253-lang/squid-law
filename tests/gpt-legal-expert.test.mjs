@@ -7,7 +7,7 @@ const sha=x=>createHash('sha256').update(x).digest('hex');
 const version='a'.repeat(64),text='계약 기간은 5년이라고 주장한다';
 const unit={documentId:'doc',page:1,part:1,text,hash:sha(text)};
 const request={caseId:'case',sourceVersion:version,ready:true,verified:false,clientRole:'plaintiff'};
-const result={caseId:'case',sourceVersion:version,findings:[{type:'claim',claim:'당사자는 계약기간 5년을 주장함',sources:[{documentId:'doc',page:1,part:1,hash:unit.hash}],status:'draft'}]};
+const result={caseId:'case',sourceVersion:version,findings:[{type:'claim',claim:'당사자는 계약기간 5년을 주장함',sources:[{documentId:'doc',page:1,part:1,hash:unit.hash}],status:'draft'}],sourceReviewReceipts:[{documentId:'doc',page:1,part:1,hash:unit.hash,status:'reviewed',quote:text,summary:'계약 기간을 5년이라고 주장하는 원문을 확인하였으며, 이 주장은 아직 검증되지 않았다.'}]};
 const fake=data=>async()=>({ok:true,json:async()=>({status:'completed',output:[{type:'message',content:[{type:'output_text',text:JSON.stringify(data)}]}]})});
 test('GPT request uses source citation and disables stored responses',()=>{
  const payload=buildLegalExpertRequest({caseId:'case',sourceVersion:version,task:'claims_and_rebuttals',units:[unit],clientRole:'plaintiff'});
