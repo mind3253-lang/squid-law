@@ -1,4 +1,5 @@
 import {createHash,randomUUID} from 'node:crypto';
+import {errorRetryDelayMs,shouldPromptlyRedispatch} from '../lib/customer-worker-retry.mjs';
 import {withLeaseDb} from './customer-analysis-lease-db.js';
 import {assertCompletionTransition} from '../lib/analysis-stage-gates.mjs';
 import {scheduleCustomerWorker} from '../lib/customer-worker-dispatch.mjs';
@@ -91,8 +92,8 @@ export async function advanceJob(job,stage,checkpoint,status='running',errorCode
  // A transient provider/transport failure should retry after its persisted
  // SQL backoff, not stall until the next 5-minute cron. Limit immediate
  // re-dispatch to the first four attempts; repeated failures still back off.
- if(status==='retry'&&stage==='error'&&Number(job.attempts||0)<4)
-  scheduleCustomerWorker({delayMs:Math.min(9500,2**Math.min(3,Number(job.attempts||0))*1000+750)});
+ if(status==='retry'&&stage==='error'&&shouldPromptlyRedispatch(job.attempts))
+  scheduleCustomerWorker({delayMs:errorRetryDelayMs(job.attempts)});
  if(status==='completed')scheduleCustomerWorker({delayMs:600});
  return result;
 }
