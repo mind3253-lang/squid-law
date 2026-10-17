@@ -236,10 +236,14 @@ export default async function handler(req,res){
    const candidate=candidateAggregate?.documentBoundaryCandidates?.find(x=>x.documentId===d.id);
    const visual=await load(root+'visual-provider/'+d.id+'.json');
    const pageEvidence=[];
-   for(let start=0;start<d.pageCount;start+=20){
-    const batch=await load(prefix+'verified/'+d.id+'/batch-'+String(start).padStart(8,'0')+'.json');
-    if(!batch||batch.sourcePdfSha256!==d.sha256)throw Error('BOUNDARY_SOURCE_MISSING');
-    for(const p of batch.pages)pageEvidence.push({page:p.page,text:String(p.text||'').slice(0,450),visualFacts:(visual?.observations?.pageObservations?.find(x=>x.page===p.page)?.visualFacts||[]).slice(0,5)});
+   const visualByPage=new Map((visual?.observations?.pageObservations||[]).map(x=>[x.page,x.visualFacts||[]]));
+   for(let start=0;start<d.pageCount;start+=240){
+    const offsets=Array.from({length:Math.min(12,Math.ceil((d.pageCount-start)/20))},(_,i)=>start+i*20);
+    const batches=await Promise.all(offsets.map(offset=>load(prefix+'verified/'+d.id+'/batch-'+String(offset).padStart(8,'0')+'.json')));
+    for(const batch of batches){
+     if(!batch||batch.sourcePdfSha256!==d.sha256)throw Error('BOUNDARY_SOURCE_MISSING');
+     for(const p of batch.pages)pageEvidence.push({page:p.page,text:String(p.text||'').slice(0,450),visualFacts:(visualByPage.get(p.page)||[]).slice(0,5)});
+    }
    }
    const input={documentId:d.id,sourcePdfSha256:d.sha256,pageCount:d.pageCount,candidates:candidate?.sections||[],pageEvidence,model:process.env.SQUIDLAW_LEGAL_MODEL||'gpt-4.1-mini'};
    let primary=await load(primaryPath);
@@ -414,11 +418,12 @@ export default async function handler(req,res){
    const primary=await load(rootPath+doc.id+'.json'),secondary=await load(rootPath+doc.id+'-independent.json');
    visualAudits.push(compareIndependentVisualPass({primary,secondary,pageCount:doc.pageCount}));
   }
+  // Bounded concurrent reads keep final verification ordered without serial Blob RTTs.
+  const verifiedPaths=docs.flatMap(doc=>Array.from({length:Math.ceil(doc.pageCount/20)},(_,i)=>prefix+'verified/'+doc.id+'/batch-'+String(i*20).padStart(8,'0')+'.json'));
   const verifiedBatches=[];
-  for(const doc of docs)for(let start=0;start<doc.pageCount;start+=20){
-   const path=prefix+'verified/'+doc.id+'/batch-'+String(start).padStart(8,'0')+'.json';
-   const batch=await load(path);
-   if(batch)verifiedBatches.push(batch);
+  for(let i=0;i<verifiedPaths.length;i+=12){
+   const group=await Promise.all(verifiedPaths.slice(i,i+12).map(path=>load(path)));
+   verifiedBatches.push(...group.filter(Boolean));
   }
   const textAudit=auditVerifiedTextPages({documents:docs,verifiedBatches});
   const verifiedBoundaries=[];
