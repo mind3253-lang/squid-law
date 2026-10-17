@@ -457,11 +457,13 @@ legalReportButton.onclick=async()=>{
  try{const r=await fetch('/api/customer-legal-report?caseId='+encodeURIComponent(caseId)+'&jobId='+encodeURIComponent(jobId),{credentials:'same-origin',cache:'no-store'});const j=await r.json();if(!r.ok)throw Error(j.error||'보고서 조회 실패');showLegalReport(j.report)}catch(e){notice(e.message,'error')}
 };
 async function readFullReviewJson(r){
- const raw=await r.text();
- try{return JSON.parse(raw)}catch{
-  const message=raw.slice(0,160).replace(/<[^>]*>/g,' ').replace(/\\s+/g,' ').trim();
-  throw Error('분석 서버 응답 오류 (HTTP '+r.status+'): '+(message||'JSON 형식이 아닌 응답'));
- }
+ let raw;
+ try{raw=await r.text()}catch{throw Error('분석 서버 응답을 읽지 못했습니다. 잠시 후 다시 확인해 주세요.')}
+ if(!raw?.trim())throw Error('분석 서버가 빈 응답을 반환했습니다 (HTTP '+r.status+'). 작업 상태는 보존됩니다.');
+ let data;
+ try{data=JSON.parse(raw)}catch{throw Error('분석 서버가 JSON이 아닌 응답을 반환했습니다 (HTTP '+r.status+'). 작업 상태는 보존됩니다.')}
+ if(!data||typeof data!=='object'||Array.isArray(data))throw Error('분석 서버 응답 형식이 올바르지 않습니다 (HTTP '+r.status+').');
+ return data;
 }
 let fullReviewTimer=null;
 async function fullReviewStatus(jobId,caseId){
@@ -471,7 +473,7 @@ async function fullReviewStatus(jobId,caseId){
  if(['blocked','failed','completed'].includes(job.status)){clearInterval(fullReviewTimer);fullReviewTimer=null;if(job.status==='completed'&&log.dataset.reportJob!==jobId){log.dataset.reportJob=jobId;bubble('전체 분석이 완료되었습니다. 보고서를 확인할 수 있습니다.','system');caseChatAction('법률 분석 보고서 열기',()=>legalReportButton.click());caseChatAction('원문 검증 중간보고서',()=>textReportButton.click())}}
  return job.status;
 }
-async function restoreFullReview(){if(!select.value)return;let id=sessionStorage.getItem('squidlaw-full-review:'+select.value);if(!id){try{const r=await fetch('/api/customer-analysis-job?caseId='+encodeURIComponent(select.value)+'&jobId=latest',{credentials:'same-origin',cache:'no-store'});if(!r.ok)return;const j=await r.json();id=j.job?.jobId;if(!id)return;sessionStorage.setItem('squidlaw-full-review:'+select.value,id)}catch{return}}try{const state=await fullReviewStatus(id,select.value);if(fullReviewTimer)clearInterval(fullReviewTimer);if(['blocked','failed','completed'].includes(state))return;fullReviewTimer=setInterval(()=>fullReviewStatus(id,select.value).catch(e=>notice(e.message,'error')),15000)}catch{sessionStorage.removeItem('squidlaw-full-review:'+select.value)}}
+async function restoreFullReview(){if(!select.value)return;let id=sessionStorage.getItem('squidlaw-full-review:'+select.value);if(!id){try{const r=await fetch('/api/customer-analysis-job?caseId='+encodeURIComponent(select.value)+'&jobId=latest',{credentials:'same-origin',cache:'no-store'});if(!r.ok)return;const j=await readFullReviewJson(r);id=j.job?.jobId;if(!id)return;sessionStorage.setItem('squidlaw-full-review:'+select.value,id)}catch{return}}try{const state=await fullReviewStatus(id,select.value);if(fullReviewTimer)clearInterval(fullReviewTimer);if(['blocked','failed','completed'].includes(state))return;fullReviewTimer=setInterval(()=>fullReviewStatus(id,select.value).catch(e=>notice(e.message,'error')),15000)}catch(e){notice('기존 분석 작업을 보존했습니다. 상태 확인 실패: '+e.message,'error')}}
 fullReviewButton.onclick=async()=>{
  if(!select.value){notice('먼저 사건을 등록해 주세요.','error');return}
  if(!currentCase()?.intake?.clientRole){notice('사건 전체 분석 전에 원고·피고 의뢰인 지위를 등록해 주세요.','error');return}
