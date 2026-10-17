@@ -16,7 +16,7 @@ test('bounded windows cover every page exactly once across resumptions',()=>{
 });
 test('tampered text, wrong version, or cursor cannot silently continue',()=>{
  const w=planSourceWindow({caseId:'case',sourceVersion:version,units,cursor:0,maxCharacters:1200});
- assert.throws(()=>verifySourceWindow({...w,units:[{...w.units[0],text:'forged'}]},{caseId:'case',sourceVersion:version,cursor:0,totalUnits:101}),/SOURCE_WINDOW_CONTENT_MISMATCH/);
+ assert.throws(()=>verifySourceWindow({...w,units:[{...w.units[0],text:'forged'},...w.units.slice(1)]},{caseId:'case',sourceVersion:version,cursor:0,totalUnits:101}),/SOURCE_WINDOW_CONTENT_MISMATCH/);
  assert.throws(()=>verifySourceWindow(w,{caseId:'case',sourceVersion:'b'.repeat(64),cursor:0,totalUnits:101}),/SOURCE_WINDOW_CHECKPOINT_MISMATCH/);
  assert.throws(()=>verifySourceWindow(w,{caseId:'case',sourceVersion:version,cursor:1,totalUnits:101}),/SOURCE_WINDOW_CHECKPOINT_MISMATCH/);
 });
