@@ -71,7 +71,7 @@ test('large PDF review routes through chapter persistence not the one-call fast 
  assert.match(source,/last|최근|최신/);
  assert.match(source,/for\(let d=0;d<docs\.length;d\+\+\)/);
  assert.match(source,/pageCounts\.push\(pageCount\)/);
- assert.match(source,/const reply=docs\.length===1/);
+ assert.match(source,/const reply=deltaReply\|\|\(docs\.length===1/);
  assert.ok(source.includes('/\\.pdf$/i.test(String(docs[0].name||\'\'))'),
   'real .pdf filename must enter deep dossier instead of notes-only fallback');
  assert.equal(reportRequestsAlreadyIndexedPdf('이번 메시지는 중간 분석 노트야. 실제 추출 텍스트를 보내줘'),true);
