@@ -1912,7 +1912,8 @@ async function sendArchiveFiles(files){
   history.push(item);drawChat();
   const outcome={name:f.name,hash:null,error:null,pages:null,ocrRequired:[]};
   try{
-   const chunkSize=3*1048576,total=Math.max(1,Math.ceil(f.size/chunkSize));
+   if(/\.pdf$/i.test(f.name)&&f.size>100*1048576)throw Error('PDF는 파일당 최대 100MB까지 업로드할 수 있어.');
+    const chunkSize=3*1048576,total=Math.max(1,Math.ceil(f.size/chunkSize));
    const batch=crypto.randomUUID().replace(/-/g,'');
    const sendPart=async i=>{
     const url='/admin/skynet-archive?batch='+batch+'&part='+i+'&total='+total;
