@@ -10,6 +10,8 @@ export function shouldCheckpointFinalization({elapsedMs,completedRounds}){
  return completedRounds>0&&elapsedMs>=FINALIZATION_SOFT_BUDGET_MS;
 }
 import {aggregateModelUsage} from '../lib/model-usage-observability.mjs';
+import {buildCustomerUsageLedger} from '../lib/customer-usage-ledger.mjs';
+
 import {createHash,timingSafeEqual} from 'node:crypto';
 import {segmentRecord,auditSegments} from '../lib/record-chunks.mjs';
 import {analyzeUnit,independentlyVerify,crosscheckObservations} from '../lib/legal-evidence-review.mjs';
@@ -450,7 +452,26 @@ export default async function handler(req,res){
    return res.status(200).json({status:'retry',stage:'delta_impact_review_pending',
     verifiedNewFindings:reviewedDelta.findings.length});
   }
-  const finalReport={...report,status:'reviewed',notForCourtSubmission:false,legalConclusionAvailable:true,independentSemanticAuditPassed:true,issues:report.issues.filter(x=>x!=='INDEPENDENT_SEMANTIC_AUDIT_PENDING'),warning:'원본과 검증 결과를 확인한 후 제출 여부를 결정하세요.'};
+  const ledgerPaths=[...(previous.legalWindowPaths||[])];
+  for(const d of docs){
+   for(const suffix of ['-primary.json','-independent.json']){
+    const path=root+'boundary-audit/'+d.id+suffix;
+    if(await load(path))ledgerPaths.push(path);
+   }
+   for(let page=1;page<=d.pageCount;page+=12){
+    for(const kind of ['-window-','-independent-window-']){
+     const path=root+'visual-provider/'+d.id+kind+String(page).padStart(8,'0')+'.json';
+     if(await load(path))ledgerPaths.push(path);
+    }
+   }
+  }
+  for(let cursor=0;cursor<=Number(previous.semanticAuditCursor||0);cursor++){
+   const path=root+'semantic-audit/'+String(cursor).padStart(8,'0')+'.json';
+   if(await load(path))ledgerPaths.push(path);
+  }
+  const usageLedger=await buildCustomerUsageLedger({paths:ledgerPaths,load,sourceVersion:job.documentVersion});
+  await put(root+'model-usage-ledger.json',JSON.stringify(usageLedger),{access:'private',allowOverwrite:true,addRandomSuffix:false,contentType:'application/json'});
+  const finalReport={...report,modelUsage:usageLedger.aggregate,usageLedger:{complete:usageLedger.complete,missingCount:usageLedger.missing.length,digest:usageLedger.ledgerDigest},status:'reviewed',notForCourtSubmission:false,legalConclusionAvailable:true,independentSemanticAuditPassed:true,issues:report.issues.filter(x=>x!=='INDEPENDENT_SEMANTIC_AUDIT_PENDING'),warning:'원본과 검증 결과를 확인한 후 제출 여부를 결정하세요.'};
   const finalReportPath=root+'legal-customer-report-final.json';
   await put(finalReportPath,JSON.stringify(finalReport),{access:'private',allowOverwrite:true,addRandomSuffix:false,contentType:'application/json'});
   await advanceJob(job,'analysis_completed',{...previous,semanticAuditPassed:true,completionReconciliation:finalPath,legalCustomerReport:finalReportPath,gates:completion.gates},'completed');
