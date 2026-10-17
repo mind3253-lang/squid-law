@@ -52,3 +52,36 @@ test('worker progress remains durable and lease fenced',()=>{
  assert.match(db,/allowExitOnIdle:true/);
  assert.doesNotMatch(db,/finally\{await pool\.end\(\)\}/);
 });
+
+test('100 MiB PDF upload boundary is consistent across customer and SKYNET entry points',()=>{
+ const customerApi=read('api/customer-large-upload.js');
+ const customerUi=read('customer.html');
+ const skyUi=read('admin/skynet.html');
+ const skyArchive=read('api/skynet-archive.js');
+ const skyDocument=read('api/skynet-document.js');
+ assert.match(customerApi,/MAX_PDF_BYTES=100\*1024\*1024/);
+ assert.match(customerApi,/size>MAX_PDF_BYTES/);
+ assert.match(customerUi,/f\.size>100\*1024\*1024/);
+ assert.match(skyUi,/f\.size>100\*1048576/);
+ assert.match(skyArchive,/const MAX=1024\*1024\*100/);
+ assert.match(skyDocument,/PDF_MAX_BYTES=100\*1048576/);
+ for(const size of [10,30,50,80,99,100,101].map(mib=>mib*1048576)){
+  assert.equal(size<=100*1048576,size!==101*1048576);
+ }
+});
+
+test('multi-page synthetic PDF extraction reports elapsed time and preserves every page',async()=>{
+ const doc=await PDFDocument.create(),font=await doc.embedFont(StandardFonts.Helvetica);
+ for(let page=1;page<=128;page++){
+  const p=doc.addPage([500,700]);
+  p.drawText('CASE_EVIDENCE_PAGE_'+page,{x:30,y:650,size:11,font});
+ }
+ const input=Buffer.from(await doc.save());
+ const started=performance.now();
+ const result=await extractPdfPages(input,{startPage:1,pageCount:128,fastTextOnly:true});
+ const elapsedMs=Math.round(performance.now()-started);
+ assert.equal(result.pages.length,128);
+ assert.deepEqual(result.pages.map(x=>x.page),Array.from({length:128},(_,i)=>i+1));
+ for(let i=0;i<128;i++)assert.match(result.pages[i].text,new RegExp('CASE_EVIDENCE_PAGE_'+(i+1)));
+ console.log(JSON.stringify({benchmark:'synthetic-pdf-text-extraction',pages:128,bytes:input.length,elapsedMs,heapUsed:process.memoryUsage().heapUsed}));
+});
