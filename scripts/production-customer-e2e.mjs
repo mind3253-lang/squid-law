@@ -18,7 +18,7 @@ async function register(u){const r=await request('/api/customer-auth',{method:'P
 await register(a);await register(b);
 let r=await request('/api/customer-auth',{cookie:a.cookie});assert.equal(r.status,200);assert.equal(r.data.authenticated,true);
 r=await request('/api/customer-auth',{method:'POST',body:{action:'login',id:a.id,password:'incorrect-password'}});assert.equal(r.status,401,'wrong password');
-r=await request('/api/customer-cases',{method:'POST',cookie:a.cookie,body:{type:'b'}});assert.equal(r.status,201,'create case');const caseId=r.data.case.id;
+r=await request('/api/customer-cases',{method:'POST',cookie:a.cookie,body:{type:'b',intake:{clientRole:'plaintiff',isFiledCase:false}}});assert.equal(r.status,201,'create case');const caseId=r.data.case.id;
 r=await request('/api/customer-cases',{cookie:a.cookie});assert.equal(r.status,200);assert.ok(r.data.cases.some(x=>x.id===caseId));
 r=await request('/api/customer-cases',{cookie:b.cookie});assert.equal(r.status,200);assert.ok(!r.data.cases.some(x=>x.id===caseId));
 r=await request('/api/customer-case?caseId='+encodeURIComponent(caseId),{cookie:b.cookie});assert.equal(r.status,404,'cross-customer case access');
