@@ -1,6 +1,17 @@
 // Persistent customer analysis worker. Run as a separate Node.js process.
 // This intentionally reuses the existing fenced PostgreSQL claim/checkpoint
 // handler, so no customer data is migrated and no analysis step is skipped.
+// Explicit opt-in: merely installing the unit must never claim a customer job.
+if(process.env.SQUIDLAW_WORKER_RUN_APPROVED!=='YES'){
+ console.error('WORKER_NOT_APPROVED: SQUIDLAW_WORKER_RUN_APPROVED=YES required');
+ process.exit(78);
+}
+const required=['CRON_SECRET','POSTGRES_URL','BLOB_READ_WRITE_TOKEN'];
+const missing=required.filter(name=>!process.env[name]?.trim());
+if(missing.length){
+ console.error('WORKER_CONFIGURATION_MISSING:',missing.join(','));
+ process.exit(78);
+}
 process.env.SQUIDLAW_CONTINUOUS_WORKER='1';
 const {default:handler}=await import('../api/customer-analysis-worker.js');
 const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
