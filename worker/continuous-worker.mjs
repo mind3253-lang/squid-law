@@ -6,12 +6,20 @@ if(process.env.SQUIDLAW_WORKER_RUN_APPROVED!=='YES'){
  console.error('WORKER_NOT_APPROVED: SQUIDLAW_WORKER_RUN_APPROVED=YES required');
  process.exit(78);
 }
+// Production takeover requires a separate, explicit acknowledgement.
+if(process.env.SQUIDLAW_WORKER_CUTOVER_APPROVED!=='YES'){
+ console.error('WORKER_CUTOVER_NOT_APPROVED');
+ process.exit(78);
+}
 const required=['CRON_SECRET','BLOB_READ_WRITE_TOKEN'];
 const missing=required.filter(name=>!process.env[name]?.trim());
 if(!(process.env.SQUID_CUSTOMER_DATABASE_URL||process.env.SQUID_CUSTOMER_DATABASE_DATABASE_URL)?.trim())missing.push('SQUID_CUSTOMER_DATABASE_URL');
 if(missing.length){
  console.error('WORKER_CONFIGURATION_MISSING:',missing.join(','));
  process.exit(78);
+}
+if(process.env.SQUIDLAW_LEGAL_API_ENABLED==='true'&&!process.env.OPENAI_API_KEY?.trim()){
+ console.error('WORKER_OPENAI_KEY_MISSING');process.exit(78);
 }
 process.env.SQUIDLAW_CONTINUOUS_WORKER='1';
 const {default:handler}=await import('../api/customer-analysis-worker.js');
