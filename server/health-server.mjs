@@ -1,14 +1,42 @@
-// Independent lightweight health server; never runs customer analysis on HTTP requests.
+// Loopback-only operational diagnostics; no customer data, secrets or analysis execution.
 import {createServer} from 'node:http';
+import {readFile} from 'node:fs/promises';
 const host=process.env.SQUIDLAW_HEALTH_HOST||'127.0.0.1';
+if(host!=='127.0.0.1'&&host!=='::1')throw Error('HEALTH_DIAGNOSTICS_LOOPBACK_ONLY');
 const port=Number(process.env.SQUIDLAW_HEALTH_PORT||3081);
 if(!Number.isSafeInteger(port)||port<1||port>65535)throw Error('INVALID_HEALTH_PORT');
-const server=createServer((req,res)=>{
- if(req.url!=='/healthz'||req.method!=='GET'){
-  res.writeHead(404,{'content-type':'application/json'});res.end('{"error":"NOT_FOUND"}');return;
+const started=Date.now();
+const bytesToMiB=n=>Math.round(n/1048576);
+async function diagnostics(){
+ const memory=process.memoryUsage();
+ let loadAverage=null;
+ try{
+  const text=await readFile('/proc/loadavg','utf8');
+  const values=text.trim().split(/\s+/).slice(0,3).map(Number);
+  if(values.every(Number.isFinite))loadAverage=values;
+ }catch{}
+ return {status:'ok',service:'squidlaw-health',analysisExecuted:false,
+  uptimeSeconds:Math.floor((Date.now()-started)/1000),
+  process:{pid:process.pid,memoryMiB:{rss:bytesToMiB(memory.rss),heapUsed:bytesToMiB(memory.heapUsed)}},
+  system:{loadAverage,freeMemoryMiB:bytesToMiB((await import('node:os')).freemem()),
+   totalMemoryMiB:bytesToMiB((await import('node:os')).totalmem())},
+  note:'Health process only; worker, database, blob and AI availability not verified'};
+}
+const server=createServer(async(req,res)=>{
+ if(req.method!=='GET'||!['/healthz','/diagnostics'].includes(req.url)){
+  res.writeHead(404,{'content-type':'application/json','cache-control':'no-store'});
+  res.end('{"error":"NOT_FOUND"}');return;
  }
- res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});
- res.end(JSON.stringify({status:'ok',service:'squidlaw-health',analysisExecuted:false}));
+ try{
+  const body=req.url==='/healthz'?
+   {status:'ok',service:'squidlaw-health',analysisExecuted:false}:
+   await diagnostics();
+  res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});
+  res.end(JSON.stringify(body));
+ }catch{
+  res.writeHead(503,{'content-type':'application/json','cache-control':'no-store'});
+  res.end('{"error":"DIAGNOSTICS_UNAVAILABLE"}');
+ }
 });
 server.requestTimeout=10000;
 server.headersTimeout=5000;
