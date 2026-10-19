@@ -1,0 +1,18 @@
+[Unit]
+Description=SQUIDLAW Continuous Analysis Worker
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/squidlaw/app
+EnvironmentFile=/etc/squidlaw/worker.env
+ExecStart=/usr/bin/node /opt/squidlaw/app/worker/continuous-worker.mjs
+Restart=on-failure
+RestartSec=10
+TimeoutStopSec=300
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target
