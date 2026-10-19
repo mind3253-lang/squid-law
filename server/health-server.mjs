@@ -2,6 +2,7 @@
 import {createServer} from 'node:http';
 import {readFile} from 'node:fs/promises';
 import {execFileSync} from 'node:child_process';
+import {diagnosticAuthorized,diagnosticAccessEnabled} from './diagnostics-auth.mjs';
 function serviceState(name){
  try{return execFileSync('systemctl',['is-active',name],{encoding:'utf8',timeout:1500,stdio:['ignore','pipe','ignore']}).trim();}
  catch(e){const v=String(e.stdout||'').trim();return ['inactive','failed','activating','deactivating'].includes(v)?v:'unavailable';}
@@ -40,9 +41,13 @@ async function diagnostics(){
   note:'Health process only; worker, database, blob and AI availability not verified'};
 }
 const server=createServer(async(req,res)=>{
- if(req.method!=='GET'||!['/healthz','/diagnostics'].includes(req.url)){
+ if(req.method!=='GET'||!['/healthz','/diagnostics','/diagnostics/private'].includes(req.url)){
   res.writeHead(404,{'content-type':'application/json','cache-control':'no-store'});
   res.end('{"error":"NOT_FOUND"}');return;
+ }
+ if(req.url==='/diagnostics/private'&&(!diagnosticAccessEnabled(host,process.env.SQUIDLAW_DIAGNOSTICS_TOKEN)||!diagnosticAuthorized(req.headers.authorization,process.env.SQUIDLAW_DIAGNOSTICS_TOKEN))){
+  res.writeHead(403,{'content-type':'application/json','cache-control':'no-store'});
+  res.end('{"error":"FORBIDDEN"}');return;
  }
  try{
   const body=req.url==='/healthz'?
