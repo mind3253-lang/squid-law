@@ -1,0 +1,12 @@
+[Unit]
+Description=SQUIDLAW guarded GitHub code update (no worker activation)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/opt/squidlaw/app
+ExecStart=/usr/bin/bash /opt/squidlaw/app/deploy/gabia-auto-update.sh
+TimeoutStartSec=240
+NoNewPrivileges=true
