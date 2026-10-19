@@ -21,6 +21,9 @@ if(missing.length){
 if(process.env.SQUIDLAW_LEGAL_API_ENABLED==='true'&&!process.env.OPENAI_API_KEY?.trim()){
  console.error('WORKER_OPENAI_KEY_MISSING');process.exit(78);
 }
+if(process.env.SQUIDLAW_CUSTOMER_WORKER_OWNER!=='gabia'){
+ console.error('WORKER_OWNER_NOT_GABIA');process.exit(78);
+}
 process.env.SQUIDLAW_CONTINUOUS_WORKER='1';
 const {default:handler}=await import('../api/customer-analysis-worker.js');
 const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
