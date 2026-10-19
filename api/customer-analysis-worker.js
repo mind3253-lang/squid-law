@@ -1,5 +1,6 @@
 import {claimJob,advanceJob,renewJobLease,completedCaseBaselines} from './customer-analysis-jobs-db.js';
 import {mayClaimCustomerJob} from '../lib/customer-worker-owner.mjs';
+import {timedAnalysisStep} from '../lib/analysis-timing.mjs';
 import {findDeltaBaseline,verifyDeltaPlan} from '../lib/customer-delta-reanalysis.mjs';
 import {runDeltaReviewStep} from './customer-delta-worker.mjs';
 import {get} from '@vercel/blob';
@@ -50,8 +51,8 @@ export function assertPersistedCustomerReport(expected,reopened){
  return true;
 }
 const eq=(a,b)=>{const x=Buffer.from(a||''),y=Buffer.from(b||'');return x.length===y.length&&timingSafeEqual(x,y)};
-async function load(path){const r=await get(path,{access:'private'});if(!r||r.statusCode!==200)return null;let size=0,parts=[];for await(const chunk of r.stream){size+=chunk.length;if(size>32*1024*1024)throw Error('BLOB_TOO_LARGE');parts.push(Buffer.from(chunk))}return JSON.parse(Buffer.concat(parts).toString())}
-async function loadBinary(path,maxBytes=105*1024*1024){const r=await get(path,{access:'private'});if(!r||r.statusCode!==200)return null;let size=0;const chunks=[];for await(const chunk of r.stream){size+=chunk.length;if(size>maxBytes)throw Error('SOURCE_PDF_TOO_LARGE');chunks.push(Buffer.from(chunk))}return Buffer.concat(chunks)}
+async function load(path){return timedAnalysisStep('blob_json_read',async()=>{const r=await get(path,{access:'private'});if(!r||r.statusCode!==200)return null;let size=0,parts=[];for await(const chunk of r.stream){size+=chunk.length;if(size>32*1024*1024)throw Error('BLOB_TOO_LARGE');parts.push(Buffer.from(chunk))}return JSON.parse(Buffer.concat(parts).toString())})}
+async function loadBinary(path,maxBytes=105*1024*1024){return timedAnalysisStep('blob_binary_read',async()=>{const r=await get(path,{access:'private'});if(!r||r.statusCode!==200)return null;let size=0;const chunks=[];for await(const chunk of r.stream){size+=chunk.length;if(size>maxBytes)throw Error('SOURCE_PDF_TOO_LARGE');chunks.push(Buffer.from(chunk))}return Buffer.concat(chunks)})}
 /**
  * The customer uploads a whole PDF as immutable parts. Every source window is
  * parsed on-demand; no step needs to Buffer.concat all original parts.
@@ -59,14 +60,14 @@ async function loadBinary(path,maxBytes=105*1024*1024){const r=await get(path,{a
 async function extractCustomerPdfWindow(prefix,doc,options){
  if(doc.sourceKind==='private_chunked_pdf_v1'){
   const source=createCustomerPdfRangeSource(prefix,doc);
-  const result=await extractPdfPagesByRange(source,options);
+  const result=await timedAnalysisStep('pdf_extract',()=>extractPdfPagesByRange(source,options));
   if(result.totalPages!==doc.pageCount)throw Error('CHUNKED_PDF_PAGE_COUNT_CHANGED');
   return result;
  }
  const bytes=await loadBinary(prefix+'pdf/'+doc.id+'.pdf');
  if(!bytes||createHash('sha256').update(bytes).digest('hex')!==doc.sha256)
   throw Error('SOURCE_PDF_DIGEST_MISMATCH');
- return extractPdfPages(bytes,options);
+ return timedAnalysisStep('pdf_extract',()=>extractPdfPages(bytes,options));
 }
 export default async function handler(req,res){
  res.setHeader('Cache-Control','no-store');
