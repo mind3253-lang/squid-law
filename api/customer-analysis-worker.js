@@ -348,7 +348,7 @@ export default async function handler(req,res){
    if(part.caseId!==job.caseId||part.sourceVersion!==job.documentVersion||part.task!==task||part.cursor!==cursor||part.sourceAudit?.complete!==true)throw Error('LEGAL_WINDOW_CACHE_INVALID');
    if(task==='claims_and_rebuttals'&&part.reviewAudit?.complete!==true)throw Error('LEGAL_WINDOW_CACHE_REQUIRES_SOURCE_READ_RECEIPTS');
   }else{
-   part=await analyzeLegalWindow({request:authorized,sourceUnits:units,cursor,task,apiKey:process.env.OPENAI_API_KEY,model:process.env.SQUIDLAW_LEGAL_MODEL||'gpt-5.4',maxCharacters:64000});
+   part=await timedAnalysisStep('legal_reasoning',()=>analyzeLegalWindow({request:authorized,sourceUnits:units,cursor,task,apiKey:process.env.OPENAI_API_KEY,model:process.env.SQUIDLAW_LEGAL_MODEL||'gpt-5.4',maxCharacters:64000}));
    await put(path,JSON.stringify(part),{access:'private',allowOverwrite:false,addRandomSuffix:false,contentType:'application/json'});
   }
   const paths=[...(previous.legalWindowPaths||[]),path];
@@ -529,10 +529,10 @@ export default async function handler(req,res){
      if(!output){
       const window=windows.get(page);
       if(!window)throw Error('VISUAL_WINDOW_SPLIT_MISSING');
-      output=await analyzePdfVisualEvidence({documentId:doc.id,pdfBytes:window.bytes,
+      output=await timedAnalysisStep('vision_primary',()=>analyzePdfVisualEvidence({documentId:doc.id,pdfBytes:window.bytes,
        apiKey:process.env.OPENAI_API_KEY,
        model:process.env.SQUIDLAW_VISION_MODEL||'gpt-4.1-mini',
-       pageOffset:page-1,originalPdfSha256:doc.sha256});
+       pageOffset:page-1,originalPdfSha256:doc.sha256}));
       if(output.sourcePdfSha256!==doc.sha256||output.documentId!==doc.id)
        throw Error('VISUAL_WINDOW_SOURCE_MISMATCH');
       await put(path,JSON.stringify(output),{access:'private',
@@ -622,10 +622,10 @@ export default async function handler(req,res){
      if(!original[i])throw Error('VISUAL_PRIMARY_WINDOW_MISSING');
      const window=windows.get(page);
      if(!window)throw Error('VISUAL_AUDIT_WINDOW_SPLIT_MISSING');
-     const independent=await analyzePdfVisualEvidence({documentId:doc.id,
+     const independent=await timedAnalysisStep('vision_primary',()=>analyzePdfVisualEvidence({documentId:doc.id,
       pdfBytes:window.bytes,apiKey:process.env.OPENAI_API_KEY,
       model:process.env.SQUIDLAW_VISION_MODEL||'gpt-4.1-mini',
-      auditOf:original[i],pageOffset:page-1,originalPdfSha256:doc.sha256});
+      auditOf:original[i],pageOffset:page-1,originalPdfSha256:doc.sha256}));
      if(independent.sourcePdfSha256!==doc.sha256||independent.documentId!==doc.id)
       throw Error('VISUAL_INDEPENDENT_SOURCE_MISMATCH');
      await put(root+doc.id+'-independent-window-'+String(page).padStart(8,'0')+'.json',
@@ -821,10 +821,10 @@ export default async function handler(req,res){
    const primaryPath=base+'-primary.json',secondPath=base+'-independent.json';
    let primary=await load(primaryPath);
    if(!primary){
-    primary=await analyzePdfVisualEvidence({documentId:d.id,pdfBytes:pdfWindow.bytes,
+    primary=await timedAnalysisStep('vision_primary',()=>analyzePdfVisualEvidence({documentId:d.id,pdfBytes:pdfWindow.bytes,
      apiKey:process.env.OPENAI_API_KEY,
      model:process.env.SQUIDLAW_VISION_MODEL||'gpt-4.1-mini',
-     pageOffset:page.page-1,originalPdfSha256:d.sha256});
+     pageOffset:page.page-1,originalPdfSha256:d.sha256}));
     await put(primaryPath,JSON.stringify(primary),{access:'private',
      allowOverwrite:false,addRandomSuffix:false,contentType:'application/json'});
    }
@@ -832,10 +832,10 @@ export default async function handler(req,res){
     throw Error('OCR_PRIMARY_SOURCE_MISMATCH');
    let secondary=await load(secondPath);
    if(!secondary){
-    secondary=await analyzePdfVisualEvidence({documentId:d.id,pdfBytes:pdfWindow.bytes,
+    secondary=await timedAnalysisStep('vision_primary',()=>analyzePdfVisualEvidence({documentId:d.id,pdfBytes:pdfWindow.bytes,
      apiKey:process.env.OPENAI_API_KEY,
      model:process.env.SQUIDLAW_VISION_MODEL||'gpt-4.1-mini',
-     auditOf:primary,pageOffset:page.page-1,originalPdfSha256:d.sha256});
+     auditOf:primary,pageOffset:page.page-1,originalPdfSha256:d.sha256}));
     await put(secondPath,JSON.stringify(secondary),{access:'private',
      allowOverwrite:false,addRandomSuffix:false,contentType:'application/json'});
    }
