@@ -9,7 +9,7 @@ let stopping=false;
 process.on('SIGTERM',()=>{stopping=true});
 process.on('SIGINT',()=>{stopping=true});
 const req={method:'POST',headers:{authorization:'Bearer '+process.env.CRON_SECRET}};
-if(!process.env.CRON_SECRET||!process.env.POSTGRES_URL&&!process.env.DATABASE_URL){
+if(!process.env.CRON_SECRET){
  console.error('WORKER_REQUIRED_CONFIGURATION_MISSING');process.exit(1);
 }
 while(!stopping){
