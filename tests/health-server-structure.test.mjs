@@ -12,3 +12,12 @@ test('health endpoint is loopback only by default',()=>{
  assert.match(unit,/SQUIDLAW_HEALTH_HOST=127\.0\.0\.1/);
  assert.doesNotMatch(unit,/ExecStart=.*continuous-worker/);
 });
+
+test('diagnostics expose operational metrics without customer records or secrets',()=>{
+ assert.match(src,/\/diagnostics/);
+ assert.match(src,/HEALTH_DIAGNOSTICS_LOOPBACK_ONLY/);
+ assert.match(src,/uptimeSeconds/);
+ assert.match(src,/memoryMiB/);
+ assert.match(src,/DIAGNOSTICS_UNAVAILABLE/);
+ assert.doesNotMatch(src,/process\.env\)|JSON\.stringify\(process\.env\)|customerKey|apiKey|OPENAI_API_KEY/);
+});
