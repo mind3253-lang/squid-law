@@ -19,3 +19,9 @@ Current default: Vercel continues to process jobs; Gabia systemd worker remains 
 7. No speed improvement or end-to-end correctness claim without timed measurements on the same document.
 
 Do not commit actual secrets. Do not publish logs containing keys, connection strings, or customer content.
+
+## Prepared local commands (do not activate production)
+- `bash deploy/worker-cutover.sh preflight`: check local permissions and offline tests only.
+- `bash deploy/worker-cutover.sh status`: show local service state.
+- `bash deploy/worker-cutover.sh rollback`: stop/disable Gabia only; restore Vercel routing separately.
+- Production start and Vercel setting changes are intentionally **not** automated, because both systems must be coordinated and current live leases verified.
