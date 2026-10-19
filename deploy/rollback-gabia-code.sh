@@ -22,7 +22,7 @@ if [ "$target" = "$current" ]; then
  echo "ROLLBACK_ALREADY_AT_TARGET"; exit 0
 fi
 git checkout --detach "$target"
-if ! npm install --ignore-scripts --no-audit --no-fund && true; then
+if ! npm install --ignore-scripts --no-audit --no-fund; then
  echo "ROLLBACK_DEPENDENCY_INSTALL_FAILED"; exit 1
 fi
 node --check server/health-server.mjs
