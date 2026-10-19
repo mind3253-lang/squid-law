@@ -1,0 +1,18 @@
+[Unit]
+Description=SQUIDLAW Independent Health Endpoint
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/squidlaw/app
+Environment=SQUIDLAW_HEALTH_HOST=127.0.0.1
+Environment=SQUIDLAW_HEALTH_PORT=3081
+ExecStart=/usr/bin/node /opt/squidlaw/app/server/health-server.mjs
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target
