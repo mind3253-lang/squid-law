@@ -1,6 +1,9 @@
-import {claimJob,advanceJob,renewJobLease,completedCaseBaselines} from './customer-analysis-jobs-db.js';
+import {claimJob,advanceJob as advanceJobRaw,renewJobLease,completedCaseBaselines} from './customer-analysis-jobs-db.js';
 import {mayClaimCustomerJob} from '../lib/customer-worker-owner.mjs';
 import {timedAnalysisStep} from '../lib/analysis-timing.mjs';
+// Observe persistence latency across all existing checkpoint paths without changing write semantics.
+const advanceJob=(...args)=>timedAnalysisStep('checkpoint_write',()=>advanceJobRaw(...args));
+const put=(...args)=>timedAnalysisStep('blob_write',()=>putRaw(...args));
 import {findDeltaBaseline,verifyDeltaPlan} from '../lib/customer-delta-reanalysis.mjs';
 import {runDeltaReviewStep} from './customer-delta-worker.mjs';
 import {get} from '@vercel/blob';
@@ -17,7 +20,7 @@ import {buildCustomerUsageLedger} from '../lib/customer-usage-ledger.mjs';
 import {createHash,timingSafeEqual} from 'node:crypto';
 import {segmentRecord,auditSegments} from '../lib/record-chunks.mjs';
 import {analyzeUnit,independentlyVerify,crosscheckObservations} from '../lib/legal-evidence-review.mjs';
-import {put} from '@vercel/blob';
+import {put as putRaw} from '@vercel/blob';
 import {candidateDocuments,mergeDocumentBoundaryCandidates} from './customer-document-boundaries.js';
 import {extractPdfPages,extractPdfPagesByRange,choosePdfExtractionWindow} from './customer-pdf-extract.js';
 import {createCustomerPdfRangeSource} from '../lib/customer-pdf-source.mjs';
