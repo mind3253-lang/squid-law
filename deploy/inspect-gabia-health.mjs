@@ -21,6 +21,8 @@ try{
   systemLoadAverage:data.system?.loadAverage,
   systemFreeMemoryMiB:data.system?.freeMemoryMiB,
   systemTotalMemoryMiB:data.system?.totalMemoryMiB,
+  autoUpdateTimer:data.deployment?.autoUpdateTimer||'NOT_CHECKED',
+  lastUpdate:data.deployment?.lastUpdate||null,
   workerStatus:serviceState('squidlaw-worker.service'),customerApiStatus:'NOT_CHECKED',databaseStatus:'NOT_CHECKED',
   aiStatus:'NOT_CHECKED',analysisExecuted:false
  },null,2));
