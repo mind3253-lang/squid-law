@@ -5,7 +5,10 @@ if systemctl is-active --quiet squidlaw-worker.service; then
  echo "REFUSING_UPDATE_WHILE_WORKER_ACTIVE"; exit 2
 fi
 git fetch origin main
-git merge --ff-only origin/main
+target="$(git rev-parse origin/main)"
+if ! git merge-base --is-ancestor HEAD "$target"; then echo 'NON_FAST_FORWARD_UPDATE_REFUSED'; exit 3; fi
+bash deploy/validate-gabia-candidate.sh "$target"
+git merge --ff-only "$target"
 npm ci --ignore-scripts --no-audit --no-fund
 node --check worker/continuous-worker.mjs
 node --check api/customer-analysis-worker.js
