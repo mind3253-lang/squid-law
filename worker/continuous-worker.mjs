@@ -6,8 +6,9 @@ if(process.env.SQUIDLAW_WORKER_RUN_APPROVED!=='YES'){
  console.error('WORKER_NOT_APPROVED: SQUIDLAW_WORKER_RUN_APPROVED=YES required');
  process.exit(78);
 }
-const required=['CRON_SECRET','POSTGRES_URL','BLOB_READ_WRITE_TOKEN'];
+const required=['CRON_SECRET','BLOB_READ_WRITE_TOKEN'];
 const missing=required.filter(name=>!process.env[name]?.trim());
+if(!(process.env.SQUID_CUSTOMER_DATABASE_URL||process.env.SQUID_CUSTOMER_DATABASE_DATABASE_URL)?.trim())missing.push('SQUID_CUSTOMER_DATABASE_URL');
 if(missing.length){
  console.error('WORKER_CONFIGURATION_MISSING:',missing.join(','));
  process.exit(78);
