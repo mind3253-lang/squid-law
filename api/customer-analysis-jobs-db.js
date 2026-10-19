@@ -3,6 +3,7 @@ import {errorRetryDelayMs,shouldPromptlyRedispatch} from '../lib/customer-worker
 import {withLeaseDb} from './customer-analysis-lease-db.js';
 import {assertCompletionTransition} from '../lib/analysis-stage-gates.mjs';
 import {scheduleCustomerWorker} from '../lib/customer-worker-dispatch.mjs';
+import {shouldDispatchCustomerWorker} from '../lib/customer-worker-owner.mjs';
 import {CUSTOMER_PRODUCT_CONTRACT} from '../lib/customer-product-contract.mjs';
 const key=user=>createHash('sha256').update(user).digest('hex');
 const publicJob=r=>r&&({jobId:r.job_id,caseId:r.case_id,documentVersion:r.document_version,status:r.status,stage:r.stage,checkpoint:r.checkpoint,attempts:r.attempts,maxAttempts:r.max_attempts,errorCode:r.error_code,updatedAt:r.updated_at,createdAt:r.created_at});
@@ -88,13 +89,13 @@ export async function advanceJob(job,stage,checkpoint,status='running',errorCode
  });
  // Trigger the next checkpoint without waiting for the customer's browser
  // or the periodic cron. Claiming remains serialized by PG SKIP LOCKED/fence.
- if(process.env.SQUIDLAW_CONTINUOUS_WORKER!=='1'&&status==='retry'&&stage!=='error')scheduleCustomerWorker({delayMs:350});
+ if(shouldDispatchCustomerWorker()&&status==='retry'&&stage!=='error')scheduleCustomerWorker({delayMs:350});
  // A transient provider/transport failure should retry after its persisted
  // SQL backoff, not stall until the next 5-minute cron. Limit immediate
  // re-dispatch to the first four attempts; repeated failures still back off.
- if(process.env.SQUIDLAW_CONTINUOUS_WORKER!=='1'&&status==='retry'&&stage==='error'&&shouldPromptlyRedispatch(job.attempts))
+ if(shouldDispatchCustomerWorker()&&status==='retry'&&stage==='error'&&shouldPromptlyRedispatch(job.attempts))
   scheduleCustomerWorker({delayMs:errorRetryDelayMs(job.attempts)});
- if(process.env.SQUIDLAW_CONTINUOUS_WORKER!=='1'&&status==='completed')scheduleCustomerWorker({delayMs:350});
+ if(shouldDispatchCustomerWorker()&&status==='completed')scheduleCustomerWorker({delayMs:350});
  return result;
 }
 export async function renewJobLease(job){
