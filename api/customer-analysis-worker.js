@@ -535,7 +535,7 @@ export default async function handler(req,res){
       output=await timedAnalysisStep('vision_primary',()=>analyzePdfVisualEvidence({documentId:doc.id,pdfBytes:window.bytes,
        apiKey:process.env.OPENAI_API_KEY,
        model:process.env.SQUIDLAW_VISION_MODEL||'gpt-4.1-mini',
-       pageOffset:page-1,originalPdfSha256:doc.sha256}));
+       pageOffset:page-1,windowPageCount:window.endPage-window.startPage+1,originalPdfSha256:doc.sha256}));
       if(output.sourcePdfSha256!==doc.sha256||output.documentId!==doc.id)
        throw Error('VISUAL_WINDOW_SOURCE_MISMATCH');
       await put(path,JSON.stringify(output),{access:'private',
@@ -628,7 +628,7 @@ export default async function handler(req,res){
      const independent=await timedAnalysisStep('vision_primary',()=>analyzePdfVisualEvidence({documentId:doc.id,
       pdfBytes:window.bytes,apiKey:process.env.OPENAI_API_KEY,
       model:process.env.SQUIDLAW_VISION_MODEL||'gpt-4.1-mini',
-      auditOf:original[i],pageOffset:page-1,originalPdfSha256:doc.sha256}));
+      auditOf:original[i],pageOffset:page-1,windowPageCount:window.endPage-window.startPage+1,originalPdfSha256:doc.sha256}));
      if(independent.sourcePdfSha256!==doc.sha256||independent.documentId!==doc.id)
       throw Error('VISUAL_INDEPENDENT_SOURCE_MISMATCH');
      await put(root+doc.id+'-independent-window-'+String(page).padStart(8,'0')+'.json',
@@ -827,7 +827,7 @@ export default async function handler(req,res){
     primary=await timedAnalysisStep('vision_primary',()=>analyzePdfVisualEvidence({documentId:d.id,pdfBytes:pdfWindow.bytes,
      apiKey:process.env.OPENAI_API_KEY,
      model:process.env.SQUIDLAW_VISION_MODEL||'gpt-4.1-mini',
-     pageOffset:page.page-1,originalPdfSha256:d.sha256}));
+     pageOffset:page.page-1,windowPageCount:1,originalPdfSha256:d.sha256}));
     await put(primaryPath,JSON.stringify(primary),{access:'private',
      allowOverwrite:false,addRandomSuffix:false,contentType:'application/json'});
    }
@@ -838,7 +838,7 @@ export default async function handler(req,res){
     secondary=await timedAnalysisStep('vision_primary',()=>analyzePdfVisualEvidence({documentId:d.id,pdfBytes:pdfWindow.bytes,
      apiKey:process.env.OPENAI_API_KEY,
      model:process.env.SQUIDLAW_VISION_MODEL||'gpt-4.1-mini',
-     auditOf:primary,pageOffset:page.page-1,originalPdfSha256:d.sha256}));
+     auditOf:primary,pageOffset:page.page-1,windowPageCount:1,originalPdfSha256:d.sha256}));
     await put(secondPath,JSON.stringify(secondary),{access:'private',
      allowOverwrite:false,addRandomSuffix:false,contentType:'application/json'});
    }
