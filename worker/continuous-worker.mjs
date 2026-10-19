@@ -26,6 +26,7 @@ if(process.env.SQUIDLAW_CUSTOMER_WORKER_OWNER!=='gabia'){
 }
 process.env.SQUIDLAW_CONTINUOUS_WORKER='1';
 const {default:handler}=await import('../api/customer-analysis-worker.js');
+const {performance}=await import('node:perf_hooks');
 const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 const idleMs=Math.max(250,Number(process.env.SQUIDLAW_WORKER_IDLE_MS)||1500);
 let stopping=false;
@@ -36,6 +37,7 @@ if(!process.env.CRON_SECRET){
  console.error('WORKER_REQUIRED_CONFIGURATION_MISSING');process.exit(1);
 }
 while(!stopping){
+ const started=performance.now();
  let status=500,body=null;
  const res={setHeader(){return this},status(code){status=code;return this},json(data){body=data;return this}};
  try{
@@ -44,6 +46,14 @@ while(!stopping){
   if(status===503)console.error('WORKER_STEP_FAILED',body?.error||'UNKNOWN');
  }catch(error){
   console.error('WORKER_LOOP_FAILURE',String(error?.message||error).slice(0,160));
+ }
+ // Measure complete checkpoint roundtrip, including DB claim and persistence.
+ // Fixed fields only: never log customer IDs, filenames or error messages.
+ if(process.env.SQUIDLAW_ANALYSIS_TIMING==='1'){
+  const elapsedMs=Math.max(0,Math.round(performance.now()-started));
+  const outcome=status===200?'ok':'error';
+  const kind=body?.status==='idle'?'idle':body?.status==='inactive_owner'?'inactive':body?.status==='retry'?'checkpoint':'other';
+  console.log('ANALYSIS_WORKER_CYCLE '+JSON.stringify({outcome,kind,elapsedMs}));
  }
  // DB next_run_at gates retries; keep polling without invoking another server.
  // An idle response means there is no claimable job, not necessarily no jobs.
