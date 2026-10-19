@@ -1,7 +1,7 @@
 // Immutable private PDF archive for a future authenticated Gabia API.
 // No public HTTP route is exposed by this module.
 import {createHash,randomUUID} from 'node:crypto';
-import {mkdir,open,readFile,writeFile} from 'node:fs/promises';
+import {mkdir,open,readFile,writeFile,unlink} from 'node:fs/promises';
 import {join,resolve} from 'node:path';
 const hex64=/^[a-f0-9]{64}$/;
 const validOwner=value=>typeof value==='string'&&/^[a-f0-9]{64}$/.test(value);
@@ -20,7 +20,7 @@ export async function archiveCustomerPdf({root,customerKey,bytes,expectedSha256}
  try{await handle.writeFile(source);await handle.sync();}finally{await handle.close();}
  const metadata={fileId,sha256:digest,size:source.length,customerKey};
  try{await writeFile(join(directory,fileId+'.json'),JSON.stringify(metadata),{flag:'wx',mode:0o600});}
- catch(error){throw Error('ARCHIVE_METADATA_WRITE_FAILED',{cause:error});}
+ catch(error){await unlink(path).catch(()=>{});throw Error('ARCHIVE_METADATA_WRITE_FAILED',{cause:error});}
  return metadata;
 }
 export async function readCustomerPdf({root,customerKey,fileId,expectedSha256}){
