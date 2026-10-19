@@ -13,6 +13,7 @@ node --check lib/analysis-timing.mjs
 node --check lib/vision-page-validation.mjs
 node --check lib/openai-vision-provider.mjs
 node --check server/health-server.mjs
-node --test tests/continuous-worker-safety.test.mjs tests/customer-worker-owner.test.mjs tests/worker-cutover-script.test.mjs tests/inspect-worker-config.test.mjs tests/health-server-structure.test.mjs tests/analysis-timing.test.mjs tests/customer-worker-timing-wiring.test.mjs tests/worker-cycle-timing.test.mjs tests/vision-page-validation.test.mjs
+node --check deploy/inspect-gabia-health.mjs
+node --test tests/continuous-worker-safety.test.mjs tests/customer-worker-owner.test.mjs tests/worker-cutover-script.test.mjs tests/inspect-worker-config.test.mjs tests/health-server-structure.test.mjs tests/analysis-timing.test.mjs tests/customer-worker-timing-wiring.test.mjs tests/worker-cycle-timing.test.mjs tests/vision-page-validation.test.mjs tests/openai-vision-provider.test.mjs
 bash deploy/install-worker-service.sh
 echo "UPDATE_COMPLETE_WORKER_REMAINS_DISABLED"
