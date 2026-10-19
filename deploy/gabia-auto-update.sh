@@ -15,6 +15,10 @@ record_status() {
   recordedAt:new Date().toISOString()
  })+String.fromCharCode(10),{mode:0o600});
  ' "$status_file"
+ STATUS_OUTCOME="$outcome" STATUS_REVISION="$revision" node --input-type=module -e '
+  import {recordDeploymentEvent} from "./lib/deployment-events.mjs";
+  await recordDeploymentEvent({outcome:process.env.STATUS_OUTCOME,revision:process.env.STATUS_REVISION});
+ '
 }
 if systemctl is-active --quiet squidlaw-worker.service; then
  record_status skipped_worker_active
