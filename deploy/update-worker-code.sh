@@ -9,6 +9,7 @@ git merge --ff-only origin/main
 npm install --ignore-scripts --no-audit --no-fund
 node --check worker/continuous-worker.mjs
 node --check api/customer-analysis-worker.js
-node --test tests/continuous-worker-safety.test.mjs tests/customer-worker-owner.test.mjs tests/worker-cutover-script.test.mjs tests/inspect-worker-config.test.mjs
+node --check server/health-server.mjs
+node --test tests/continuous-worker-safety.test.mjs tests/customer-worker-owner.test.mjs tests/worker-cutover-script.test.mjs tests/inspect-worker-config.test.mjs tests/health-server-structure.test.mjs
 bash deploy/install-worker-service.sh
 echo "UPDATE_COMPLETE_WORKER_REMAINS_DISABLED"
