@@ -1,4 +1,5 @@
 import {claimJob,advanceJob,renewJobLease,completedCaseBaselines} from './customer-analysis-jobs-db.js';
+import {mayClaimCustomerJob} from '../lib/customer-worker-owner.mjs';
 import {findDeltaBaseline,verifyDeltaPlan} from '../lib/customer-delta-reanalysis.mjs';
 import {runDeltaReviewStep} from './customer-delta-worker.mjs';
 import {get} from '@vercel/blob';
@@ -71,6 +72,7 @@ export default async function handler(req,res){
  res.setHeader('Cache-Control','no-store');
  if(req.method!=='POST'&&req.method!=='GET')return res.status(405).json({error:'METHOD'});
  if(!process.env.CRON_SECRET||!eq(String(req.headers.authorization||''),'Bearer '+process.env.CRON_SECRET))return res.status(401).json({error:'UNAUTHORIZED'});
+ if(!mayClaimCustomerJob())return res.status(200).json({status:'inactive_owner'});
  let job,heartbeat=null,heartbeatBusy=false,leaseExpired=false;
  try{
   job=await claimJob();
