@@ -88,13 +88,13 @@ export async function advanceJob(job,stage,checkpoint,status='running',errorCode
  });
  // Trigger the next checkpoint without waiting for the customer's browser
  // or the periodic cron. Claiming remains serialized by PG SKIP LOCKED/fence.
- if(status==='retry'&&stage!=='error')scheduleCustomerWorker({delayMs:350});
+ if(process.env.SQUIDLAW_CONTINUOUS_WORKER!=='1'&&status==='retry'&&stage!=='error')scheduleCustomerWorker({delayMs:350});
  // A transient provider/transport failure should retry after its persisted
  // SQL backoff, not stall until the next 5-minute cron. Limit immediate
  // re-dispatch to the first four attempts; repeated failures still back off.
- if(status==='retry'&&stage==='error'&&shouldPromptlyRedispatch(job.attempts))
+ if(process.env.SQUIDLAW_CONTINUOUS_WORKER!=='1'&&status==='retry'&&stage==='error'&&shouldPromptlyRedispatch(job.attempts))
   scheduleCustomerWorker({delayMs:errorRetryDelayMs(job.attempts)});
- if(status==='completed')scheduleCustomerWorker({delayMs:350});
+ if(process.env.SQUIDLAW_CONTINUOUS_WORKER!=='1'&&status==='completed')scheduleCustomerWorker({delayMs:350});
  return result;
 }
 export async function renewJobLease(job){
