@@ -13,7 +13,7 @@ record_status() {
  fs.writeFileSync(process.argv[1],JSON.stringify({
   outcome:process.env.STATUS_OUTCOME,revision:process.env.STATUS_REVISION,
   recordedAt:new Date().toISOString()
- })+"\\n",{mode:0o600});
+ })+String.fromCharCode(10),{mode:0o600});
  ' "$status_file"
 }
 if systemctl is-active --quiet squidlaw-worker.service; then
