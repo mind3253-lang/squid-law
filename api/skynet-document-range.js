@@ -114,7 +114,7 @@ async function persistSegmentBatch(hash,name,start,segments,createdAt){
 export default async function handler(req,res){
  if(!authorized(req))return respond(res,401,{error:'ADMIN_REQUIRED'});
  if(req.method!=='POST')return respond(res,405,{error:'POST_ONLY'});
- if(!process.env.BLOB_READ_WRITE_TOKEN)return respond(res,503,{error:'STORAGE_UNAVAILABLE'});
+ if((process.env.SQUIDLAW_OBJECT_BACKEND!=='gabia'&&!process.env.BLOB_READ_WRITE_TOKEN))return respond(res,503,{error:'STORAGE_UNAVAILABLE'});
  const body=typeof req.body==='string'?(()=>{try{return JSON.parse(req.body)}catch{return {}}})():req.body||{};
  const batch=String(body.batch||''),name=String(body.name||''),parts=Number(body.parts);
  const startPage=Number(body.startPage||1);
