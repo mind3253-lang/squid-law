@@ -8,10 +8,23 @@ const port=Number(process.env.SQUIDLAW_COMPAT_PORT||3084);
 if(!['127.0.0.1','::1'].includes(host))throw Error('COMPAT_LOOPBACK_ONLY');
 if(!Number.isSafeInteger(port)||port<1||port>65535)throw Error('INVALID_COMPAT_PORT');
 if(process.env.SQUIDLAW_COMPAT_PREVIEW!=='1')throw Error('COMPAT_PREVIEW_DISABLED');
-const routes=new Map([
- // Explicitly allowlisted after each endpoint passes a local smoke test.
-]);
-const maxBytes=800000;
+// Only explicitly selected, admin-authenticated SKYNET endpoints are exposed.
+// All routes remain loopback-only and require the preview flag above.
+const routeModules={
+ '/api/skynet-profile':'../api/skynet-profile.js',
+ '/api/skynet-memory':'../api/skynet-memory.js',
+ '/api/skynet-chat':'../api/skynet-chat.js',
+ '/api/skynet-categories':'../api/skynet-categories.js',
+ '/api/skynet-import':'../api/skynet-import.js'
+};
+const routes=new Map();
+for(const [route,modulePath] of Object.entries(routeModules)){
+ routes.set(route,async(req,res)=>{
+  const {default:handler}=await import(modulePath);
+  return handler(req,res);
+ });
+}
+const maxBytes=100*1024*1024;
 const server=createServer(async(req,res)=>{
  const path=new URL(req.url||'/','http://localhost').pathname;
  const handler=routes.get(path);
