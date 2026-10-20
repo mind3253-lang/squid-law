@@ -17,7 +17,8 @@ const routeModules={
  '/api/skynet-categories':'../api/skynet-categories.js',
  '/api/skynet-import':'../api/skynet-import.js',
  '/api/skynet-document':'../api/skynet-document.js',
- '/api/skynet-archive':'../api/skynet-archive.js'
+ '/api/skynet-archive':'../api/skynet-archive.js',
+ '/api/skynet-warehouse':'../api/skynet-warehouse.js'
 };
 const routes=new Map();
 for(const [route,modulePath] of Object.entries(routeModules)){
