@@ -1,6 +1,6 @@
 import {guard,respond,documents,readJson,casePrefix} from './customer-case.js';
 import {pageIndex} from './customer-evidence-engine.js';
-import {put} from '@vercel/blob';
+import {put} from '../lib/customer-object-storage.mjs';
 import {createHash} from 'node:crypto';
 const hash=s=>createHash('sha256').update(s).digest('hex');
 export default async function handler(req,res){
