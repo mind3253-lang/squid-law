@@ -1,5 +1,8 @@
 name: Gabia SSH network check
 on:
+  push:
+    paths:
+      - '.github/workflows/gabia-ssh-network-check.yml'
   workflow_dispatch:
 permissions:
   contents: read
