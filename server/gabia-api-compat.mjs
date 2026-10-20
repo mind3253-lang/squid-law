@@ -20,6 +20,7 @@ const routeModules={
  '/api/skynet-archive':'../api/skynet-archive.js',
  '/api/skynet-warehouse':'../api/skynet-warehouse.js'
 };
+// Explicit SKYNET routes are resolved locally, without Vercel routing.
 const routes=new Map();
 for(const [route,modulePath] of Object.entries(routeModules)){
  routes.set(route,async(req,res)=>{
