@@ -28,3 +28,11 @@ jobs:
           printf '%s\n' "$SSH_KEY" | tr -d '\r' > "$HOME/.ssh/gabia.pem"
           chmod 600 "$HOME/.ssh/gabia.pem"
           ssh -T -i "$HOME/.ssh/gabia.pem" -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15 ubuntu@1.201.111.35 'echo GABIA_SSH_AUTH_OK'
+
+      - name: Check OpenAI authentication on Gabia
+        env:
+          API_KEY: ${{ secrets.GABIA_OPENAI_API_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "$API_KEY" || { echo 'GABIA_OPENAI_API_KEY missing'; exit 1; }
+          printf '%s\n' "$API_KEY" | ssh -T -i "$HOME/.ssh/gabia.pem" -o BatchMode=yes -o StrictHostKeyChecking=accept-new ubuntu@1.201.111.35 'read -r key; code=$(curl -sS -o /dev/null -w "%{http_code}" -H "Authorization: Bearer $key" https://api.openai.com/v1/models); echo "OPENAI_HTTP_$code"; test "$code" = 200'
