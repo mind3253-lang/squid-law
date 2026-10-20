@@ -35,7 +35,18 @@ const routeModules={
  '/api/customer-analysis-job':'../api/customer-analysis-job.js',
  '/api/customer-analysis-status':'../api/customer-analysis-status.js',
  '/api/auth/naver/start':'../api/auth/naver/start.js',
- '/api/auth/naver/callback':'../api/auth/naver/callback.js'
+ '/api/auth/naver/callback':'../api/auth/naver/callback.js',
+ '/api/skynet-document-context':'../api/skynet-document-context.js',
+ '/api/skynet-document-fulltext':'../api/skynet-document-fulltext.js',
+ '/api/skynet-document-job':'../api/skynet-document-job.js',
+ '/api/skynet-document-page-context':'../api/skynet-document-page-context.js',
+ '/api/skynet-document-range':'../api/skynet-document-range.js',
+ '/api/skynet-document-review':'../api/skynet-document-review.js',
+ '/api/skynet-document-verify':'../api/skynet-document-verify.js',
+ '/api/skynet-category-dashboard':'../api/skynet-category-dashboard.js',
+ '/api/skynet-timeline':'../api/skynet-timeline.js',
+ '/api/skynet-plan':'../api/skynet-plan.js',
+ '/api/skynet-jobs':'../api/skynet-jobs.js'
 };
 // Explicit SKYNET routes are resolved locally, without Vercel routing.
 const routes=new Map();
