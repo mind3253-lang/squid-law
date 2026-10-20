@@ -109,7 +109,7 @@ jobs:
           REMOTE
 
       - name: Copy Vercel Blob objects in 200MB batches
-        if: ${{ inputs.action == 'migrate-blob' }}
+        if: ${{ inputs.action == 'migrate-blob' || github.event_name == 'push' }}
         env:
           BLOB_TOKEN: ${{ secrets.BLOB_READ_WRITE_TOKEN }}
         run: |
