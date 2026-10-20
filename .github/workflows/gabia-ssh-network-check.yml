@@ -61,6 +61,7 @@ jobs:
           app=/opt/squidlaw/app
           echo "GABIA_ACTION=$action"
           sudo -n true
+          git config --global --add safe.directory "$app"
           test -d "$app/.git"
           if [ "$action" = prepare-migration ]; then
             git -C "$app" diff --quiet
