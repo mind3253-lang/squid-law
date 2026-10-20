@@ -16,6 +16,7 @@ import {buildSemanticReviewRequest,validateSemanticReview,invokeSemanticReview} 
 import {runGabiaVisualReview} from './gabia-visual-review.mjs';
 import {formatGabiaFirstReport} from '../lib/gabia-first-report-markdown.mjs';
 import {markGabiaPreliminary} from './gabia-preliminary-status.mjs';
+import {validateCompletionGates} from '../lib/analysis-stage-gates.mjs';
 const workerPattern=/^[A-Za-z0-9_-]{3,80}$/;
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 async function atomicWrite(path,content){
@@ -49,7 +50,7 @@ async function existingEngineDraft({bytes,documentId,caseId,clientRole,apiKey,mo
   return recovered?{...page,text:recovered}:page;
  });
  const source=segmentRecord({scope:'customer',documentId,pages:mergedPages});
- if(!auditSegments(extracted.pages,source.segments).complete)throw Error('SOURCE_PAGE_AUDIT_FAILED');
+ if(!auditSegments(mergedPages,source.segments).complete)throw Error('SOURCE_PAGE_AUDIT_FAILED');
  // OCR/visual evidence must not be silently treated as reviewed text.
  if(source.segments.some(x=>x.status==='ocr_required'))throw Error('VISUAL_OCR_REQUIRED');
  const units=source.segments;
@@ -62,8 +63,9 @@ async function existingEngineDraft({bytes,documentId,caseId,clientRole,apiKey,mo
    const saved=await loadWindow({task,cursor,sourceVersion:source.version,previousWindow});
    const window=saved||await analyzeLegalWindow({request,sourceUnits:units,cursor,task,previousWindow,apiKey,model});
    if(window.task!==task||window.cursor!==cursor||window.sourceVersion!==source.version||window.caseId!==caseId||window.nextCursor<=cursor||window.nextCursor>units.length||window.sourceAudit?.complete!==true)throw Error('LEGAL_WINDOW_CHECKPOINT_INVALID');
-   windows.push(window);cursor=window.nextCursor;previousWindow=window;
-   if(!saved)await checkpointWindow({task,cursor,window});
+   windows.push(window);
+   if(!saved)await checkpointWindow({task,cursor:window.cursor,window});
+   cursor=window.nextCursor;previousWindow=window;
   }
   tasks.push({task,windows:windows.filter(w=>w.task===task).length});
  }
@@ -84,10 +86,24 @@ async function existingEngineDraft({bytes,documentId,caseId,clientRole,apiKey,mo
   verdicts.push({start:i,complete:audit.complete,failures:audit.failures});
  }
  const reading=buildLegalCustomerReport({request,windows:readingWindows,sourceIndex,independentAudit});
- return {...reading,findings,allTasks:tasks,semanticVerdicts:verdicts,
+ const semanticPassed=verdicts.length>0&&verdicts.every(v=>v.complete);
+ const releaseGates=validateCompletionGates({
+  sourceIntegrity:{verified:reading.sourceReferenceAuditPassed===true,sourceVersion:source.version},
+  textCoverage:{verified:reading.sourceReviewCoverage?.complete===true,sourceVersion:source.version},
+  sourceReadReview:{verified:reading.sourceReviewCoverage?.complete===true,sourceVersion:source.version},
+  visualInventory:{verified:visual.verified===true,sourceVersion:source.version},
+  ocrCoverage:{verified:false,sourceVersion:source.version},
+  visualVerification:{verified:visual.verified===true,sourceVersion:source.version},
+  documentBoundaries:{verified:false,sourceVersion:source.version},
+  caseStructure:{verified:false,sourceVersion:source.version},
+  claimEvidenceReview:{verified:reading.sourceReferenceAuditPassed===true,sourceVersion:source.version},
+  legalReasoning:{verified:reading.findings?.length>0,sourceVersion:source.version},
+  independentSemanticAudit:{verified:semanticPassed,sourceVersion:source.version}
+ });
+ return {...reading,findings,allTasks:tasks,semanticVerdicts:verdicts,completionGates:releaseGates,
   sourceSha256:createHash('sha256').update(bytes).digest('hex'),
   sourcePageCount:extracted.totalPages,visualVerificationCompleted:visual.verified,
-  status:'draft_pending_visual_verification',notForCourtSubmission:true,
+  status:'draft_pending_full_verification',notForCourtSubmission:true,
   legalConclusionAvailable:false,
   warning:'Existing SQUIDLAW legal engine draft; visual/OCR coverage and full release gates remain pending.'};
 }
@@ -148,7 +164,8 @@ export async function runGabiaPreliminaryJob({pool,storageRoot,reportRoot,worker
    preliminaryReport:base+'.preliminary.md',sourceSha256:sha256,
    extractedPages:preliminary.extractedPages,independentlyVerified:false,
    legalDraft:legal?base+'.legal.md':null,legalAnalysisExecuted:!!legal,
-   visualVerificationCompleted:legal?.visualVerificationCompleted===true
+   visualVerificationCompleted:legal?.visualVerificationCompleted===true,
+   completionGates:legal?.completionGates||{complete:false,missing:['LEGAL_ANALYSIS_NOT_EXECUTED']}
   };
   if(leaseError)throw leaseError;
   await markGabiaPreliminary(pool,{job,workerId,checkpoint});

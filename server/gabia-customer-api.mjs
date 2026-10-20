@@ -52,7 +52,7 @@ async function readPrivateDraft({subject,caseId,jobId}){
  const recorded=job.checkpoint?.legalDraft||job.checkpoint?.preliminaryReport;
  if(resolve(recorded||'')!==requested)throw Error('REPORT_CHECKPOINT_MISMATCH');
  const content=await readFile(requested,'utf8');
- return {status:job.status,stage:job.stage,ready:true,kind:job.checkpoint?.legalDraft?'legal_draft':'preliminary',verified:false,content};
+ return {status:job.status,stage:job.stage,ready:true,kind:job.checkpoint?.legalDraft?'legal_draft':'preliminary',verified:false,completionGates:job.checkpoint?.completionGates||null,content};
 }
 function respond(res,status,data){res.writeHead(status,{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'});res.end(JSON.stringify(data));}
 const server=createServer(async(req,res)=>{
