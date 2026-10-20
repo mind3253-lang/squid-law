@@ -1,8 +1,12 @@
 // Gabia-only queue; explicit DB pool and no worker activation.
-import {gabiaClaimSql,gabiaCheckpointSql} from './gabia-queue-sql.mjs';
+import {gabiaClaimSql,gabiaCheckpointSql,gabiaExpireSql} from './gabia-queue-sql.mjs';
 export function createGabiaQueue(pool){
  if(!pool?.query)throw Error('GABIA_DB_NOT_CONFIGURED');
  return {
+  async expireExhausted(){
+   const r=await pool.query(gabiaExpireSql);
+   return r.rowCount;
+  },
   async claim(workerId){
    if(typeof workerId!=='string'||!/^[A-Za-z0-9_-]{3,80}$/.test(workerId))throw Error('INVALID_WORKER_ID');
    const r=await pool.query(gabiaClaimSql,[workerId]);
