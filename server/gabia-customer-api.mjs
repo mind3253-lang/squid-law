@@ -1,6 +1,8 @@
 // Local-only preview API. Must never activate without separate DB and auth secrets.
 // The analysis worker is intentionally NOT started by this server.
 import {createServer} from 'node:http';
+import {readFile} from 'node:fs/promises';
+import {resolve,sep} from 'node:path';
 import {Pool} from 'pg';
 import {verifyCustomerToken} from './customer-auth.mjs';
 import {createGabiaJobStore} from './gabia-customer-jobs.mjs';
@@ -12,6 +14,22 @@ if(process.env.SQUIDLAW_GABIA_API_PREVIEW!=='1')throw Error('GABIA_API_PREVIEW_D
 if(!process.env.SQUIDLAW_GABIA_DATABASE_URL||!process.env.SQUIDLAW_GABIA_AUTH_SECRET||Buffer.byteLength(process.env.SQUIDLAW_GABIA_AUTH_SECRET)<32)throw Error('GABIA_API_CONFIG_MISSING');
 const pool=new Pool({connectionString:process.env.SQUIDLAW_GABIA_DATABASE_URL,max:4,connectionTimeoutMillis:3000,ssl:process.env.SQUIDLAW_GABIA_DB_LOCAL==='1'?false:{rejectUnauthorized:true}});
 const store=createGabiaJobStore(pool);
+const reportRoot=process.env.SQUIDLAW_GABIA_REPORT_ROOT||'';
+async function readPrivateDraft({subject,caseId,jobId}){
+ if(!reportRoot.startsWith('/'))throw Error('GABIA_REPORT_ROOT_MISSING');
+ const customerKey=(await import('node:crypto')).createHash('sha256').update(subject).digest('hex');
+ const r=await pool.query('SELECT status,stage,checkpoint FROM gabia_customer_jobs WHERE customer_key=$1 AND case_id=$2 AND job_id=$3',[customerKey,caseId,jobId]);
+ if(r.rowCount!==1)return null;
+ const job=r.rows[0];
+ if(job.stage!=='preliminary_report_written')return {status:job.status,stage:job.stage,ready:false};
+ const root=resolve(reportRoot);const base=resolve(root,customerKey,caseId,jobId);
+ if(!base.startsWith(root+sep))throw Error('INVALID_REPORT_PATH');
+ const requested=job.checkpoint?.legalDraft?base+'.legal.md':base+'.preliminary.md';
+ const recorded=job.checkpoint?.legalDraft||job.checkpoint?.preliminaryReport;
+ if(resolve(recorded||'')!==requested)throw Error('REPORT_CHECKPOINT_MISMATCH');
+ const content=await readFile(requested,'utf8');
+ return {status:job.status,stage:job.stage,ready:true,kind:job.checkpoint?.legalDraft?'legal_draft':'preliminary',verified:false,content};
+}
 function respond(res,status,data){res.writeHead(status,{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'});res.end(JSON.stringify(data));}
 const server=createServer(async(req,res)=>{
  try{
@@ -28,9 +46,9 @@ const server=createServer(async(req,res)=>{
    respond(res,202,{job,status:'queued',worker:'NOT_CONNECTED'});return;
   }
   if(req.method==='GET'&&jobId){
-   const job=kind==='result'?await store.result({subject:identity.subject,caseId,jobId}):await store.status({subject:identity.subject,caseId,jobId});
+   const job=kind==='result'?await readPrivateDraft({subject:identity.subject,caseId,jobId}):await store.status({subject:identity.subject,caseId,jobId});
    if(!job){respond(res,404,{error:'NOT_FOUND'});return;}
-   if(kind==='result'){respond(res,job.status==='completed'?501:202,{status:job.status,result:'NOT_CONNECTED'});return;}
+   if(kind==='result'){respond(res,job.ready?200:202,job);return;}
    respond(res,200,{job});return;
   }
   respond(res,405,{error:'METHOD_NOT_ALLOWED'});
