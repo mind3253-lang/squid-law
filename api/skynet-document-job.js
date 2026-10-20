@@ -1,4 +1,4 @@
-import {get,put,list} from '@vercel/blob';
+import {get,put,list} from '../lib/customer-object-storage.mjs';
 
 const SHA=/^[a-f0-9]{64}$/;
 const maxChunks=250;
