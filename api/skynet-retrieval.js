@@ -1,7 +1,7 @@
 import {classifyRecord} from './skynet-case-classifier.js';
 import {searchIndex} from './skynet-search-index.js';
 import {retrievalTerms,selectDiverseEvidence,sourceKind} from '../lib/skynet-evidence-rank.mjs';
-import {list,get} from '@vercel/blob';
+import {list,get} from '../lib/customer-object-storage.mjs';
 const READ_CACHE_MS=120000;
 const READ_CACHE_MAX=200;
 const readCache=new Map();
