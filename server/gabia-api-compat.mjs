@@ -16,7 +16,6 @@ const routeModules={
  '/api/skynet-chat':'../api/skynet-chat.js',
  '/api/skynet-categories':'../api/skynet-categories.js',
  '/api/skynet-import':'../api/skynet-import.js',
- '/api/skynet-archive':'../api/skynet-archive.js',
  '/api/skynet-document':'../api/skynet-document.js'
 };
 const routes=new Map();
