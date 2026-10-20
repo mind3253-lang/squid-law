@@ -18,7 +18,7 @@ test('staging static server blocks symlink escape and private directories',{time
  await symlink(path.join(outside,'secret.txt'),path.join(root,'escape.txt'));
  await mkdir(path.join(root,'docs'));
  await writeFile(path.join(root,'docs','sensitive.txt'),'private');
- const child=spawn(process.execPath,['scripts/gabia-static-staging.mjs'],{env:{...process.env,SQUIDLAW_WEB_ROOT:root,SQUIDLAW_WEB_PORT:String(port)},stdio:'ignore'});
+ const child=spawn(process.execPath,['scripts/gabia-static-staging.mjs'],{env:{...process.env,SQUIDLAW_WEB_ROOT:root,SQUIDLAW_WEB_PORT:String(port),SQUIDLAW_WEB_HOST:'0.0.0.0'},stdio:'ignore'});
  try{
   let started=false;
   for(let i=0;i<80;i++){
@@ -30,6 +30,10 @@ test('staging static server blocks symlink escape and private directories',{time
   assert.equal((await get('/index.html')).status,200);
   assert.equal((await get('/escape.txt')).status,404);
   assert.equal((await get('/docs/sensitive.txt')).status,404);
+  await writeFile(path.join(root,'leaked.pem'),'private');
+  assert.equal((await get('/leaked.pem')).status,404);
+  await writeFile(path.join(root,'leaked.sql'),'private');
+  assert.equal((await get('/leaked.sql')).status,404);
   assert.equal((await get('/api/skynet-chat')).status,503);
  }finally{
   child.kill('SIGTERM');

@@ -5,7 +5,8 @@ import http from 'node:http';
 import {readFile,stat,realpath} from 'node:fs/promises';
 import path from 'node:path';
 const root=path.resolve(process.env.SQUIDLAW_WEB_ROOT||process.cwd());
-const host=process.env.SQUIDLAW_WEB_HOST||'127.0.0.1';
+// Staging must never be exposed directly on a public network interface.
+const host='127.0.0.1';
 const port=Number(process.env.SQUIDLAW_WEB_PORT||3080);
 if(!Number.isInteger(port)||port<1||port>65535)throw Error('INVALID_PORT');
 const types={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.mjs':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.json':'application/json; charset=utf-8','.svg':'image/svg+xml','.png':'image/png','.jpg':'image/jpeg','.jpeg':'image/jpeg','.webp':'image/webp','.ico':'image/x-icon','.woff2':'font/woff2','.txt':'text/plain; charset=utf-8','.pdf':'application/pdf'};
