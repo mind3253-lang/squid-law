@@ -21,6 +21,7 @@ on:
           - verify-blob
           - migrate-source
           - inventory-blob
+          - neon-preflight
 permissions:
   contents: read
 jobs:
@@ -96,6 +97,10 @@ jobs:
             sudo -n install -d -o ubuntu -g ubuntu -m 0750 /var/lib/squidlaw/objects
             sudo -n install -d -o ubuntu -g ubuntu -m 0750 /var/lib/squidlaw/objects/skynet
             echo 'MIGRATION_CODE_READY_NO_DATABASE_ACTION'
+          elif [ "$action" = neon-preflight ]; then
+            sudo -n git -c safe.directory="$app" -C "$app" fetch origin main
+            sudo -n git -c safe.directory="$app" -C "$app" merge --ff-only origin/main
+            echo 'NEON_PREFLIGHT_CODE_READY'
           elif [ "$action" = verify-blob ]; then
             sudo -n git -c safe.directory="$app" -C "$app" fetch origin main
             sudo -n git -c safe.directory="$app" -C "$app" merge --ff-only origin/main
@@ -149,3 +154,9 @@ jobs:
           set -euo pipefail
           test -n "$BLOB_TOKEN"
           printf '%s\n' "$BLOB_TOKEN" | ssh -T -i "$HOME/.ssh/gabia.pem" -o BatchMode=yes -o StrictHostKeyChecking=accept-new ubuntu@1.201.111.35 'IFS= read -r token; cd /opt/squidlaw/app; BLOB_READ_WRITE_TOKEN="$token" node deploy/verify-vercel-blob-migration.mjs'
+
+      - name: Inspect Neon migration prerequisites without changing data
+        if: ${{ inputs.action == 'neon-preflight' }}
+        run: |
+          set -euo pipefail
+          ssh -T -i "$HOME/.ssh/gabia.pem" -o BatchMode=yes -o StrictHostKeyChecking=accept-new ubuntu@1.201.111.35 'cd /opt/squidlaw/app && bash deploy/neon-migration-preflight.sh'
