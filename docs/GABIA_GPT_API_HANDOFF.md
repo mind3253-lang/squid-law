@@ -15,8 +15,8 @@ Gabia standalone analysis worker is opt-in and inactive.
    until the actual worker, tenant case role and database are verified.
 5. This does not start a worker, migrate DNS, or enable public API endpoints.
 
-IMPORTANT: `deploy/update-worker-code.sh` and
-`deploy/validate-gabia-candidate.sh` use `npm ci`. Verify a lockfile is
-present before relying on automatic deployment; otherwise candidate validation
-fails closed. The legacy `squidlaw-worker.service` is not the standalone
+Deployment dependency install now uses `npm install --no-package-lock` because
+this repository has no npm lockfile. This removes the deterministic
+`npm ci` failure but dependency versions are not locked; a proper lockfile
+should be generated and reviewed before production release. The legacy `squidlaw-worker.service` is not the standalone
 Gabia job runner and must not be enabled as a substitute.

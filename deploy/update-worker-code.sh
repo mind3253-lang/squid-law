@@ -14,7 +14,9 @@ trap 'rm -f "$validator"' EXIT
 git show "$target:deploy/validate-gabia-candidate.sh" > "$validator"
 bash "$validator" "$target"
 git merge --ff-only "$target"
-npm ci --ignore-scripts --no-audit --no-fund
+# This repository has no package-lock.json; npm ci would always fail.
+# Do not create or change a lockfile during deployment.
+npm install --no-package-lock --ignore-scripts --no-audit --no-fund
 node --check worker/continuous-worker.mjs
 node --check api/customer-analysis-worker.js
 node --check lib/analysis-timing.mjs
