@@ -6,6 +6,46 @@ server {
     server_tokens off;
     client_max_body_size 100m;
     add_header X-Content-Type-Options nosniff always;
+    location = /admin/skynet-document-verify {
+        rewrite ^ /api/skynet-document-verify break;
+        proxy_pass http://127.0.0.1:3084;
+        proxy_set_header Host $host;
+    }
+    location = /admin/skynet-document-page-context {
+        rewrite ^ /api/skynet-document-page-context break;
+        proxy_pass http://127.0.0.1:3084;
+        proxy_set_header Host $host;
+    }
+    location = /admin/skynet-document-range {
+        rewrite ^ /api/skynet-document-range break;
+        proxy_pass http://127.0.0.1:3084;
+        proxy_set_header Host $host;
+    }
+    location = /admin/skynet-document-fulltext {
+        rewrite ^ /api/skynet-document-fulltext break;
+        proxy_pass http://127.0.0.1:3084;
+        proxy_set_header Host $host;
+    }
+    location = /admin/skynet-document-job {
+        rewrite ^ /api/skynet-document-job break;
+        proxy_pass http://127.0.0.1:3084;
+        proxy_set_header Host $host;
+    }
+    location = /admin/skynet-document-review {
+        rewrite ^ /api/skynet-document-review break;
+        proxy_pass http://127.0.0.1:3084;
+        proxy_set_header Host $host;
+    }
+    location = /admin/skynet-document-context {
+        rewrite ^ /api/skynet-document-context break;
+        proxy_pass http://127.0.0.1:3084;
+        proxy_set_header Host $host;
+    }
+    location = /admin/skynet-category-dashboard {
+        rewrite ^ /api/skynet-category-dashboard break;
+        proxy_pass http://127.0.0.1:3084;
+        proxy_set_header Host $host;
+    }
     location /api/skynet- {
         proxy_pass http://127.0.0.1:3084;
         proxy_http_version 1.1;
