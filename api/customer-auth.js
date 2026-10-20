@@ -1,4 +1,4 @@
-import {get,put} from '@vercel/blob';
+import {get,put} from '../lib/customer-object-storage.mjs';
 import {createHash,createHmac,randomBytes,scryptSync,timingSafeEqual} from 'node:crypto';
 const COOKIE='squid_session',TTL=7*86400;
 const hash=s=>createHash('sha256').update(s).digest('hex');
