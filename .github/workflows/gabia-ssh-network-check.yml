@@ -91,6 +91,8 @@ jobs:
             sudo -n git -c safe.directory="$app" -C "$app" fetch origin main
             sudo -n git -c safe.directory="$app" -C "$app" merge --ff-only origin/main
             sudo -n install -d -o ubuntu -g ubuntu -m 0750 /var/lib/squidlaw/blob-migration
+            sudo -n install -d -o ubuntu -g ubuntu -m 0750 /var/lib/squidlaw/objects
+            sudo -n install -d -o ubuntu -g ubuntu -m 0750 /var/lib/squidlaw/objects/skynet
             echo 'MIGRATION_CODE_READY_NO_DATABASE_ACTION'
           elif [ "$action" = deploy-web-api ]; then
             git -C "$app" diff --quiet
