@@ -24,7 +24,7 @@ for(const [route,modulePath] of Object.entries(routeModules)){
   return handler(req,res);
  });
 }
-const maxBytes=100*1024*1024;
+const maxBytes=800000;
 const server=createServer(async(req,res)=>{
  const path=new URL(req.url||'/','http://localhost').pathname;
  const handler=routes.get(path);
