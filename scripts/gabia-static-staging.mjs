@@ -2,7 +2,7 @@
 // VERCEL ZERO: Gabia static-web staging server.
 // This intentionally does NOT claim API parity. All /api routes fail closed.
 import http from 'node:http';
-import {readFile,stat} from 'node:fs/promises';
+import {readFile,stat,realpath} from 'node:fs/promises';
 import path from 'node:path';
 const root=path.resolve(process.env.SQUIDLAW_WEB_ROOT||process.cwd());
 const host=process.env.SQUIDLAW_WEB_HOST||'127.0.0.1';
@@ -33,11 +33,14 @@ http.createServer(async(req,res)=>{
  const target=path.resolve(root,relative.replace(/^\//,''));
  if(target!==root&&!target.startsWith(root+path.sep))return respond(res,404,{error:'NOT_FOUND'});
  try{
-  const info=await stat(target);
+  // Reject symlink escapes from the public web root before reading any bytes.
+  const [canonicalRoot,canonicalTarget]=await Promise.all([realpath(root),realpath(target)]);
+  if(canonicalTarget!==canonicalRoot&&!canonicalTarget.startsWith(canonicalRoot+path.sep))return respond(res,404,{error:'NOT_FOUND'});
+  const info=await stat(canonicalTarget);
   if(!info.isFile())return respond(res,404,{error:'NOT_FOUND'});
   const ext=path.extname(target).toLowerCase();
   if(!types[ext])return respond(res,404,{error:'NOT_FOUND'});
-  const bytes=await readFile(target);
+  const bytes=await readFile(canonicalTarget);
   res.writeHead(200,{'Content-Type':types[ext],'Content-Length':bytes.length,'X-Content-Type-Options':'nosniff','Cache-Control':'no-cache'});
   res.end(req.method==='HEAD'?undefined:bytes);
  }catch{return respond(res,404,{error:'NOT_FOUND'})}

@@ -23,3 +23,4 @@ jobs:
           node-version: '22'
       - run: npm install --ignore-scripts --no-audit --no-fund
       - run: bash scripts/gabia-offline-gate.sh
+      - run: node --test tests/gabia-static-security.test.mjs tests/gabia-staging-gateway.test.mjs
