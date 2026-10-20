@@ -87,9 +87,9 @@ jobs:
             git -C "$app" merge --ff-only origin/main
             echo 'INVENTORY_READY'
           elif [ "$action" = migrate-blob ]; then
-            git -C "$app" status --porcelain
-            git -C "$app" fetch origin main
-            git -C "$app" merge --ff-only origin/main
+            echo 'Checking root-owned Git repository without changing file ownership'
+            sudo -n git -c safe.directory="$app" -C "$app" fetch origin main
+            sudo -n git -c safe.directory="$app" -C "$app" merge --ff-only origin/main
             echo 'MIGRATION_CODE_READY_NO_DATABASE_ACTION'
           elif [ "$action" = deploy-web-api ]; then
             git -C "$app" diff --quiet
