@@ -1,5 +1,5 @@
 import {extractPdfPages} from './customer-pdf-extract.js';
-import {get,put,list} from '@vercel/blob';
+import {get,put,list} from '../lib/customer-object-storage.mjs';
 import {createHash,randomUUID} from 'node:crypto';
 import {authenticatedUser} from './customer-auth.js';
 const hash=s=>createHash('sha256').update(s).digest('hex');
@@ -14,7 +14,7 @@ export async function messages(user,id){const rows=await all(casePrefix(user,id)
 export async function saveMessage(user,id,role,content){const createdAt=new Date().toISOString(),uuid=randomUUID();const m={id:uuid,role,content,createdAt};await put(casePrefix(user,id)+'messages/'+createdAt.replace(/[:.]/g,'-')+'-'+uuid+'.json',JSON.stringify(m),{access:'private',addRandomSuffix:false,allowOverwrite:false,contentType:'application/json'});return m}
 export default async function handler(req,res){
 const auth=guard(req);if(auth.error)return respond(res,auth.status,{error:auth.error});const {user}=auth;
-if(!process.env.BLOB_READ_WRITE_TOKEN)return respond(res,503,{error:'서버 저장소 설정 필요'});
+if(process.env.SQUIDLAW_OBJECT_BACKEND!=='gabia'&&!process.env.BLOB_READ_WRITE_TOKEN)return respond(res,503,{error:'서버 저장소 설정 필요'});
 const id=String(req.query?.caseId||'');if(!caseOk(id))return respond(res,400,{error:'사건 ID 형식 오류'});
 const prefix=casePrefix(user,id);
 try{const registry=await readJson(casePrefix(user,'_index').replace(/_index\/$/,'')+'registry/'+id+'.json');if(!registry||registry.id!==id)return respond(res,404,{error:'등록된 사건이 없습니다'})}catch{return respond(res,502,{error:'사건 권한 확인 실패'})}
