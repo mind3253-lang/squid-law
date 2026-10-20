@@ -11,10 +11,11 @@ on:
         description: 'Server operation (no DNS or database cutover)'
         type: choice
         required: true
-        default: deploy-web-api
+        default: prepare-migration
         options:
-          - deploy-web-api
+          - prepare-migration
           - audit
+          - deploy-web-api
 permissions:
   contents: read
 jobs:
@@ -58,7 +59,22 @@ jobs:
           echo "GABIA_ACTION=$action"
           sudo -n true
           test -d "$app/.git"
-          if [ "$action" = deploy-web-api ]; then
+          if [ "$action" = prepare-migration ]; then
+            git -C "$app" diff --quiet
+            git -C "$app" diff --cached --quiet
+            git -C "$app" fetch origin main
+            git -C "$app" merge --ff-only origin/main
+            (cd "$app" && npm ci --ignore-scripts --no-audit --no-fund)
+            echo 'SOURCE_MIGRATED_NO_RUNTIME_CHANGES'
+            for bin in psql pg_dump pg_restore nginx; do
+              if command -v "$bin" >/dev/null 2>&1; then echo "TOOL:$bin:PRESENT"; else echo "TOOL:$bin:MISSING"; fi
+            done
+            echo 'MIGRATION_CREDENTIAL_PRESENCE'
+            for f in /etc/squidlaw/database.env /etc/squidlaw/migration.env /etc/squidlaw/worker.env; do
+              if sudo -n test -s "$f"; then echo "CONFIG:$f:PRESENT"; else echo "CONFIG:$f:ABSENT"; fi
+            done
+            echo 'SOURCE_ONLY_PREPARED_DATABASE_AND_OBJECT_COPY_NOT_STARTED'
+          elif [ "$action" = deploy-web-api ]; then
             git -C "$app" diff --quiet
             git -C "$app" diff --cached --quiet
             git -C "$app" fetch origin main
