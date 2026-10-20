@@ -1,4 +1,4 @@
-import {get,list} from '@vercel/blob';
+import {get,list} from '../lib/customer-object-storage.mjs';
 const SHA=/^[a-f0-9]{64}$/;
 const send=(res,status,data)=>res.status(status).setHeader('Cache-Control','private, no-store')
  .setHeader('Vary','Authorization').setHeader('X-Content-Type-Options','nosniff').json(data);
