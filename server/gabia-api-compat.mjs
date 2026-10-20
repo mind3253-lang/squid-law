@@ -29,7 +29,14 @@ const routeModules={
  '/api/customer-legal-report':'../api/customer-legal-report.js',
  '/api/customer-request-state':'../api/customer-request-state.js',
  '/api/customer-review-batch':'../api/customer-review-batch.js',
- '/api/customer-text-review-report':'../api/customer-text-review-report.js'
+ '/api/customer-text-review-report':'../api/customer-text-review-report.js',
+ '/api/customer-analysis':'../api/customer-analysis.js',
+ '/api/customer-analysis-history':'../api/customer-analysis-history.js',
+ '/api/customer-analysis-job':'../api/customer-analysis-job.js',
+ '/api/customer-analysis-status':'../api/customer-analysis-status.js',
+ '/api/customer-analysis-lease':'../api/customer-analysis-lease.js',
+ '/api/auth/naver/start':'../api/auth/naver/start.js',
+ '/api/auth/naver/callback':'../api/auth/naver/callback.js'
 };
 // Explicit SKYNET routes are resolved locally, without Vercel routing.
 const routes=new Map();
@@ -49,6 +56,8 @@ const server=createServer(async(req,res)=>{
  try{
   if(streamingRoutes.has(path)){
    res.status=function(code){res.statusCode=code;return res};
+   res.send=function(value){if(!res.writableEnded)res.end(value);return res};
+   res.redirect=function(code,url){if(url===undefined){url=code;code=302}res.statusCode=code;res.setHeader('Location',url);res.end();return res};
    res.json=function(value){if(!res.writableEnded){res.setHeader('content-type','application/json; charset=utf-8');res.end(JSON.stringify(value))}return res};
    req.query=Object.fromEntries(new URL(req.url,'http://localhost').searchParams);
    await handler(req,res);
@@ -62,6 +71,8 @@ const server=createServer(async(req,res)=>{
   else if(bytes.length){try{body=JSON.parse(bytes.toString('utf8'))}catch{res.writeHead(400);res.end();return;}}
   const query=Object.fromEntries(new URL(req.url,'http://localhost').searchParams);
   res.status=function(code){res.statusCode=code;return res};
+  res.send=function(value){if(!res.writableEnded)res.end(value);return res};
+  res.redirect=function(code,url){if(url===undefined){url=code;code=302}res.statusCode=code;res.setHeader('Location',url);res.end();return res};
   res.json=function(value){if(!res.writableEnded){res.setHeader('content-type','application/json; charset=utf-8');res.end(JSON.stringify(value))}return res};
   req.query=query;req.body=body;
   await handler(req,res);
