@@ -19,3 +19,8 @@ export const gabiaExpireSql=`UPDATE gabia_customer_jobs
  lease_expires_at=NULL,updated_at=now()
  WHERE status='running' AND lease_expires_at<now() AND attempts>=max_attempts
  RETURNING job_id`;
+
+export const gabiaRenewLeaseSql=`UPDATE gabia_customer_jobs SET lease_expires_at=now()+interval '120 seconds',updated_at=now()
+ WHERE customer_key=$1 AND case_id=$2 AND job_id=$3 AND worker_id=$4
+ AND fencing_token=$5 AND status='running' AND lease_expires_at>now()
+ RETURNING job_id`;
