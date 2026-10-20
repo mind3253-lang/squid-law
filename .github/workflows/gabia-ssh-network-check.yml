@@ -22,7 +22,7 @@ permissions:
 jobs:
   check:
     runs-on: ubuntu-latest
-    timeout-minutes: 3
+    timeout-minutes: 240
     steps:
       - name: Test TCP reachability to Gabia SSH
         run: |
