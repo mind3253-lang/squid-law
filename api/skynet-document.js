@@ -4,7 +4,7 @@ import {analyzeUnit,independentlyVerify} from '../lib/legal-evidence-review.mjs'
 import {planVisualEvidence} from '../lib/visual-evidence.mjs';
 import {indexSource} from './skynet-search-index.js';
 import {waitUntil} from '@vercel/functions';
-import {list,get,put} from '@vercel/blob';
+import {list,get,put} from '../lib/customer-object-storage.mjs';
 import {createHash} from 'node:crypto';
 import {extractHwp,extractHwpx} from '../lib/skynet-hwp-extract.mjs';
 // Uploaded PDFs are already stored as bounded private Blob fragments.
