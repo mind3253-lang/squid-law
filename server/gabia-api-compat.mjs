@@ -15,7 +15,9 @@ const routeModules={
  '/api/skynet-memory':'../api/skynet-memory.js',
  '/api/skynet-chat':'../api/skynet-chat.js',
  '/api/skynet-categories':'../api/skynet-categories.js',
- '/api/skynet-import':'../api/skynet-import.js'
+ '/api/skynet-import':'../api/skynet-import.js',
+ '/api/skynet-archive':'../api/skynet-archive.js',
+ '/api/skynet-document':'../api/skynet-document.js'
 };
 const routes=new Map();
 for(const [route,modulePath] of Object.entries(routeModules)){
@@ -24,7 +26,7 @@ for(const [route,modulePath] of Object.entries(routeModules)){
   return handler(req,res);
  });
 }
-const maxBytes=800000;
+const maxBytes=100*1024*1024;
 const server=createServer(async(req,res)=>{
  const path=new URL(req.url||'/','http://localhost').pathname;
  const handler=routes.get(path);
@@ -32,16 +34,16 @@ const server=createServer(async(req,res)=>{
  const chunks=[];let size=0;
  try{
   for await(const part of req){size+=part.length;if(size>maxBytes){res.writeHead(413);res.end();return;}chunks.push(part)}
-  const raw=Buffer.concat(chunks).toString('utf8');
-  let body;try{body=raw?JSON.parse(raw):undefined}catch{res.writeHead(400);res.end();return;}
+  const bytes=Buffer.concat(chunks);
+  const contentType=String(req.headers['content-type']||'').split(';')[0].trim().toLowerCase();
+  let body;
+  if(contentType==='application/octet-stream')body=bytes;
+  else if(bytes.length){try{body=JSON.parse(bytes.toString('utf8'))}catch{res.writeHead(400);res.end();return;}}
   const query=Object.fromEntries(new URL(req.url,'http://localhost').searchParams);
-  const response={
-   status(code){res.statusCode=code;return this},
-   setHeader(key,value){res.setHeader(key,value);return this},
-   json(value){if(res.writableEnded)return;res.setHeader('content-type','application/json; charset=utf-8');res.end(JSON.stringify(value));},
-   end(value){if(!res.writableEnded)res.end(value)}
-  };
-  await handler({method:req.method,headers:req.headers,query,body},response);
+  res.status=function(code){res.statusCode=code;return res};
+  res.json=function(value){if(!res.writableEnded){res.setHeader('content-type','application/json; charset=utf-8');res.end(JSON.stringify(value))}return res};
+  req.query=query;req.body=body;
+  await handler(req,res);
   if(!res.writableEnded)res.end();
  }catch(err){if(!res.headersSent)res.writeHead(503,{'content-type':'application/json','cache-control':'no-store'});if(!res.writableEnded)res.end('{"error":"SERVICE_UNAVAILABLE"}');}
 });
