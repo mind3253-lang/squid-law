@@ -11,7 +11,7 @@ on:
         description: 'Server operation (no DNS or database cutover)'
         type: choice
         required: true
-        default: prepare-migration
+        default: audit
         options:
           - prepare-migration
           - audit
@@ -65,10 +65,10 @@ jobs:
           git config --global --add safe.directory "$app"
           test -d "$app/.git"
           if [ "$action" = prepare-migration ]; then
-            git -C "$app" diff --quiet
-            git -C "$app" diff --cached --quiet
-            git -C "$app" fetch origin main
-            git -C "$app" merge --ff-only origin/main
+            sudo -n git -c safe.directory="$app" -C "$app" diff --quiet
+            sudo -n git -c safe.directory="$app" -C "$app" diff --cached --quiet
+            sudo -n git -c safe.directory="$app" -C "$app" fetch origin main
+            sudo -n git -c safe.directory="$app" -C "$app" merge --ff-only origin/main
             (cd "$app" && npm ci --ignore-scripts --no-audit --no-fund)
             echo 'SOURCE_MIGRATED_NO_RUNTIME_CHANGES'
             for bin in psql pg_dump pg_restore nginx; do
@@ -80,8 +80,8 @@ jobs:
             done
             echo 'SOURCE_ONLY_PREPARED_DATABASE_AND_OBJECT_COPY_NOT_STARTED'
           elif [ "$action" = migrate-source ]; then
-            git -C "$app" fetch origin main
-            git -C "$app" merge --ff-only origin/main
+            sudo -n git -c safe.directory="$app" -C "$app" fetch origin main
+            sudo -n git -c safe.directory="$app" -C "$app" merge --ff-only origin/main
             echo 'SOURCE_UPDATED'
           elif [ "$action" = inventory-blob ]; then
             git -C "$app" fetch origin main
@@ -109,7 +109,7 @@ jobs:
           elif [ "$action" != audit ]; then
             echo "INVALID_ACTION"; exit 2
           fi
-          echo "APP_REVISION=$(git -C "$app" rev-parse --short HEAD)"
+          echo "APP_REVISION=$(sudo -n git -c safe.directory="$app" -C "$app" rev-parse --short HEAD)"
           for service in squidlaw-web squidlaw-api nginx postgresql squidlaw-worker; do
             echo "SERVICE:$service:$(systemctl is-active "$service" 2>/dev/null || true)"
           done
