@@ -120,4 +120,4 @@ jobs:
         run: |
           set -euo pipefail
           if [ -z "$BLOB_TOKEN" ]; then echo 'BLOB_TOKEN_NOT_CONFIGURED_NO_COPY'; exit 1; fi
-          printf '%s\n' "$BLOB_TOKEN" | ssh -T -i "$HOME/.ssh/gabia.pem" -o BatchMode=yes -o StrictHostKeyChecking=accept-new ubuntu@1.201.111.35 'bash -c '\''read -r token; cd /opt/squidlaw/app; BLOB_READ_WRITE_TOKEN="$token" node deploy/migrate-vercel-blob-200mb.mjs'\''
+          printf '%s\n' "$BLOB_TOKEN" | ssh -T -i "$HOME/.ssh/gabia.pem" -o BatchMode=yes -o StrictHostKeyChecking=accept-new ubuntu@1.201.111.35 'IFS= read -r token; cd /opt/squidlaw/app; BLOB_READ_WRITE_TOKEN="$token" node deploy/migrate-vercel-blob-200mb.mjs'
