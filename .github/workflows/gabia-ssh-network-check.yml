@@ -1,0 +1,14 @@
+name: Gabia SSH network check
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Test TCP reachability to Gabia SSH
+        run: |
+          timeout 12 bash -c 'cat < /dev/null > /dev/tcp/1.201.111.35/22'
+          echo 'SSH port reachable from GitHub runner'
