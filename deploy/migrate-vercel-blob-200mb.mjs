@@ -1,6 +1,9 @@
 // Read-only Vercel Blob to Gabia migration. No database or DNS operations.
 import {list,get} from '@vercel/blob';
-import {mkdir,readFile,appendFile} from 'node:fs/promises';
+import {mkdir,readFile,appendFile,open,rename,rm} from 'node:fs/promises';
+import {pipeline} from 'node:stream/promises';
+import {Readable,Transform} from 'node:stream';
+import {createWriteStream} from 'node:fs';
 import {createHash} from 'node:crypto';
 import {hashPrivateObject,putPrivateObjectStream} from '../lib/gabia-private-objects.mjs';
 const limit=200*1024*1024;
@@ -14,6 +17,24 @@ try{for(const line of (await readFile(journal,'utf8')).split('\n')){if(line.trim
 const stats={listed:0,completed:0,skipped:0,conflicts:0,failed:0,bytes:0,batches:0};
 let batch=0,cursor,seen=new Set();
 async function record(v){await appendFile(journal,JSON.stringify({...v,at:new Date().toISOString()})+'\n',{mode:0o600})}
+async function stageConflict(key,b){
+ const directory=state+'/conflicts';
+ await mkdir(directory,{recursive:true,mode:0o700});
+ const filename=directory+'/'+createHash('sha256').update(key).digest('hex');
+ const obj=await get(key,{token,access:'private'});
+ if(!obj?.stream)throw Error('CONFLICT_SOURCE_STREAM_UNAVAILABLE');
+ const temp=filename+'.part-'+process.pid;
+ const digest=createHash('sha256');let size=0;
+ try{
+  await pipeline(Readable.from(obj.stream),new Transform({transform(chunk,enc,cb){size+=chunk.length;digest.update(chunk);cb(null,chunk)}}),createWriteStream(temp,{flags:'wx',mode:0o600}));
+  if(size!==b.size)throw Error('CONFLICT_SOURCE_SIZE_MISMATCH');
+  const sourceSha256=digest.digest('hex');
+  const target=await hashPrivateObject(key);
+  await rename(temp,filename);
+  await record({status:'conflict-staged',pathname:key,sourceSize:size,sourceSha256,targetSize:target.size,targetSha256:target.sha256,stagedPath:filename});
+  console.log('CONFLICT_STAGED',key,JSON.stringify({sourceSize:size,sourceSha256,targetSize:target.size,targetSha256:target.sha256}));
+ }finally{await rm(temp,{force:true})}
+}
 async function migrate(b){
  const key=b.pathname;
  if(!key||key.startsWith('/')||key.includes('..')||key.includes('\\')||key.includes(':'))throw Error('UNSAFE_KEY');
@@ -38,7 +59,7 @@ async function migrate(b){
    last=e;
    if(e.message==='DESTINATION_CONFLICT'){
     stats.conflicts++;
-    await record({status:'conflict',pathname:key,sourceSize:b.size,error:e.message});
+    try{await stageConflict(key,b)}catch(stageError){stats.failed++;await record({status:'conflict-stage-failed',pathname:key,error:String(stageError.message)});console.error('CONFLICT_STAGE_FAILED',key,String(stageError.message))}
     console.error('CONFLICT_PRESERVED',key);
     return;
    }
