@@ -1,4 +1,4 @@
-import {get} from '@vercel/blob';
+import {get} from '../lib/customer-object-storage.mjs';
 import {createHash} from 'node:crypto';
 import {TOPIC_IDS} from '../lib/skynet-topic-categories.mjs';
 import {topicDbEnabled,topicDashboard,topicSources,resetTopicBackfill} from '../lib/skynet-topic-db.mjs';
