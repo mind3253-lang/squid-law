@@ -34,6 +34,8 @@ test('staging static server blocks symlink escape and private directories',{time
   assert.equal((await get('/leaked.pem')).status,404);
   await writeFile(path.join(root,'leaked.sql'),'private');
   assert.equal((await get('/leaked.sql')).status,404);
+  await writeFile(path.join(root,'private.key'),'private');
+  assert.equal((await get('/private.key')).status,404);
   assert.equal((await get('/api/skynet-chat')).status,503);
  }finally{
   child.kill('SIGTERM');
