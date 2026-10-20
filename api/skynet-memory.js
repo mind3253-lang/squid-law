@@ -1,7 +1,8 @@
 import {objectBackend} from '../lib/customer-object-storage.mjs';
 const storageReady=()=>objectBackend()==='gabia'||!!process.env.BLOB_READ_WRITE_TOKEN;
 import {indexSource} from './skynet-search-index.js';
-import {waitUntil} from '@vercel/functions';
+import {deferWork} from '../lib/gabia-deferred-work.mjs';
+const waitUntil=deferWork;
 import {appendRecords,loadRecords,recordId} from './skynet-records.js';
 import {put,list,get} from '../lib/customer-object-storage.mjs';
 import {randomUUID} from 'node:crypto';
