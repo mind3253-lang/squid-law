@@ -2,7 +2,7 @@ import {buildCustomerAnalysisBrief} from '../lib/customer-analysis-brief.mjs';
 import {courtSubmissionGate} from '../lib/court-submission-gate.mjs';
 import {findReportEvidence} from '../lib/customer-report-evidence-search.mjs';
 import {documents} from './customer-case.js';
-import {get} from '@vercel/blob';
+import {get} from '../lib/customer-object-storage.mjs';
 import {guard,respond,readJson,casePrefix} from './customer-case.js';
 import {getJob} from './customer-analysis-jobs-db.js';
 const idOk=s=>/^SL-[A-Za-z0-9-]{5,40}$/.test(s);
