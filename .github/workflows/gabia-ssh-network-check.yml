@@ -36,3 +36,25 @@ jobs:
           set -euo pipefail
           test -n "$API_KEY" || { echo 'GABIA_OPENAI_API_KEY missing'; exit 1; }
           printf '%s\n' "$API_KEY" | ssh -T -i "$HOME/.ssh/gabia.pem" -o BatchMode=yes -o StrictHostKeyChecking=accept-new ubuntu@1.201.111.35 'read -r key; code=$(curl -sS -o /dev/null -w "%{http_code}" -H "Authorization: Bearer $key" https://api.openai.com/v1/models); echo "OPENAI_HTTP_$code"; test "$code" = 200'
+
+      - name: Inspect Gabia runtime wiring without exposing secrets
+        run: |
+          set -euo pipefail
+          ssh -T -i "$HOME/.ssh/gabia.pem" -o BatchMode=yes -o StrictHostKeyChecking=accept-new ubuntu@1.201.111.35 'bash -s' <<'REMOTE'
+          set -eu
+          echo 'GABIA_RUNTIME_INSPECTION_BEGIN'
+          for path in /etc/squidlaw/openai.env /etc/squidlaw/worker.env; do
+            if sudo test -f "$path"; then
+              if sudo grep -q '^OPENAI_API_KEY=.' "$path"; then
+                echo "$path: KEY_LINE_PRESENT"
+              else
+                echo "$path: KEY_LINE_MISSING"
+              fi
+            else
+              echo "$path: FILE_MISSING"
+            fi
+          done
+          echo 'SYSTEMD_UNITS'
+          systemctl list-unit-files --type=service --no-pager --no-legend | grep -Ei 'squidlaw|gabia' | cut -d' ' -f1 || true
+          echo 'GABIA_RUNTIME_INSPECTION_END'
+          REMOTE
