@@ -18,7 +18,18 @@ const routeModules={
  '/api/skynet-import':'../api/skynet-import.js',
  '/api/skynet-document':'../api/skynet-document.js',
  '/api/skynet-archive':'../api/skynet-archive.js',
- '/api/skynet-warehouse':'../api/skynet-warehouse.js'
+ '/api/skynet-warehouse':'../api/skynet-warehouse.js',
+ '/api/customer-auth':'../api/customer-auth.js',
+ '/api/customer-case':'../api/customer-case.js',
+ '/api/customer-cases':'../api/customer-cases.js',
+ '/api/customer-members':'../api/customer-members.js',
+ '/api/customer-case-delete':'../api/customer-case-delete.js',
+ '/api/customer-case-knowledge':'../api/customer-case-knowledge.js',
+ '/api/customer-large-upload':'../api/customer-large-upload.js',
+ '/api/customer-legal-report':'../api/customer-legal-report.js',
+ '/api/customer-request-state':'../api/customer-request-state.js',
+ '/api/customer-review-batch':'../api/customer-review-batch.js',
+ '/api/customer-text-review-report':'../api/customer-text-review-report.js'
 };
 // Explicit SKYNET routes are resolved locally, without Vercel routing.
 const routes=new Map();
