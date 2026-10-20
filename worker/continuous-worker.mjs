@@ -1,3 +1,4 @@
+import {workerFailureDelayMs} from '../lib/gabia-worker-backoff.mjs';
 import {workerPreflight} from '../lib/gabia-worker-preflight.mjs';
 const preflight=workerPreflight();
 if(!preflight.ok){
@@ -10,6 +11,8 @@ const {performance}=await import('node:perf_hooks');
 const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 const idleMs=Math.max(250,Number(process.env.SQUIDLAW_WORKER_IDLE_MS)||1500);
 let stopping=false;
+let consecutiveFailures=0;
+
 process.on('SIGTERM',()=>{stopping=true});
 process.on('SIGINT',()=>{stopping=true});
 const req={method:'POST',headers:{authorization:'Bearer '+process.env.CRON_SECRET}};
@@ -27,6 +30,7 @@ while(!stopping){
  }catch(error){
   console.error('WORKER_LOOP_FAILURE',String(error?.message||error).slice(0,160));
  }
+ consecutiveFailures=status===200?0:Math.min(32,consecutiveFailures+1);
  // Measure complete checkpoint roundtrip, including DB claim and persistence.
  // Fixed fields only: never log customer IDs, filenames or error messages.
  if(process.env.SQUIDLAW_ANALYSIS_TIMING==='1'){
@@ -37,5 +41,5 @@ while(!stopping){
  }
  // DB next_run_at gates retries; keep polling without invoking another server.
  // An idle response means there is no claimable job, not necessarily no jobs.
- await sleep(body?.status==='idle'?idleMs:Math.min(idleMs,500));
+ await sleep(consecutiveFailures?workerFailureDelayMs(consecutiveFailures):(body?.status==='idle'?idleMs:Math.min(idleMs,500)));
 }
