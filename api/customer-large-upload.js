@@ -1,4 +1,4 @@
-import {get,put} from '@vercel/blob';
+import {get,put} from '../lib/customer-object-storage.mjs';
 import {randomUUID,createHash,timingSafeEqual} from 'node:crypto';
 import {extractPdfPagesByRange} from './customer-pdf-extract.js';
 import {createCustomerPdfRangeSource,hashCustomerPdfArchive} from '../lib/customer-pdf-source.mjs';
@@ -29,7 +29,7 @@ async function isExistingIdentical(path,data){
 }
 export default async function handler(req,res){
  const auth=guard(req);if(auth.error)return respond(res,auth.status,{error:auth.error});
- if(!process.env.BLOB_READ_WRITE_TOKEN)return respond(res,503,{error:'저장소 설정 필요'});
+ if(process.env.SQUIDLAW_OBJECT_BACKEND!=='gabia'&&!process.env.BLOB_READ_WRITE_TOKEN)return respond(res,503,{error:'저장소 설정 필요'});
  const id=String(req.query?.caseId||'');
  if(!/^SL-[A-Za-z0-9-]{5,40}$/.test(id))return respond(res,400,{error:'사건 ID 오류'});
  const user=auth.user,prefix=casePrefix(user,id);
