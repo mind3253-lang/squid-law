@@ -5,6 +5,7 @@ import {resolve,dirname} from 'node:path';
 import {randomUUID,createHash} from 'node:crypto';
 import {pathToFileURL} from 'node:url';
 import {extractPdfPages} from '../api/customer-pdf-extract.js';
+import {formatGabiaFirstReport} from '../lib/gabia-first-report-markdown.mjs';
 import {segmentRecord,auditSegments} from '../lib/record-chunks.mjs';
 import {analyzeUnit,independentlyVerify,crosscheckObservations} from '../lib/legal-evidence-review.mjs';
 const digest=bytes=>createHash('sha256').update(bytes).digest('hex');
@@ -36,8 +37,9 @@ export async function writeGabiaFirstReport({inputPath,outputPath}){
  const bytes=await readFile(resolve(inputPath));
  const report=await buildGabiaFirstReport({pdfBytes:bytes});
  const target=resolve(outputPath);await mkdir(dirname(target),{recursive:true,mode:0o700});
+ const isMarkdown=target.toLowerCase().endsWith('.md');
  const temp=target+'.'+randomUUID()+'.tmp';
- await writeFile(temp,JSON.stringify(report,null,2),{flag:'wx',mode:0o600});
+ await writeFile(temp,isMarkdown?formatGabiaFirstReport(report):JSON.stringify(report,null,2),{flag:'wx',mode:0o600});
  await rename(temp,target);
  return {path:target,status:report.status,pages:report.pageCount,observations:report.observations.length};
 }
