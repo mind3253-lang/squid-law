@@ -1,15 +1,15 @@
 #!/usr/bin/env node
-// Inventory / migrate private Vercel Blob objects into Gabia private storage.
-// Default: inventory only. Explicit --copy required for writes.
-// Run on a secured server with BLOB_READ_WRITE_TOKEN and SQUIDLAW_OBJECT_ROOT.
-// Never prints object bodies, tokens, customer names or file contents.
+// Read-only inventory by default. --copy streams Vercel Blob objects to Gabia.
+// No customer content, keys or credentials are written to stdout.
 import {createHash} from 'node:crypto';
 import {get,list} from '@vercel/blob';
-import {putPrivateObject,getPrivateObject} from '../lib/gabia-private-objects.mjs';
+import {putPrivateObjectStream,hashPrivateObject} from '../lib/gabia-private-objects.mjs';
 const copy=process.argv.includes('--copy');
 const prefix=process.env.SQUIDLAW_MIGRATION_PREFIX||'';
-const sha=b=>createHash('sha256').update(b).digest('hex');
-let cursor,scanned=0,verified=0,bytes=0,errors=0;
+const BATCH=200*1024*1024;
+if(copy&&(!process.env.BLOB_READ_WRITE_TOKEN||!process.env.SQUIDLAW_OBJECT_ROOT))throw Error('MIGRATION_CREDENTIALS_OR_DESTINATION_MISSING');
+let cursor,scanned=0,verified=0,bytes=0,errors=0,batches=0,batchBytes=0,oversize=0;
+const failures=[];
 do{
  const page=await list({prefix,limit:100,...(cursor?{cursor}:{})});
  for(const item of page.blobs){
@@ -18,17 +18,24 @@ do{
   try{
    const remote=await get(item.pathname,{access:'private'});
    if(!remote||remote.statusCode!==200)throw Error('SOURCE_UNAVAILABLE');
-   const chunks=[];let size=0;
-   for await(const chunk of remote.stream){size+=chunk.length;if(size>200*1024*1024)throw Error('OBJECT_TOO_LARGE');chunks.push(Buffer.from(chunk))}
-   const source=Buffer.concat(chunks);
-   try{await putPrivateObject(item.pathname,source,{allowOverwrite:false})}
-   catch(e){if(e.code!=='EEXIST')throw e}
-   const local=await getPrivateObject(item.pathname);
-   if(sha(source)!==sha(local))throw Error('CHECKSUM_MISMATCH');
-   verified++;bytes+=source.length;
-  }catch(e){errors++;console.error('MIGRATION_ERROR',sha(Buffer.from(item.pathname)).slice(0,12),String(e.code||e.message||'UNKNOWN').slice(0,80))}
+   // 200 MB is a reporting batch target, NOT a per-file cap.
+   // A 500 MB document is transferred as a single bounded-memory stream.
+   const written=await putPrivateObjectStream(item.pathname,remote.stream,{allowOverwrite:false});
+   const local=await hashPrivateObject(item.pathname);
+   if(written.sha256!==local.sha256||written.size!==local.size)throw Error('CHECKSUM_MISMATCH');
+   verified++;bytes+=written.size;
+   batchBytes+=written.size;
+   if(batchBytes>=BATCH){batches++;batchBytes=0}
+  }catch(e){
+   errors++;
+   if(String(e.code||e.message)==='OBJECT_TOO_LARGE')oversize++;
+   const id=createHash('sha256').update(item.pathname).digest('hex').slice(0,12);
+   failures.push({id,error:String(e.code||e.message||'UNKNOWN').slice(0,80)});
+   console.error('MIGRATION_ERROR',id,String(e.code||e.message||'UNKNOWN').slice(0,80));
+  }
  }
  cursor=page.hasMore?page.cursor:undefined;
 }while(cursor);
-console.log(JSON.stringify({mode:copy?'copy-and-verify':'inventory-only',scanned,verified,bytes,errors}));
+if(copy&&batchBytes)batches++;
+console.log(JSON.stringify({mode:copy?'copy-and-verify':'inventory-only',scanned,verified,bytes,errors,batches,oversize,failures}));
 if(copy&&(errors||scanned!==verified))process.exitCode=1;
