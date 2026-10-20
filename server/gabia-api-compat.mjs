@@ -16,7 +16,8 @@ const routeModules={
  '/api/skynet-chat':'../api/skynet-chat.js',
  '/api/skynet-categories':'../api/skynet-categories.js',
  '/api/skynet-import':'../api/skynet-import.js',
- '/api/skynet-document':'../api/skynet-document.js'
+ '/api/skynet-document':'../api/skynet-document.js',
+ '/api/skynet-archive':'../api/skynet-archive.js'
 };
 const routes=new Map();
 for(const [route,modulePath] of Object.entries(routeModules)){
@@ -26,12 +27,20 @@ for(const [route,modulePath] of Object.entries(routeModules)){
  });
 }
 const maxBytes=100*1024*1024;
+const streamingRoutes=new Set(['/api/skynet-archive']);
 const server=createServer(async(req,res)=>{
  const path=new URL(req.url||'/','http://localhost').pathname;
  const handler=routes.get(path);
  if(!handler){res.writeHead(404,{'content-type':'application/json','cache-control':'no-store'});res.end('{"error":"NOT_FOUND"}');return;}
  const chunks=[];let size=0;
  try{
+  if(streamingRoutes.has(path)){
+   res.status=function(code){res.statusCode=code;return res};
+   res.json=function(value){if(!res.writableEnded){res.setHeader('content-type','application/json; charset=utf-8');res.end(JSON.stringify(value))}return res};
+   req.query=Object.fromEntries(new URL(req.url,'http://localhost').searchParams);
+   await handler(req,res);
+   return;
+  }
   for await(const part of req){size+=part.length;if(size>maxBytes){res.writeHead(413);res.end();return;}chunks.push(part)}
   const bytes=Buffer.concat(chunks);
   const contentType=String(req.headers['content-type']||'').split(';')[0].trim().toLowerCase();
