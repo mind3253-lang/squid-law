@@ -1,4 +1,4 @@
-import {get} from '@vercel/blob';
+import {get} from '../lib/customer-object-storage.mjs';
 import {readIndexedPageWindow} from '../lib/skynet-indexed-page-read.mjs';
 
 const respond=(res,status,body)=>res.status(status)
