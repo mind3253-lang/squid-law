@@ -1,9 +1,9 @@
 // Standalone Gabia queue -> immutable PDF -> existing SQUIDLAW analysis -> private reports.
 // Never start services or charge for models without explicit opt-in.
 // Full customer release remains blocked pending original visual/OCR completion gates.
-import {mkdir,writeFile,rename} from 'node:fs/promises';
+import {mkdir,writeFile,link,unlink,readFile} from 'node:fs/promises';
 import {join,resolve} from 'node:path';
-import {randomUUID} from 'node:crypto';
+import {randomUUID,createHash} from 'node:crypto';
 import {createGabiaQueue} from './gabia-queue.mjs';
 import {loadGabiaJobPdf} from './gabia-job-pdf.mjs';
 import {buildGabiaFirstReport} from './gabia-first-report.mjs';
@@ -13,7 +13,6 @@ import {analyzeLegalWindow} from '../lib/gpt-legal-orchestrator.mjs';
 import {LEGAL_TASKS} from '../lib/gpt-legal-expert.mjs';
 import {buildLegalCustomerReport} from '../lib/legal-customer-report.mjs';
 import {buildSemanticReviewRequest,validateSemanticReview,invokeSemanticReview} from '../lib/independent-semantic-review.mjs';
-import {createHash} from 'node:crypto';
 import {formatGabiaFirstReport} from '../lib/gabia-first-report-markdown.mjs';
 import {markGabiaPreliminary} from './gabia-preliminary-status.mjs';
 const workerPattern=/^[A-Za-z0-9_-]{3,80}$/;
@@ -21,7 +20,7 @@ const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 async function atomicWrite(path,content){
  const temp=path+'.'+randomUUID()+'.tmp';
  await writeFile(temp,content,{flag:'wx',mode:0o600});
- try{await (await import('node:fs/promises')).link(temp,path)}finally{await (await import('node:fs/promises')).unlink(temp)}
+ try{await link(temp,path)}catch(error){if(error.code!=='EEXIST')throw error;const old=await readFile(path);if(old.toString()!==content)throw Error('GABIA_IMMUTABLE_REPORT_CONFLICT')}finally{await unlink(temp)}
 }
 function legalSummary(report){
  const out=['# SQUIDLAW 법률 분석 초안','',
@@ -40,7 +39,7 @@ function legalSummary(report){
   '시각 증거와 OCR 확인 전이므로 최종 법률 판단·고객 공개 완료 상태로 전환하지 않습니다.');
  return out.join('\n')+'\n';
 }
-async function existingEngineDraft({bytes,documentId,caseId,clientRole,apiKey,model,checkLease}){
+async function existingEngineDraft({bytes,documentId,caseId,clientRole,apiKey,model,checkLease,checkpointWindow}){
  // The exact same legal orchestrator, task list and independent reviewer as the original worker.
  const extracted=await extractPdfPages(bytes,{startPage:1,pageCount:Infinity});
  const source=segmentRecord({scope:'customer',documentId,pages:extracted.pages});
@@ -56,6 +55,7 @@ async function existingEngineDraft({bytes,documentId,caseId,clientRole,apiKey,mo
    await checkLease();
    const window=await analyzeLegalWindow({request,sourceUnits:units,cursor,task,previousWindow,apiKey,model});
    windows.push(window);cursor=window.nextCursor;previousWindow=window;
+   await checkpointWindow({task,cursor,window});
   }
   tasks.push({task,windows:windows.filter(w=>w.task===task).length});
  }
@@ -111,7 +111,14 @@ export async function runGabiaPreliminaryJob({pool,storageRoot,reportRoot,worker
    legal=await existingEngineDraft({
     bytes,documentId,caseId:job.case_id,clientRole,apiKey:process.env.OPENAI_API_KEY,
     model:process.env.SQUIDLAW_GABIA_LEGAL_MODEL||undefined,
-    checkLease:async()=>{if(leaseError)throw leaseError;await queue.renew({job,workerId})}
+    checkLease:async()=>{if(leaseError)throw leaseError;await queue.renew({job,workerId})},
+    checkpointWindow:async({task,cursor,window})=>{
+     if(leaseError)throw leaseError;
+     const safeTask=task.replace(/[^a-z_]/g,'');
+     const path=base+'.'+safeTask+'.'+String(window.cursor).padStart(6,'0')+'.json';
+     await atomicWrite(path,JSON.stringify(window));
+     await queue.checkpoint({job,workerId,stage:'legal_analysis_running',checkpoint:{sourceSha256:sha256,task,cursor,latestWindow:path,verified:false}});
+    }
    });
    if(leaseError)throw leaseError;
    await queue.renew({job,workerId});
