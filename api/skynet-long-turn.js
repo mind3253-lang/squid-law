@@ -1,5 +1,5 @@
 import {createHash} from 'node:crypto';
-import {get,put} from '@vercel/blob';
+import {get,put} from '../lib/customer-object-storage.mjs';
 import {indexSource} from './skynet-search-index.js';
 
 const ROOT='skynet/long-turn-parts/';
@@ -21,7 +21,7 @@ export const skynetLongTurnLimits={maxPartChars:MAX_PART_CHARS,maxParts:MAX_PART
 export default async function handler(req,res){
  if(req.method!=='POST')return send(res,405,{error:'POST_ONLY'});
  if(!authorized(req))return send(res,401,{error:'관리자 인증 필요'});
- if(!process.env.BLOB_READ_WRITE_TOKEN)return send(res,503,{error:'비공개 저장소 연결 필요'});
+ if(process.env.SQUIDLAW_OBJECT_BACKEND!=='gabia'&&!process.env.BLOB_READ_WRITE_TOKEN)return send(res,503,{error:'비공개 저장소 연결 필요'});
  let b=req.body;try{if(typeof b==='string')b=JSON.parse(b)}catch{return send(res,400,{error:'JSON_FORMAT_ERROR'})}
  const turnId=String(b?.turnId||''),role=String(b?.role||''),action=String(b?.action||'');
  const total=Number(b?.total),part=Number(b?.part);
