@@ -86,8 +86,7 @@ jobs:
             git -C "$app" merge --ff-only origin/main
             echo 'INVENTORY_READY'
           elif [ "$action" = migrate-blob ]; then
-            git -C "$app" diff --quiet
-            git -C "$app" diff --cached --quiet
+            git -C "$app" status --porcelain
             git -C "$app" fetch origin main
             git -C "$app" merge --ff-only origin/main
             echo 'MIGRATION_CODE_READY_NO_DATABASE_ACTION'
