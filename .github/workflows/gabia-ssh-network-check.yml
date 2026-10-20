@@ -17,6 +17,7 @@ on:
           - audit
           - deploy-web-api
           - migrate-blob
+          - migrate-source
 permissions:
   contents: read
 jobs:
@@ -75,6 +76,10 @@ jobs:
               if sudo -n test -s "$f"; then echo "CONFIG:$f:PRESENT"; else echo "CONFIG:$f:ABSENT"; fi
             done
             echo 'SOURCE_ONLY_PREPARED_DATABASE_AND_OBJECT_COPY_NOT_STARTED'
+          elif [ "$action" = migrate-source ]; then
+            git -C "$app" fetch origin main
+            git -C "$app" merge --ff-only origin/main
+            echo 'SOURCE_UPDATED'
           elif [ "$action" = migrate-blob ]; then
             git -C "$app" diff --quiet
             git -C "$app" diff --cached --quiet
