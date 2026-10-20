@@ -11,7 +11,7 @@ await mkdir(state,{recursive:true,mode:0o700});
 const journal=state+'/journal.jsonl';
 let done=new Map();
 try{for(const line of (await readFile(journal,'utf8')).split('\n')){if(line.trim()){const v=JSON.parse(line);if(v.status==='ok')done.set(v.pathname,v);}}}catch(e){if(e.code!=='ENOENT')throw e}
-const stats={listed:0,completed:0,skipped:0,failed:0,bytes:0,batches:0};
+const stats={listed:0,completed:0,skipped:0,conflicts:0,failed:0,bytes:0,batches:0};
 let batch=0,cursor,seen=new Set();
 async function record(v){await appendFile(journal,JSON.stringify({...v,at:new Date().toISOString()})+'\n',{mode:0o600})}
 async function migrate(b){
@@ -34,7 +34,16 @@ async function migrate(b){
    await record({status:'ok',pathname:key,sourceSize:b.size,sha256:verify.sha256});
    done.set(key,{sourceSize:b.size,sha256:verify.sha256});
    stats.completed++;stats.bytes+=b.size;return;
-  }catch(e){last=e;await new Promise(r=>setTimeout(r,Math.min(8000,500*2**attempt)))}
+  }catch(e){
+   last=e;
+   if(e.message==='DESTINATION_CONFLICT'){
+    stats.conflicts++;
+    await record({status:'conflict',pathname:key,sourceSize:b.size,error:e.message});
+    console.error('CONFLICT_PRESERVED',key);
+    return;
+   }
+   if(attempt<4)await new Promise(r=>setTimeout(r,Math.min(8000,500*2**attempt)));
+  }
  }
  stats.failed++;await record({status:'failed',pathname:key,error:String(last?.message||last)});console.error('FAILED',key,String(last));
 }
@@ -53,5 +62,5 @@ do{
  cursor=page.hasMore?page.cursor:undefined;
 }while(cursor);
 await flush(items);
-console.log('FINAL',JSON.stringify({...stats,remaining:stats.failed}));
-if(stats.failed)process.exitCode=2;
+console.log('FINAL',JSON.stringify({...stats,remaining:stats.failed+stats.conflicts}));
+if(stats.failed||stats.conflicts)process.exitCode=2;
