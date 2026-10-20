@@ -1,4 +1,6 @@
-import {put,list,get} from '@vercel/blob';
+import {objectBackend} from '../lib/customer-object-storage.mjs';
+const storageReady=()=>objectBackend()==='gabia'||!!storageReady();
+import {put,list,get} from '../lib/customer-object-storage.mjs';
 import {Readable} from 'node:stream';
 const MAX=1024*1024*100;
 export default async function handler(req,res){
@@ -6,11 +8,11 @@ export default async function handler(req,res){
  const reply=(code,obj)=>res.status(code).json(obj);
  const auth=String(req.headers.authorization||'');let authorized=false;try{authorized=!!process.env.ADMIN_PASSWORD&&auth.startsWith('Basic ')&&Buffer.from(auth.slice(6),'base64').toString()==='admin:'+process.env.ADMIN_PASSWORD}catch{}
  if(!authorized)return reply(401,{error:'관리자 인증 필요'});
- if(!process.env.BLOB_READ_WRITE_TOKEN)return reply(503,{error:'비공개 저장소 연결 필요'});
+ if(!storageReady())return reply(503,{error:'비공개 저장소 연결 필요'});
  if(req.method==='GET'){
   if(req.query?.path){
    const path=String(req.query.path);if(!/^skynet\/uploads\/[a-zA-Z0-9_-]+\/\d{5}\.bin$/.test(path))return reply(400,{error:'경로 오류'});
-   try{const result=await get(path,{access:'private'});if(!result||result.statusCode!==200)return reply(404,{error:'자료 없음'});res.setHeader('Content-Type','application/octet-stream');res.setHeader('Content-Disposition','attachment');return Readable.fromWeb(result.stream).pipe(res)}catch{return reply(502,{error:'파일 읽기 실패'})}
+   try{const result=await get(path,{access:'private'});if(!result||result.statusCode!==200)return reply(404,{error:'자료 없음'});res.setHeader('Content-Type','application/octet-stream');res.setHeader('Content-Disposition','attachment');return Readable.from(result.stream).pipe(res)}catch{return reply(502,{error:'파일 읽기 실패'})}
   }
   try{const x=await list({prefix:'skynet/uploads/',limit:1000,...(req.query?.cursor?{cursor:String(req.query.cursor).slice(0,500)}:{})});return reply(200,{files:x.blobs.map(b=>({pathname:b.pathname,size:b.size})),hasMore:x.hasMore,nextCursor:x.hasMore?x.cursor:null})}catch{return reply(502,{error:'목록 조회 실패'})}
  }
