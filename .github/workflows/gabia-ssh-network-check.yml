@@ -18,6 +18,7 @@ on:
           - deploy-web-api
           - migrate-blob
           - repair-blob-conflicts
+          - verify-blob
           - migrate-source
           - inventory-blob
 permissions:
@@ -95,6 +96,10 @@ jobs:
             sudo -n install -d -o ubuntu -g ubuntu -m 0750 /var/lib/squidlaw/objects
             sudo -n install -d -o ubuntu -g ubuntu -m 0750 /var/lib/squidlaw/objects/skynet
             echo 'MIGRATION_CODE_READY_NO_DATABASE_ACTION'
+          elif [ "$action" = verify-blob ]; then
+            sudo -n git -c safe.directory="$app" -C "$app" fetch origin main
+            sudo -n git -c safe.directory="$app" -C "$app" merge --ff-only origin/main
+            echo 'BLOB_VERIFICATION_READY'
           elif [ "$action" = repair-blob-conflicts ]; then
             sudo -n git -c safe.directory="$app" -C "$app" fetch origin main
             sudo -n git -c safe.directory="$app" -C "$app" merge --ff-only origin/main
@@ -135,3 +140,12 @@ jobs:
         run: |
           set -euo pipefail
           ssh -T -i "$HOME/.ssh/gabia.pem" -o BatchMode=yes -o StrictHostKeyChecking=accept-new ubuntu@1.201.111.35 'cd /opt/squidlaw/app && node deploy/repair-staged-blob-conflicts.mjs'
+
+      - name: Verify all Vercel Blob objects against Gabia SHA256
+        if: ${{ inputs.action == 'verify-blob' }}
+        env:
+          BLOB_TOKEN: ${{ secrets.BLOB_READ_WRITE_TOKEN }}
+        run: |
+          set -euo pipefail
+          test -n "$BLOB_TOKEN"
+          printf '%s\n' "$BLOB_TOKEN" | ssh -T -i "$HOME/.ssh/gabia.pem" -o BatchMode=yes -o StrictHostKeyChecking=accept-new ubuntu@1.201.111.35 'IFS= read -r token; cd /opt/squidlaw/app; BLOB_READ_WRITE_TOKEN="$token" node deploy/verify-vercel-blob-migration.mjs'
