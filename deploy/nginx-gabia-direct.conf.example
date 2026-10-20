@@ -1,0 +1,25 @@
+# SQUIDLAW Gabia reverse proxy (configure TLS certificate before public exposure).
+# Static site and SKYNET APIs are served locally, without Vercel.
+server {
+    listen 80;
+    server_name squidlaw.co.kr www.squidlaw.co.kr;
+    server_tokens off;
+    client_max_body_size 100m;
+    add_header X-Content-Type-Options nosniff always;
+    location /api/skynet- {
+        proxy_pass http://127.0.0.1:3084;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_connect_timeout 5s;
+        proxy_read_timeout 300s;
+        proxy_send_timeout 300s;
+    }
+    location / {
+        proxy_pass http://127.0.0.1:3082;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_connect_timeout 5s;
+        proxy_read_timeout 60s;
+    }
+}
