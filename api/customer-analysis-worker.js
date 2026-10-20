@@ -7,7 +7,7 @@ const advanceJob=(...args)=>timedAnalysisStep('checkpoint_write',()=>advanceJobR
 const put=(...args)=>timedAnalysisStep('blob_write',()=>putRaw(...args));
 import {findDeltaBaseline,verifyDeltaPlan} from '../lib/customer-delta-reanalysis.mjs';
 import {runDeltaReviewStep} from './customer-delta-worker.mjs';
-import {get} from '@vercel/blob';
+import {get} from '../lib/customer-object-storage.mjs';
 export const maxDuration=300;
 const VISUAL_WINDOW_CONCURRENCY=3;
 const FINALIZATION_SOFT_BUDGET_MS=180000;
@@ -21,7 +21,7 @@ import {buildCustomerUsageLedger} from '../lib/customer-usage-ledger.mjs';
 import {createHash,timingSafeEqual} from 'node:crypto';
 import {segmentRecord,auditSegments} from '../lib/record-chunks.mjs';
 import {analyzeUnit,independentlyVerify,crosscheckObservations} from '../lib/legal-evidence-review.mjs';
-import {put as putRaw} from '@vercel/blob';
+import {put as putRaw} from '../lib/customer-object-storage.mjs';
 import {candidateDocuments,mergeDocumentBoundaryCandidates} from './customer-document-boundaries.js';
 import {extractPdfPages,extractPdfPagesByRange,choosePdfExtractionWindow} from './customer-pdf-extract.js';
 import {createCustomerPdfRangeSource} from '../lib/customer-pdf-source.mjs';
@@ -96,7 +96,7 @@ export default async function handler(req,res){
  const registry=await load('squidlaw/cases/'+job.customerKey+'/registry/'+job.caseId+'.json');
  if(!registry||registry.id!==job.caseId)throw Error('CASE_NOT_FOUND');
  // Never mark complete before OCR, image evidence, cross-document reasoning and independent verification have passed.
- const blob=(await import('@vercel/blob'));let cursor,paths=[];do{const listing=await blob.list({prefix:prefix+'docs/',limit:1000,...(cursor?{cursor}:{})});paths.push(...listing.blobs.filter(b=>b.pathname.endsWith('.json')).map(b=>b.pathname));cursor=listing.hasMore?listing.cursor:null}while(cursor);
+ const blob=(await import('../lib/customer-object-storage.mjs'));let cursor,paths=[];do{const listing=await blob.list({prefix:prefix+'docs/',limit:1000,...(cursor?{cursor}:{})});paths.push(...listing.blobs.filter(b=>b.pathname.endsWith('.json')).map(b=>b.pathname));cursor=listing.hasMore?listing.cursor:null}while(cursor);
  const meta=[];for(let i=0;i<paths.length;i+=24)meta.push(...await Promise.all(paths.slice(i,i+24).map(p=>load(p))));
  if(meta.some(x=>!x))throw Error('DOCUMENT_METADATA_MISSING');
  if(meta.some(x=>!x.id||!Number.isSafeInteger(x.pageCount)||x.pageCount<1||!/^[a-f0-9]{64}$/.test(x.sha256||'')))throw Error('DOCUMENT_METADATA_INVALID');
