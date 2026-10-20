@@ -1,5 +1,5 @@
 import {randomUUID,createHash} from 'node:crypto';
-import {put} from '@vercel/blob';
+import {put} from '../lib/customer-object-storage.mjs';
 import {searchIndexMulti} from './skynet-search-index.js';
 import {sourceKind} from '../lib/skynet-evidence-rank.mjs';
 
@@ -14,7 +14,7 @@ export const queryDigest=s=>createHash('sha256').update(String(s||'').normalize(
 export default async function handler(req,res){
  if(req.method!=='POST')return send(res,405,{error:'POST_ONLY'});
  if(!authorized(req))return send(res,401,{error:'ADMIN_REQUIRED'});
- if(!process.env.BLOB_READ_WRITE_TOKEN)return send(res,503,{error:'MEMORY_STORAGE_REQUIRED'});
+ if((process.env.SQUIDLAW_OBJECT_BACKEND||'vercel')==='vercel'&&!process.env.BLOB_READ_WRITE_TOKEN)return send(res,503,{error:'MEMORY_STORAGE_REQUIRED'});
  let b=req.body;
  try{if(typeof b==='string')b=JSON.parse(b)}catch{return send(res,400,{error:'INVALID_JSON'})}
  const queries=b?.queries;

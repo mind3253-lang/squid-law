@@ -6,7 +6,7 @@ import {timelineFromEntry,orderTimeline} from './skynet-timeline-core.js';
 import {retrieveMemory} from './skynet-retrieval.js';
 import {buildContextualRecall,isCorrectionMemory} from '../lib/skynet-episodic-context.mjs';
 import {customerProductDirective} from '../lib/customer-product-contract.mjs';
-import {get} from '@vercel/blob';
+import {get} from '../lib/customer-object-storage.mjs';
 import {createHash} from 'node:crypto';
 async function preparedEvidence(batchId,index,question){
  if(!/^[a-f0-9]{32}$/.test(String(batchId||''))||!Number.isInteger(index)||index<0||index>23)return null;
