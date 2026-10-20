@@ -1,5 +1,5 @@
 import {objectBackend} from '../lib/customer-object-storage.mjs';
-const storageReady=()=>objectBackend()==='gabia'||!!storageReady();
+const storageReady=()=>objectBackend()==='gabia'||!!process.env.BLOB_READ_WRITE_TOKEN;
 import {put,list,get} from '../lib/customer-object-storage.mjs';
 import {Readable} from 'node:stream';
 const MAX=1024*1024*100;
