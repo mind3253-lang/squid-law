@@ -7,7 +7,12 @@ fi
 git fetch origin main
 target="$(git rev-parse origin/main)"
 if ! git merge-base --is-ancestor HEAD "$target"; then echo 'NON_FAST_FORWARD_UPDATE_REFUSED'; exit 3; fi
-bash deploy/validate-gabia-candidate.sh "$target"
+# First deployment may not yet contain the candidate validator in the live checkout.
+# Read it from the fetched commit, validate that exact candidate, then merge.
+validator="$(mktemp)"
+trap 'rm -f "$validator"' EXIT
+git show "$target:deploy/validate-gabia-candidate.sh" > "$validator"
+bash "$validator" "$target"
 git merge --ff-only "$target"
 npm ci --ignore-scripts --no-audit --no-fund
 node --check worker/continuous-worker.mjs
