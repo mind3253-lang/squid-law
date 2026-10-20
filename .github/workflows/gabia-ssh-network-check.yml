@@ -3,6 +3,7 @@ on:
   push:
     paths:
       - '.github/workflows/gabia-ssh-network-check.yml'
+      - 'tests/vision-failure-resume-policy.test.mjs'
   workflow_dispatch:
 permissions:
   contents: read
