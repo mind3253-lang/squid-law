@@ -1,0 +1,19 @@
+[Unit]
+Description=SQUIDLAW Gabia static web
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/squidlaw/app
+Environment=SQUIDLAW_WEB_HOST=127.0.0.1
+Environment=SQUIDLAW_WEB_PORT=3082
+ExecStart=/usr/bin/node /opt/squidlaw/app/server/gabia-static-web.mjs
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target
