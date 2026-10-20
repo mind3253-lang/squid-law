@@ -1,5 +1,5 @@
 import {requireOwnedCase} from '../lib/customer-case-access.mjs';
-import {get} from '@vercel/blob';
+import {get} from '../lib/customer-object-storage.mjs';
 import {guard,respond,readJson,casePrefix} from './customer-case.js';
 import {getJob} from './customer-analysis-jobs-db.js';
 export default async function handler(req,res){
