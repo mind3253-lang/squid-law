@@ -1,7 +1,7 @@
 // Atomic FIFO lease claim, retry and exhausted-lease handling. Disabled until DB is provisioned.
 export const gabiaClaimSql=`WITH candidate AS (
  SELECT customer_key,case_id,job_id FROM gabia_customer_jobs
- WHERE status IN ('queued','retry')
+ WHERE (status IN ('queued','retry') AND attempts < max_attempts)
  OR (status='running' AND lease_expires_at < now() AND attempts < max_attempts)
  ORDER BY created_at,job_id FOR UPDATE SKIP LOCKED LIMIT 1
 ) UPDATE gabia_customer_jobs j
