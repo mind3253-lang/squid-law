@@ -1,6 +1,6 @@
 import {normalizeCaseIntake} from '../lib/customer-case-intake.mjs';
 import {randomUUID} from 'node:crypto';
-import {put} from '@vercel/blob';
+import {put} from '../lib/customer-object-storage.mjs';
 import {guard,respond,all,readJson,casePrefix} from './customer-case.js';
 const idOk=s=>/^SL-[A-Za-z0-9-]{5,40}$/.test(s);
 const types={b:'대여·금전',c:'임대·명도',d:'매매·물품',e:'공사·용역',f:'손해·부당이득',g:'계약분쟁',h:'채권·가압류'};
