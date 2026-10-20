@@ -17,3 +17,14 @@ jobs:
         run: |
           timeout 12 bash -c 'cat < /dev/null > /dev/tcp/1.201.111.35/22'
           echo 'SSH port reachable from GitHub runner'
+      - name: Check SSH login with configured private key
+        env:
+          SSH_KEY: ${{ secrets.GABIA_SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "$SSH_KEY" || { echo 'GABIA_SSH_PRIVATE_KEY missing'; exit 1; }
+          umask 077
+          mkdir -p "$HOME/.ssh"
+          printf '%s\n' "$SSH_KEY" | tr -d '\r' > "$HOME/.ssh/gabia.pem"
+          chmod 600 "$HOME/.ssh/gabia.pem"
+          ssh -T -i "$HOME/.ssh/gabia.pem" -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15 ubuntu@1.201.111.35 'echo GABIA_SSH_AUTH_OK'
