@@ -1,5 +1,5 @@
 // Gabia-only queue; explicit DB pool and no worker activation.
-import {gabiaClaimSql,gabiaCheckpointSql,gabiaExpireSql} from './gabia-queue-sql.mjs';
+import {gabiaClaimSql,gabiaCheckpointSql,gabiaExpireSql,gabiaRenewLeaseSql} from './gabia-queue-sql.mjs';
 export function createGabiaQueue(pool){
  if(!pool?.query)throw Error('GABIA_DB_NOT_CONFIGURED');
  return {
@@ -11,6 +11,12 @@ export function createGabiaQueue(pool){
    if(typeof workerId!=='string'||!/^[A-Za-z0-9_-]{3,80}$/.test(workerId))throw Error('INVALID_WORKER_ID');
    const r=await pool.query(gabiaClaimSql,[workerId]);
    return r.rows[0]||null;
+  },
+  async renew({job,workerId}){
+   if(!job||typeof workerId!=='string')throw Error('INVALID_QUEUE_LEASE');
+   const r=await pool.query(gabiaRenewLeaseSql,[job.customer_key,job.case_id,job.job_id,workerId,job.fencing_token]);
+   if(r.rowCount!==1)throw Error('QUEUE_LEASE_LOST');
+   return true;
   },
   async checkpoint({job,workerId,checkpoint,stage}){
    if(!job||!Number.isSafeInteger(Number(job.fencing_token))||typeof workerId!=='string'||!checkpoint||typeof checkpoint!=='object'||Array.isArray(checkpoint)||typeof stage!=='string')throw Error('INVALID_CHECKPOINT');
