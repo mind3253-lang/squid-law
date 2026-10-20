@@ -1,4 +1,4 @@
-import {list,get,put,del} from '@vercel/blob';
+import {list,get,put,del} from '../lib/customer-object-storage.mjs';
 import {createHash} from 'node:crypto';
 const auth=req=>{try{return !!process.env.ADMIN_PASSWORD&&String(req.headers.authorization||'').startsWith('Basic ')&&Buffer.from(String(req.headers.authorization).slice(6),'base64').toString()==='admin:'+process.env.ADMIN_PASSWORD}catch{return false}};
 async function readJson(path){const file=await get(path,{access:'private'});if(!file||file.statusCode!==200)return null;const chunks=[];let size=0;for await(const c of file.stream){size+=c.length;if(size>1024*1024)return null;chunks.push(c)}return JSON.parse(Buffer.concat(chunks).toString('utf8'))}
