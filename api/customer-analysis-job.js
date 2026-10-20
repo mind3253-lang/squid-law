@@ -2,14 +2,15 @@ import {requireOwnedCase} from '../lib/customer-case-access.mjs';
 import {validClientRole} from '../lib/customer-case-intake.mjs';
 import {guard,respond,readJson,documents,casePrefix} from './customer-case.js';
 import {enqueueJob,getJob,resumeJob,queueSnapshot,documentVersion,latestCaseJob} from './customer-analysis-jobs-db.js';
-import {waitUntil} from '@vercel/functions';
+import {deferWork} from '../lib/gabia-deferred-work.mjs';
 const kickWorker=req=>{
  const secret=process.env.CRON_SECRET;
  if(!secret)return;
+ if(process.env.SQUIDLAW_OBJECT_BACKEND==='gabia')return;
  const host=process.env.VERCEL_URL;
  if(!host)return;
  const url='https://'+host+'/api/customer-analysis-worker';
- waitUntil(fetch(url,{method:'POST',headers:{authorization:'Bearer '+secret},signal:AbortSignal.timeout(25000)}).catch(()=>{}));
+ deferWork(fetch(url,{method:'POST',headers:{authorization:'Bearer '+secret},signal:AbortSignal.timeout(25000)}).catch(()=>{}));
 };
 const idOk=id=>/^SL-[a-zA-Z0-9-]{5,40}$/.test(id);
 const verifiedSourcePages=docs=>Array.isArray(docs)&&docs.length>0&&docs.every(d=>Number.isSafeInteger(d?.pageCount)&&d.pageCount>0&&/^[0-9a-f]{64}$/i.test(String(d?.sha256||'')));
