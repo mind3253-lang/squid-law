@@ -1,4 +1,4 @@
-import {get,put} from '@vercel/blob';
+import {get,put} from '../lib/customer-object-storage.mjs';
 
 const reply=(res,status,data)=>res.status(status).setHeader('Cache-Control','private, no-store')
  .setHeader('Vary','Authorization').setHeader('X-Content-Type-Options','nosniff').json(data);
