@@ -34,7 +34,6 @@ const routeModules={
  '/api/customer-analysis-history':'../api/customer-analysis-history.js',
  '/api/customer-analysis-job':'../api/customer-analysis-job.js',
  '/api/customer-analysis-status':'../api/customer-analysis-status.js',
- '/api/customer-analysis-lease':'../api/customer-analysis-lease.js',
  '/api/auth/naver/start':'../api/auth/naver/start.js',
  '/api/auth/naver/callback':'../api/auth/naver/callback.js'
 };
