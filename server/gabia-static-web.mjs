@@ -15,9 +15,9 @@ createServer(async(req,res)=>{
  if(pathname.includes('\\')||pathname.includes('\0')||pathname.split('/').some(p=>p==='..'||p.startsWith('.')))return fail(403);
  if(pathname.startsWith('/api/'))return fail(404);
  const segments=pathname.split('/').filter(Boolean);
- const protectedRoots=new Set(['server','lib','deploy','worker','scripts','tests','test','node_modules','archive','docs','.github']);
+ const protectedRoots=new Set(['server','lib','deploy','worker','scripts','tests','test','node_modules','archive','docs','db','sql','config','private','secrets','backups','.github']);
  if(protectedRoots.has(segments[0])||segments[0]==='api'||segments[0]==='package.json'||segments[0]==='package-lock.json'||segments[0]==='vercel.json'||segments[0]==='README.md')return fail(403);
- if(segments.some(x=>x.startsWith('.')||x.endsWith('.map')))return fail(403);
+ if(segments.some(x=>x.startsWith('.')||x.endsWith('.map')||x.endsWith('.pem')||x.endsWith('.key')))return fail(403);
  if(pathname.endsWith('/'))pathname+='index.html';
  const file=resolve(root,'.'+pathname);
  if(file!==root&&!file.startsWith(root+sep))return fail(403);

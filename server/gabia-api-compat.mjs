@@ -110,6 +110,7 @@ const server=createServer(async(req,res)=>{
   const contentType=String(req.headers['content-type']||'').split(';')[0].trim().toLowerCase();
   let body;
   if(contentType==='application/octet-stream')body=bytes;
+  else if(contentType==='application/x-www-form-urlencoded')body=Object.fromEntries(new URLSearchParams(bytes.toString('utf8')));
   else if(bytes.length){try{body=JSON.parse(bytes.toString('utf8'))}catch{res.writeHead(400);res.end();return;}}
   const query=Object.fromEntries(new URL(req.url,'http://localhost').searchParams);
   res.status=function(code){res.statusCode=code;return res};
