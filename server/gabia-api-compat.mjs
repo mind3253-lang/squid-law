@@ -7,7 +7,7 @@ const host=process.env.SQUIDLAW_COMPAT_HOST||'127.0.0.1';
 const port=Number(process.env.SQUIDLAW_COMPAT_PORT||3084);
 if(!['127.0.0.1','::1'].includes(host))throw Error('COMPAT_LOOPBACK_ONLY');
 if(!Number.isSafeInteger(port)||port<1||port>65535)throw Error('INVALID_COMPAT_PORT');
-if(process.env.SQUIDLAW_COMPAT_PREVIEW!=='1')throw Error('COMPAT_PREVIEW_DISABLED');
+if(process.env.SQUIDLAW_OBJECT_BACKEND!=='gabia')throw Error('GABIA_STORAGE_REQUIRED');
 // Only explicitly selected, admin-authenticated SKYNET endpoints are exposed.
 // All routes remain loopback-only and require the preview flag above.
 const routeModules={
