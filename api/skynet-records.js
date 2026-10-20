@@ -1,4 +1,4 @@
-import {put,list,get} from '@vercel/blob';
+import {put,list,get} from '../lib/customer-object-storage.mjs';
 import {createHash} from 'node:crypto';
 const base='skynet/records/';
 export const normalize=s=>String(s||'').normalize('NFKC').trim().replace(/\s+/g,' ').toLowerCase();
