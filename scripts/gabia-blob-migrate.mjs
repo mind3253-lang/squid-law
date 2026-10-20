@@ -8,12 +8,14 @@ const copy=process.argv.includes('--copy');
 const prefix=process.env.SQUIDLAW_MIGRATION_PREFIX||'';
 const BATCH=200*1024*1024;
 if(copy&&(!process.env.BLOB_READ_WRITE_TOKEN||!process.env.SQUIDLAW_OBJECT_ROOT))throw Error('MIGRATION_CREDENTIALS_OR_DESTINATION_MISSING');
-let cursor,scanned=0,verified=0,bytes=0,errors=0,batches=0,batchBytes=0,oversize=0;
+let cursor,scanned=0,verified=0,bytes=0,errors=0,batches=0,batchBytes=0,oversize=0,sourceBytes=0,unknownSize=0,largestObjectBytes=0;
 const failures=[];
 do{
  const page=await list({prefix,limit:100,...(cursor?{cursor}:{})});
  for(const item of page.blobs){
   scanned++;
+  if(Number.isSafeInteger(item.size)&&item.size>=0){sourceBytes+=item.size;largestObjectBytes=Math.max(largestObjectBytes,item.size)}
+  else unknownSize++;
   if(!copy)continue;
   try{
    const remote=await get(item.pathname,{access:'private'});
@@ -37,5 +39,5 @@ do{
  cursor=page.hasMore?page.cursor:undefined;
 }while(cursor);
 if(copy&&batchBytes)batches++;
-console.log(JSON.stringify({mode:copy?'copy-and-verify':'inventory-only',scanned,verified,bytes,errors,batches,oversize,failures}));
+console.log(JSON.stringify({mode:copy?'copy-and-verify':'inventory-only',scanned,sourceBytes,unknownSize,largestObjectBytes,verified,bytes,errors,batches,oversize,failures}));
 if(copy&&(errors||scanned!==verified))process.exitCode=1;
