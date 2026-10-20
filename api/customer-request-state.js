@@ -1,5 +1,5 @@
 import {createHash} from 'node:crypto';
-import {put} from '@vercel/blob';
+import {put} from '../lib/customer-object-storage.mjs';
 import {casePrefix,readJson} from './customer-case.js';
 const sha=s=>createHash('sha256').update(s).digest('hex');
 export const validRequestId=id=>/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(id||''));
