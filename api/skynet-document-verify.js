@@ -27,7 +27,7 @@ async function scan(prefix){
 export default async function handler(req,res){
  if(!authorized(req))return send(res,401,{error:'ADMIN_REQUIRED'});
  if(req.method!=='GET')return send(res,405,{error:'GET_ONLY'});
- if(!process.env.BLOB_READ_WRITE_TOKEN)return send(res,503,{error:'STORAGE_UNAVAILABLE'});
+ if((process.env.SQUIDLAW_OBJECT_BACKEND!=='gabia'&&!process.env.BLOB_READ_WRITE_TOKEN))return send(res,503,{error:'STORAGE_UNAVAILABLE'});
  const hash=String(req.query?.hash||'');
  if(!SHA.test(hash))return send(res,400,{error:'INVALID_HASH'});
  try{
