@@ -4,7 +4,7 @@ import {categoryDigestEntries,sourceTopicEntries} from '../lib/skynet-topic-cate
 import {indexSearchExcerpts,querySearchExcerpts} from '../lib/skynet-search-db.mjs';
 import {upsertTopics} from '../lib/skynet-topic-db.mjs';
 import {createHash} from 'node:crypto';
-import {put,get,list} from '@vercel/blob';
+import {put,get,list} from '../lib/customer-object-storage.mjs';
 // Per-function warm caches avoid repeatedly downloading the same private Blob
 // indexes for each question of one long test. Bounded size and time-to-live.
 const INDEX_CACHE_MS=120000;
