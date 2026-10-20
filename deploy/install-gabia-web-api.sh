@@ -20,8 +20,8 @@ systemctl daemon-reload
 systemctl enable --now squidlaw-web.service
 systemctl is-active --quiet squidlaw-web.service
 echo WEB_ACTIVE_LOOPBACK_ONLY
-if ! grep -Eq '^SQUID_AUTH_SECRET=.{32,}' /etc/squidlaw/api.env; then
- echo API_NOT_STARTED_MISSING_AUTH_SECRETS
+if ! grep -Eq '^SQUID_AUTH_SECRET=.{32,}' /etc/squidlaw/api.env || ! grep -Eq '^SQUIDLAW_OBJECT_ROOT=/' /etc/squidlaw/api.env; then
+ echo API_NOT_STARTED_MISSING_AUTH_OR_OBJECT_ROOT
  exit 0
 fi
 systemctl enable --now squidlaw-api.service

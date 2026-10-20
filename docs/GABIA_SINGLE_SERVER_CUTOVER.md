@@ -24,3 +24,6 @@ Status: **not executed**. GitHub commits are not proof of server installation.
 - Legacy Blob objects must be migrated separately; pg_dump cannot transfer them.
 - The separate Gabia preview job schema is not necessarily the same as the legacy Neon schema; do not blindly replace one with the other.
 - Confirm that all handlers and systemd env variables match before starting production.
+
+## Read-only checkpoint
+Run deploy/gabia-cutover-preflight.sh **on the VPS** after the source is installed. It checks runtime dependencies, syntax, local service reachability and Nginx configuration. It does not change DNS or start services. Its loopback checks are warnings, not proof of full API functionality. Validate both positive and negative authentication cases and worker/database persistence separately.
