@@ -4,6 +4,7 @@ on:
     paths:
       - '.github/workflows/gabia-ssh-network-check.yml'
       - 'tests/vision-failure-resume-policy.test.mjs'
+      - 'docs/GABIA_SSH_CHECK_TRIGGER.txt'
   workflow_dispatch:
 permissions:
   contents: read
