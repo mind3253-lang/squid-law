@@ -56,5 +56,5 @@ jobs:
           done
           echo 'SYSTEMD_UNITS'
           systemctl list-unit-files --type=service --no-pager --no-legend | grep -Ei 'squidlaw|gabia' | cut -d' ' -f1 || true
-          echo 'GABIA_RUNTIME_INSPECTION_END'
+          echo 'GABIA_APP_REVISION'\n          git -C /opt/squidlaw/app log -1 --oneline || true\n          echo 'GABIA_RUNTIME_INSPECTION_END'
           REMOTE
