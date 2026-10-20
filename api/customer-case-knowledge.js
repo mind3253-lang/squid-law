@@ -1,5 +1,5 @@
 import {createHash,randomUUID} from 'node:crypto';
-import {put} from '@vercel/blob';
+import {put} from '../lib/customer-object-storage.mjs';
 import {casePrefix,all,readJson} from './customer-case.js';
 const h=s=>createHash('sha256').update(s).digest('hex').slice(0,24);
 const dates=s=>[...new Set((s.match(/(?:19|20)\d{2}[.\-/]\s*(?:0?[1-9]|1[0-2])[.\-/]\s*(?:0?[1-9]|[12]\d|3[01])/g)||[]))].slice(0,12);
