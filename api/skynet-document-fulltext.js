@@ -1,4 +1,4 @@
-import {get} from '@vercel/blob';
+import {get} from '../lib/customer-object-storage.mjs';
 
 // Single-source, bounded reconstruction: the browser no longer needs to make
 // repeated cursor requests just to assemble an already-indexed PDF.
