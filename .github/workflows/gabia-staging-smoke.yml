@@ -1,0 +1,21 @@
+name: Gabia staging gateway smoke
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/gabia-api-staging.mjs'
+      - 'tests/gabia-staging-gateway.test.mjs'
+      - '.github/workflows/gabia-staging-smoke.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --test tests/gabia-staging-gateway.test.mjs
