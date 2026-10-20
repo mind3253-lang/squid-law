@@ -16,6 +16,7 @@ on:
           - prepare-migration
           - audit
           - deploy-web-api
+          - migrate-blob
 permissions:
   contents: read
 jobs:
@@ -74,6 +75,12 @@ jobs:
               if sudo -n test -s "$f"; then echo "CONFIG:$f:PRESENT"; else echo "CONFIG:$f:ABSENT"; fi
             done
             echo 'SOURCE_ONLY_PREPARED_DATABASE_AND_OBJECT_COPY_NOT_STARTED'
+          elif [ "$action" = migrate-blob ]; then
+            git -C "$app" diff --quiet
+            git -C "$app" diff --cached --quiet
+            git -C "$app" fetch origin main
+            git -C "$app" merge --ff-only origin/main
+            echo 'MIGRATION_CODE_READY_NO_DATABASE_ACTION'
           elif [ "$action" = deploy-web-api ]; then
             git -C "$app" diff --quiet
             git -C "$app" diff --cached --quiet
@@ -95,3 +102,12 @@ jobs:
           done
           echo "GABIA_ACTION_COMPLETE_NO_DNS_OR_DATABASE_CUTOVER"
           REMOTE
+
+      - name: Copy Vercel Blob objects in 200MB batches
+        if: ${{ inputs.action == 'migrate-blob' }}
+        env:
+          BLOB_TOKEN: ${{ secrets.BLOB_READ_WRITE_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "$BLOB_TOKEN" ]; then echo 'BLOB_TOKEN_NOT_CONFIGURED_NO_COPY'; exit 1; fi
+          printf '%s\n' "$BLOB_TOKEN" | ssh -T -i "$HOME/.ssh/gabia.pem" -o BatchMode=yes -o StrictHostKeyChecking=accept-new ubuntu@1.201.111.35 'bash -c '\''read -r token; cd /opt/squidlaw/app; BLOB_READ_WRITE_TOKEN="$token" node deploy/migrate-vercel-blob-200mb.mjs'\''
