@@ -1,5 +1,5 @@
-import {list,get,put} from '@vercel/blob';
-import {waitUntil} from '@vercel/functions';
+import {list,get,put} from '../lib/customer-object-storage.mjs';
+import {deferWork as waitUntil} from '../lib/gabia-deferred-work.mjs';
 import {createHash} from 'node:crypto';
 import {createArchivedPdfRangeReader} from '../lib/skynet-pdf-range.mjs';
 import {extractPdfPagesByRange} from './customer-pdf-extract.js';
