@@ -51,7 +51,7 @@ jobs:
 
       - name: Deploy or audit Gabia web and API
         env:
-          ACTION: ${{ inputs.action }}
+          ACTION: ${{ inputs.action || 'migrate-source' }}
         run: |
           set -euo pipefail
           ssh -T -i "$HOME/.ssh/gabia.pem" -o BatchMode=yes -o StrictHostKeyChecking=accept-new ubuntu@1.201.111.35 "bash -s -- '$ACTION'" <<'REMOTE'
