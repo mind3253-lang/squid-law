@@ -1,0 +1,22 @@
+[Unit]
+Description=SQUIDLAW Gabia standalone API
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/squidlaw/app
+EnvironmentFile=/etc/squidlaw/api.env
+Environment=SQUIDLAW_COMPAT_HOST=127.0.0.1
+Environment=SQUIDLAW_COMPAT_PORT=3084
+Environment=SQUIDLAW_OBJECT_BACKEND=gabia
+ExecStart=/usr/bin/node /opt/squidlaw/app/server/gabia-api-compat.mjs
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+ProtectHome=true
+ReadWritePaths=/var/lib/squidlaw
+
+[Install]
+WantedBy=multi-user.target
