@@ -14,6 +14,7 @@ const rewrites=new Map([
  ['/admin/skynet-chat','/api/skynet-chat']
 ]);
 const blocked=new Set(['.git','.github','.env','node_modules','api','lib','worker','scripts','docs','tests','.vercel']);
+const blockedFiles=new Set(['package.json','package-lock.json','vercel.json','pnpm-lock.yaml','yarn.lock','README.md']);
 function respond(res,status,body,contentType='application/json; charset=utf-8'){
  res.writeHead(status,{'Content-Type':contentType,'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});
  res.end(contentType.startsWith('application/json')?JSON.stringify(body):body);
@@ -27,7 +28,7 @@ http.createServer(async(req,res)=>{
  if(pathname.startsWith('/api/')||rewrites.has(pathname))return respond(res,503,{error:'API_MIGRATION_PENDING'});
  if(pathname.includes('\\')||pathname.includes('\0'))return respond(res,400,{error:'BAD_PATH'});
  const segments=pathname.split('/').filter(Boolean);
- if(segments.some(x=>x.startsWith('.')||blocked.has(x)))return respond(res,404,{error:'NOT_FOUND'});
+ if(segments.some(x=>x.startsWith('.')||blocked.has(x))||blockedFiles.has(segments.at(-1))||segments.some(x=>/\\.(?:env|pem|key|crt|sql|bak|log)$/i.test(x)))return respond(res,404,{error:'NOT_FOUND'});
  const relative=segments.join('/')+(pathname.endsWith('/')||segments.length===0?'/index.html':'');
  const target=path.resolve(root,relative.replace(/^\//,''));
  if(target!==root&&!target.startsWith(root+path.sep))return respond(res,404,{error:'NOT_FOUND'});
