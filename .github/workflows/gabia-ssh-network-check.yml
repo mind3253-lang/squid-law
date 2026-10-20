@@ -17,6 +17,7 @@ on:
           - audit
           - deploy-web-api
           - migrate-blob
+          - repair-blob-conflicts
           - migrate-source
           - inventory-blob
 permissions:
@@ -94,6 +95,10 @@ jobs:
             sudo -n install -d -o ubuntu -g ubuntu -m 0750 /var/lib/squidlaw/objects
             sudo -n install -d -o ubuntu -g ubuntu -m 0750 /var/lib/squidlaw/objects/skynet
             echo 'MIGRATION_CODE_READY_NO_DATABASE_ACTION'
+          elif [ "$action" = repair-blob-conflicts ]; then
+            sudo -n git -c safe.directory="$app" -C "$app" fetch origin main
+            sudo -n git -c safe.directory="$app" -C "$app" merge --ff-only origin/main
+            echo 'STAGED_CONFLICT_REPAIR_CODE_READY'
           elif [ "$action" = deploy-web-api ]; then
             git -C "$app" diff --quiet
             git -C "$app" diff --cached --quiet
@@ -124,3 +129,9 @@ jobs:
           set -euo pipefail
           if [ -z "$BLOB_TOKEN" ]; then echo 'BLOB_TOKEN_NOT_CONFIGURED_NO_COPY'; exit 1; fi
           printf '%s\n' "$BLOB_TOKEN" | ssh -T -i "$HOME/.ssh/gabia.pem" -o BatchMode=yes -o StrictHostKeyChecking=accept-new ubuntu@1.201.111.35 'IFS= read -r token; cd /opt/squidlaw/app; BLOB_READ_WRITE_TOKEN="$token" node deploy/migrate-vercel-blob-200mb.mjs'
+
+      - name: Repair five staged zero-byte Blob conflicts
+        if: ${{ inputs.action == 'repair-blob-conflicts' }}
+        run: |
+          set -euo pipefail
+          ssh -T -i "$HOME/.ssh/gabia.pem" -o BatchMode=yes -o StrictHostKeyChecking=accept-new ubuntu@1.201.111.35 'cd /opt/squidlaw/app && node deploy/repair-staged-blob-conflicts.mjs'
