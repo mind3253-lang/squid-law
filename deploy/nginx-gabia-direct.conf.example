@@ -9,42 +9,338 @@ server {
     location = /admin/skynet-document-verify {
         rewrite ^ /api/skynet-document-verify break;
         proxy_pass http://127.0.0.1:3084;
+        proxy_http_version 1.1;
         proxy_set_header Host $host;
+        proxy_read_timeout 300s;
     }
     location = /admin/skynet-document-page-context {
         rewrite ^ /api/skynet-document-page-context break;
         proxy_pass http://127.0.0.1:3084;
+        proxy_http_version 1.1;
         proxy_set_header Host $host;
+        proxy_read_timeout 300s;
     }
     location = /admin/skynet-document-range {
         rewrite ^ /api/skynet-document-range break;
         proxy_pass http://127.0.0.1:3084;
+        proxy_http_version 1.1;
         proxy_set_header Host $host;
+        proxy_read_timeout 300s;
+    }
+    location = /admin/skynet-search-backfill {
+        rewrite ^ /api/skynet-search-backfill break;
+        proxy_pass http://127.0.0.1:3084;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_read_timeout 300s;
     }
     location = /admin/skynet-document-fulltext {
         rewrite ^ /api/skynet-document-fulltext break;
         proxy_pass http://127.0.0.1:3084;
+        proxy_http_version 1.1;
         proxy_set_header Host $host;
+        proxy_read_timeout 300s;
     }
     location = /admin/skynet-document-job {
         rewrite ^ /api/skynet-document-job break;
         proxy_pass http://127.0.0.1:3084;
+        proxy_http_version 1.1;
         proxy_set_header Host $host;
+        proxy_read_timeout 300s;
     }
     location = /admin/skynet-document-review {
         rewrite ^ /api/skynet-document-review break;
         proxy_pass http://127.0.0.1:3084;
+        proxy_http_version 1.1;
         proxy_set_header Host $host;
+        proxy_read_timeout 300s;
     }
     location = /admin/skynet-document-context {
         rewrite ^ /api/skynet-document-context break;
         proxy_pass http://127.0.0.1:3084;
+        proxy_http_version 1.1;
         proxy_set_header Host $host;
+        proxy_read_timeout 300s;
     }
     location = /admin/skynet-category-dashboard {
         rewrite ^ /api/skynet-category-dashboard break;
         proxy_pass http://127.0.0.1:3084;
+        proxy_http_version 1.1;
         proxy_set_header Host $host;
+        proxy_read_timeout 300s;
+    }
+    location = /admin/skynet-long-turn {
+        rewrite ^ /api/skynet-long-turn break;
+        proxy_pass http://127.0.0.1:3084;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_read_timeout 300s;
+    }
+    location = /admin/skynet-recall-batch {
+        rewrite ^ /api/skynet-recall-batch break;
+        proxy_pass http://127.0.0.1:3084;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_read_timeout 300s;
+    }
+    location = /admin/skynet-categories {
+        rewrite ^ /api/skynet-categories break;
+        proxy_pass http://127.0.0.1:3084;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_read_timeout 300s;
+    }
+    location = /admin/skynet-category-fast-backfill {
+        rewrite ^ /api/skynet-category-fast-backfill break;
+        proxy_pass http://127.0.0.1:3084;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_read_timeout 300s;
+    }
+    location = /admin/skynet-code-lease {
+        rewrite ^ /api/skynet-code-lease break;
+        proxy_pass http://127.0.0.1:3084;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_read_timeout 300s;
+    }
+    location = /admin/skynet-code-repair {
+        rewrite ^ /api/skynet-code-repair break;
+        proxy_pass http://127.0.0.1:3084;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_read_timeout 300s;
+    }
+    location = /admin/skynet-code-targets {
+        rewrite ^ /api/skynet-code-targets break;
+        proxy_pass http://127.0.0.1:3084;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_read_timeout 300s;
+    }
+    location = /admin/skynet-code-deployment-status {
+        rewrite ^ /api/skynet-code-deployment-status break;
+        proxy_pass http://127.0.0.1:3084;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_read_timeout 300s;
+    }
+    location = /admin/skynet-code-proposal-diff {
+        rewrite ^ /api/skynet-code-proposal-diff break;
+        proxy_pass http://127.0.0.1:3084;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_read_timeout 300s;
+    }
+    location = /admin/skynet-code-deployment-enable {
+        rewrite ^ /api/skynet-code-deployment-enable break;
+        proxy_pass http://127.0.0.1:3084;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_read_timeout 300s;
+    }
+    location = /admin/skynet-code-deployment {
+        rewrite ^ /api/skynet-code-deployment break;
+        proxy_pass http://127.0.0.1:3084;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_read_timeout 300s;
+    }
+    location = /admin/skynet-code-task {
+        rewrite ^ /api/skynet-code-task break;
+        proxy_pass http://127.0.0.1:3084;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_read_timeout 300s;
+    }
+    location = /admin/skynet-code-proposal-batch-actions {
+        rewrite ^ /api/skynet-code-proposal-batch-actions break;
+        proxy_pass http://127.0.0.1:3084;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_read_timeout 300s;
+    }
+    location = /admin/skynet-code-proposal-batch-verify {
+        rewrite ^ /api/skynet-code-proposal-batch-verify break;
+        proxy_pass http://127.0.0.1:3084;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_read_timeout 300s;
+    }
+    location = /admin/skynet-code-proposal-batch-reconcile {
+        rewrite ^ /api/skynet-code-proposal-batch-reconcile break;
+        proxy_pass http://127.0.0.1:3084;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_read_timeout 300s;
+    }
+    location = /admin/skynet-code-proposal-batch-status {
+        rewrite ^ /api/skynet-code-proposal-batch-status break;
+        proxy_pass http://127.0.0.1:3084;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_read_timeout 300s;
+    }
+    location = /admin/skynet-code-proposal-batch {
+        rewrite ^ /api/skynet-code-proposal-batch break;
+        proxy_pass http://127.0.0.1:3084;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_read_timeout 300s;
+    }
+    location = /admin/skynet-code-proposal-verify {
+        rewrite ^ /api/skynet-code-proposal-verify break;
+        proxy_pass http://127.0.0.1:3084;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_read_timeout 300s;
+    }
+    location = /admin/skynet-code-proposal-reconcile {
+        rewrite ^ /api/skynet-code-proposal-reconcile break;
+        proxy_pass http://127.0.0.1:3084;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_read_timeout 300s;
+    }
+    location = /admin/skynet-code-proposal-status {
+        rewrite ^ /api/skynet-code-proposal-status break;
+        proxy_pass http://127.0.0.1:3084;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_read_timeout 300s;
+    }
+    location = /admin/skynet-code-proposal {
+        rewrite ^ /api/skynet-code-proposal break;
+        proxy_pass http://127.0.0.1:3084;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_read_timeout 300s;
+    }
+    location = /admin/skynet-jobs {
+        rewrite ^ /api/skynet-jobs break;
+        proxy_pass http://127.0.0.1:3084;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_read_timeout 300s;
+    }
+    location = /admin/skynet-tool-run {
+        rewrite ^ /api/skynet-tool-run break;
+        proxy_pass http://127.0.0.1:3084;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_read_timeout 300s;
+    }
+    location = /admin/skynet-write-lock {
+        rewrite ^ /api/skynet-write-lock break;
+        proxy_pass http://127.0.0.1:3084;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_read_timeout 300s;
+    }
+    location = /admin/skynet-write-approve {
+        rewrite ^ /api/skynet-write-approve break;
+        proxy_pass http://127.0.0.1:3084;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_read_timeout 300s;
+    }
+    location = /admin/skynet-write-run {
+        rewrite ^ /api/skynet-write-run break;
+        proxy_pass http://127.0.0.1:3084;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_read_timeout 300s;
+    }
+    location = /admin/skynet-worker-tick {
+        rewrite ^ /api/skynet-worker-tick break;
+        proxy_pass http://127.0.0.1:3084;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_read_timeout 300s;
+    }
+    location = /admin/skynet-worker-step {
+        rewrite ^ /api/skynet-worker-step break;
+        proxy_pass http://127.0.0.1:3084;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_read_timeout 300s;
+    }
+    location = /admin/skynet-plan-job {
+        rewrite ^ /api/skynet-plan-job break;
+        proxy_pass http://127.0.0.1:3084;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_read_timeout 300s;
+    }
+    location = /admin/skynet-plan {
+        rewrite ^ /api/skynet-plan break;
+        proxy_pass http://127.0.0.1:3084;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_read_timeout 300s;
+    }
+    location = /admin/skynet-worker-batch {
+        rewrite ^ /api/skynet-worker-batch break;
+        proxy_pass http://127.0.0.1:3084;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_read_timeout 300s;
+    }
+    location = /admin/skynet-chat {
+        rewrite ^ /api/skynet-chat break;
+        proxy_pass http://127.0.0.1:3084;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_read_timeout 300s;
+    }
+    location = /admin/skynet-archive {
+        rewrite ^ /api/skynet-archive break;
+        proxy_pass http://127.0.0.1:3084;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_read_timeout 300s;
+    }
+    location = /admin/skynet-memory {
+        rewrite ^ /api/skynet-memory break;
+        proxy_pass http://127.0.0.1:3084;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_read_timeout 300s;
+    }
+    location = /admin/skynet-document {
+        rewrite ^ /api/skynet-document break;
+        proxy_pass http://127.0.0.1:3084;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_read_timeout 300s;
+    }
+    location = /admin/skynet-index-backfill {
+        rewrite ^ /api/skynet-index-backfill break;
+        proxy_pass http://127.0.0.1:3084;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_read_timeout 300s;
+    }
+    location = /admin/skynet-timeline {
+        rewrite ^ /api/skynet-timeline break;
+        proxy_pass http://127.0.0.1:3084;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_read_timeout 300s;
+    }
+    location = /admin/skynet-data-admin {
+        rewrite ^ /api/skynet-data-admin break;
+        proxy_pass http://127.0.0.1:3084;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_read_timeout 300s;
+    }
+    location = /admin/skynet-warehouse {
+        rewrite ^ /api/skynet-warehouse break;
+        proxy_pass http://127.0.0.1:3084;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_read_timeout 300s;
     }
     location /api/skynet- {
         proxy_pass http://127.0.0.1:3084;
