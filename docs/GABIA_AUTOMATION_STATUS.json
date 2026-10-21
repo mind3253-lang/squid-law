@@ -1,10 +1,10 @@
 {
   "schema": 1,
-  "source_commit": "dbdcffe28315cf2cc75b4bef8afab489ebf88ace",
-  "run_id": "39683970696",
-  "run_url": "https://github.com/mind3253-lang/squid-law/actions/runs/39683970696",
+  "source_commit": "0a16799741b5501b4857760e64ca028e7f483a56",
+  "run_id": "39683992791",
+  "run_url": "https://github.com/mind3253-lang/squid-law/actions/runs/39683992791",
   "result": "failure",
-  "timestamp": "2026-10-21T22:06:14.233226+00:00",
+  "timestamp": "2026-10-21T22:06:23.219218+00:00",
   "operation": "source-sync-and-readonly-audit",
   "production_deployed": false,
   "database_cutover": false
