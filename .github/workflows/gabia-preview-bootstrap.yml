@@ -45,6 +45,14 @@ jobs:
             curl -I --connect-timeout 5 --max-time 12 "http://$host/" 2>&1 | tail -5
             curl -I --connect-timeout 5 --max-time 12 "https://$host/" 2>&1 | tail -5
           done
+      - name: Inspect local database and TLS prerequisites
+        env:
+          KEY: ${{ secrets.GABIA_SSH_PRIVATE_KEY }}
+        run: |
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$KEY" > ~/.ssh/gabia.pem
+          chmod 600 ~/.ssh/gabia.pem
+          ssh -T -i ~/.ssh/gabia.pem -o StrictHostKeyChecking=accept-new ubuntu@1.201.111.35 'command -v certbot || true; sudo -n -u postgres psql -p 5433 -Atqc "SELECT datname FROM pg_database WHERE datname LIKE '\''squidlaw_stage_%'\''"; sudo -n pg_lsclusters'
       - name: Record preview status
         if: ${{ always() }}
         env:
