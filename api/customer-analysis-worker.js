@@ -9,8 +9,14 @@ import {findDeltaBaseline,verifyDeltaPlan} from '../lib/customer-delta-reanalysi
 import {runDeltaReviewStep} from './customer-delta-worker.mjs';
 import {get} from '../lib/customer-object-storage.mjs';
 export const maxDuration=300;
-// Five ten-page visual requests make one fifty-page durable recovery interval.
+// Keep model/PDF processing windows independent of the 50-page recovery policy.
+// A lower concurrency setting is safe; each window remains an immutable replay receipt.
 const VISUAL_WINDOW_CONCURRENCY=Math.min(5,Math.max(1,Number.parseInt(process.env.SQUIDLAW_VISUAL_WINDOW_CONCURRENCY||'5',10)||5));
+const RECOVERY_PAGE_INTERVAL=50;
+export function completedRecoveryPages(processedPages,totalPages){
+ if(!Number.isSafeInteger(processedPages)||processedPages<0||!Number.isSafeInteger(totalPages)||totalPages<0)throw Error('INVALID_RECOVERY_PROGRESS');
+ return processedPages>=totalPages?totalPages:Math.floor(processedPages/RECOVERY_PAGE_INTERVAL)*RECOVERY_PAGE_INTERVAL;
+}
 const FINALIZATION_SOFT_BUDGET_MS=180000;
 export function shouldCheckpointFinalization({elapsedMs,completedRounds}){
  if(!Number.isFinite(elapsedMs)||elapsedMs<0||!Number.isSafeInteger(completedRounds)||completedRounds<0)throw Error('INVALID_FINALIZATION_BUDGET');
@@ -531,7 +537,7 @@ export default async function handler(req,res){
     await advanceJob(job,'visual_provider_window_checkpoint',
      {...previous,visualDocIndex:next,visualWindowStartPage:nextPage},'retry');
     return res.status(200).json({status:'retry',stage:'visual_provider_window_checkpoint',
-     document:next+1,processedWindowStarts:starts,nextPage});
+     document:next+1,processedWindowStarts:starts,nextPage,recoveryPages:completedRecoveryPages(Math.min(nextPage-1,doc.pageCount),doc.pageCount)});
    }
    const windows=[];
    for(let page=1;page<=doc.pageCount;page+=10){
