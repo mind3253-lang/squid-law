@@ -13,7 +13,7 @@ on:
     paths:
       - '.github/workflows/gabia-admin.yml'
 permissions:
-  contents: read
+  contents: write
 jobs:
   diagnose:
     runs-on: ubuntu-latest
@@ -35,3 +35,22 @@ jobs:
         env:
           GABIA_SSH_KEY_FILE: /home/runner/.ssh/gabia.pem
         run: node scripts/gabia-admin.mjs "${{ inputs.check || 'status' }}"
+      - name: Publish redacted diagnostics to repository
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          JOB_STATUS: ${{ job.status }}
+          CHECK: ${{ inputs.check || 'status' }}
+        run: |
+          python3 - <<'PY' > /tmp/gabia-admin-result.json
+          import json,os,datetime
+          print(json.dumps({'status':os.environ['JOB_STATUS'],'check':os.environ['CHECK'],'commit':os.environ['GITHUB_SHA'],'timestamp':datetime.datetime.now(datetime.timezone.utc).isoformat()}))
+          PY
+          encoded=$(base64 -w0 /tmp/gabia-admin-result.json)
+          path=docs/GABIA_ADMIN_LAST_RESULT.json
+          old=$(gh api "repos/${GITHUB_REPOSITORY}/contents/$path" --jq .sha 2>/dev/null || true)
+          if [ -n "$old" ]; then
+            gh api -X PUT "repos/${GITHUB_REPOSITORY}/contents/$path" -f message='Record Gabia admin diagnostic outcome' -f content="$encoded" -f sha="$old" >/dev/null
+          else
+            gh api -X PUT "repos/${GITHUB_REPOSITORY}/contents/$path" -f message='Record Gabia admin diagnostic outcome' -f content="$encoded" >/dev/null
+          fi
