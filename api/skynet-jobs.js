@@ -20,7 +20,7 @@ export default async function handler(req,res){
  res.setHeader('Cache-Control','no-store');res.setHeader('X-Content-Type-Options','nosniff');res.setHeader('Vary','Authorization');
  if(Number(req.headers['content-length'])>30000)return res.status(413).json({error:'PAYLOAD_TOO_LARGE'});
  if(!isSkynetAdmin(req))return res.status(401).json({error:'ADMIN_REQUIRED'});
- if(!atomicJobsEnabled()&&!process.env.BLOB_READ_WRITE_TOKEN)return res.status(503).json({error:'STORAGE_REQUIRED'});
+ if(!atomicJobsEnabled()&&(process.env.SQUIDLAW_OBJECT_BACKEND&&process.env.SQUIDLAW_OBJECT_BACKEND!=='gabia'))return res.status(503).json({error:'STORAGE_REQUIRED'});
  try{
   const id=String(req.query?.id||'');
   if(req.method==='GET'){
