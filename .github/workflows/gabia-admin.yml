@@ -1,0 +1,33 @@
+name: Gabia admin diagnostics
+on:
+  workflow_dispatch:
+    inputs:
+      check:
+        description: Diagnostic group
+        required: true
+        type: choice
+        options: [status, database, worker, api]
+        default: status
+permissions:
+  contents: read
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Prepare SSH key
+        env:
+          KEY: ${{ secrets.GABIA_SSH_PRIVATE_KEY }}
+        run: |
+          test -n "$KEY"
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$KEY" > ~/.ssh/gabia.pem
+          chmod 600 ~/.ssh/gabia.pem
+      - name: Run allowlisted Gabia check
+        env:
+          GABIA_SSH_KEY_FILE: /home/runner/.ssh/gabia.pem
+        run: node scripts/gabia-admin.mjs "${{ inputs.check }}"
