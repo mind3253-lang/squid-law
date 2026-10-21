@@ -21,4 +21,4 @@ jobs:
           install -d -m 700 ~/.ssh
           printf '%s\n' "$GABIA_KEY" > ~/.ssh/gabia.pem
           chmod 600 ~/.ssh/gabia.pem
-          ssh -T -o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=accept-new -i ~/.ssh/gabia.pem ubuntu@1.201.111.35 'echo GABIA_SSH_CONNECTED; hostname; id -un; sudo -n systemctl is-active squidlaw-api.service || true; sudo -n systemctl is-active squidlaw-worker.service || true'
+          ssh -T -o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=accept-new -i ~/.ssh/gabia.pem ubuntu@1.201.111.35 'echo GABIA_SSH_CONNECTED; hostname; id -un; sudo -n systemctl is-active squidlaw-api.service || true; sudo -n systemctl is-active squidlaw-worker.service || true; echo GABIA_REMOTE_MAINTENANCE_TRANSPORT_VERIFIED'
