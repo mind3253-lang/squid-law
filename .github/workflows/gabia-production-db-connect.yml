@@ -54,6 +54,16 @@ jobs:
           fi
           sudo -n systemctl restart squidlaw-api.service
           sudo -n systemctl is-active --quiet squidlaw-api.service
+          # Database connectivity alone does not prove the worker has been cut over.
+          # Report the effective owner and unit state without exposing secrets.
+          if sudo -n test -f /etc/squidlaw/api.env; then
+            sudo -n grep -E '^(SQUIDLAW_CUSTOMER_WORKER_OWNER|SQUIDLAW_CONTINUOUS_WORKER|SQUIDLAW_WORKER_RUN_APPROVED|SQUIDLAW_WORKER_CUTOVER_APPROVED)=' /etc/squidlaw/api.env || true
+          fi
+          if systemctl list-unit-files squidlaw-worker.service --no-legend 2>/dev/null | grep -q '^squidlaw-worker.service'; then
+            sudo -n systemctl is-active squidlaw-worker.service || true
+          else
+            echo SQUIDLAW_WORKER_UNIT_NOT_FOUND
+          fi
           sudo -n psql -p 5433 -U root -d "$target_db" -Atqc 'SELECT count(*) FROM public.customer_analysis_jobs' >/dev/null
           curl --fail --silent --show-error --max-time 10 http://127.0.0.1:3084/api/customer-auth >/dev/null
           echo DB_CONNECTION_ENV_READY
