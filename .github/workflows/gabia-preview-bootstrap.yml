@@ -29,6 +29,10 @@ jobs:
           echo "EXTERNAL_PREVIEW_HTTP:$code"
           echo "EXTERNAL_PREVIEW_CURL_EXIT:$result"
           if [ "$result" -ne 0 ]; then echo EXTERNAL_PREVIEW_NOT_REACHABLE; fi
+          for port in 80 443; do
+            code=$(curl --noproxy '*' --connect-timeout 3 --max-time 5 -k -s -o /dev/null -w '%{http_code}' "http://1.201.111.35:$port/" || true)
+            echo "EXTERNAL_PORT_${port}_HTTP:$code"
+          done
       - name: Record preview status
         if: ${{ always() }}
         env:
