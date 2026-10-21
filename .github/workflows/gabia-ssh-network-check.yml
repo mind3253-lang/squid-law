@@ -176,6 +176,70 @@ jobs:
           set -euo pipefail
           ssh -T -i "$HOME/.ssh/gabia.pem" -o BatchMode=yes -o StrictHostKeyChecking=accept-new ubuntu@1.201.111.35 'cd /opt/squidlaw/app && bash deploy/audit-db-config-keys.sh'
 
+      - name: Check active database endpoints without revealing credentials
+        if: ${{ github.event_name == 'push' }}
+        run: |
+          set -euo pipefail
+          ssh -T -i "$HOME/.ssh/gabia.pem" -o BatchMode=yes -o StrictHostKeyChecking=accept-new ubuntu@1.201.111.35 'sudo -n python3 -' <<'PY'
+          import os,re,subprocess
+          paths=['/etc/squidlaw/api.env','/etc/squidlaw/worker.env','/etc/squidlaw/database.env']
+          for path in paths:
+              if not os.path.isfile(path):
+                  print('DB_ENV_FILE',path,'MISSING');continue
+              data=open(path).read()
+              print('DB_ENV_FILE',path,'PRESENT')
+              for line in data.splitlines():
+                  m=re.match(r'^\s*(?:export\s+)?([A-Za-z_][A-Za-z_0-9]*)\s*=\s*(.*)
+        if: ${{ always() && github.event_name == 'push' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RESULT: ${{ job.status }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json,os,datetime,subprocess,base64
+          status={'schema':1,'source_commit':os.environ['GITHUB_SHA'],'run_id':os.environ['GITHUB_RUN_ID'],'run_url':'https://github.com/'+os.environ['REPO']+'/actions/runs/'+os.environ['GITHUB_RUN_ID'],'result':os.environ['RESULT'],'timestamp':datetime.datetime.now(datetime.timezone.utc).isoformat(),'operation':'source-sync-and-readonly-audit','production_deployed':False,'database_cutover':False}
+          repo=os.environ['REPO']; url=f'https://api.github.com/repos/{repo}/contents/docs/GABIA_AUTOMATION_STATUS.json'
+          headers=['-H','Accept: application/vnd.github+json','-H','Authorization: Bearer '+os.environ['GH_TOKEN'],'-H','X-GitHub-Api-Version: 2022-11-28']
+          for attempt in range(3):
+           existing=subprocess.run(['curl','-fsS',*headers,url],capture_output=True,text=True)
+           old=json.loads(existing.stdout) if existing.returncode==0 else {}
+           old_status=json.loads(base64.b64decode(old['content'])) if old.get('content') else {}
+           if int(old_status.get('run_id',0))>int(status['run_id']):
+            print('NEWER_RUN_ALREADY_RECORDED');break
+           body={'message':'chore: record Gabia automatic audit status [skip ci]','content':base64.b64encode((json.dumps(status,ensure_ascii=False,indent=2)+'\n').encode()).decode()}
+           if old.get('sha'):body['sha']=old['sha']
+           result=subprocess.run(['curl','-fsS','-X','PUT',*headers,'-H','Content-Type: application/json','--data-binary','@-',url],input=json.dumps(body),capture_output=True,text=True)
+           if result.returncode==0:
+            print('AUDIT_STATUS_PUBLISHED');break
+           if attempt==2:raise SystemExit('AUDIT_STATUS_PUBLISH_FAILED')
+          PY
+
+      - name: Record automatic audit result in GitHub Actions summary
+        if: ${{ always() && github.event_name == 'push' }}
+        run: |
+          echo '## Gabia automatic source audit' >> "$GITHUB_STEP_SUMMARY"
+          echo "Commit: $GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"
+          echo 'Push runs perform source sync and read-only service checks only; no Blob copy, DB migration, restart or DNS cutover.' >> "$GITHUB_STEP_SUMMARY"
+          echo "Result: ${{ job.status }}" >> "$GITHUB_STEP_SUMMARY"
+,line)
+                  if not m or not re.search(r'DATABASE|POSTGRES|PGHOST|PGPORT|PGDATABASE',m.group(1),re.I):continue
+                  key,val=m.groups()
+                  if re.search(r'DATABASE_URL|POSTGRES_URL|PGHOST',key,re.I):
+                      from urllib.parse import urlsplit
+                      val=val.strip().strip('"\x27')
+                      try:
+                          host=urlsplit(val).hostname if '://' in val else val
+                          location='LOCAL' if host in ('localhost','127.0.0.1','::1','/var/run/postgresql') else 'REMOTE_OR_UNRESOLVED'
+                      except Exception:location='UNPARSEABLE'
+                      print('DB_ENDPOINT',path,key,location)
+                  else:print('DB_KEY',path,key,'PRESENT')
+          for unit in ['squidlaw-api.service','squidlaw-worker.service']:
+              p=subprocess.run(['systemctl','show',unit,'-p','EnvironmentFiles','--value'],capture_output=True,text=True)
+              print('SERVICE_ENV_FILES',unit,re.sub(r'/[^ ]+','[CONFIG_PATH]',p.stdout.strip())[:200])
+          PY
+
       - name: Publish machine-readable audit status to repository
         if: ${{ always() && github.event_name == 'push' }}
         env:
