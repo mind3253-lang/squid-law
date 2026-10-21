@@ -479,7 +479,7 @@ export default async function handler(req,res){
   await advanceJob(job,'analysis_completed',{...previous,semanticAuditPassed:true,completionReconciliation:finalPath,legalCustomerReport:finalReportPath,gates:completion.gates},'completed');
   return res.status(200).json({status:'completed',report:finalReportPath});
  }
- if(index===docs.length&&previous.phase==='verify'&&previous.textReviewManifest&&!previous.visualReview?.independentAuditVerified){
+ if(index===docs.length&&previous.phase==='verify'&&previous.textReviewManifest&&!previous.visualSourceCoveragePassed){
   if(!process.env.OPENAI_API_KEY){
    await advanceJob(job,'visual_api_key_missing',previous,'blocked','OPENAI_API_KEY_MISSING');
    return res.status(200).json({status:'blocked',reason:'OPENAI_API_KEY_MISSING'});
