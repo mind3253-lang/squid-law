@@ -1,7 +1,7 @@
 // Offline, names-only inspection. Never print secret values or connect to DB.
 import {readFileSync,existsSync,statSync} from 'node:fs';
 const path=process.argv[2]||'/etc/squidlaw/worker.env';
-const names=['CRON_SECRET','BLOB_READ_WRITE_TOKEN','SQUID_CUSTOMER_DATABASE_URL','SQUID_CUSTOMER_DATABASE_DATABASE_URL','OPENAI_API_KEY','SQUIDLAW_CUSTOMER_WORKER_OWNER','SQUIDLAW_WORKER_RUN_APPROVED','SQUIDLAW_WORKER_CUTOVER_APPROVED'];
+const names=['CRON_SECRET','SQUIDLAW_OBJECT_ROOT','SQUID_CUSTOMER_DATABASE_URL','SQUID_CUSTOMER_DATABASE_DATABASE_URL','OPENAI_API_KEY','SQUIDLAW_CUSTOMER_WORKER_OWNER','SQUIDLAW_WORKER_RUN_APPROVED','SQUIDLAW_WORKER_CUTOVER_APPROVED'];
 if(!existsSync(path)){console.log('ENV_FILE_ABSENT');process.exit(0)}
 const st=statSync(path);
 console.log('ENV_FILE_MODE', (st.mode&0o777).toString(8));
