@@ -3,8 +3,13 @@ on:
   push:
     paths:
       - '.github/workflows/gabia-ssh-network-check.yml'
-      - 'tests/vision-failure-resume-policy.test.mjs'
-      - 'docs/GABIA_SSH_CHECK_TRIGGER.txt'
+      - 'deploy/**'
+      - 'server/**'
+      - 'api/**'
+      - 'lib/**'
+      - 'worker/**'
+      - 'package.json'
+      - 'package-lock.json'
   workflow_dispatch:
     inputs:
       action:
@@ -25,7 +30,7 @@ on:
           - install-postgres
           - audit-db-config
 permissions:
-  contents: read
+  contents: write
 jobs:
   check:
     runs-on: ubuntu-latest
@@ -57,7 +62,7 @@ jobs:
 
       - name: Deploy or audit Gabia web and API
         env:
-          ACTION: ${{ inputs.action || 'migrate-blob' }}
+          ACTION: ${{ github.event_name == 'push' && 'audit' || inputs.action || 'audit' }}
         run: |
           set -euo pipefail
           ssh -T -i "$HOME/.ssh/gabia.pem" -o BatchMode=yes -o StrictHostKeyChecking=accept-new ubuntu@1.201.111.35 "bash -s -- '$ACTION'" <<'REMOTE'
@@ -68,7 +73,11 @@ jobs:
           sudo -n true
           git config --global --add safe.directory "$app"
           test -d "$app/.git"
-          if [ "$action" = prepare-migration ]; then
+          if [ "$action" = audit ]; then
+            sudo -n git -c safe.directory="$app" -C "$app" fetch origin main
+            sudo -n git -c safe.directory="$app" -C "$app" merge --ff-only origin/main
+            echo 'AUTO_AUDIT_SOURCE_SYNC_OK_NO_RUNTIME_CHANGES'
+          elif [ "$action" = prepare-migration ]; then
             sudo -n git -c safe.directory="$app" -C "$app" diff --quiet
             sudo -n git -c safe.directory="$app" -C "$app" diff --cached --quiet
             sudo -n git -c safe.directory="$app" -C "$app" fetch origin main
@@ -142,7 +151,7 @@ jobs:
           REMOTE
 
       - name: Copy Vercel Blob objects in 200MB batches
-        if: ${{ inputs.action == 'migrate-blob' || github.event_name == 'push' }}
+        if: ${{ inputs.action == 'migrate-blob' }}
         env:
           BLOB_TOKEN: ${{ secrets.BLOB_READ_WRITE_TOKEN }}
         run: |
@@ -182,3 +191,11 @@ jobs:
         run: |
           set -euo pipefail
           ssh -T -i "$HOME/.ssh/gabia.pem" -o BatchMode=yes -o StrictHostKeyChecking=accept-new ubuntu@1.201.111.35 'cd /opt/squidlaw/app && bash deploy/audit-db-config-keys.sh'
+
+      - name: Record automatic audit result in GitHub Actions summary
+        if: ${{ always() && github.event_name == 'push' }}
+        run: |
+          echo '## Gabia automatic source audit' >> "$GITHUB_STEP_SUMMARY"
+          echo "Commit: $GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"
+          echo 'Push runs perform source sync and read-only service checks only; no Blob copy, DB migration, restart or DNS cutover.' >> "$GITHUB_STEP_SUMMARY"
+          echo "Result: ${{ job.status }}" >> "$GITHUB_STEP_SUMMARY"
