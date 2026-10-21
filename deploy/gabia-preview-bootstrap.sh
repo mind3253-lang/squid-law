@@ -189,3 +189,10 @@ fi
 if sudo -n grep -q '^SQUID_CUSTOMER_DATABASE_URL=' /etc/squidlaw/api.env; then echo LOCAL_DB_URL_ALREADY_CONFIGURED; else echo LOCAL_DB_URL_PENDING; fi
 if sudo -n grep -q '^SQUID_CUSTOMER_DATABASE_SSL=disable' /etc/squidlaw/api.env; then echo LOCAL_DB_SSL_CONFIGURED; else echo LOCAL_DB_SSL_PENDING; fi
 echo LOCAL_DATABASE_BINDING_END
+
+echo DOMAIN_ROUTING_CHECK_BEGIN
+for domain in squidlaw.co.kr www.squidlaw.co.kr; do
+ echo "DOMAIN_IP:$domain:$(getent ahostsv4 "$domain" | awk '{print $1}' | sort -u | paste -sd, -)"
+ echo "DOMAIN_HTTP:$domain:$(curl -s -o /dev/null -w '%{http_code}' --resolve "$domain:80:127.0.0.1" "http://$domain/")"
+done
+echo DOMAIN_ROUTING_CHECK_END
