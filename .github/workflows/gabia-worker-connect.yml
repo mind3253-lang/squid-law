@@ -1,0 +1,65 @@
+name: Connect Gabia production worker
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/gabia-worker-connect.yml']
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  connect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Configure and start worker
+        env:
+          KEY: ${{ secrets.GABIA_SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$KEY" > ~/.ssh/gabia.pem
+          chmod 600 ~/.ssh/gabia.pem
+          ssh -T -i ~/.ssh/gabia.pem -o StrictHostKeyChecking=accept-new ubuntu@1.201.111.35 'sudo -n bash -s' <<'REMOTE' > /tmp/connect.log 2>&1
+          set -euo pipefail
+          install -m 600 -o root -g root /dev/null /etc/squidlaw/worker.env.tmp
+          for f in /etc/squidlaw/worker.env /etc/squidlaw/openai.env; do
+            if test -f "$f"; then cat "$f" >> /etc/squidlaw/worker.env.tmp; printf '\n' >> /etc/squidlaw/worker.env.tmp; fi
+          done
+          db=$(sed -n 's/^SQUID_CUSTOMER_DATABASE_URL=//p' /etc/squidlaw/api.env | tail -1)
+          test -n "$db"
+          printf 'SQUID_CUSTOMER_DATABASE_URL=%s\n' "$db" >> /etc/squidlaw/worker.env.tmp
+          secret=$(sed -n 's/^CRON_SECRET=//p' /etc/squidlaw/worker.env.tmp | tail -1)
+          if test -z "$secret"; then secret=$(openssl rand -hex 32); fi
+          printf 'CRON_SECRET=%s\n' "$secret" >> /etc/squidlaw/worker.env.tmp
+          printf '%s\n' SQUIDLAW_CUSTOMER_WORKER_OWNER=gabia SQUIDLAW_CONTINUOUS_WORKER=1 SQUIDLAW_WORKER_RUN_APPROVED=YES SQUIDLAW_WORKER_CUTOVER_APPROVED=YES SQUIDLAW_OBJECT_BACKEND=gabia SQUIDLAW_OBJECT_ROOT=/opt/squidlaw/objects >> /etc/squidlaw/worker.env.tmp
+          install -d -m 700 -o root -g root /opt/squidlaw/objects
+          mv /etc/squidlaw/worker.env.tmp /etc/squidlaw/worker.env
+          chmod 600 /etc/squidlaw/worker.env
+          systemctl reset-failed squidlaw-worker.service
+          systemctl restart squidlaw-worker.service
+          sleep 5
+          if systemctl is-active --quiet squidlaw-worker.service; then echo WORKER_ACTIVE; else echo WORKER_FAILED; fi
+          systemctl show squidlaw-worker.service -p ActiveState -p Result -p ExecMainStatus --no-pager
+          journalctl -u squidlaw-worker.service -n 30 --no-pager -o cat | grep -E '^(WORKER_|Error:|WORKER_HTTP_STATUS|WORKER_STEP_FAILED)' | tail -12 || true
+          REMOTE
+          grep -E '^(WORKER_ACTIVE|WORKER_FAILED|ActiveState=|Result=|ExecMainStatus=|WORKER_[A-Z_]+)' /tmp/connect.log || true
+      - name: Record connection result
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          python3 - <<'PY'
+          import json,os,re,datetime
+          lines=open('/tmp/connect.log').read().splitlines() if os.path.isfile('/tmp/connect.log') else []
+          safe=[x for x in lines if re.fullmatch(r'(WORKER_ACTIVE|WORKER_FAILED|ActiveState=[A-Za-z]+|Result=[A-Za-z-]+|ExecMainStatus=[0-9]+|WORKER_[A-Z_]+)',x)]
+          with open('/tmp/result.json','w') as f: json.dump({'status':os.environ['JOB_STATUS'],'checked_at':datetime.datetime.now(datetime.timezone.utc).isoformat(),'diagnostics':safe},f)
+          PY
+          encoded=$(base64 -w0 /tmp/result.json)
+          path=docs/GABIA_WORKER_CONNECT_RESULT.json
+          old=$(gh api "repos/${GITHUB_REPOSITORY}/contents/$path" --jq .sha 2>/dev/null || true)
+          if [ -n "$old" ]; then
+            gh api -X PUT "repos/${GITHUB_REPOSITORY}/contents/$path" -f message='Record Gabia worker connection' -f content="$encoded" -f sha="$old" >/dev/null
+          else
+            gh api -X PUT "repos/${GITHUB_REPOSITORY}/contents/$path" -f message='Record Gabia worker connection' -f content="$encoded" >/dev/null
+          fi
