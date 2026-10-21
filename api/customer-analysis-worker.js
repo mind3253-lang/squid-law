@@ -51,7 +51,6 @@ import {buildLegalCustomerReport} from '../lib/legal-customer-report.mjs';
 import {reconcileAnalysisCompletion} from '../lib/analysis-completion-reconciliation.mjs';
 import {auditVerifiedTextPages,auditDocumentBoundaryEvidence} from '../lib/source-completion-audit.mjs';
 import {reconcileVisualOcr} from '../lib/ocr-visual-recovery.mjs';
-import {boundaryReviewRequest,auditBoundaryReview,compareBoundaryReviews,invokeBoundaryReview} from '../lib/independent-boundary-review.mjs';
 import {validatePersistedBatch,finalizationDescriptors,validateFinalizationPart,summarizeClaimRoles} from '../lib/text-review-aggregation.mjs';
 import {detectOpposingStatements} from '../lib/case-crosscheck.mjs';
 import {auditFinalizationCheckpoint,auditFinalizationResumePrefix} from '../lib/finalization-checkpoint.mjs';
@@ -247,46 +246,6 @@ export default async function handler(req,res){
   await advanceJob(job,'text_review_completed_visual_pending',{...previous,phase:'verify',textReviewManifest:manifestPath,textReviewAggregate:aggregatePath,textReviewIntermediateReport:intermediateReportPath,legalReasoningRequest:legalReasoningRequestPath,sourceUnitIndex:sourceIndexPath},'retry');
   return res.status(200).json({status:'retry',stage:'text_review_completed_visual_pending',verifiedTextDocuments:docs.length});
  }
- if(index>=docs.length&&previous.visualReview?.verified===true&&!previous.boundaryReviewVerified){
-  const root='squidlaw/analysis-jobs/'+job.customerKey+'/'+job.caseId+'/'+job.jobId+'/';
-  const boundaryIndex=previous.boundaryDocIndex||0;
-  if(boundaryIndex<docs.length){
-   const d=docs[boundaryIndex],base=root+'boundary-audit/'+d.id;
-   const primaryPath=base+'-primary.json',secondPath=base+'-independent.json';
-   const candidateAggregate=await load(previous.textReviewAggregate);
-   const candidate=candidateAggregate?.documentBoundaryCandidates?.find(x=>x.documentId===d.id);
-   const visual=await load(root+'visual-provider/'+d.id+'.json');
-   const pageEvidence=[];
-   const visualByPage=new Map((visual?.observations?.pageObservations||[]).map(x=>[x.page,x.visualFacts||[]]));
-   for(let start=0;start<d.pageCount;start+=240){
-    const offsets=Array.from({length:Math.min(12,Math.ceil((d.pageCount-start)/20))},(_,i)=>start+i*20);
-    const batches=await Promise.all(offsets.map(offset=>load(prefix+'verified/'+d.id+'/batch-'+String(offset).padStart(8,'0')+'.json')));
-    for(const batch of batches){
-     if(!batch||batch.sourcePdfSha256!==d.sha256)throw Error('BOUNDARY_SOURCE_MISSING');
-     for(const p of batch.pages)pageEvidence.push({page:p.page,text:String(p.text||'').slice(0,450),visualFacts:(visualByPage.get(p.page)||[]).slice(0,5)});
-    }
-   }
-   const input={documentId:d.id,sourcePdfSha256:d.sha256,pageCount:d.pageCount,candidates:candidate?.sections||[],pageEvidence,model:process.env.SQUIDLAW_LEGAL_MODEL||'gpt-4.1-mini'};
-   let primary=await load(primaryPath);
-   if(!primary){
-    primary=await invokeBoundaryReview({request:boundaryReviewRequest(input),apiKey:process.env.OPENAI_API_KEY});
-    const audit=auditBoundaryReview({result:primary,documentId:d.id,sourcePdfSha256:d.sha256,pageCount:d.pageCount});
-    if(!audit.complete)throw Error('BOUNDARY_PRIMARY_INVALID:'+audit.failures.join(','));
-    await put(primaryPath,JSON.stringify(primary),{access:'private',allowOverwrite:false,addRandomSuffix:false,contentType:'application/json'});
-    await advanceJob(job,'boundary_primary_checkpoint',{...previous,boundaryDocIndex:boundaryIndex},'retry');
-    return res.status(200).json({status:'retry',stage:'boundary_primary_checkpoint'});
-   }
-   // The primary model classified the entire document. Verify its partition deterministically.
-   const checked=auditBoundaryReview({result:primary,documentId:d.id,sourcePdfSha256:d.sha256,pageCount:d.pageCount});
-   if(!checked.complete)throw Error('BOUNDARY_PRIMARY_INVALID:'+checked.failures.join(','));
-   const audit={...checked,verified:true,documentId:d.id,sourcePdfSha256:d.sha256,sections:primary.sections,coveredPages:d.pageCount};
-   await put(base+'-verified.json',JSON.stringify(audit),{access:'private',allowOverwrite:true,addRandomSuffix:false,contentType:'application/json'});
-   await advanceJob(job,'boundary_verified_checkpoint',{...previous,boundaryDocIndex:boundaryIndex+1},'retry');
-   return res.status(200).json({status:'retry',stage:'boundary_verified_checkpoint'});
-  }
-  await advanceJob(job,'boundary_review_completed',{...previous,boundaryReviewVerified:true},'retry');
-  return res.status(200).json({status:'retry',stage:'boundary_review_completed'});
- }
  if(index>=docs.length&&!previous.legalCustomerReport&&previous.visualReview?.verified===true&&previous.visualReview?.verified===true&&previous.visualReview?.sourceVersion===job.documentVersion&&previous.legalReasoningRequest&&previous.sourceUnitIndex){
   const root='squidlaw/analysis-jobs/'+job.customerKey+'/'+job.caseId+'/'+job.jobId+'/';
   const request=await load(previous.legalReasoningRequest);
@@ -424,9 +383,7 @@ export default async function handler(req,res){
    verifiedBatches.push(...group.filter(Boolean));
   }
   const textAudit=auditVerifiedTextPages({documents:docs,verifiedBatches});
-  const verifiedBoundaries=[];
-  for(const doc of docs)verifiedBoundaries.push(await load(root+'boundary-audit/'+doc.id+'-verified.json'));
-  const boundaryAudit=auditDocumentBoundaryEvidence({documents:docs,aggregate:{documentBoundaryCandidates:verifiedBoundaries}});
+  const boundaryAudit=auditDocumentBoundaryEvidence({documents:docs,aggregate});
   const completion=reconcileAnalysisCompletion({sourceVersion:job.documentVersion,documents:docs,sourceIndex:indexData,aggregate,report,visualReview:previous.visualReview,semanticAuditPassed:true,visualAudits,ocrVerified:textAudit.verified,boundariesVerified:boundaryAudit.verified});
   completion.failures.push(...textAudit.failures.slice(0,50),...boundaryAudit.failures.slice(0,50));
   const finalPath=root+'completion-reconciliation.json';
@@ -456,10 +413,6 @@ export default async function handler(req,res){
   }
   const ledgerPaths=[...(previous.legalWindowPaths||[])];
   for(const d of docs){
-   for(const suffix of ['-primary.json','-independent.json']){
-    const path=root+'boundary-audit/'+d.id+suffix;
-    if(await load(path))ledgerPaths.push(path);
-   }
    for(let page=1;page<=d.pageCount;page+=10){
     for(const kind of ['-window-','-independent-window-']){
      const path=root+'visual-provider/'+d.id+kind+String(page).padStart(8,'0')+'.json';
