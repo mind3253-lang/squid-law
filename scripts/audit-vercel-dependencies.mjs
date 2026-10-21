@@ -4,6 +4,9 @@ import {join,relative} from 'node:path';
 const root=process.cwd();
 const skip=new Set(['.git','node_modules','.vercel','dist','build','coverage']);
 const needles=[
+ ['vercel_host',/api\.vercel\.com|vercel\.app|vercel\.json/gi],
+ ['vercel_token',/SKYNET_VERCEL_TOKEN|BLOB_READ_WRITE_TOKEN/g],
+ ['vercel_tool',/vercel\.(?:deploy|inspect|logs)/g],
  ['vercel_blob',/@vercel\/blob/g],
  ['vercel_functions',/@vercel\/functions/g],
  ['vercel_runtime',/VERCEL_URL|VERCEL_PROJECT_PRODUCTION_URL/g],
@@ -28,7 +31,11 @@ function walk(dir){
  }
 }
 walk(root);
+let total=0;
 for(const [category,files] of counts){
+ if(category.startsWith('vercel_'))total+=files.length;
  console.log(category+': '+files.length+' files');
  for(const f of files.sort((a,b)=>a.path.localeCompare(b.path)))console.log('  '+f.path+' ('+f.occurrences+')');
 }
+
+if(total>0){console.error('VERCEL_RUNTIME_RESIDUE_DETECTED');process.exitCode=1}
