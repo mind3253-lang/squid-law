@@ -159,3 +159,10 @@ sudo -n nginx -t
 sudo -n systemctl reload nginx
 curl -fsS -H 'Host: 1.201.111.35' -o /dev/null -w 'PUBLIC_HTTP_PREVIEW_LOCAL:%{http_code}\\n' http://127.0.0.1/
 echo PUBLIC_HTTP_PREVIEW_PORT80_END
+
+echo PUBLIC_API_AUTH_SMOKE_BEGIN
+for endpoint in /api/customer-auth /api/customer-cases /api/skynet-profile /api/skynet-document; do
+ code=$(curl --connect-timeout 3 --max-time 12 -s -o /dev/null -w '%{http_code}' -H 'Host: 1.201.111.35' "http://127.0.0.1$endpoint" || true)
+ echo "PUBLIC_API:$endpoint:$code"
+done
+echo PUBLIC_API_AUTH_SMOKE_END
