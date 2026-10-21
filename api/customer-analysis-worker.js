@@ -9,6 +9,7 @@ import {findDeltaBaseline,verifyDeltaPlan} from '../lib/customer-delta-reanalysi
 import {runDeltaReviewStep} from './customer-delta-worker.mjs';
 import {get} from '../lib/customer-object-storage.mjs';
 export const maxDuration=300;
+// Five ten-page visual requests make one fifty-page durable recovery interval.
 const VISUAL_WINDOW_CONCURRENCY=Math.min(5,Math.max(1,Number.parseInt(process.env.SQUIDLAW_VISUAL_WINDOW_CONCURRENCY||'5',10)||5));
 const FINALIZATION_SOFT_BUDGET_MS=180000;
 export function shouldCheckpointFinalization({elapsedMs,completedRounds}){
