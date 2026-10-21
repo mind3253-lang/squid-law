@@ -251,7 +251,7 @@ export default async function handler(req,res){
   const boundaryIndex=previous.boundaryDocIndex||0;
   if(boundaryIndex<docs.length){
    const d=docs[boundaryIndex],base=root+'boundary-audit/'+d.id;
-   const primaryPath=base+'-primary.json',secondPath=base+'-independent.json';
+   const primaryPath=base+'-primary.json';
    const candidateAggregate=await load(previous.textReviewAggregate);
    const candidate=candidateAggregate?.documentBoundaryCandidates?.find(x=>x.documentId===d.id);
    const visual=await load(root+'visual-provider/'+d.id+'.json');
@@ -286,7 +286,7 @@ export default async function handler(req,res){
   await advanceJob(job,'boundary_review_completed',{...previous,boundaryReviewVerified:true},'retry');
   return res.status(200).json({status:'retry',stage:'boundary_review_completed'});
  }
- if(index>=docs.length&&!previous.legalCustomerReport&&previous.visualReview?.verified===true&&previous.visualReview?.verified===true&&previous.visualReview?.sourceVersion===job.documentVersion&&previous.legalReasoningRequest&&previous.sourceUnitIndex){
+ if(index>=docs.length&&!previous.legalCustomerReport&&previous.visualReview?.verified===true&&previous.visualReview?.sourceVersion===job.documentVersion&&previous.legalReasoningRequest&&previous.sourceUnitIndex){
   const root='squidlaw/analysis-jobs/'+job.customerKey+'/'+job.caseId+'/'+job.jobId+'/';
   const request=await load(previous.legalReasoningRequest);
   const sourceIndex=await load(previous.sourceUnitIndex);
