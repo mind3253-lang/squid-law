@@ -38,12 +38,22 @@ jobs:
           # The service account uses the local Unix socket with PostgreSQL peer authentication.
           sudo -n -u postgres psql -p 5432 -d "$target_db" -Atqc 'SELECT current_database()' | grep -qx "$target_db"
           echo PRODUCTION_DB_LOCAL_ACCESS_OK
+          if ! sudo -n -u postgres psql -p 5432 -Atqc "SELECT 1 FROM pg_roles WHERE rolname='root'" | grep -qx 1; then
+            sudo -n -u postgres createuser -p 5432 --login --no-superuser --no-createdb --no-createrole root
+          fi
+          sudo -n -u postgres psql -p 5432 -v ON_ERROR_STOP=1 -c 'GRANT CONNECT ON DATABASE squidlaw_production TO root'
+          sudo -n -u postgres psql -p 5432 -d "$target_db" -v ON_ERROR_STOP=1 -c 'GRANT USAGE ON SCHEMA public TO root'
+          sudo -n -u postgres psql -p 5432 -d "$target_db" -v ON_ERROR_STOP=1 -c 'GRANT SELECT,INSERT,UPDATE,DELETE ON ALL TABLES IN SCHEMA public TO root'
+          sudo -n -u postgres psql -p 5432 -d "$target_db" -v ON_ERROR_STOP=1 -c 'GRANT USAGE,SELECT,UPDATE ON ALL SEQUENCES IN SCHEMA public TO root'
+          psql -p 5432 -d "$target_db" -Atqc 'SELECT current_user' | grep -qx root
           sudo -n install -d -m 700 /etc/squidlaw
           if ! sudo -n grep -q '^SQUID_CUSTOMER_DATABASE_URL=' /etc/squidlaw/api.env; then
-            echo 'SQUID_CUSTOMER_DATABASE_URL=postgresql:///squidlaw_production?host=/var/run/postgresql' | sudo -n tee -a /etc/squidlaw/api.env >/dev/null
+            echo 'SQUID_CUSTOMER_DATABASE_URL=postgresql://root@/squidlaw_production?host=/var/run/postgresql' | sudo -n tee -a /etc/squidlaw/api.env >/dev/null
           fi
           if ! sudo -n grep -q '^SQUID_CUSTOMER_DATABASE_SSL=' /etc/squidlaw/api.env; then
             echo 'SQUID_CUSTOMER_DATABASE_SSL=disable' | sudo -n tee -a /etc/squidlaw/api.env >/dev/null
           fi
+          sudo -n systemctl restart squidlaw-api.service
+          sudo -n systemctl is-active --quiet squidlaw-api.service
           echo DB_CONNECTION_ENV_READY
           REMOTE
