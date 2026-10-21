@@ -6,7 +6,7 @@ on:
     paths:
       - '.github/workflows/gabia-production-db-connect.yml'
 permissions:
-  contents: read
+  contents: write
 jobs:
   connect:
     runs-on: ubuntu-latest
@@ -25,36 +25,56 @@ jobs:
           source_db=squidlaw_stage_20261021032706
           target_db=squidlaw_production
           sudo -n -u postgres psql -p 5433 -d "$source_db" -Atqc 'SELECT count(*) FROM public.customer_analysis_jobs' >/dev/null
-          if ! sudo -n -u postgres psql -p 5432 -Atqc "SELECT 1 FROM pg_database WHERE datname='$target_db'" | grep -qx 1; then
-            sudo -n -u postgres createdb -p 5432 "$target_db"
+          if ! sudo -n -u postgres psql -p 5433 -Atqc "SELECT 1 FROM pg_database WHERE datname='$target_db'" | grep -qx 1; then
+            sudo -n -u postgres createdb -p 5433 "$target_db"
           fi
-          table_count=$(sudo -n -u postgres psql -p 5432 -d "$target_db" -Atqc "SELECT count(*) FROM pg_tables WHERE schemaname='public'")
+          table_count=$(sudo -n -u postgres psql -p 5433 -d "$target_db" -Atqc "SELECT count(*) FROM pg_tables WHERE schemaname='public'")
           if [ "$table_count" = 0 ]; then
-            sudo -n -u postgres pg_dump -p 5433 -Fc "$source_db" | sudo -n -u postgres pg_restore -p 5432 --no-owner --no-acl --exit-on-error -d "$target_db"
+            sudo -n -u postgres pg_dump -p 5433 -Fc "$source_db" | sudo -n -u postgres pg_restore -p 5433 --no-owner --no-acl --exit-on-error -d "$target_db"
           fi
-          sudo -n -u postgres psql -p 5432 -d "$target_db" -Atqc 'SELECT count(*) FROM public.customer_analysis_jobs' >/dev/null
+          sudo -n -u postgres psql -p 5433 -d "$target_db" -Atqc 'SELECT count(*) FROM public.customer_analysis_jobs' >/dev/null
           echo PRODUCTION_DB_SCHEMA_READY
           echo PRODUCTION_DB_CONNECTION_PREPARATION_FINISHED
           # The service account uses the local Unix socket with PostgreSQL peer authentication.
-          sudo -n -u postgres psql -p 5432 -d "$target_db" -Atqc 'SELECT current_database()' | grep -qx "$target_db"
+          sudo -n -u postgres psql -p 5433 -d "$target_db" -Atqc 'SELECT current_database()' | grep -qx "$target_db"
           echo PRODUCTION_DB_LOCAL_ACCESS_OK
-          if ! sudo -n -u postgres psql -p 5432 -Atqc "SELECT 1 FROM pg_roles WHERE rolname='root'" | grep -qx 1; then
-            sudo -n -u postgres createuser -p 5432 --login --no-superuser --no-createdb --no-createrole root
+          if ! sudo -n -u postgres psql -p 5433 -Atqc "SELECT 1 FROM pg_roles WHERE rolname='root'" | grep -qx 1; then
+            sudo -n -u postgres createuser -p 5433 --login --no-superuser --no-createdb --no-createrole root
           fi
-          sudo -n -u postgres psql -p 5432 -v ON_ERROR_STOP=1 -c 'GRANT CONNECT ON DATABASE squidlaw_production TO root'
-          sudo -n -u postgres psql -p 5432 -d "$target_db" -v ON_ERROR_STOP=1 -c 'GRANT USAGE ON SCHEMA public TO root'
-          sudo -n -u postgres psql -p 5432 -d "$target_db" -v ON_ERROR_STOP=1 -c 'GRANT SELECT,INSERT,UPDATE,DELETE ON ALL TABLES IN SCHEMA public TO root'
-          sudo -n -u postgres psql -p 5432 -d "$target_db" -v ON_ERROR_STOP=1 -c 'GRANT USAGE,SELECT,UPDATE ON ALL SEQUENCES IN SCHEMA public TO root'
-          sudo -n psql -p 5432 -U root -d "$target_db" -Atqc 'SELECT current_user' | grep -qx root
+          sudo -n -u postgres psql -p 5433 -v ON_ERROR_STOP=1 -c 'GRANT CONNECT ON DATABASE squidlaw_production TO root'
+          sudo -n -u postgres psql -p 5433 -d "$target_db" -v ON_ERROR_STOP=1 -c 'GRANT USAGE ON SCHEMA public TO root'
+          sudo -n -u postgres psql -p 5433 -d "$target_db" -v ON_ERROR_STOP=1 -c 'GRANT SELECT,INSERT,UPDATE,DELETE ON ALL TABLES IN SCHEMA public TO root'
+          sudo -n -u postgres psql -p 5433 -d "$target_db" -v ON_ERROR_STOP=1 -c 'GRANT USAGE,SELECT,UPDATE ON ALL SEQUENCES IN SCHEMA public TO root'
+          sudo -n psql -p 5433 -U root -d "$target_db" -Atqc 'SELECT current_user' | grep -qx root
           sudo -n install -d -m 700 /etc/squidlaw
           sudo -n sed -i '/^SQUID_CUSTOMER_DATABASE_URL=/d' /etc/squidlaw/api.env
-          echo 'SQUID_CUSTOMER_DATABASE_URL=postgresql://root@/squidlaw_production?host=/var/run/postgresql' | sudo -n tee -a /etc/squidlaw/api.env >/dev/null
+          echo 'SQUID_CUSTOMER_DATABASE_URL=postgresql://root@localhost:5433/squidlaw_production?host=/var/run/postgresql' | sudo -n tee -a /etc/squidlaw/api.env >/dev/null
           if ! sudo -n grep -q '^SQUID_CUSTOMER_DATABASE_SSL=' /etc/squidlaw/api.env; then
             echo 'SQUID_CUSTOMER_DATABASE_SSL=disable' | sudo -n tee -a /etc/squidlaw/api.env >/dev/null
           fi
           sudo -n systemctl restart squidlaw-api.service
           sudo -n systemctl is-active --quiet squidlaw-api.service
-          sudo -n psql -p 5432 -U root -d "$target_db" -Atqc 'SELECT count(*) FROM public.customer_analysis_jobs' >/dev/null
+          sudo -n psql -p 5433 -U root -d "$target_db" -Atqc 'SELECT count(*) FROM public.customer_analysis_jobs' >/dev/null
           curl --fail --silent --show-error --max-time 10 http://127.0.0.1:3084/api/customer-auth >/dev/null
           echo DB_CONNECTION_ENV_READY
           REMOTE
+      - name: Record DB verification result
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          JOB_STATUS: ${{ job.status }}
+          COMMIT_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY' > /tmp/db-result.json
+          import json,os,datetime
+          print(json.dumps({'result':os.environ['JOB_STATUS'],'workflow_commit':os.environ['COMMIT_SHA'],'checked_at':datetime.datetime.now(datetime.timezone.utc).isoformat(),'check':'production DB schema, root role, API service and local auth endpoint'},ensure_ascii=False))
+          PY
+          encoded=$(base64 -w0 /tmp/db-result.json)
+          path=docs/GABIA_PRODUCTION_DB_RESULT.json
+          old=$(gh api "repos/${GITHUB_REPOSITORY}/contents/$path" --jq .sha 2>/dev/null || true)
+          if [ -n "$old" ]; then
+            gh api -X PUT "repos/${GITHUB_REPOSITORY}/contents/$path" -f message='Record Gabia DB verification result' -f content="$encoded" -f sha="$old" >/dev/null
+          else
+            gh api -X PUT "repos/${GITHUB_REPOSITORY}/contents/$path" -f message='Record Gabia DB verification result' -f content="$encoded" >/dev/null
+          fi
