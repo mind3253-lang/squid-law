@@ -1,4 +1,4 @@
-import {list,put} from '@vercel/blob';
+import {list,put} from '../lib/customer-object-storage.mjs';
 import {createHash} from 'node:crypto';
 import {categoryDigestEntries} from '../lib/skynet-topic-categories.mjs';
 import {indexSource,readIndex,entriesOf,listIndex} from './skynet-search-index.js';
