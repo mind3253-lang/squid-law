@@ -1,1 +1,1 @@
-{"status": "success", "check": "workerconfig", "commit": "0adce5bac5a2d1bd4682eeffaf0c9c53cc251c18", "timestamp": "2026-10-21T18:25:50.873719+00:00", "diagnostics": []}
+{"status": "success", "check": "workerconfig", "commit": "d15f9d43d121fa3b203d35e17584c2ed96887e67", "timestamp": "2026-10-21T18:27:31.493658+00:00", "diagnostics": ["CHECK_0", "EXIT_0=0", "CHECK_1", "EXIT_1=0"]}
