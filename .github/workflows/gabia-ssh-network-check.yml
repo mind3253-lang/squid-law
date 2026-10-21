@@ -192,6 +192,33 @@ jobs:
           set -euo pipefail
           ssh -T -i "$HOME/.ssh/gabia.pem" -o BatchMode=yes -o StrictHostKeyChecking=accept-new ubuntu@1.201.111.35 'cd /opt/squidlaw/app && bash deploy/audit-db-config-keys.sh'
 
+      - name: Publish machine-readable audit status to repository
+        if: ${{ always() && github.event_name == 'push' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RESULT: ${{ job.status }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json,os,datetime,subprocess,base64
+          status={'schema':1,'source_commit':os.environ['GITHUB_SHA'],'run_id':os.environ['GITHUB_RUN_ID'],'run_url':'https://github.com/'+os.environ['REPO']+'/actions/runs/'+os.environ['GITHUB_RUN_ID'],'result':os.environ['RESULT'],'timestamp':datetime.datetime.now(datetime.timezone.utc).isoformat(),'operation':'source-sync-and-readonly-audit','production_deployed':False,'database_cutover':False}
+          repo=os.environ['REPO']; url=f'https://api.github.com/repos/{repo}/contents/docs/GABIA_AUTOMATION_STATUS.json'
+          headers=['-H','Accept: application/vnd.github+json','-H','Authorization: Bearer '+os.environ['GH_TOKEN'],'-H','X-GitHub-Api-Version: 2022-11-28']
+          for attempt in range(3):
+           existing=subprocess.run(['curl','-fsS',*headers,url],capture_output=True,text=True)
+           old=json.loads(existing.stdout) if existing.returncode==0 else {}
+           old_status=json.loads(base64.b64decode(old['content'])) if old.get('content') else {}
+           if int(old_status.get('run_id',0))>int(status['run_id']):
+            print('NEWER_RUN_ALREADY_RECORDED');break
+           body={'message':'chore: record Gabia automatic audit status [skip ci]','content':base64.b64encode((json.dumps(status,ensure_ascii=False,indent=2)+'\n').encode()).decode()}
+           if old.get('sha'):body['sha']=old['sha']
+           result=subprocess.run(['curl','-fsS','-X','PUT',*headers,'-H','Content-Type: application/json','--data-binary','@-',url],input=json.dumps(body),capture_output=True,text=True)
+           if result.returncode==0:
+            print('AUDIT_STATUS_PUBLISHED');break
+           if attempt==2:raise SystemExit('AUDIT_STATUS_PUBLISH_FAILED')
+          PY
+
       - name: Record automatic audit result in GitHub Actions summary
         if: ${{ always() && github.event_name == 'push' }}
         run: |
