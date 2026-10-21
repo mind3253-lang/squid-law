@@ -36,7 +36,7 @@ jobs:
         run: |
           set -euo pipefail
           echo 'GABIA_RUNTIME_DEPENDENCY_AUDIT_BEGIN'
-          grep -nE 'VERCEL_URL|VERCEL_PROJECT_PRODUCTION_URL|NEON_DATABASE_URL|@vercel/blob|SQUIDLAW_OBJECT_BACKEND' server/gabia-api-compat.mjs server/gabia-static-web.mjs worker/continuous-worker.mjs lib/customer-object-storage.mjs lib/customer-worker-dispatch.mjs || true
+          grep -nE 'SQUIDLAW_OBJECT_BACKEND|DATABASE_URL|SQUIDLAW_OBJECT_ROOT' server/gabia-api-compat.mjs server/gabia-static-web.mjs worker/continuous-worker.mjs lib/customer-object-storage.mjs lib/customer-worker-dispatch.mjs || true
           echo 'GABIA_RUNTIME_DEPENDENCY_AUDIT_END'
       - name: Validate public DNS and TLS without changing records
         run: |
