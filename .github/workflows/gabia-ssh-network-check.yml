@@ -72,8 +72,9 @@ jobs:
           test -d "$app/.git"
           if [ "$action" = audit ]; then
             sudo -n git -c safe.directory="$app" -C "$app" fetch origin main
-            sudo -n git -c safe.directory="$app" -C "$app" merge --ff-only origin/main
-            echo 'AUTO_AUDIT_SOURCE_SYNC_OK_NO_RUNTIME_CHANGES'
+            sudo -n git -c safe.directory="$app" -C "$app" rev-parse --short HEAD
+            sudo -n git -c safe.directory="$app" -C "$app" rev-parse --short origin/main
+            echo 'AUTO_AUDIT_READ_ONLY_NO_MERGE_NO_RUNTIME_CHANGES'
           elif [ "$action" = prepare-migration ]; then
             sudo -n git -c safe.directory="$app" -C "$app" diff --quiet
             sudo -n git -c safe.directory="$app" -C "$app" diff --cached --quiet
