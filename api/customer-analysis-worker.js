@@ -100,7 +100,12 @@ export default async function handler(req,res){
   heartbeat.unref?.();
  const prefix='squidlaw/cases/'+job.customerKey+'/'+job.caseId+'/';
  const registry=await load('squidlaw/cases/'+job.customerKey+'/registry/'+job.caseId+'.json');
- if(!registry||registry.id!==job.caseId)throw Error('CASE_NOT_FOUND');
+ if(!registry||registry.id!==job.caseId){
+   const {storageHealth}=await import('../lib/customer-object-storage.mjs');
+   const health=await storageHealth();
+   console.error('CASE_REGISTRY_LOOKUP_FAILURE',JSON.stringify({storageReady:health.ok,storageCode:health.code||null}));
+   throw Error('CASE_NOT_FOUND');
+  }
  // Never mark complete before OCR, image evidence, cross-document reasoning and independent verification have passed.
  const blob=(await import('../lib/customer-object-storage.mjs'));let cursor,paths=[];do{const listing=await blob.list({prefix:prefix+'docs/',limit:1000,...(cursor?{cursor}:{})});paths.push(...listing.blobs.filter(b=>b.pathname.endsWith('.json')).map(b=>b.pathname));cursor=listing.hasMore?listing.cursor:null}while(cursor);
  const meta=[];for(let i=0;i<paths.length;i+=24)meta.push(...await Promise.all(paths.slice(i,i+24).map(p=>load(p))));
