@@ -28,6 +28,7 @@ on:
           - inventory-blob
           - neon-preflight
           - install-postgres
+          - install-postgres18
           - audit-db-config
           - inspect-neon
 permissions:
@@ -117,6 +118,10 @@ jobs:
             sudo -n git -c safe.directory="$app" -C "$app" fetch origin main
             sudo -n git -c safe.directory="$app" -C "$app" merge --ff-only origin/main
             echo 'DB_CONFIG_AUDIT_READY'
+          elif [ "$action" = install-postgres18 ]; then
+            sudo -n git -c safe.directory="$app" -C "$app" fetch origin main
+            sudo -n git -c safe.directory="$app" -C "$app" merge --ff-only origin/main
+            echo 'POSTGRES_18_INSTALL_CODE_READY'
           elif [ "$action" = install-postgres ]; then
             sudo -n git -c safe.directory="$app" -C "$app" fetch origin main
             sudo -n git -c safe.directory="$app" -C "$app" merge --ff-only origin/main
@@ -190,6 +195,12 @@ jobs:
         run: |
           set -euo pipefail
           ssh -T -i "$HOME/.ssh/gabia.pem" -o BatchMode=yes -o StrictHostKeyChecking=accept-new ubuntu@1.201.111.35 'cd /opt/squidlaw/app && sudo -n bash deploy/install-gabia-postgres.sh'
+
+      - name: Install PostgreSQL 18 binaries side by side
+        if: ${{ inputs.action == 'install-postgres18' }}
+        run: |
+          set -euo pipefail
+          ssh -T -i "$HOME/.ssh/gabia.pem" -o BatchMode=yes -o StrictHostKeyChecking=accept-new ubuntu@1.201.111.35 'cd /opt/squidlaw/app && sudo -n bash deploy/install-postgres18-side-by-side.sh'
 
       - name: Audit database configuration keys without showing secrets
         if: ${{ inputs.action == 'audit-db-config' }}
