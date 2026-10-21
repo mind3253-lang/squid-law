@@ -360,9 +360,20 @@ export default async function handler(req,res){
    return res.status(200).json({status:'retry',stage:'legal_reasoning_checkpoint',task:nextTask,cursor:nextCursor});
   }
   const windows=await Promise.all(paths.map(p=>load(p)));
-  // Each task restarts its cursor; build a report per task and keep all outputs as unverified.
-  const reports=authorized.requestedTasks.map(t=>buildLegalCustomerReport({request:authorized,windows:windows.filter(w=>w.task===t),sourceIndex:sourceIndex.sources}));
-  const report={...reports[0],modelUsage:aggregateModelUsage(windows.map(w=>w.modelUsage).filter(Boolean)),clientRole:authorized.clientRole,findings:reports.flatMap(r=>r.findings),uncertainties:reports.flatMap(r=>r.uncertainties),issues:[...new Set(reports.flatMap(r=>r.issues))],sourceCoverage:{tasks:reports.length,processedUnits:units.length},sourceReviewCoverage:reports.find(r=>r.sourceReviewCoverage?.task==='claims_and_rebuttals')?.sourceReviewCoverage||{complete:false,reviewedUnits:0,totalUnits:units.length},status:'draft_pending_verification',notForCourtSubmission:true,legalConclusionAvailable:false,independentSemanticAuditPassed:false};
+  // One source pass, with context carried between windows. Synthesize by issue,
+  // not by page or by six separate full-document task repetitions.
+  const initial=buildLegalCustomerReport({request:authorized,windows,sourceIndex:sourceIndex.sources});
+  const issueGroups=new Map();
+  for(const finding of initial.findings){
+   const key=String(finding.issueKey||finding.claim||'unclassified').trim().slice(0,180);
+   if(!issueGroups.has(key))issueGroups.set(key,[]);
+   issueGroups.get(key).push(finding);
+  }
+  const findings=[...issueGroups.values()].flat();
+  const report={...initial,modelUsage:aggregateModelUsage(windows.map(w=>w.modelUsage).filter(Boolean)),
+   clientRole:authorized.clientRole,findings,sourceCoverage:{tasks:1,processedUnits:units.length},
+   status:'draft_pending_verification',notForCourtSubmission:true,legalConclusionAvailable:false,
+   independentSemanticAuditPassed:false};
   const reportPath=root+'legal-customer-report.json';
   await put(reportPath,JSON.stringify(report),{access:'private',allowOverwrite:true,addRandomSuffix:false,contentType:'application/json'});
   await advanceJob(job,'legal_reasoning_independent_review_pending',{...previous,legalTaskIndex:nextTask,legalCursor:0,legalWindowPaths:paths,legalCustomerReport:reportPath},'retry');
