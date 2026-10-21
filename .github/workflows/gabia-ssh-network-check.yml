@@ -229,6 +229,11 @@ jobs:
           printf '%s\n' "$NEON_URI" | ssh -T -i "$HOME/.ssh/gabia.pem" -o BatchMode=yes -o StrictHostKeyChecking=accept-new ubuntu@1.201.111.35 'IFS= read -r uri; export NEON_DATABASE_URL="$uri"; /usr/lib/postgresql/18/bin/psql "$NEON_DATABASE_URL" -X -v ON_ERROR_STOP=1 -At -c "SELECT '\''NEON_READ_ONLY_AUTH_OK:'\''||current_database()||'\'':'\''||current_user;"'
           echo 'NEON_CREDENTIALS_CHECK_COMPLETE_NO_DATA_MODIFIED'
 
+      - name: Prepare private backup directory
+        if: ${{ github.event_name == 'push' }}
+        run: |
+          ssh -T -i "$HOME/.ssh/gabia.pem" -o BatchMode=yes -o StrictHostKeyChecking=accept-new ubuntu@1.201.111.35 'sudo -n install -d -o ubuntu -g ubuntu -m 0700 /var/lib/squidlaw/db-migration'
+
       - name: Inspect Neon source schema read-only
         if: ${{ inputs.action == 'inspect-neon' }}
         env:
