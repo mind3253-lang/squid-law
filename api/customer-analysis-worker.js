@@ -45,8 +45,7 @@ import {analyzeLegalWindow} from '../lib/gpt-legal-orchestrator.mjs';
 import {analyzePdfVisualEvidence} from '../lib/openai-vision-provider.mjs';
 import {splitPdfVisualWindow,splitPdfVisualWindows,splitPdfVisualPageSet,mergeVisualWindows} from '../lib/pdf-visual-windows.mjs';
 import {splitRangeVisualWindows,splitRangeVisualPageSet} from '../lib/customer-pdf-visual-range.mjs';
-import {auditVisualProviderCoverage,compareIndependentVisualPass} from '../lib/visual-review-audit.mjs';
-import {buildSemanticReviewRequest,validateSemanticReview,invokeSemanticReview} from '../lib/independent-semantic-review.mjs';
+import {auditVisualProviderCoverage} from '../lib/visual-review-audit.mjs';
 import {buildLegalCustomerReport} from '../lib/legal-customer-report.mjs';
 import {reconcileAnalysisCompletion} from '../lib/analysis-completion-reconciliation.mjs';
 import {auditVerifiedTextPages,auditDocumentBoundaryEvidence} from '../lib/source-completion-audit.mjs';
@@ -475,7 +474,7 @@ export default async function handler(req,res){
   await advanceJob(job,'analysis_completed',{...previous,semanticAuditPassed:true,completionReconciliation:finalPath,legalCustomerReport:finalReportPath,gates:completion.gates},'completed');
   return res.status(200).json({status:'completed',report:finalReportPath});
  }
- if(index===docs.length&&previous.phase==='verify'&&previous.textReviewManifest&&!previous.visualSourceCoveragePassed){
+ if(index===docs.length&&previous.phase==='verify'&&previous.textReviewManifest&&(!previous.visualSourceCoveragePassed||!previous.visualReview?.verified)){
   if(!process.env.OPENAI_API_KEY){
    await advanceJob(job,'visual_api_key_missing',previous,'blocked','OPENAI_API_KEY_MISSING');
    return res.status(200).json({status:'blocked',reason:'OPENAI_API_KEY_MISSING'});
@@ -826,6 +825,17 @@ export default async function handler(req,res){
  await advanceJob(job,'text_review_checkpoint',checkpoint,'retry');
  return res.status(200).json({status:'retry',processedDocuments:checkpoint.verifiedTextDocuments,processedPages:checkpoint.nextPage,totalDocuments:docs.length});
 
- }catch(e){const diagnostic=String(e?.message||e||'UNKNOWN').slice(0,160);const safeCode=diagnostic.startsWith('GPT_LEGAL_SOURCE_REVIEW_FAILED:')?'SOURCE_READ_REVIEW_FAILED':/^[A-Z][A-Z0-9_]{2,100}$/.test(diagnostic)?diagnostic:'WORKER_ERROR';if(job){try{await advanceJob(job,'error',{...(job.checkpoint||{}),errorAttempts:Number(job.checkpoint?.errorAttempts||0)+1,lastFailedStage:job.stage||null,lastFailureCode:safeCode,lastFailureAt:new Date().toISOString(),message:diagnostic,...(safeCode==='VISION_PDF_INVALID_PAGE'?{visionPageDiagnostic:visionFailureDiagnostic(e)}:{})},visionFailureDisposition(safeCode,{attempts:Number(job.attempts||0),maxAttempts:Number(job.maxAttempts||3)}).status,safeCode)}catch{}}return res.status(503).json({error:safeCode,status:visionFailureDisposition(safeCode,{attempts:Number(job?.attempts||0),maxAttempts:Number(job?.maxAttempts||3)}).status,retryable:!!job&&visionFailureDisposition(safeCode,{attempts:Number(job.attempts||0),maxAttempts:Number(job.maxAttempts||3)}).retryable})}
+ }catch(e){
+  const diagnostic=String(e?.message||e||'UNKNOWN').slice(0,160);
+  const safeCode=diagnostic.startsWith('GPT_LEGAL_SOURCE_REVIEW_FAILED:')?'SOURCE_READ_REVIEW_FAILED':/^[A-Z][A-Z0-9_]{2,100}$/.test(diagnostic)?diagnostic:'WORKER_ERROR';
+  // A failed AI/provider operation must never become a 250ms retry storm.
+  // Preserve the checkpoint for explicit manual resume.
+  if(job){
+   try{
+    await advanceJob(job,'error',{...(job.checkpoint||{}),errorAttempts:Number(job.checkpoint?.errorAttempts||0)+1,lastFailedStage:job.stage||null,lastFailureCode:safeCode,lastFailureAt:new Date().toISOString(),message:diagnostic,...(safeCode==='VISION_PDF_INVALID_PAGE'?{visionPageDiagnostic:visionFailureDiagnostic(e)}:{})},'failed',safeCode);
+   }catch{}
+  }
+  return res.status(503).json({error:safeCode,status:'failed',retryable:false});
+ }
  finally{if(heartbeat)clearInterval(heartbeat)}
 }
