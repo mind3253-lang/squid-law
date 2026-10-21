@@ -27,6 +27,18 @@ jobs:
           echo 'DIAG_WORKER_UNIT'; sudo -n systemctl list-unit-files squidlaw-worker.service --no-pager || true
           echo 'DIAG_WORKER_STATUS'; sudo -n systemctl status squidlaw-worker.service --no-pager -l 2>&1 | tail -35 || true
           echo 'DIAG_WORKER_JOURNAL'; sudo -n journalctl -u squidlaw-worker.service -n 35 --no-pager -o cat 2>&1 | sed -E 's#(postgres(ql)?://)[^[:space:]]+#\1[REDACTED]#g; s#(sk-[A-Za-z0-9_-]+)#[REDACTED]#g' || true
+          # The worker must use the same single-owner production database.
+          # Do not change ownership until the Vercel-side owner is disabled.
+          if [ "${GABIA_WORKER_CUTOVER_APPROVED:-}" = "YES" ]; then
+            echo CUTOVER_REQUESTED
+            sudo -n systemctl stop squidlaw-worker.service || true
+            sudo -n sed -i '/^SQUIDLAW_CUSTOMER_WORKER_OWNER=/d; /^SQUIDLAW_CONTINUOUS_WORKER=/d; /^SQUIDLAW_WORKER_RUN_APPROVED=/d; /^SQUIDLAW_WORKER_CUTOVER_APPROVED=/d' /etc/squidlaw/api.env
+            printf '%s\n' SQUIDLAW_CUSTOMER_WORKER_OWNER=gabia SQUIDLAW_CONTINUOUS_WORKER=1 SQUIDLAW_WORKER_RUN_APPROVED=YES SQUIDLAW_WORKER_CUTOVER_APPROVED=YES | sudo -n tee -a /etc/squidlaw/api.env >/dev/null
+            sudo -n systemctl daemon-reload
+            sudo -n systemctl reset-failed squidlaw-worker.service
+            sudo -n systemctl restart squidlaw-api.service
+            sudo -n systemctl start squidlaw-worker.service
+          fi
           sudo -n systemctl is-active --quiet squidlaw-api.service
           test "$(sudo -n psql -p 5433 -U root -d squidlaw_production -Atqc 'SELECT current_database()')" = squidlaw_production
           # A healthy API does not establish that the background analysis worker is running.
