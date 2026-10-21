@@ -13,7 +13,7 @@ export function authenticatedUser(req){return session(req)?.id||null}
 async function load(id){const x=await get(path(id),{access:'private'}).catch(()=>null);if(!x||x.statusCode!==200)return null;let bytes=0,parts=[];for await(const chunk of x.stream){bytes+=chunk.length;if(bytes>10000)throw Error('record oversized');parts.push(Buffer.from(chunk))}return JSON.parse(Buffer.concat(parts).toString('utf8'))}
 export default async function handler(req,res){
 res.setHeader('Cache-Control','no-store');res.setHeader('X-Content-Type-Options','nosniff');
-if(!process.env.SQUID_AUTH_SECRET||(process.env.SQUIDLAW_OBJECT_BACKEND!=='gabia'&&!process.env.BLOB_READ_WRITE_TOKEN))return fail(res,503,'회원 서비스 준비 중');
+if(!process.env.SQUID_AUTH_SECRET||(process.env.SQUIDLAW_OBJECT_BACKEND&&process.env.SQUIDLAW_OBJECT_BACKEND!=='gabia'))return fail(res,503,'회원 서비스 준비 중');
 if(req.method==='GET'){const id=authenticatedUser(req);if(!id)return res.status(200).json({authenticated:false});const u=await load(id).catch(()=>null);return res.status(200).json({authenticated:true,id,name:u?.name||'',gender:u?.gender||'',birthyear:u?.birthyear||'',phone:u?.phone||'',membership:u?.membership||{type:'general',status:'active'}})}
 if(req.method!=='POST')return fail(res,405,'허용되지 않은 요청');
 if(Number(req.headers['content-length']||0)>5000)return fail(res,413,'요청이 너무 큽니다');
