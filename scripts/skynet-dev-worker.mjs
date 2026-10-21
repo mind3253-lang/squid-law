@@ -68,6 +68,13 @@ async function run() {
   await initializeDevQueue();
   const task = await claimDevTask(owner);
   if (!task) { console.log('SKYNET_DEV_QUEUE_EMPTY'); return; }
+  const heartbeat = setInterval(async () => {
+    try {
+      const result = await pool.query("UPDATE skynet_dev_tasks SET lease_until=now()+interval '180 seconds',updated_at=now() WHERE id=$1 AND lease_owner=$2 AND stage='analyzing' RETURNING id",[task.id,owner]);
+      if (!result.rowCount) clearInterval(heartbeat);
+    } catch (error) { console.error('SKYNET_DEV_LEASE_HEARTBEAT_FAILED',String(error.message)); }
+  },30000);
+  heartbeat.unref();
   try {
     const proposal = await plan(task);
     const changes = process.env.SKYNET_DEV_CREATE_DRAFT_PR === 'YES' ? await draftChanges(task,proposal) : null;
@@ -80,6 +87,8 @@ async function run() {
     await updateDevTask(task.id,owner,'failed',{error:String(err.message).slice(0,500)});
     console.error('SKYNET_DEV_TASK_FAILED',task.id,String(err.message));
     process.exitCode=1;
+  } finally {
+    clearInterval(heartbeat);
   }
 }
 try { await run(); } finally { await pool.end(); }
