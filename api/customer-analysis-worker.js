@@ -425,7 +425,11 @@ export default async function handler(req,res){
   }
   const textAudit=auditVerifiedTextPages({documents:docs,verifiedBatches});
   const verifiedBoundaries=[];
-  for(const doc of docs)verifiedBoundaries.push(await load(root+'boundary-audit/'+doc.id+'-verified.json'));
+  // Read independent document-boundary receipts in bounded parallel groups.
+  for(let i=0;i<docs.length;i+=12){
+   const group=docs.slice(i,i+12);
+   verifiedBoundaries.push(...await Promise.all(group.map(doc=>load(root+'boundary-audit/'+doc.id+'-verified.json'))));
+  }
   const boundaryAudit=auditDocumentBoundaryEvidence({documents:docs,aggregate:{documentBoundaryCandidates:verifiedBoundaries}});
   const completion=reconcileAnalysisCompletion({sourceVersion:job.documentVersion,documents:docs,sourceIndex:indexData,aggregate,report,visualReview:previous.visualReview,semanticAuditPassed:true,visualAudits,ocrVerified:textAudit.verified,boundariesVerified:boundaryAudit.verified});
   completion.failures.push(...textAudit.failures.slice(0,50),...boundaryAudit.failures.slice(0,50));
