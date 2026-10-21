@@ -1,5 +1,5 @@
 import {objectBackend} from '../lib/customer-object-storage.mjs';
-const storageReady=()=>objectBackend()==='gabia'||!!process.env.BLOB_READ_WRITE_TOKEN;
+const storageReady=()=>objectBackend()==='gabia';
 import {get,put} from '../lib/customer-object-storage.mjs';
 const path='skynet/settings/ojingeo-profile.json';
 export const defaultProfile={name:'오징어',style:'친근한 한국어 반말, 결론 우선, 고객센터 말투 금지, 과도한 경우의 수 나열 금지',preferences:'법률 문서는 핵심 주장만 본문에 두고 증거 위치를 각주로 연결. 확인되지 않은 사실과 판례를 만들지 않음. 이미 알려준 작업 원칙을 반복 질문하지 않음.'};
