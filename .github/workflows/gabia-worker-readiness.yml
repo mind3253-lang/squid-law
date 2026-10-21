@@ -31,7 +31,7 @@ jobs:
           echo 'DIAG_WORKER_JOURNAL'; sudo -n journalctl -u squidlaw-worker.service -n 35 --no-pager -o cat 2>&1 | sed -E 's#(postgres(ql)?://)[^[:space:]]+#\1[REDACTED]#g; s#(sk-[A-Za-z0-9_-]+)#[REDACTED]#g' || true
           # Approved cutover is handled by the deployment owner.
           # The worker must use the same single-owner production database.
-          # Do not change ownership until the Vercel-side owner is disabled.
+          # Keep the customer worker owner pinned to Gabia.
           if [ "${GABIA_WORKER_CUTOVER_APPROVED:-}" = "YES" ]; then
             echo CUTOVER_REQUESTED
             sudo -n systemctl stop squidlaw-worker.service || true
@@ -42,7 +42,7 @@ jobs:
             sudo -n systemctl restart squidlaw-api.service
             sudo -n systemctl start squidlaw-worker.service
           fi
-          echo 'DIAG_ENV_KEYS'; sudo -n awk -F= '/^(SQUIDLAW_CUSTOMER_WORKER_OWNER|SQUIDLAW_CONTINUOUS_WORKER|SQUIDLAW_WORKER_RUN_APPROVED|SQUIDLAW_WORKER_CUTOVER_APPROVED|CRON_SECRET|BLOB_READ_WRITE_TOKEN|DATABASE_URL|SQUID_CUSTOMER_DATABASE_URL)=/{print $1 "=" (length($2)>0?"SET":"EMPTY")}' /etc/squidlaw/api.env || true
+          echo 'DIAG_ENV_KEYS'; sudo -n awk -F= '/^(SQUIDLAW_CUSTOMER_WORKER_OWNER|SQUIDLAW_CONTINUOUS_WORKER|SQUIDLAW_WORKER_RUN_APPROVED|SQUIDLAW_WORKER_CUTOVER_APPROVED|CRON_SECRET|SQUIDLAW_OBJECT_ROOT|DATABASE_URL|SQUID_CUSTOMER_DATABASE_URL)=/{print $1 "=" (length($2)>0?"SET":"EMPTY")}' /etc/squidlaw/api.env || true
           echo 'DIAG_POST_CUTOVER_API'; sudo -n systemctl is-active squidlaw-api.service || true
           echo 'DIAG_POST_CUTOVER_WORKER'; sudo -n systemctl is-active squidlaw-worker.service || true
           echo 'DIAG_WORKER_EXEC'; sudo -n systemctl show squidlaw-worker.service -p ExecMainStatus -p Result -p ActiveState -p SubState --no-pager || true
