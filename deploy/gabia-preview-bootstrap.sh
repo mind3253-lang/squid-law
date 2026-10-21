@@ -49,3 +49,11 @@ sudo -n systemctl enable --now nginx
 sudo -n systemctl reload nginx
 curl -fsS -o /dev/null -w 'PUBLIC_PREVIEW_LOCAL_HTTP:%{http_code}\\n' http://127.0.0.1:8088/
 echo PUBLIC_PREVIEW_BOOTSTRAP_OK
+echo E2E_SERVER_SMOKE_BEGIN
+for path in / /index.html /admin/skynet.html; do
+ status=$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:8088$path")
+ echo "PREVIEW_PATH:$path:$status"
+done
+api_status=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3084/health || true)
+echo "API_HEALTH_HTTP:$api_status"
+echo E2E_SERVER_SMOKE_END
