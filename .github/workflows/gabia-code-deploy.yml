@@ -56,9 +56,11 @@ jobs:
             echo DEPLOY_ROLLED_BACK
             exit 1
           fi
-          echo DEPLOY_COMMIT=${GITHUB_SHA:-unknown}
+          test -f /opt/squidlaw/app/docs/GABIA_MAINTENANCE_PROBE.txt
+          grep -qx 'GABIA_DIRECT_MAINTENANCE_PROBE_V1' /opt/squidlaw/app/docs/GABIA_MAINTENANCE_PROBE.txt
+          echo DEPLOY_PROBE_VERIFIED
           REMOTE
-          grep -E '^DEPLOY_(SERVICES_ACTIVE|HEALTH_FAILED|ROLLED_BACK)' /tmp/deploy.log
+          grep -E '^DEPLOY_(SERVICES_ACTIVE|HEALTH_FAILED|ROLLED_BACK|PROBE_VERIFIED)' /tmp/deploy.log
       - name: Record deployment result
         if: always()
         env:
