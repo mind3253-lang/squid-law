@@ -70,7 +70,7 @@ jobs:
           python3 - <<'PY'
           import os,json,re,datetime
           lines=open('/tmp/deploy.log').read().splitlines() if os.path.isfile('/tmp/deploy.log') else []
-          safe=[x for x in lines if re.fullmatch(r'DEPLOY_(SERVICES_ACTIVE|HEALTH_FAILED|ROLLED_BACK)',x)]
+          safe=[x for x in lines if re.fullmatch(r'DEPLOY_(SERVICES_ACTIVE|HEALTH_FAILED|ROLLED_BACK|PROBE_VERIFIED)',x)]
           with open('/tmp/deploy-result.json','w') as f:
             json.dump({'status':os.environ['JOB_STATUS'],'commit':os.environ['GITHUB_SHA'],'timestamp':datetime.datetime.now(datetime.timezone.utc).isoformat(),'checks':safe},f)
           PY
