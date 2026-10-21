@@ -54,6 +54,7 @@ jobs:
           try: lines=open('/tmp/gabia-admin-check.log').read().splitlines()
           except FileNotFoundError: lines=[]
           d['diagnostics']=[x[:300] for x in lines if re.match(r'^(CHECK_|EXIT_|active$|inactive$|failed$|[A-Z][A-Z0-9_]*=(SET|EMPTY)$|FILE:|MISSING$|EnvironmentFile=|ExecStart=|User=|WorkingDirectory=)',x)][:70]
+          d['key_names']=[x for x in lines if re.fullmatch(r'[A-Z][A-Z0-9_]{2,80}',x) and not any(y in x for y in ('TOKEN','SECRET','PASSWORD','KEY'))][:50]
           open(p,'w').write(json.dumps(d))
           PY
           encoded=$(base64 -w0 /tmp/gabia-admin-result.json)
