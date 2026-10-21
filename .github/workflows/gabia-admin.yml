@@ -34,13 +34,13 @@ jobs:
       - name: Run allowlisted Gabia check
         env:
           GABIA_SSH_KEY_FILE: /home/runner/.ssh/gabia.pem
-        run: node scripts/gabia-admin.mjs "${{ inputs.check || 'worker' }}"
+        run: node scripts/gabia-admin.mjs "${{ github.event_name == 'push' && 'worker' || inputs.check || 'status' }}"
       - name: Publish redacted diagnostics to repository
         if: always()
         env:
           GH_TOKEN: ${{ github.token }}
           JOB_STATUS: ${{ job.status }}
-          CHECK: ${{ inputs.check || 'status' }}
+          CHECK: ${{ github.event_name == 'push' && 'worker' || inputs.check || 'status' }}
         run: |
           python3 - <<'PY' > /tmp/gabia-admin-result.json
           import json,os,datetime
