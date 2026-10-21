@@ -8,6 +8,15 @@ const commands = {
   api: ['systemctl status squidlaw-api.service --no-pager -l','journalctl -u squidlaw-api.service -n 50 --no-pager -o cat'],
   workerconfig: ["systemctl show squidlaw-worker.service -p ActiveState -p Result -p ExecMainStatus --no-pager", "grep -q '^OPENAI_API_KEY=' /etc/squidlaw/openai.env && echo OPENAI_API_KEY_PRESENT", "grep -q '^DATABASE_URL=' /etc/squidlaw/worker.env && echo DATABASE_URL_PRESENT", "grep -q '^CRON_SECRET=' /etc/squidlaw/worker.env && echo CRON_SECRET_PRESENT", "grep -q '^BLOB_READ_WRITE_TOKEN=' /etc/squidlaw/worker.env && echo BLOB_READ_WRITE_TOKEN_PRESENT"],
   inventory: ["grep -q '^SQUID_CUSTOMER_DATABASE_URL=' /etc/squidlaw/api.env && echo API_DB_PRESENT", "grep -q '^DATABASE_URL=' /etc/squidlaw/api.env && echo API_DATABASE_URL_PRESENT", "grep -q '^CRON_SECRET=' /etc/squidlaw/api.env && echo API_CRON_PRESENT", "grep -q '^BLOB_READ_WRITE_TOKEN=' /etc/squidlaw/api.env && echo API_BLOB_PRESENT", "grep -q '^CRON_SECRET=' /etc/squidlaw/openai.env && echo OPENAI_CRON_PRESENT", "grep -q '^BLOB_READ_WRITE_TOKEN=' /etc/squidlaw/openai.env && echo OPENAI_BLOB_PRESENT"],
+  acceptance: [
+    "psql -p 5433 -U root -d squidlaw_production -v ON_ERROR_STOP=1 -Atqc 'BEGIN; CREATE TEMP TABLE squidlaw_smoke_test (id integer); INSERT INTO squidlaw_smoke_test VALUES (1); SELECT CASE WHEN COUNT(*)=1 THEN 1 ELSE 0 END FROM squidlaw_smoke_test; ROLLBACK;'",
+    "sh -c 'curl -sS -o /dev/null -w HTTP_LOCAL_%{http_code} --max-time 12 http://127.0.0.1:3000/ || true'",
+    "sh -c 'curl -sS -o /dev/null -w HTTP_PUBLIC_%{http_code} --max-time 15 https://squidlaw.co.kr/ || true'",
+    "sh -c 'find /opt/squidlaw/app/api -maxdepth 3 -type f -name \"*.js\" 2>/dev/null | head -15'",
+    "sh -c 'find /opt/squidlaw/app -maxdepth 3 -type f \\( -iname \"*upload*\" -o -iname \"*analysis*\" -o -iname \"*auth*\" \\) -not -path \"*/node_modules/*\" | head -25'",
+    "systemctl is-active squidlaw-api.service",
+    "systemctl is-active squidlaw-worker.service"
+  ],
   maintenance: ["install -d -m 755 /opt/squidlaw/maintenance", "sh -c 'echo GABIA_REMOTE_MAINTENANCE_OK > /opt/squidlaw/maintenance/direct-write-test.txt'", "grep -qx GABIA_REMOTE_MAINTENANCE_OK /opt/squidlaw/maintenance/direct-write-test.txt && echo MAINTENANCE_WRITE_VERIFIED", "rm -f /opt/squidlaw/maintenance/direct-write-test.txt", "test ! -e /opt/squidlaw/maintenance/direct-write-test.txt && echo MAINTENANCE_DELETE_VERIFIED"],
   terminal: ["test -f /etc/profile.d/99-squidlaw-terminal-case.sh", "grep -q 'stty -iuclc -olcuc -xcase' /etc/profile.d/99-squidlaw-terminal-case.sh", "systemctl is-active squidlaw-api.service", "systemctl is-active squidlaw-worker.service"],
   config: ["awk -F= '/^(SQUIDLAW_CUSTOMER_WORKER_OWNER|SQUIDLAW_CONTINUOUS_WORKER|SQUIDLAW_WORKER_RUN_APPROVED|SQUIDLAW_WORKER_CUTOVER_APPROVED|CRON_SECRET|BLOB_READ_WRITE_TOKEN|DATABASE_URL|SQUID_CUSTOMER_DATABASE_URL|OPENAI_API_KEY)=/{print $1 \"=\" (length($2)>0?\"SET\":\"EMPTY\")}' /etc/squidlaw/api.env",'systemctl cat squidlaw-worker.service | grep -E "^(EnvironmentFile|ExecStart|User|WorkingDirectory)="']
