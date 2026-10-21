@@ -8,7 +8,7 @@ export default async function handler(req,res){
  const auth=guard(req);if(auth.error)return respond(res,auth.status,{error:auth.error});
  const id=String(req.query?.caseId||'');
  if(!/^SL-[A-Za-z0-9-]{5,40}$/.test(id))return respond(res,400,{error:'사건번호 오류'});
- if(process.env.SQUIDLAW_OBJECT_BACKEND!=='gabia'&&!process.env.BLOB_READ_WRITE_TOKEN)return respond(res,503,{error:'저장소 연결 오류'});
+ if(process.env.SQUIDLAW_OBJECT_BACKEND&&process.env.SQUIDLAW_OBJECT_BACKEND!=='gabia')return respond(res,503,{error:'저장소 연결 오류'});
  const registry=casePrefix(auth.user,'_index').replace('/_index/','/')+'registry/'+id+'.json';
  const prefix=casePrefix(auth.user,id);
  try{
