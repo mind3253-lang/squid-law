@@ -1,5 +1,5 @@
 import {objectBackend} from '../lib/customer-object-storage.mjs';
-const storageReady=()=>objectBackend()==='gabia'||!!process.env.BLOB_READ_WRITE_TOKEN;
+const storageReady=()=>objectBackend()==='gabia';
 import {indexSource} from './skynet-search-index.js';
 import {deferWork} from '../lib/gabia-deferred-work.mjs';
 const waitUntil=deferWork;
