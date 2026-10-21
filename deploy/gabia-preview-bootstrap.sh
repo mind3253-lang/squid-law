@@ -118,3 +118,7 @@ for service in squidlaw-web.service squidlaw-api.service nginx.service; do
 done
 echo GABIA_SERVICE_HEALTH_END
 echo FOUR_WORKSTREAM_READINESS_END
+
+echo PUBLIC_PORT_80_DIAGNOSTICS_BEGIN
+sudo -n nginx -T 2>&1 | grep -E 'listen |server_name |conf.d/|sites-enabled/' | head -75 || true
+echo PUBLIC_PORT_80_DIAGNOSTICS_END
