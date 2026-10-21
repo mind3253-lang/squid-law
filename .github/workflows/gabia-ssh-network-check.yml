@@ -199,6 +199,8 @@ jobs:
           sudo -n bash -c 'set -a; source /etc/squidlaw/worker.env; set +a; cd /opt/squidlaw/app; node --input-type=module -e "import {workerPreflight} from \"./lib/gabia-worker-preflight.mjs\"; console.log(JSON.stringify(workerPreflight()))"' || true
           echo 'WORKER_SERVICE_EXIT'
           systemctl show squidlaw-worker.service -p Result -p ExecMainStatus -p ActiveState --no-pager
+          echo 'CUSTOMER_QUEUE_DIAGNOSTIC'
+          journalctl -u squidlaw-worker.service -n 120 --no-pager -o cat 2>/dev/null | grep -E 'CUSTOMER_WORKER_FAILURE|WORKER_STEP_FAILED|WORKER_HTTP_STATUS|WORKER_LOOP_FAILURE' | tail -25 || true
           echo 'WORKER_RECENT_ERRORS_BEGIN'
           journalctl -u squidlaw-worker.service -n 25 --no-pager -o cat 2>/dev/null | sed -E 's#(postgres(ql)?://)[^ ]+#\\1[REDACTED]#g; s#(sk-[A-Za-z0-9_-]+)#[REDACTED]#g' | tail -25
           echo 'WORKER_RECENT_ERRORS_END'
