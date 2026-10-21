@@ -1,4 +1,4 @@
-name: Gabia admin diagnostics
+name: Gabia admin diagnostics and acceptance
 on:
   workflow_dispatch:
     inputs:
