@@ -37,6 +37,14 @@ jobs:
             code=$(curl --noproxy '*' --connect-timeout 3 --max-time 5 -k -s -o /dev/null -w '%{http_code}' "http://1.201.111.35:$port/" || true)
             echo "EXTERNAL_PORT_${port}_HTTP:$code"
           done
+      - name: Check HTTPS certificate prerequisites
+        run: |
+          set +e
+          for host in squidlaw.co.kr www.squidlaw.co.kr; do
+            echo "DNS:${host}:$(getent ahostsv4 "$host" | awk '{print $1}' | sort -u | paste -sd, -)"
+            curl -I --connect-timeout 5 --max-time 12 "http://$host/" 2>&1 | tail -5
+            curl -I --connect-timeout 5 --max-time 12 "https://$host/" 2>&1 | tail -5
+          done
       - name: Record preview status
         if: ${{ always() }}
         env:
