@@ -1,0 +1,21 @@
+[Unit]
+Description=SKYNET persistent GPT development worker
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/opt/squid-law
+EnvironmentFile=/etc/squidlaw/api.env
+ExecStart=/usr/bin/node /opt/squid-law/scripts/skynet-dev-daemon.mjs
+Restart=always
+RestartSec=10
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/tmp
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
