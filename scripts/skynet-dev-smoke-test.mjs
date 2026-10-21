@@ -1,0 +1,10 @@
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+const queue = readFileSync(new URL('../lib/skynet-dev-queue.mjs', import.meta.url),'utf8');
+const worker = readFileSync(new URL('./skynet-dev-worker.mjs', import.meta.url),'utf8');
+assert.match(queue,/FOR UPDATE SKIP LOCKED/);
+assert.match(queue,/lease_until/);
+assert.match(queue,/awaiting_approval/);
+assert.match(worker,/api.openai.com\/v1\/responses/);
+assert.match(worker,/SKYNET_DEV_PLAN_READY/);
+console.log('SKYNET_DEV_STATIC_CHECKS_PASSED');
