@@ -138,7 +138,14 @@ server {
  server_tokens off;
  client_max_body_size 100m;
  add_header X-Content-Type-Options nosniff always;
- location /api/ { return 503; }
+ location /api/ {
+  proxy_pass http://127.0.0.1:3084;
+  proxy_set_header Host $host;
+  proxy_set_header X-Real-IP $remote_addr;
+  proxy_connect_timeout 5s;
+  proxy_read_timeout 180s;
+  proxy_send_timeout 180s;
+ }
  location / {
   proxy_pass http://127.0.0.1:3082;
   proxy_set_header Host $host;
