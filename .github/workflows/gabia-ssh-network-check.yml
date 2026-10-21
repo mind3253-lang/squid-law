@@ -197,6 +197,22 @@ jobs:
           done
           echo 'WORKER_PREFLIGHT_DIAGNOSTIC'
           sudo -n bash -c 'set -a; source /etc/squidlaw/worker.env; set +a; cd /opt/squidlaw/app; node --input-type=module -e "import {workerPreflight} from \"./lib/gabia-worker-preflight.mjs\"; console.log(JSON.stringify(workerPreflight()))"' || true
+          echo 'DB_ENDPOINT_CLASSIFICATION'
+          sudo -n bash -s <<'ENDPOINT'
+          set -a
+          source /etc/squidlaw/worker.env
+          set +a
+          node <<'NODE'
+          const raw=process.env.SQUID_CUSTOMER_DATABASE_URL||process.env.SQUID_CUSTOMER_DATABASE_DATABASE_URL||'';
+          try {
+            const u=new URL(raw);
+            const h=u.hostname.toLowerCase();
+            console.log('DB_HOST_CLASS', ['localhost','127.0.0.1','::1'].includes(h)?'LOCAL':h.endsWith('.neon.tech')?'NEON':'OTHER_REMOTE');
+            console.log('DB_SSL_MODE',process.env.SQUID_CUSTOMER_DATABASE_SSL||'DEFAULT');
+            console.log('DB_URL_SSLMODE',u.searchParams.get('sslmode')||'NONE');
+          } catch {console.log('DB_URL_INVALID')}
+          NODE
+          ENDPOINT
           echo 'DB_CONNECTIVITY_DIAGNOSTIC'
           sudo -n bash -s <<'DBTEST'
           set -a
