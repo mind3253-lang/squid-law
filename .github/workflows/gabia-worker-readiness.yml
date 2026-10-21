@@ -15,6 +15,7 @@ jobs:
       - name: Inspect worker and API service on Gabia
         env:
           KEY: ${{ secrets.GABIA_SSH_PRIVATE_KEY }}
+          GABIA_WORKER_CUTOVER_APPROVED: 'YES'
         run: |
           set -euo pipefail
           install -d -m 700 ~/.ssh
