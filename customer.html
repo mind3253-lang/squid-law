@@ -253,7 +253,7 @@ function add(fs){let added=0,errors=[];for(const f of fs){if(pending.length>=30)
 
 const dropZone=$('caseChatLog').closest('.case-chat');dropZone.addEventListener('dragover',e=>{if(e.dataTransfer?.types?.includes('Files')){e.preventDefault();e.dataTransfer.dropEffect='copy'}});dropZone.addEventListener('drop',e=>{e.preventDefault();const files=Array.from(e.dataTransfer?.files||[]);if(files.length)add(files)});
 async function uploadLarge(f){
- const unit=256*1024,total=Math.ceil(f.size/unit);
+ const unit=1024*1024,total=Math.ceil(f.size/unit);
  const key='squidlaw-upload:v2:'+unit+':'+select.value+':'+f.name+':'+f.size+':'+f.lastModified;
  let saved=null;try{saved=JSON.parse(sessionStorage.getItem(key)||'null')}catch{}
  const id=saved&&/^[0-9a-f-]{36}$/.test(saved.id)&&saved.total===total?
