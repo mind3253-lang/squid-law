@@ -58,7 +58,7 @@ async function countChunks(job){
 }
 export default async function handler(req,res){
  if(!authorized(req))return send(res,401,{error:'ADMIN_REQUIRED'});
- if((process.env.SQUIDLAW_OBJECT_BACKEND!=='gabia'&&!process.env.BLOB_READ_WRITE_TOKEN))return send(res,503,{error:'STORAGE_UNAVAILABLE'});
+ if((process.env.SQUIDLAW_OBJECT_BACKEND&&process.env.SQUIDLAW_OBJECT_BACKEND!=='gabia'))return send(res,503,{error:'STORAGE_UNAVAILABLE'});
  if(!['GET','POST'].includes(req.method))return send(res,405,{error:'GET_POST_ONLY'});
  if(req.method==='POST'&&Number(req.headers['content-length']||0)>900000)
   return send(res,413,{error:'REVIEW_REQUEST_TOO_LARGE'});
