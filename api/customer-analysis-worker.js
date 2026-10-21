@@ -159,10 +159,11 @@ export default async function handler(req,res){
   const offset=previous.finalizeOffset;
   auditFinalizationCheckpoint({checkpoint:previous,descriptorCount:descriptors.length});
   if(offset<descriptors.length){
+   // Parallel reads preserve the complete finalization integrity audit.
+   const prefixPaths=Array.from({length:Math.ceil(offset/8)},(_,i)=>root+'finalize-parts/'+String(i*8).padStart(8,'0')+'.json');
    const prefixParts=[];
-   for(let start=0;start<offset;start+=8){
-    const part=await load(root+'finalize-parts/'+String(start).padStart(8,'0')+'.json');
-    prefixParts.push(part);
+   for(let start=0;start<prefixPaths.length;start+=12){
+    prefixParts.push(...await Promise.all(prefixPaths.slice(start,start+12).map(load)));
    }
    auditFinalizationResumePrefix({parts:prefixParts,checkpoint:previous,descriptorCount:descriptors.length,sourceVersion:job.documentVersion});
    let cursor=offset,countTotal=previous.finalizeUnitCount||0;
