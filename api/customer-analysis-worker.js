@@ -414,7 +414,7 @@ export default async function handler(req,res){
   for(const doc of docs){
    const rootPath=root+'visual-provider/';
    const primary=await load(rootPath+doc.id+'.json');
-   visualAudits.push({documentId:doc.id,verified:primary?.sourcePdfSha256===doc.sha256&&primary?.pageCount===doc.pageCount,sourceCoverageVerified:previous.visualSourceCoveragePassed===true});
+   visualAudits.push({documentId:doc.id,complete:primary?.sourcePdfSha256===doc.sha256&&primary?.pageCount===doc.pageCount&&previous.visualSourceCoveragePassed===true,verified:primary?.sourcePdfSha256===doc.sha256&&primary?.pageCount===doc.pageCount,sourceCoverageVerified:previous.visualSourceCoveragePassed===true});
   }
   // Bounded concurrent reads keep final verification ordered without serial Blob RTTs.
   const verifiedPaths=docs.flatMap(doc=>Array.from({length:Math.ceil(doc.pageCount/20)},(_,i)=>prefix+'verified/'+doc.id+'/batch-'+String(i*20).padStart(8,'0')+'.json'));
