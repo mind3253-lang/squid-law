@@ -21,7 +21,7 @@ async function readSmall(path){
 export default async function handler(req,res){
  if(!authorized(req))return send(res,401,{error:'ADMIN_REQUIRED'});
  if(req.method!=='GET')return send(res,405,{error:'GET_ONLY'});
- if(!(process.env.SQUIDLAW_OBJECT_BACKEND==='gabia'||process.env.BLOB_READ_WRITE_TOKEN))return send(res,503,{error:'MEMORY_STORAGE_NOT_CONNECTED'});
+ if(process.env.SQUIDLAW_OBJECT_BACKEND&&process.env.SQUIDLAW_OBJECT_BACKEND!=='gabia')return send(res,503,{error:'MEMORY_STORAGE_NOT_CONNECTED'});
  const limit=Math.max(1,Math.min(80,Number(req.query?.limit)||48));
  const cursor=typeof req.query?.cursor==='string'&&req.query.cursor.length<=3000?req.query.cursor:undefined;
  try{
