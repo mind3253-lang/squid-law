@@ -8,7 +8,9 @@ let cachedPool=null,cachedKey=null;
 const db=async()=>{
  const url=process.env.SQUID_CUSTOMER_DATABASE_URL||process.env.SQUID_CUSTOMER_DATABASE_DATABASE_URL;
  if(!url)throw new LeaseUnavailable();
- const ssl=process.env.SQUID_CUSTOMER_DATABASE_SSL==='disable'?false:{rejectUnauthorized:true};
+ // Local PostgreSQL does not require TLS; preserve verified TLS for remote endpoints.
+ const localHost=(()=>{try{const h=new URL(url).hostname;return ['localhost','127.0.0.1','::1'].includes(h)}catch{return false}})();
+ const ssl=process.env.SQUID_CUSTOMER_DATABASE_SSL==='disable'||(localHost&&process.env.SQUID_CUSTOMER_DATABASE_SSL!=='require')?false:{rejectUnauthorized:true};
  const key=url+'|'+(ssl?'verified-tls':'no-tls');
  if(cachedPool&&cachedKey===key)return cachedPool;
  if(cachedPool){
