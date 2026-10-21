@@ -69,3 +69,13 @@ for path in /admin/skynet.html /admin/index.html /skynet.html /favicon.ico; do
  echo "STATIC_ROUTE:$path:$status"
 done
 echo STATIC_ASSET_CHECK_END
+echo INTEGRATION_PROBE_BEGIN
+for path in /api/customer-auth /api/skynet-profile /api/customer-cases /api/skynet-document; do
+ status=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 12 "http://127.0.0.1:3084$path" || true)
+ echo "INTERNAL_API:$path:$status"
+done
+sudo -n systemctl is-active --quiet postgresql || echo POSTGRES_AGGREGATE_UNIT_NOT_ACTIVE
+for port in 5432 5433; do
+ if sudo -n pg_isready -h 127.0.0.1 -p "$port" >/dev/null 2>&1; then echo "POSTGRES_READY:$port"; else echo "POSTGRES_NOT_READY:$port"; fi
+done
+echo INTEGRATION_PROBE_END
