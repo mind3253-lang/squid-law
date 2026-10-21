@@ -816,7 +816,7 @@ export default async function handler(req,res){
   }
  }else await put(output,JSON.stringify(payload),{access:'private',allowOverwrite:false,addRandomSuffix:false,contentType:'application/json'});
  const finished=batchIntegrity.finished;
- const checkpoint={nextDocument:finished?index+1:index,nextPage:finished?0:pageOffset+verifiedPages.length,documentCount:docs.length,lastDocumentId:d.id,lastOutput:output,verifiedTextDocuments:finished?index+1:index,errorAttempts:0,...(previous.delta?{delta:previous.delta}:{})};
+ const checkpoint={nextDocument:finished?index+1:index,nextPage:finished?0:pageOffset+verifiedPages.length,recoveryPages:completedRecoveryPages(pageOffset+verifiedPages.length,d.pageCount),documentCount:docs.length,lastDocumentId:d.id,lastOutput:output,verifiedTextDocuments:finished?index+1:index,errorAttempts:0,...(previous.delta?{delta:previous.delta}:{})};
  if(finished&&index+1===docs.length){
   const root='squidlaw/analysis-jobs/'+job.customerKey+'/'+job.caseId+'/'+job.jobId+'/';
   const expected=expectedTextReviewOutputs({root,documents:docs});
