@@ -34,7 +34,7 @@ function fields(value){
 }
 export default async function handler(req,res){
  if(!authorized(req))return reply(res,401,{error:'ADMIN_REQUIRED'});
- if((process.env.SQUIDLAW_OBJECT_BACKEND!=='gabia'&&!process.env.BLOB_READ_WRITE_TOKEN))return reply(res,503,{error:'STORAGE_NOT_CONFIGURED'});
+ if((process.env.SQUIDLAW_OBJECT_BACKEND&&process.env.SQUIDLAW_OBJECT_BACKEND!=='gabia'))return reply(res,503,{error:'STORAGE_NOT_CONFIGURED'});
  if(!['GET','POST'].includes(req.method))return reply(res,405,{error:'GET_OR_POST_ONLY'});
  if(req.method==='POST'&&Number(req.headers['content-length']||0)>180000)
   return reply(res,413,{error:'RECEIPT_TOO_LARGE'});
