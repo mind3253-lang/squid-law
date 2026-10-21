@@ -29,6 +29,7 @@ on:
           - neon-preflight
           - install-postgres
           - audit-db-config
+          - inspect-neon
 permissions:
   contents: write
 jobs:
@@ -108,6 +109,10 @@ jobs:
             sudo -n install -d -o ubuntu -g ubuntu -m 0750 /var/lib/squidlaw/objects
             sudo -n install -d -o ubuntu -g ubuntu -m 0750 /var/lib/squidlaw/objects/skynet
             echo 'MIGRATION_CODE_READY_NO_DATABASE_ACTION'
+          elif [ "$action" = inspect-neon ]; then
+            sudo -n git -c safe.directory="$app" -C "$app" fetch origin main
+            sudo -n git -c safe.directory="$app" -C "$app" merge --ff-only origin/main
+            echo 'NEON_READ_ONLY_INSPECTION_READY'
           elif [ "$action" = audit-db-config ]; then
             sudo -n git -c safe.directory="$app" -C "$app" fetch origin main
             sudo -n git -c safe.directory="$app" -C "$app" merge --ff-only origin/main
@@ -191,6 +196,15 @@ jobs:
         run: |
           set -euo pipefail
           ssh -T -i "$HOME/.ssh/gabia.pem" -o BatchMode=yes -o StrictHostKeyChecking=accept-new ubuntu@1.201.111.35 'cd /opt/squidlaw/app && bash deploy/audit-db-config-keys.sh'
+
+      - name: Inspect Neon source schema read-only
+        if: ${{ inputs.action == 'inspect-neon' }}
+        env:
+          NEON_URI: ${{ secrets.NEON_DATABASE_URL }}
+        run: |
+          set -euo pipefail
+          test -n "$NEON_URI" || { echo 'NEON_DATABASE_URL_SECRET_MISSING'; exit 1; }
+          printf '%s\n' "$NEON_URI" | ssh -T -i "$HOME/.ssh/gabia.pem" -o BatchMode=yes -o StrictHostKeyChecking=accept-new ubuntu@1.201.111.35 'IFS= read -r uri; cd /opt/squidlaw/app; NEON_DATABASE_URL="$uri" bash deploy/inspect-neon-source.sh'
 
       - name: Publish machine-readable audit status to repository
         if: ${{ always() && github.event_name == 'push' }}
