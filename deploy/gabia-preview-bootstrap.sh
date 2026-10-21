@@ -79,3 +79,16 @@ for port in 5432 5433; do
  if sudo -n pg_isready -h 127.0.0.1 -p "$port" >/dev/null 2>&1; then echo "POSTGRES_READY:$port"; else echo "POSTGRES_NOT_READY:$port"; fi
 done
 echo INTEGRATION_PROBE_END
+
+echo GABIA_NODE_TESTS_BEGIN
+set +e
+node --test tests/gabia-*.test.mjs > /tmp/gabia-e2e-node-tests.log 2>&1
+test_rc=$?
+set -e
+grep -E '^# (tests|pass|fail|cancelled|skipped|duration_ms) ' /tmp/gabia-e2e-node-tests.log || true
+if [ "$test_rc" -ne 0 ]; then
+ echo GABIA_NODE_TESTS_FAILURE_DETAILS
+ grep -A 16 -B 3 '^not ok' /tmp/gabia-e2e-node-tests.log | head -220 || true
+fi
+echo "GABIA_NODE_TESTS_EXIT:$test_rc"
+echo GABIA_NODE_TESTS_END
