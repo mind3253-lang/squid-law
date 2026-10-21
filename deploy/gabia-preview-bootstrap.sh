@@ -57,3 +57,15 @@ done
 api_status=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3084/health || true)
 echo "API_HEALTH_HTTP:$api_status"
 echo E2E_SERVER_SMOKE_END
+echo NONMUTATING_API_CHECK_BEGIN
+for path in /api/skynet-profile /api/customer-auth /api/customer-cases /api/skynet-document; do
+ status=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 12 "http://127.0.0.1:3084$path" || true)
+ echo "API_ROUTE:$path:$status"
+done
+echo NONMUTATING_API_CHECK_END
+echo STATIC_ASSET_CHECK_BEGIN
+for path in /admin/skynet.html /admin/index.html /skynet.html /favicon.ico; do
+ status=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 8 "http://127.0.0.1:8088$path" || true)
+ echo "STATIC_ROUTE:$path:$status"
+done
+echo STATIC_ASSET_CHECK_END
