@@ -278,7 +278,7 @@ async function uploadLarge(f){
       body:chunk
      });
     const j=await r.json().catch(()=>({}));
-    if(!r.ok)throw Error(j.error||'PDF 조각 전송 실패');
+    if(!r.ok)throw Error('PDF 조각 '+(i+1)+'/'+total+' · HTTP '+r.status+' · '+(j.error||'서버 또는 프록시 응답 확인 필요'));
     finished.add(i);
     while(finished.has(confirmed)){finished.delete(confirmed);confirmed++;}
     sessionStorage.setItem(key,JSON.stringify({id,total,next:confirmed}));
