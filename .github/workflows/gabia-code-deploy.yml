@@ -41,6 +41,17 @@ jobs:
           tar -czf "$backup" --exclude=node_modules --exclude=.git --exclude=.env --exclude=uploads --exclude=storage -C /opt/squidlaw/app .
           tar -xzf /tmp/squidlaw-release.tar.gz -C /opt/squidlaw/app
           npm ci --omit=dev --no-audit --no-fund
+          # Keep service-specific credentials intact; share only the canonical
+          # object-store root between API and worker.
+          if test -f /etc/squidlaw/api.env && test -f /etc/squidlaw/worker.env; then
+            cp -p /etc/squidlaw/worker.env "/etc/squidlaw/worker.env.bak.$(date +%Y%m%d%H%M%S)"
+            api_root=$(sed -n 's/^SQUIDLAW_OBJECT_ROOT=//p' /etc/squidlaw/api.env | tail -1)
+            if test -n "$api_root"; then
+              sed -i '/^SQUIDLAW_OBJECT_ROOT=/d' /etc/squidlaw/worker.env
+              printf 'SQUIDLAW_OBJECT_ROOT=%s\n' "$api_root" >> /etc/squidlaw/worker.env
+              echo OBJECT_ROOT_ALIGNED
+            fi
+          fi
           systemctl restart squidlaw-api.service
           systemctl restart squidlaw-worker.service
           sleep 5
