@@ -1,1 +1,1 @@
-{"result": "failure", "workflow_commit": "94614c1abe48553383ac260b8dcebafef35cd361", "checked_at": "2026-10-21T08:12:36.447488+00:00", "check": "Gabia production DB, API and analysis worker service with cutover flags"}
+{"result": "failure", "workflow_commit": "81747c01379ae5b688e2179cc58ddfd65f4b51c1", "checked_at": "2026-10-21T16:11:32.026878+00:00", "check": "Gabia production DB, API and analysis worker service with cutover flags"}
