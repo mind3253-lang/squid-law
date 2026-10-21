@@ -2,14 +2,12 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "@vercel/blob": "^2.0.0",
     "mammoth": "^1.9.0",
     "xlsx": "^0.18.5",
     "pg": "^8.13.1",
     "pdfjs-dist": "^4.10.38",
     "pdf-lib": "^1.17.1",
     "jose": "^6.1.0",
-    "@vercel/functions": "^2.0.0",
     "@napi-rs/canvas": "^0.1.72",
     "cfb": "^1.2.2",
     "fflate": "^0.8.2"
