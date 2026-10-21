@@ -176,6 +176,27 @@ jobs:
           set -euo pipefail
           ssh -T -i "$HOME/.ssh/gabia.pem" -o BatchMode=yes -o StrictHostKeyChecking=accept-new ubuntu@1.201.111.35 'cd /opt/squidlaw/app && bash deploy/audit-db-config-keys.sh'
 
+      - name: Audit live database endpoints (classification only)
+        if: ${{ github.event_name == 'push' }}
+        run: |
+          ssh -T -i "$HOME/.ssh/gabia.pem" -o BatchMode=yes -o StrictHostKeyChecking=accept-new ubuntu@1.201.111.35 'sudo -n bash -s' <<'REMOTE'
+          set -euo pipefail
+          for f in /etc/squidlaw/api.env /etc/squidlaw/worker.env /etc/squidlaw/database.env; do
+            if [ ! -f "$f" ]; then echo "DB_CONFIG:$f:ABSENT"; continue; fi
+            echo "DB_CONFIG:$f:PRESENT"
+            while IFS= read -r line; do
+              case "$line" in DATABASE_URL=*|POSTGRES_URL=*|PGHOST=*)
+                key="${line%%=*}"
+                value="${line#*=}"
+                case "$value" in
+                  *localhost*|*127.0.0.1*|*%2Fvar%2Frun%2Fpostgresql*) echo "DB_ENDPOINT:$key:LOCAL" ;;
+                  *) echo "DB_ENDPOINT:$key:REMOTE_OR_UNKNOWN" ;;
+                esac
+              ;; esac
+            done < "$f"
+          done
+          REMOTE
+
       - name: Publish machine-readable audit status to repository
         if: ${{ always() && github.event_name == 'push' }}
         env:
