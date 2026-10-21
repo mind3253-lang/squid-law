@@ -52,6 +52,16 @@ jobs:
               echo OBJECT_ROOT_ALIGNED
             fi
           fi
+          if test -f /etc/squidlaw/api.env && test -f /etc/squidlaw/worker.env; then
+            api_root=$(sed -n 's/^SQUIDLAW_OBJECT_ROOT=//p' /etc/squidlaw/api.env | tail -1)
+            worker_root=$(sed -n 's/^SQUIDLAW_OBJECT_ROOT=//p' /etc/squidlaw/worker.env | tail -1)
+            if test -n "$api_root" && test "$api_root" = "$worker_root"; then
+              echo OBJECT_ROOTS_MATCH
+            else
+              echo OBJECT_ROOTS_MISMATCH
+              exit 1
+            fi
+          fi
           systemctl restart squidlaw-api.service
           systemctl restart squidlaw-worker.service
           sleep 5
