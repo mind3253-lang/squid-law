@@ -6,6 +6,7 @@ const commands = {
   database: ["psql -p 5433 -U root -d squidlaw_production -Atqc 'SELECT current_database(), current_user'"],
   worker: ['systemctl status squidlaw-worker.service --no-pager -l','journalctl -u squidlaw-worker.service -n 80 --no-pager -o cat'],
   api: ['systemctl status squidlaw-api.service --no-pager -l','journalctl -u squidlaw-api.service -n 50 --no-pager -o cat'],
+  workerconfig: ["for f in /etc/squidlaw/worker.env /etc/squidlaw/openai.env; do echo FILE:$f; if test -f $f; then awk -F= '/^[A-Za-z_][A-Za-z0-9_]*=/{print $1 \"=\" (length($2)>0?\"SET\":\"EMPTY\")}' $f; else echo MISSING; fi; done"],
   config: ["awk -F= '/^(SQUIDLAW_CUSTOMER_WORKER_OWNER|SQUIDLAW_CONTINUOUS_WORKER|SQUIDLAW_WORKER_RUN_APPROVED|SQUIDLAW_WORKER_CUTOVER_APPROVED|CRON_SECRET|BLOB_READ_WRITE_TOKEN|DATABASE_URL|SQUID_CUSTOMER_DATABASE_URL|OPENAI_API_KEY)=/{print $1 \"=\" (length($2)>0?\"SET\":\"EMPTY\")}' /etc/squidlaw/api.env",'systemctl cat squidlaw-worker.service | grep -E "^(EnvironmentFile|ExecStart|User|WorkingDirectory)="']
 };
 const mode=process.argv[2]||'status';
