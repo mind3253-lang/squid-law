@@ -6,7 +6,7 @@ on:
         description: Diagnostic group
         required: true
         type: choice
-        options: [status, database, worker, api, config, workerconfig, inventory, terminal, maintenance, acceptance, acceptance2]
+        options: [status, database, worker, api, config, workerconfig, inventory, terminal, maintenance, acceptance, acceptance2, routing]
         default: status
   push:
     branches: [main]
@@ -35,13 +35,13 @@ jobs:
       - name: Run allowlisted Gabia check
         env:
           GABIA_SSH_KEY_FILE: /home/runner/.ssh/gabia.pem
-        run: node scripts/gabia-admin.mjs "${{ github.event_name == 'push' && 'acceptance2' || inputs.check || 'status' }}" | tee /tmp/gabia-admin-check.log
+        run: node scripts/gabia-admin.mjs "${{ github.event_name == 'push' && 'routing' || inputs.check || 'status' }}" | tee /tmp/gabia-admin-check.log
       - name: Publish redacted diagnostics to repository
         if: always()
         env:
           GH_TOKEN: ${{ github.token }}
           JOB_STATUS: ${{ job.status }}
-          CHECK: ${{ github.event_name == 'push' && 'acceptance2' || inputs.check || 'status' }}
+          CHECK: ${{ github.event_name == 'push' && 'routing' || inputs.check || 'status' }}
         run: |
           python3 - <<'PY' > /tmp/gabia-admin-result.json
           import json,os,datetime
@@ -53,7 +53,7 @@ jobs:
           d=json.load(open(p))
           try: lines=open('/tmp/gabia-admin-check.log').read().splitlines()
           except FileNotFoundError: lines=[]
-          d['diagnostics']=[x[:300] for x in lines if re.match(r'^(CHECK_|EXIT_|active$|inactive$|failed$|[A-Z][A-Z0-9_]*=(SET|EMPTY)$|FILE:|MISSING$|EnvironmentFile=|ExecStart=|User=|WorkingDirectory=|HTTP_LOCAL_|HTTP_PUBLIC_|^1$|/opt/squidlaw/app/)',x)][:70]
+          d['diagnostics']=[x[:300] for x in lines if re.match(r'^(CHECK_|EXIT_|active$|inactive$|failed$|[A-Z][A-Z0-9_]*=(SET|EMPTY)$|FILE:|MISSING$|EnvironmentFile=|ExecStart=|User=|WorkingDirectory=|HTTP_LOCAL_|HTTP_PUBLIC_|ROUTE_LOCAL_|ROUTE_PUBLIC_|ROUTE_AUTH_|^1$|/opt/squidlaw/app/)',x)][:70]
           d['key_names']=[x for x in lines if re.fullmatch(r'[A-Z][A-Z0-9_]{2,80}',x) and not any(y in x for y in ('TOKEN','SECRET','PASSWORD','KEY'))][:50]
           open(p,'w').write(json.dumps(d))
           PY
