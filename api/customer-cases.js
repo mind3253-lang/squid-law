@@ -9,6 +9,27 @@ export async function registeredCase(user,id){if(!idOk(id))return null;return re
 export default async function handler(req,res){
  const auth=guard(req);if(auth.error)return respond(res,auth.status,{error:auth.error});
  if(req.method==='GET'){try{const rows=await all(base(auth.user)+'registry/',500);const cases=(await Promise.all(rows.filter(x=>x.pathname.endsWith('.json')).map(x=>readJson(x.pathname).catch(()=>null)))).filter(Boolean).sort((a,b)=>b.createdAt.localeCompare(a.createdAt));return respond(res,200,{cases})}catch{return respond(res,502,{error:'사건 목록 조회 실패'})}}
+ if(req.method==='DELETE'){
+  const id=String(req.query?.caseId||'');
+  if(!idOk(id))return respond(res,400,{error:'사건 선택 오류'});
+  try{
+   const {del,list}=await import('../lib/customer-object-storage.mjs');
+   const {withLeaseDb}=await import('./customer-analysis-lease-db.js');
+   const {createHash}=await import('node:crypto');
+   const path=base(auth.user)+'registry/'+id+'.json';
+   const existing=await readJson(path);
+   if(!existing||existing.id!==id)return respond(res,404,{error:'등록된 사건이 없습니다'});
+   const customerKey=createHash('sha256').update(auth.user).digest('hex');
+   const active=await withLeaseDb(async db=>db.query("SELECT 1 FROM customer_analysis_jobs WHERE customer_key=$1 AND case_id=$2 AND status IN ('queued','running','retry') LIMIT 1",[customerKey,id]));
+   if(active.rows.length)return respond(res,409,{error:'분석 작업이 진행 중인 사건은 삭제할 수 없습니다'});
+   const prefix=casePrefix(auth.user,id);
+   let cursor,keys=[];
+   do{const result=await list({prefix,limit:1000,...(cursor?{cursor}:{})});keys.push(...result.blobs.map(x=>x.pathname));cursor=result.hasMore?result.cursor:null}while(cursor);
+   for(const key of keys)await del(key);
+   await del(path);
+   return respond(res,200,{deleted:true,caseId:id});
+  }catch{return respond(res,503,{error:'사건 삭제 실패'})}
+ }
  if(req.method!=='POST'&&req.method!=='PATCH')return respond(res,405,{error:'GET/POST/PATCH만 지원'});
  let body=req.body;try{if(typeof body==='string')body=JSON.parse(body)}catch{return respond(res,400,{error:'요청 형식 오류'})}
  let intake;try{intake=normalizeCaseIntake(body?.intake)}catch(e){return respond(res,400,{error:e.message})}
