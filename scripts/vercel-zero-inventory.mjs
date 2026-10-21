@@ -38,11 +38,5 @@ async function walk(dir){
 await walk(root);
 entries.sort((a,b)=>a.path.localeCompare(b.path));
 const counts=Object.fromEntries(categories.map(([name])=>[name,entries.reduce((n,e)=>n+e.hits.filter(h=>h.kind===name).length,0)]));
-const config=JSON.parse(await readFile(path.join(root,'vercel.json'),'utf8'));
-const report={
- schema:'vercel-zero-inventory-v1',
- counts,
- vercelConfig:{rewrites:config.rewrites?.length??0,crons:(config.crons??[]).map(x=>({path:x.path,schedule:x.schedule})),hasInstallCommand:Boolean(config.installCommand)},
- files:entries
-};
+const report={schema:'runtime-dependency-inventory-v2',counts,files:entries};
 process.stdout.write(JSON.stringify(report,null,2)+'\n');
