@@ -22,12 +22,10 @@ on:
           - audit
           - deploy-web-api
           - migrate-source
-          - neon-preflight
           - install-postgres
           - install-postgres18
           - create-postgres18-staging
           - audit-db-config
-          - inspect-neon
 permissions:
   contents: write
 jobs:
@@ -107,10 +105,6 @@ jobs:
             sudo -n install -d -o ubuntu -g ubuntu -m 0750 /var/lib/squidlaw/objects
             sudo -n install -d -o ubuntu -g ubuntu -m 0750 /var/lib/squidlaw/objects/skynet
             echo 'MIGRATION_CODE_READY_NO_DATABASE_ACTION'
-          elif [ "$action" = inspect-neon ]; then
-            sudo -n git -c safe.directory="$app" -C "$app" fetch origin main
-            sudo -n git -c safe.directory="$app" -C "$app" merge --ff-only origin/main
-            echo 'NEON_READ_ONLY_INSPECTION_READY'
           elif [ "$action" = audit-db-config ]; then
             sudo -n git -c safe.directory="$app" -C "$app" fetch origin main
             sudo -n git -c safe.directory="$app" -C "$app" merge --ff-only origin/main
@@ -127,10 +121,6 @@ jobs:
             sudo -n git -c safe.directory="$app" -C "$app" fetch origin main
             sudo -n git -c safe.directory="$app" -C "$app" merge --ff-only origin/main
             echo 'POSTGRES_INSTALL_CODE_READY'
-          elif [ "$action" = neon-preflight ]; then
-            sudo -n git -c safe.directory="$app" -C "$app" fetch origin main
-            sudo -n git -c safe.directory="$app" -C "$app" merge --ff-only origin/main
-            echo 'NEON_PREFLIGHT_CODE_READY'
           elif [ "$action" = verify-blob ]; then
             sudo -n git -c safe.directory="$app" -C "$app" fetch origin main
             sudo -n git -c safe.directory="$app" -C "$app" merge --ff-only origin/main
@@ -160,12 +150,6 @@ jobs:
           done
           echo "GABIA_ACTION_COMPLETE_NO_DNS_OR_DATABASE_CUTOVER"
           REMOTE
-
-      - name: Inspect Neon migration prerequisites without changing data
-        if: ${{ inputs.action == 'neon-preflight' }}
-        run: |
-          set -euo pipefail
-          ssh -T -i "$HOME/.ssh/gabia.pem" -o BatchMode=yes -o StrictHostKeyChecking=accept-new ubuntu@1.201.111.35 'cd /opt/squidlaw/app && bash deploy/neon-migration-preflight.sh'
 
       - name: Install local-only PostgreSQL without touching Neon
         if: ${{ inputs.action == 'install-postgres' }}
