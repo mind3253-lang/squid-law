@@ -1,0 +1,54 @@
+name: Verify Gabia analysis worker readiness
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/gabia-worker-readiness.yml'
+permissions:
+  contents: write
+jobs:
+  readiness:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Inspect worker and API service on Gabia
+        env:
+          KEY: ${{ secrets.GABIA_SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$KEY" > ~/.ssh/gabia.pem
+          chmod 600 ~/.ssh/gabia.pem
+          ssh -T -i ~/.ssh/gabia.pem -o StrictHostKeyChecking=accept-new ubuntu@1.201.111.35 'bash -s' <<'REMOTE'
+          set -euo pipefail
+          sudo -n systemctl is-active --quiet squidlaw-api.service
+          test "$(sudo -n psql -p 5433 -U root -d squidlaw_production -Atqc 'SELECT current_database()')" = squidlaw_production
+          # A healthy API does not establish that the background analysis worker is running.
+          test "$(sudo -n sed -n 's/^SQUIDLAW_CUSTOMER_WORKER_OWNER=//p' /etc/squidlaw/api.env | tail -1)" = gabia
+          test "$(sudo -n sed -n 's/^SQUIDLAW_CONTINUOUS_WORKER=//p' /etc/squidlaw/api.env | tail -1)" = 1
+          test "$(sudo -n sed -n 's/^SQUIDLAW_WORKER_RUN_APPROVED=//p' /etc/squidlaw/api.env | tail -1)" = YES
+          test "$(sudo -n sed -n 's/^SQUIDLAW_WORKER_CUTOVER_APPROVED=//p' /etc/squidlaw/api.env | tail -1)" = YES
+          sudo -n systemctl is-active --quiet squidlaw-worker.service
+          echo GABIA_ANALYSIS_WORKER_READY
+          REMOTE
+      - name: Record readiness outcome
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          JOB_STATUS: ${{ job.status }}
+          COMMIT_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY' > /tmp/worker-readiness.json
+          import json,os,datetime
+          print(json.dumps({'result':os.environ['JOB_STATUS'],'workflow_commit':os.environ['COMMIT_SHA'],'checked_at':datetime.datetime.now(datetime.timezone.utc).isoformat(),'check':'Gabia production DB, API and analysis worker service with cutover flags'}))
+          PY
+          encoded=$(base64 -w0 /tmp/worker-readiness.json)
+          path=docs/GABIA_WORKER_READINESS_RESULT.json
+          old=$(gh api "repos/${GITHUB_REPOSITORY}/contents/$path" --jq .sha 2>/dev/null || true)
+          if [ -n "$old" ]; then
+            gh api -X PUT "repos/${GITHUB_REPOSITORY}/contents/$path" -f message='Record Gabia worker readiness result' -f content="$encoded" -f sha="$old" >/dev/null
+          else
+            gh api -X PUT "repos/${GITHUB_REPOSITORY}/contents/$path" -f message='Record Gabia worker readiness result' -f content="$encoded" >/dev/null
+          fi
