@@ -79,6 +79,15 @@ jobs:
           test -f /opt/squidlaw/app/docs/GABIA_MAINTENANCE_PROBE.txt
           grep -qx 'GABIA_DIRECT_MAINTENANCE_PROBE_V1' /opt/squidlaw/app/docs/GABIA_MAINTENANCE_PROBE.txt
           echo DEPLOY_PROBE_VERIFIED
+          echo INTEGRATION_AUDIT_BEGIN
+          (
+            set -a
+            . /etc/squidlaw/api.env
+            set +a
+            node /opt/squidlaw/app/deploy/gabia-integration-audit.mjs
+          ) > /tmp/squidlaw-integration-audit.json 2>/dev/null && echo INTEGRATION_AUDIT_PASS || echo INTEGRATION_AUDIT_FINDINGS
+          node -e "const f=require('fs');try{const x=JSON.parse(f.readFileSync('/tmp/squidlaw-integration-audit.json','utf8'));for(const c of x.checks)console.log('AUDIT',c.name,c.ok?'PASS':'FAIL',c.detail)}catch{console.log('AUDIT_EXECUTION_ERROR')}"
+
           test -f /opt/squidlaw/app/admin/skynet-icon.svg
           grep -q 'skynet-icon.svg' /opt/squidlaw/app/admin/skynet.html
           echo DEPLOY_SKYNET_ICON_VERIFIED
