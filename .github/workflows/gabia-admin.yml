@@ -34,7 +34,7 @@ jobs:
       - name: Run allowlisted Gabia check
         env:
           GABIA_SSH_KEY_FILE: /home/runner/.ssh/gabia.pem
-        run: node scripts/gabia-admin.mjs "${{ github.event_name == 'push' && 'config' || inputs.check || 'status' }}"
+        run: node scripts/gabia-admin.mjs "${{ github.event_name == 'push' && 'config' || inputs.check || 'status' }}" | tee /tmp/gabia-admin-check.log
       - name: Publish redacted diagnostics to repository
         if: always()
         env:
@@ -45,6 +45,15 @@ jobs:
           python3 - <<'PY' > /tmp/gabia-admin-result.json
           import json,os,datetime
           print(json.dumps({'status':os.environ['JOB_STATUS'],'check':os.environ['CHECK'],'commit':os.environ['GITHUB_SHA'],'timestamp':datetime.datetime.now(datetime.timezone.utc).isoformat()}))
+          PY
+          python3 - <<'PY'
+          import json,re
+          p='/tmp/gabia-admin-result.json'
+          d=json.load(open(p))
+          try: lines=open('/tmp/gabia-admin-check.log').read().splitlines()
+          except FileNotFoundError: lines=[]
+          d['diagnostics']=[x[:300] for x in lines if re.match(r'^(CHECK_|EXIT_|active$|inactive$|failed$|[A-Z][A-Z0-9_]*=(SET|EMPTY)$|EnvironmentFile=|ExecStart=|User=|WorkingDirectory=)',x)][:70]
+          open(p,'w').write(json.dumps(d))
           PY
           encoded=$(base64 -w0 /tmp/gabia-admin-result.json)
           path=docs/GABIA_ADMIN_LAST_RESULT.json
