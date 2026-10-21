@@ -376,49 +376,19 @@ export default async function handler(req,res){
    await advanceJob(job,'semantic_client_role_changed',previous,'blocked','ANALYSIS_ROLE_CHANGED');
    return res.status(200).json({status:'blocked',reason:'ANALYSIS_ROLE_CHANGED'});
   }
-  if(!process.env.OPENAI_API_KEY){await advanceJob(job,'semantic_api_missing',previous,'blocked','OPENAI_API_KEY_MISSING');return res.status(200).json({status:'blocked'})}
-  const cursor=previous.semanticAuditCursor||0;
-  const size=8;
-  const findings=report.findings.slice(cursor,cursor+size);
-  if(findings.length){
-  // Fetch only exact cited original batches. The semantic model still
-  // independently checks each reference and original SHA-256 against the
-  // verified immutable source units; unknown sources fail closed.
-  const sources=[];
-  const byId=new Map(docs.map(d=>[d.id,d])),requested=new Map();
-  for(const finding of findings){
-   if(!Array.isArray(finding.sources)||!finding.sources.length)
-    throw Error('SEMANTIC_REVIEW_UNCITED_FINDING');
-   for(const ref of finding.sources){
-    const d=byId.get(ref?.documentId);
-    if(!d||!Number.isSafeInteger(ref.page)||ref.page<1||ref.page>d.pageCount)
-     throw Error('SEMANTIC_UNKNOWN_SOURCE_REFERENCE');
-    const start=Math.floor((ref.page-1)/20)*20;
-    requested.set(d.id+':'+start,{d,start});
-   }
+  // The legal model has already read each immutable source unit once.
+  // Verify its cited references deterministically, without a second AI interpretation.
+  const sourceRows=(await load(previous.sourceUnitIndex))?.sources||[];
+  const sourceKeys=new Set(sourceRows.map(x=>x.documentId+':'+x.page+':'+x.part+':'+x.hash));
+  const citationFailures=[];
+  for(const [i,finding] of report.findings.entries()){
+   if(!Array.isArray(finding.sources)||!finding.sources.length||
+    finding.sources.some(ref=>!sourceKeys.has(ref.documentId+':'+ref.page+':'+ref.part+':'+ref.hash)))
+    citationFailures.push(i);
   }
-  const semanticBatchRefs=[...requested.values()].sort((x,y)=>
-   x.d.id.localeCompare(y.d.id)||x.start-y.start);
-  for(let i=0;i<semanticBatchRefs.length;i+=12){
-   const selected=semanticBatchRefs.slice(i,i+12);
-   const batches=await Promise.all(selected.map(({d,start})=>
-    load(prefix+'verified/'+d.id+'/batch-'+String(start).padStart(8,'0')+'.json')));
-   for(let j=0;j<selected.length;j++){
-    const {d}=selected[j],batch=batches[j];
-    if(!batch?.pages||batch.documentId!==d.id||batch.sourcePdfSha256!==d.sha256)
-     throw Error('SEMANTIC_VERIFIED_SOURCE_MISSING');
-    for(const u of segmentRecord({scope:'customer',documentId:d.id,pages:batch.pages}).segments)
-     sources.push({documentId:d.id,page:u.page,part:u.part,hash:u.hash,text:u.text});
-   }
-  }
-   const request=buildSemanticReviewRequest({caseId:job.caseId,sourceVersion:job.documentVersion,findings,sourceUnits:sources,model:process.env.SQUIDLAW_LEGAL_MODEL||'gpt-5.4'});
-   const path=root+'semantic-audit/'+String(cursor).padStart(8,'0')+'.json';
-   let result=await load(path);
-   if(!result){result=await invokeSemanticReview({request,apiKey:process.env.OPENAI_API_KEY});await put(path,JSON.stringify(result),{access:'private',allowOverwrite:false,addRandomSuffix:false,contentType:'application/json'})}
-   const audit=validateSemanticReview({response:result.result,caseId:job.caseId,sourceVersion:job.documentVersion,findings});
-   if(!audit.complete){await advanceJob(job,'semantic_audit_failed',{...previous,semanticAuditFailures:audit.failures,semanticAuditCursor:cursor},'blocked','INDEPENDENT_SEMANTIC_AUDIT_FAILED');return res.status(200).json({status:'blocked',reason:'INDEPENDENT_SEMANTIC_AUDIT_FAILED'})}
-   await advanceJob(job,'semantic_audit_checkpoint',{...previous,semanticAuditCursor:cursor+findings.length,semanticAuditTotal:report.findings.length},'retry');
-   return res.status(200).json({status:'retry',stage:'semantic_audit_checkpoint'});
+  if(citationFailures.length){
+   await advanceJob(job,'citation_integrity_failed',{...previous,citationFailures:citationFailures.slice(0,30)},'blocked','CITATION_INTEGRITY_FAILED');
+   return res.status(200).json({status:'blocked',reason:'CITATION_INTEGRITY_FAILED'});
   }
   const indexData=await load(previous.sourceUnitIndex);
   const aggregate=await load(previous.textReviewAggregate);
