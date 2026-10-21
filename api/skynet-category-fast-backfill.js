@@ -1,4 +1,4 @@
-import {get,list,put} from '@vercel/blob';
+import {get,list,put} from '../lib/customer-object-storage.mjs';
 import {createHash,randomUUID} from 'node:crypto';
 import {topicDbEnabled,claimTopicBackfill,finishTopicBackfill,releaseTopicBackfill,upsertTopics} from '../lib/skynet-topic-db.mjs';
 import {categoryDigestEntries,sourceTopicEntries,TOPIC_SCHEMA_VERSION} from '../lib/skynet-topic-categories.mjs';
