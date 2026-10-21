@@ -1,0 +1,33 @@
+name: Connect Gabia production database
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  connect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Connect local database and verify API
+        env:
+          KEY: ${{ secrets.GABIA_SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$KEY" > ~/.ssh/gabia.pem
+          chmod 600 ~/.ssh/gabia.pem
+          ssh -T -i ~/.ssh/gabia.pem -o StrictHostKeyChecking=accept-new ubuntu@1.201.111.35 'bash -s' <<'REMOTE'
+          set -euo pipefail
+          source_db=squidlaw_stage_20261021032706
+          target_db=squidlaw_production
+          sudo -n -u postgres psql -p 5433 -d "$source_db" -Atqc 'SELECT count(*) FROM public.customer_analysis_jobs' >/dev/null
+          if ! sudo -n -u postgres psql -p 5432 -Atqc "SELECT 1 FROM pg_database WHERE datname='$target_db'" | grep -qx 1; then
+            sudo -n -u postgres createdb -p 5432 "$target_db"
+          fi
+          table_count=$(sudo -n -u postgres psql -p 5432 -d "$target_db" -Atqc "SELECT count(*) FROM pg_tables WHERE schemaname='public'")
+          if [ "$table_count" = 0 ]; then
+            sudo -n -u postgres pg_dump -p 5433 -Fc "$source_db" | sudo -n -u postgres pg_restore -p 5432 --no-owner --no-acl --exit-on-error -d "$target_db"
+          fi
+          sudo -n -u postgres psql -p 5432 -d "$target_db" -Atqc 'SELECT count(*) FROM public.customer_analysis_jobs' >/dev/null
+          echo PRODUCTION_DB_SCHEMA_READY
+          REMOTE
