@@ -9,7 +9,7 @@ import {findDeltaBaseline,verifyDeltaPlan} from '../lib/customer-delta-reanalysi
 import {runDeltaReviewStep} from './customer-delta-worker.mjs';
 import {get} from '../lib/customer-object-storage.mjs';
 export const maxDuration=300;
-const VISUAL_WINDOW_CONCURRENCY=Math.min(6,Math.max(1,Number.parseInt(process.env.SQUIDLAW_VISUAL_WINDOW_CONCURRENCY||'6',10)||6));
+const VISUAL_WINDOW_CONCURRENCY=Math.min(5,Math.max(1,Number.parseInt(process.env.SQUIDLAW_VISUAL_WINDOW_CONCURRENCY||'5',10)||5));
 const FINALIZATION_SOFT_BUDGET_MS=180000;
 export function shouldCheckpointFinalization({elapsedMs,completedRounds}){
  if(!Number.isFinite(elapsedMs)||elapsedMs<0||!Number.isSafeInteger(completedRounds)||completedRounds<0)throw Error('INVALID_FINALIZATION_BUDGET');
@@ -454,7 +454,7 @@ export default async function handler(req,res){
     const path=root+'boundary-audit/'+d.id+suffix;
     if(await load(path))ledgerPaths.push(path);
    }
-   for(let page=1;page<=d.pageCount;page+=12){
+   for(let page=1;page<=d.pageCount;page+=10){
     for(const kind of ['-window-','-independent-window-']){
      const path=root+'visual-provider/'+d.id+kind+String(page).padStart(8,'0')+'.json';
      if(await load(path))ledgerPaths.push(path);
@@ -484,7 +484,7 @@ export default async function handler(req,res){
    const root='squidlaw/analysis-jobs/'+job.customerKey+'/'+job.caseId+'/'+job.jobId+'/visual-provider/';
    const startPage=previous.visualWindowStartPage||1;
    if(startPage<=doc.pageCount){
-    const starts=Array.from({length:VISUAL_WINDOW_CONCURRENCY},(_,i)=>startPage+i*12)
+    const starts=Array.from({length:VISUAL_WINDOW_CONCURRENCY},(_,i)=>startPage+i*10)
      .filter(page=>page<=doc.pageCount);
     const cached=await Promise.all(starts.map(page=>
      load(root+doc.id+'-window-'+String(page).padStart(8,'0')+'.json')));
@@ -494,12 +494,12 @@ export default async function handler(req,res){
      const pieces=doc.sourceKind==='private_chunked_pdf_v1'?
       await splitRangeVisualWindows({
        source:{reader:createCustomerPdfRangeSource(prefix,doc),pageCount:doc.pageCount},
-       sha256:doc.sha256,startPage,count:starts.length,pageCount:12
+       sha256:doc.sha256,startPage,count:starts.length,pageCount:10
       }):await (async()=>{
        const bytes=await loadBinary(prefix+'pdf/'+doc.id+'.pdf');
        if(!bytes||createHash('sha256').update(bytes).digest('hex')!==doc.sha256)
         throw Error('VISUAL_SOURCE_PDF_DIGEST_MISMATCH');
-       return splitPdfVisualWindows({pdfBytes:bytes,startPage,count:starts.length,pageCount:12});
+       return splitPdfVisualWindows({pdfBytes:bytes,startPage,count:starts.length,pageCount:10});
       })();
      windows=new Map(pieces.map(piece=>[piece.startPage,piece]));
     }
@@ -526,14 +526,14 @@ export default async function handler(req,res){
     }));
     const failed=settled.find(item=>item.status==='rejected');
     if(failed)throw failed.reason;
-    const nextPage=starts.at(-1)+12;
+    const nextPage=starts.at(-1)+10;
     await advanceJob(job,'visual_provider_window_checkpoint',
      {...previous,visualDocIndex:next,visualWindowStartPage:nextPage},'retry');
     return res.status(200).json({status:'retry',stage:'visual_provider_window_checkpoint',
      document:next+1,processedWindowStarts:starts,nextPage});
    }
    const windows=[];
-   for(let page=1;page<=doc.pageCount;page+=12){
+   for(let page=1;page<=doc.pageCount;page+=10){
     const output=await load(root+doc.id+'-window-'+String(page).padStart(8,'0')+'.json');
     if(!output)throw Error('VISUAL_WINDOW_MISSING');
     windows.push(output);
