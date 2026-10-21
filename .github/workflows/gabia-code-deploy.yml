@@ -32,6 +32,7 @@ jobs:
       - name: Install, restart and verify on Gabia
         run: |
           set -euo pipefail
+          set +e
           ssh -T -i ~/.ssh/gabia.pem -o BatchMode=yes ubuntu@1.201.111.35 'sudo -n bash -s' <<'REMOTE' > /tmp/deploy.log 2>&1
           set -euo pipefail
           cd /opt/squidlaw/app
@@ -92,7 +93,14 @@ jobs:
           grep -q 'skynet-icon.svg' /opt/squidlaw/app/admin/skynet.html
           echo DEPLOY_SKYNET_ICON_VERIFIED
           REMOTE
+          deploy_rc=$?
+          set -e
           grep -E '^(INTEGRATION_AUDIT_|AUDIT )' /tmp/deploy.log || true
+          if [ "$deploy_rc" -ne 0 ]; then
+            echo DEPLOY_SSH_EXIT_$deploy_rc
+            grep -E '^(DEPLOY_|OBJECT_ROOT|INTEGRATION_AUDIT_|AUDIT |npm error|npm ERR|Error:)' /tmp/deploy.log | tail -35 || true
+            exit "$deploy_rc"
+          fi
           if ! grep -E '^DEPLOY_(SERVICES_ACTIVE|HEALTH_FAILED|ROLLED_BACK|PROBE_VERIFIED|SKYNET_ICON_VERIFIED)' /tmp/deploy.log; then
             echo DEPLOY_REMOTE_STEP_FAILED
             echo DEPLOY_DIAGNOSTIC_BEGIN
