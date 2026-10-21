@@ -45,11 +45,10 @@ jobs:
           sudo -n -u postgres psql -p 5432 -d "$target_db" -v ON_ERROR_STOP=1 -c 'GRANT USAGE ON SCHEMA public TO root'
           sudo -n -u postgres psql -p 5432 -d "$target_db" -v ON_ERROR_STOP=1 -c 'GRANT SELECT,INSERT,UPDATE,DELETE ON ALL TABLES IN SCHEMA public TO root'
           sudo -n -u postgres psql -p 5432 -d "$target_db" -v ON_ERROR_STOP=1 -c 'GRANT USAGE,SELECT,UPDATE ON ALL SEQUENCES IN SCHEMA public TO root'
-          psql -p 5432 -d "$target_db" -Atqc 'SELECT current_user' | grep -qx root
+          sudo -n psql -p 5432 -U root -d "$target_db" -Atqc 'SELECT current_user' | grep -qx root
           sudo -n install -d -m 700 /etc/squidlaw
-          if ! sudo -n grep -q '^SQUID_CUSTOMER_DATABASE_URL=' /etc/squidlaw/api.env; then
-            echo 'SQUID_CUSTOMER_DATABASE_URL=postgresql://root@/squidlaw_production?host=/var/run/postgresql' | sudo -n tee -a /etc/squidlaw/api.env >/dev/null
-          fi
+          sudo -n sed -i '/^SQUID_CUSTOMER_DATABASE_URL=/d' /etc/squidlaw/api.env
+          echo 'SQUID_CUSTOMER_DATABASE_URL=postgresql://root@/squidlaw_production?host=/var/run/postgresql' | sudo -n tee -a /etc/squidlaw/api.env >/dev/null
           if ! sudo -n grep -q '^SQUID_CUSTOMER_DATABASE_SSL=' /etc/squidlaw/api.env; then
             echo 'SQUID_CUSTOMER_DATABASE_SSL=disable' | sudo -n tee -a /etc/squidlaw/api.env >/dev/null
           fi
