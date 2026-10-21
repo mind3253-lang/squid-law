@@ -1,4 +1,4 @@
-import {list,del} from '@vercel/blob';
+import {list,del} from '../lib/customer-object-storage.mjs';
 import {createHash,createHmac,timingSafeEqual} from 'node:crypto';
 const prefixes=['skynet/imports/','skynet/memory/','skynet/documents/','skynet/records/','skynet/db/','skynet/test/'];
 const indexPath=p=>'skynet/search-index/'+createHash('sha256').update(p).digest('hex')+'.json';
