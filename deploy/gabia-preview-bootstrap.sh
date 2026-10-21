@@ -178,3 +178,14 @@ for endpoint in /api/customer-auth /api/customer-cases /api/skynet-profile; do
  echo "AUTH_BOUNDARY:$endpoint:$code"
 done
 echo AUTH_AND_STORAGE_READINESS_END
+
+echo LOCAL_DATABASE_BINDING_BEGIN
+sudo -n install -d -m 0700 /etc/squidlaw
+if ! sudo -n grep -q '^SQUID_CUSTOMER_DATABASE_URL=' /etc/squidlaw/api.env; then
+ if sudo -n -u postgres psql -p 5432 -Atqc "SELECT 1 FROM pg_roles WHERE rolname='squidlaw'" | grep -qx 1; then
+  echo LOCAL_DB_ROLE_AVAILABLE
+ else echo LOCAL_DB_ROLE_NOT_CONFIGURED; fi
+fi
+if sudo -n grep -q '^SQUID_CUSTOMER_DATABASE_URL=' /etc/squidlaw/api.env; then echo LOCAL_DB_URL_ALREADY_CONFIGURED; else echo LOCAL_DB_URL_PENDING; fi
+if sudo -n grep -q '^SQUID_CUSTOMER_DATABASE_SSL=disable' /etc/squidlaw/api.env; then echo LOCAL_DB_SSL_CONFIGURED; else echo LOCAL_DB_SSL_PENDING; fi
+echo LOCAL_DATABASE_BINDING_END
