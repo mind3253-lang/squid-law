@@ -1,0 +1,28 @@
+name: SKYNET development engine integration verification
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci
+      - name: Verify module syntax and static contract
+        run: |
+          node --check lib/skynet-dev-queue.mjs
+          node --check scripts/skynet-dev-worker.mjs
+          node --check scripts/skynet-dev-enqueue.mjs
+          node scripts/skynet-dev-smoke-test.mjs
+      - name: Check whether integration credentials are configured
+        env:
+          DEV_DB: ${{ secrets.SKYNET_DEV_DATABASE_URL }}
+          OPENAI_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          if [ -n "$DEV_DB" ]; then echo 'SKYNET_DEV_DATABASE_URL_CONFIGURED'; else echo 'SKYNET_DEV_DATABASE_URL_MISSING'; fi
+          if [ -n "$OPENAI_KEY" ]; then echo 'OPENAI_API_KEY_CONFIGURED'; else echo 'OPENAI_API_KEY_MISSING'; fi
