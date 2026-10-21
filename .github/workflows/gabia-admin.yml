@@ -40,7 +40,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           JOB_STATUS: ${{ job.status }}
-          CHECK: ${{ github.event_name == 'push' && 'worker' || inputs.check || 'status' }}
+          CHECK: ${{ github.event_name == 'push' && 'config' || inputs.check || 'status' }}
         run: |
           python3 - <<'PY' > /tmp/gabia-admin-result.json
           import json,os,datetime
