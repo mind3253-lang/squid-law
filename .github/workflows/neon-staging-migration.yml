@@ -48,3 +48,5 @@ jobs:
           if p.returncode:print('STATUS_REPORT_WRITE_FAILED',p.stderr[:300]);raise SystemExit(1)
           print('STAGING_STATUS_PUBLISHED')
           PY
+
+# Retry after migration-role grants on 2026-10-21
