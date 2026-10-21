@@ -6,7 +6,7 @@ on:
         description: Diagnostic group
         required: true
         type: choice
-        options: [status, database, worker, api]
+        options: [status, database, worker, api, config]
         default: status
 permissions:
   contents: read
