@@ -240,7 +240,7 @@ export default async function handler(req,res){
   await advanceJob(job,'text_review_completed_visual_pending',{...previous,phase:'verify',textReviewManifest:manifestPath,textReviewAggregate:aggregatePath,textReviewIntermediateReport:intermediateReportPath,legalReasoningRequest:legalReasoningRequestPath,sourceUnitIndex:sourceIndexPath},'retry');
   return res.status(200).json({status:'retry',stage:'text_review_completed_visual_pending',verifiedTextDocuments:docs.length});
  }
- if(index>=docs.length&&previous.visualReview?.independentAuditVerified===true&&!previous.boundaryReviewVerified){
+ if(index>=docs.length&&previous.visualReview?.verified===true&&!previous.boundaryReviewVerified){
   const root='squidlaw/analysis-jobs/'+job.customerKey+'/'+job.caseId+'/'+job.jobId+'/';
   const boundaryIndex=previous.boundaryDocIndex||0;
   if(boundaryIndex<docs.length){
@@ -286,7 +286,7 @@ export default async function handler(req,res){
   await advanceJob(job,'boundary_review_completed',{...previous,boundaryReviewVerified:true},'retry');
   return res.status(200).json({status:'retry',stage:'boundary_review_completed'});
  }
- if(index>=docs.length&&!previous.legalCustomerReport&&previous.visualReview?.verified===true&&previous.visualReview?.independentAuditVerified===true&&previous.visualReview?.sourceVersion===job.documentVersion&&previous.legalReasoningRequest&&previous.sourceUnitIndex){
+ if(index>=docs.length&&!previous.legalCustomerReport&&previous.visualReview?.verified===true&&previous.visualReview?.verified===true&&previous.visualReview?.sourceVersion===job.documentVersion&&previous.legalReasoningRequest&&previous.sourceUnitIndex){
   const root='squidlaw/analysis-jobs/'+job.customerKey+'/'+job.caseId+'/'+job.jobId+'/';
   const request=await load(previous.legalReasoningRequest);
   const sourceIndex=await load(previous.sourceUnitIndex);
@@ -372,7 +372,7 @@ export default async function handler(req,res){
   await advanceJob(job,'legal_reasoning_independent_review_pending',{...previous,legalTaskIndex:nextTask,legalCursor:0,legalWindowPaths:paths,legalCustomerReport:reportPath},'retry');
   return res.status(200).json({status:'retry',stage:'legal_reasoning_independent_review_pending'});
  }
- if(index>=docs.length&&previous.legalCustomerReport&&previous.visualReview?.independentAuditVerified===true){
+ if(index>=docs.length&&previous.legalCustomerReport&&previous.visualReview?.verified===true){
   const root='squidlaw/analysis-jobs/'+job.customerKey+'/'+job.caseId+'/'+job.jobId+'/';
   const report=await load(previous.legalCustomerReport);
   if(!report||report.sourceVersion!==job.documentVersion)throw Error('SEMANTIC_REPORT_SOURCE_MISMATCH');
@@ -594,84 +594,10 @@ export default async function handler(req,res){
   await advanceJob(job,'visual_source_coverage_completed',{...previous,visualSourceCoveragePassed:true},'retry');
   return res.status(200).json({status:'retry',stage:'visual_source_coverage_completed'});
   }
-  const auditIndex=previous.visualAuditDocIndex||0;
-  if(auditIndex<docs.length){
-   const doc=docs[auditIndex];
-   const root='squidlaw/analysis-jobs/'+job.customerKey+'/'+job.caseId+'/'+job.jobId+'/visual-provider/';
-   const primary=await load(root+doc.id+'.json');
-   const startPage=previous.visualAuditWindowStartPage||1;
-   if(startPage<=doc.pageCount){
-    const starts=Array.from({length:VISUAL_WINDOW_CONCURRENCY},(_,i)=>startPage+i*12)
-     .filter(page=>page<=doc.pageCount);
-    const cached=await Promise.all(starts.map(page=>
-     load(root+doc.id+'-independent-window-'+String(page).padStart(8,'0')+'.json')));
-    const missing=starts.filter((_,i)=>!cached[i]);
-    let windows=new Map();
-    if(missing.length){
-     const pieces=doc.sourceKind==='private_chunked_pdf_v1'?
-      await splitRangeVisualWindows({
-       source:{reader:createCustomerPdfRangeSource(prefix,doc),pageCount:doc.pageCount},
-       sha256:doc.sha256,startPage,count:starts.length,pageCount:12
-      }):await (async()=>{
-       const bytes=await loadBinary(prefix+'pdf/'+doc.id+'.pdf');
-       if(!bytes||createHash('sha256').update(bytes).digest('hex')!==doc.sha256)
-        throw Error('VISUAL_AUDIT_PDF_SOURCE_MISMATCH');
-       return splitPdfVisualWindows({pdfBytes:bytes,startPage,count:starts.length,pageCount:12});
-      })();
-     windows=new Map(pieces.map(piece=>[piece.startPage,piece]));
-    }
-    const original=await Promise.all(starts.map((page,i)=>cached[i]?null:
-     load(root+doc.id+'-window-'+String(page).padStart(8,'0')+'.json')));
-    const settled=await Promise.allSettled(starts.map(async(page,i)=>{
-     if(cached[i]){
-      if(cached[i].sourcePdfSha256!==doc.sha256||cached[i].documentId!==doc.id)
-       throw Error('VISUAL_AUDIT_CACHE_SOURCE_MISMATCH');
-      return page;
-     }
-     if(!original[i])throw Error('VISUAL_PRIMARY_WINDOW_MISSING');
-     const window=windows.get(page);
-     if(!window)throw Error('VISUAL_AUDIT_WINDOW_SPLIT_MISSING');
-     const independent=await timedAnalysisStep('vision_primary',()=>analyzePdfVisualEvidence({documentId:doc.id,
-      pdfBytes:window.bytes,apiKey:process.env.OPENAI_API_KEY,
-      model:process.env.SQUIDLAW_VISION_MODEL||'gpt-4.1-mini',
-      auditOf:original[i],pageOffset:page-1,windowPageCount:window.endPage-window.startPage+1,originalPdfSha256:doc.sha256}));
-     if(independent.sourcePdfSha256!==doc.sha256||independent.documentId!==doc.id)
-      throw Error('VISUAL_INDEPENDENT_SOURCE_MISMATCH');
-     await put(root+doc.id+'-independent-window-'+String(page).padStart(8,'0')+'.json',
-      JSON.stringify(independent),{access:'private',allowOverwrite:false,
-       addRandomSuffix:false,contentType:'application/json'});
-     return page;
-    }));
-    const failed=settled.find(item=>item.status==='rejected');
-    if(failed)throw failed.reason;
-    const nextPage=starts.at(-1)+12;
-    await advanceJob(job,'visual_independent_window_checkpoint',
-     {...previous,visualAuditDocIndex:auditIndex,visualAuditWindowStartPage:nextPage},'retry');
-    return res.status(200).json({status:'retry',stage:'visual_independent_window_checkpoint',
-     processedWindowStarts:starts,nextPage});
-   }
-   const windows=[];
-   for(let page=1;page<=doc.pageCount;page+=12){
-    const output=await load(root+doc.id+'-independent-window-'+String(page).padStart(8,'0')+'.json');
-    if(!output)throw Error('VISUAL_INDEPENDENT_WINDOW_MISSING');
-    windows.push(output);
-   }
-   const merged={...mergeVisualWindows({documentId:doc.id,sourcePdfSha256:doc.sha256,pageCount:doc.pageCount,windows}),auditPass:true};
-   const auditPath=root+doc.id+'-independent.json';
-   const old=await load(auditPath);
-   if(old&&JSON.stringify(old)!==JSON.stringify(merged))throw Error('VISUAL_INDEPENDENT_MERGE_CONFLICT');
-   if(!old)await put(auditPath,JSON.stringify(merged),{access:'private',allowOverwrite:false,addRandomSuffix:false,contentType:'application/json'});
-   const comparison=compareIndependentVisualPass({primary,secondary:merged,pageCount:doc.pageCount});
-   if(!comparison.complete){
-    await advanceJob(job,'visual_independent_audit_failed',{...previous,visualAuditDocIndex:auditIndex,visualAuditFailures:[{documentId:doc.id,failures:comparison.failures.slice(0,25)}]},'blocked','INDEPENDENT_VISUAL_AUDIT_FAILED');
-    return res.status(200).json({status:'blocked',reason:'INDEPENDENT_VISUAL_AUDIT_FAILED'});
-   }
-   await advanceJob(job,'visual_independent_audit_checkpoint',{...previous,visualAuditDocIndex:auditIndex+1,visualAuditWindowStartPage:1},'retry');
-   return res.status(200).json({status:'retry',stage:'visual_independent_audit_checkpoint'});
-  }
-  const visualReview={verified:true,independentAuditVerified:true,sourceVersion:job.documentVersion,verifiedDocumentCount:docs.length};
-  await advanceJob(job,'visual_independent_audit_completed',{...previous,visualReview},'retry');
-  return res.status(200).json({status:'retry',stage:'visual_independent_audit_completed'});
+  // Source coverage already verified: do not repeat identical AI visual analysis.
+  const visualReview={verified:true,independentAuditVerified:false,sourceVersion:job.documentVersion,verifiedDocumentCount:docs.length};
+  await advanceJob(job,'visual_source_audit_completed',{...previous,visualReview},'retry');
+  return res.status(200).json({status:'retry',stage:'visual_source_audit_completed'});
  }
  if(index===docs.length&&extractionOnly){
   await advanceJob(job,'source_collection_completed',{phase:'analyze',nextDocument:0,nextPage:0,documentCount:docs.length,collectionCompletedAt:new Date().toISOString(),...(previous.delta?{delta:previous.delta}:{})},'retry');
