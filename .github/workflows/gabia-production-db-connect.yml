@@ -54,5 +54,7 @@ jobs:
           fi
           sudo -n systemctl restart squidlaw-api.service
           sudo -n systemctl is-active --quiet squidlaw-api.service
+          sudo -n psql -p 5432 -U root -d "$target_db" -Atqc 'SELECT count(*) FROM public.customer_analysis_jobs' >/dev/null
+          curl --fail --silent --show-error --max-time 10 http://127.0.0.1:3084/api/customer-auth >/dev/null
           echo DB_CONNECTION_ENV_READY
           REMOTE
