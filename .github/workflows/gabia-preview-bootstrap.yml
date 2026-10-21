@@ -21,6 +21,14 @@ jobs:
           printf '%s\n' "$KEY" > ~/.ssh/gabia.pem
           chmod 600 ~/.ssh/gabia.pem
           ssh -T -i ~/.ssh/gabia.pem -o StrictHostKeyChecking=accept-new ubuntu@1.201.111.35 'sudo -n git -c safe.directory=/opt/squidlaw/app -C /opt/squidlaw/app fetch origin main && sudo -n git -c safe.directory=/opt/squidlaw/app -C /opt/squidlaw/app merge --ff-only origin/main && bash /opt/squidlaw/app/deploy/gabia-preview-bootstrap.sh'
+      - name: Probe preview from outside Gabia
+        run: |
+          set +e
+          code=$(curl --noproxy '*' --connect-timeout 7 --max-time 12 -s -o /dev/null -w '%{http_code}' http://1.201.111.35:8088/)
+          result=$?
+          echo "EXTERNAL_PREVIEW_HTTP:$code"
+          echo "EXTERNAL_PREVIEW_CURL_EXIT:$result"
+          if [ "$result" -ne 0 ]; then echo EXTERNAL_PREVIEW_NOT_REACHABLE; fi
       - name: Record preview status
         if: ${{ always() }}
         env:
