@@ -12,6 +12,7 @@ on:
     branches: [main]
     paths:
       - '.github/workflows/gabia-admin.yml'
+      - 'scripts/gabia-admin.mjs'
 permissions:
   contents: write
 jobs:
