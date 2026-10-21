@@ -13,7 +13,7 @@ export default async function handler(req,res){
  const actual=String(req.query.state||'');
  const a=Buffer.from(expected),b=Buffer.from(actual);
  if(req.method!=='GET'||!req.query.code||!a.length||a.length!==b.length||!timingSafeEqual(a,b))return fail(res,'인증 요청이 유효하지 않습니다.');
- if(!process.env.NAVER_CLIENT_ID||!process.env.NAVER_CLIENT_SECRET||!process.env.SQUID_AUTH_SECRET||((process.env.SQUIDLAW_OBJECT_BACKEND||'vercel')==='vercel'&&!process.env.BLOB_READ_WRITE_TOKEN))return res.status(503).send('로그인 환경설정을 확인해 주세요.');
+ if(!process.env.NAVER_CLIENT_ID||!process.env.NAVER_CLIENT_SECRET||!process.env.SQUID_AUTH_SECRET||(process.env.SQUIDLAW_OBJECT_BACKEND&&process.env.SQUIDLAW_OBJECT_BACKEND!=='gabia'))return res.status(503).send('로그인 환경설정을 확인해 주세요.');
  try{
   const origin=process.env.SQUIDLAW_PUBLIC_ORIGIN||'https://squidlaw.co.kr';
   const params=new URLSearchParams({grant_type:'authorization_code',client_id:process.env.NAVER_CLIENT_ID,client_secret:process.env.NAVER_CLIENT_SECRET,code:String(req.query.code),state:actual});
