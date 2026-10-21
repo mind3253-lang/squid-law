@@ -1,41 +1,38 @@
-// Offline migration inventory. No network, credentials, customer data or AI calls.
+#!/usr/bin/env node
+// Read-only exhaustive Vercel runtime dependency scan. No credentials or network calls.
 import {readdirSync,readFileSync,statSync} from 'node:fs';
 import {join,relative} from 'node:path';
 const root=process.cwd();
-const skip=new Set(['.git','node_modules','.vercel','dist','build','coverage']);
-const needles=[
- ['vercel_host',/api\.vercel\.com|vercel\.app|vercel\.json/gi],
- ['vercel_token',/SKYNET_VERCEL_TOKEN|BLOB_READ_WRITE_TOKEN/g],
- ['vercel_tool',/vercel\.(?:deploy|inspect|logs)/g],
- ['vercel_blob',/@vercel\/blob/g],
- ['vercel_functions',/@vercel\/functions/g],
- ['vercel_runtime',/VERCEL_URL|VERCEL_PROJECT_PRODUCTION_URL/g],
- ['worker_dispatch',/scheduleCustomerWorker/g],
- ['vercel_cron',/customer-analysis-worker|skynet-search-backfill/g],
- ['database_url',/SQUID_CUSTOMER_DATABASE_URL/g],
+const ignore=new Set(['.git','node_modules','.vercel','dist','build','coverage']);
+const runtimeDirs=new Set(['api','lib','server','worker','admin','deploy']);
+const runtimeFiles=new Set(['middleware.js','package.json','package-lock.json']);
+const patterns=[
+ ['package',/@vercel\\/|\\bvercel\\s+(?:build|deploy|dev)\\b/gi],
+ ['endpoint',/api\\.vercel\\.com|\\b[a-z0-9-]+\\.vercel\\.app\\b/gi],
+ ['credential',/SKYNET_VERCEL_TOKEN|BLOB_READ_WRITE_TOKEN|VERCEL_PROJECT_PRODUCTION_URL|VERCEL_URL/g],
+ ['tool',/vercel\\.(?:deploy|inspect|logs)/g],
+ ['blob',/\\b(?:vercelBlob|vercel_blob|vercelStorage)\\b/gi]
 ];
-const counts=new Map(needles.map(([n])=>[n,[]]));
+const findings=[];let scanned=0;
 function walk(dir){
- for(const name of readdirSync(dir)){
-  if(skip.has(name))continue;
-  const full=join(dir,name),st=statSync(full);
-  if(st.isDirectory()){walk(full);continue}
-  if(!st.isFile()||! /\.(mjs|js|json|ts|tsx)$/.test(name))continue;
-  const path=relative(root,full).replaceAll('\\','/');
-  if(path==='scripts/audit-vercel-dependencies.mjs')continue;
+ for(const item of readdirSync(dir,{withFileTypes:true})){
+  if(ignore.has(item.name))continue;
+  const full=join(dir,item.name),p=relative(root,full).replaceAll('\\\\','/');
+  if(item.isDirectory()){walk(full);continue}
+  if(!item.isFile()||!(/\\.(?:js|mjs|cjs|ts|tsx|jsx|json|html|yml|yaml|sh)$/.test(p)))continue;
+  if(p.startsWith('scripts/')||p.startsWith('tests/')||p.startsWith('docs/')||p.startsWith('fixtures/'))continue;
+  scanned++;
   const source=readFileSync(full,'utf8');
-  for(const [category,pattern] of needles){
-   const found=[...source.matchAll(pattern)].length;
-   if(found)counts.get(category).push({path,occurrences:found});
+  for(const [kind,re] of patterns){
+   re.lastIndex=0;let match;
+   while((match=re.exec(source))!==null){
+    findings.push({path:p,line:source.slice(0,match.index).split('\\n').length,kind});
+    if(findings.length>2000)throw Error('TOO_MANY_FINDINGS');
+   }
   }
  }
 }
 walk(root);
-let total=0;
-for(const [category,files] of counts){
- if(category.startsWith('vercel_'))total+=files.length;
- console.log(category+': '+files.length+' files');
- for(const f of files.sort((a,b)=>a.path.localeCompare(b.path)))console.log('  '+f.path+' ('+f.occurrences+')');
-}
-
-if(total>0){console.error('VERCEL_RUNTIME_RESIDUE_DETECTED');process.exitCode=1}
+findings.sort((a,b)=>a.path.localeCompare(b.path)||a.line-b.line);
+console.log(JSON.stringify({scanned,findings:findings.length,details:findings},null,2));
+if(findings.length)process.exitCode=1;
