@@ -106,3 +106,15 @@ for spec in 'AUTH:tests/gabia-auth-stage3.test.mjs' 'STORAGE:tests/gabia-storage
  if [ "$rc" -ne 0 ]; then grep -A 15 -B 2 '^not ok' "/tmp/gabia-e2e-${category}.log" | head -100 || true; fi
 done
 echo FIVE_CATEGORY_E2E_END
+
+echo FOUR_WORKSTREAM_READINESS_BEGIN
+echo WORKSTREAM_1_AUTODEPLOY:$(sudo -n systemctl is-active squidlaw-web.service)
+echo WORKSTREAM_2_PREVIEW_LOCAL:$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8088/admin/skynet.html)
+echo WORKSTREAM_3_DNS_CUTOVER:NOT_AUTHORIZED
+echo WORKSTREAM_4_LEGACY_DELETION:NOT_AUTHORIZED
+echo GABIA_SERVICE_HEALTH_BEGIN
+for service in squidlaw-web.service squidlaw-api.service nginx.service; do
+ echo "SERVICE:$service:$(sudo -n systemctl is-active "$service" || true)"
+done
+echo GABIA_SERVICE_HEALTH_END
+echo FOUR_WORKSTREAM_READINESS_END
