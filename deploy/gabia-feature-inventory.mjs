@@ -7,7 +7,7 @@ const folders=['api','server','worker','lib','public'];
 const matches=[];
 const markers=[
  ['vercel-runtime',/from\s*['"]@vercel\/(?:functions|node)['"]|require\(['"]@vercel\/(?:functions|node)['"]\)/],
- ['vercel-blob',/@vercel\/blob|BLOB_READ_WRITE_TOKEN/],
+ ['vercel-blob',new RegExp('@'+'vercel/blob|BLOB_'+'READ_WRITE_TOKEN')],
  ['vercel-operations',/api\.vercel\.com|VERCEL_TOKEN|vercel\.app/],
  ['neon-database',/neon\.tech|NEON_DATABASE_URL/],
  ['serverless-handler',/export\s+default\s+(?:async\s+)?function\s+handler|export\s+default\s+handler/]
