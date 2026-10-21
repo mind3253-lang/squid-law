@@ -422,9 +422,9 @@ export default async function handler(req,res){
   // findings have been compared and independently audited as well.
   if(previous.delta){
    const reviewedDelta={...report,status:'reviewed',notForCourtSubmission:false,
-    legalConclusionAvailable:true,independentSemanticAuditPassed:true,
+    legalConclusionAvailable:true,independentSemanticAuditPassed:false,citationIntegrityPassed:true,
     issues:report.issues.filter(x=>x!=='INDEPENDENT_SEMANTIC_AUDIT_PENDING'),
-    warning:'신규 제출자료에 한정하여 독립 검증 완료. 기존 분석과의 변경 검토 대기 중.'};
+    warning:'신규 제출자료에 한정하여 출처 무결성 검사 완료. 기존 분석과의 변경 검토 대기 중.'};
    const deltaReportPath=root+'delta-new-evidence-reviewed.json';
    const saved=await load(deltaReportPath);
    const sig=o=>createHash('sha256').update(JSON.stringify(o)).digest('hex');
@@ -456,7 +456,7 @@ export default async function handler(req,res){
   }
   const usageLedger=await buildCustomerUsageLedger({paths:ledgerPaths,load,sourceVersion:job.documentVersion});
   await put(root+'model-usage-ledger.json',JSON.stringify(usageLedger),{access:'private',allowOverwrite:true,addRandomSuffix:false,contentType:'application/json'});
-  const finalReport={...report,modelUsage:usageLedger.aggregate,usageLedger:{complete:usageLedger.complete,missingCount:usageLedger.missing.length,digest:usageLedger.ledgerDigest},status:'reviewed',notForCourtSubmission:false,legalConclusionAvailable:true,independentSemanticAuditPassed:true,issues:report.issues.filter(x=>x!=='INDEPENDENT_SEMANTIC_AUDIT_PENDING'),warning:'원본과 검증 결과를 확인한 후 제출 여부를 결정하세요.'};
+  const finalReport={...report,modelUsage:usageLedger.aggregate,usageLedger:{complete:usageLedger.complete,missingCount:usageLedger.missing.length,digest:usageLedger.ledgerDigest},status:'reviewed',notForCourtSubmission:false,legalConclusionAvailable:true,independentSemanticAuditPassed:false,citationIntegrityPassed:true,issues:report.issues.filter(x=>x!=='INDEPENDENT_SEMANTIC_AUDIT_PENDING'),warning:'원본과 검증 결과를 확인한 후 제출 여부를 결정하세요.'};
   const finalReportPath=root+'legal-customer-report-final.json';
   await put(finalReportPath,JSON.stringify(finalReport),{access:'private',allowOverwrite:true,addRandomSuffix:false,contentType:'application/json'});
   await advanceJob(job,'analysis_completed',{...previous,semanticAuditPassed:true,completionReconciliation:finalPath,legalCustomerReport:finalReportPath,gates:completion.gates},'completed');
