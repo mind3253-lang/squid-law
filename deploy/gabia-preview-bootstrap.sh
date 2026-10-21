@@ -122,3 +122,26 @@ echo FOUR_WORKSTREAM_READINESS_END
 echo PUBLIC_PORT_80_DIAGNOSTICS_BEGIN
 sudo -n nginx -T 2>&1 | grep -E 'listen |server_name |conf.d/|sites-enabled/' | head -75 || true
 echo PUBLIC_PORT_80_DIAGNOSTICS_END
+
+echo PUBLIC_HTTP_PREVIEW_PORT80_BEGIN
+sudo -n tee /etc/nginx/conf.d/squidlaw-preview-public.conf >/dev/null <<'NGINX_PUBLIC'
+server {
+ listen 0.0.0.0:80;
+ server_name 1.201.111.35;
+ server_tokens off;
+ client_max_body_size 100m;
+ add_header X-Content-Type-Options nosniff always;
+ location /api/ { return 503; }
+ location / {
+  proxy_pass http://127.0.0.1:3082;
+  proxy_set_header Host $host;
+  proxy_set_header X-Real-IP $remote_addr;
+  proxy_connect_timeout 5s;
+  proxy_read_timeout 30s;
+ }
+}
+NGINX_PUBLIC
+sudo -n nginx -t
+sudo -n systemctl reload nginx
+curl -fsS -H 'Host: 1.201.111.35' -o /dev/null -w 'PUBLIC_HTTP_PREVIEW_LOCAL:%{http_code}\\n' http://127.0.0.1/
+echo PUBLIC_HTTP_PREVIEW_PORT80_END
