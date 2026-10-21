@@ -1,0 +1,27 @@
+name: Neon staging migration
+on:
+  push:
+    paths:
+      - '.github/workflows/neon-staging-migration.yml'
+permissions:
+  contents: read
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Configure SSH
+        env:
+          KEY: ${{ secrets.GABIA_SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$KEY" > ~/.ssh/gabia.pem
+          chmod 600 ~/.ssh/gabia.pem
+      - name: Copy source into isolated staging database
+        env:
+          SOURCE: ${{ secrets.NEON_DATABASE_URL }}
+        run: |
+          set -euo pipefail
+          test -n "$SOURCE"
+          printf '%s\n' "$SOURCE" | ssh -T -i ~/.ssh/gabia.pem -o StrictHostKeyChecking=accept-new ubuntu@1.201.111.35 'IFS= read -r dburl; cd /opt/squidlaw/app; NEON_DATABASE_URL="$dburl" bash deploy/restore-neon-to-staging.sh'
