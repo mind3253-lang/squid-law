@@ -89,7 +89,7 @@ for(const [route,modulePath] of Object.entries(routeModules)){
 }
 const maxBytes=100*1024*1024;
 const smallRequestBytes=2*1024*1024;
-const streamingRoutes=new Set(['/api/skynet-archive']);
+const streamingRoutes=new Set(['/api/skynet-archive','/api/customer-large-upload']);
 const server=createServer(async(req,res)=>{
  const path=new URL(req.url||'/','http://localhost').pathname;
  const handler=routes.get(path);
