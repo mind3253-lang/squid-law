@@ -104,7 +104,13 @@ export default async function handler(req,res){
    const {storageHealth}=await import('../lib/customer-object-storage.mjs');
    const health=await storageHealth();
    console.error('CASE_REGISTRY_LOOKUP_FAILURE',JSON.stringify({storageReady:health.ok,storageCode:health.code||null}));
-   throw Error('CASE_NOT_FOUND');
+   // The registry is a case-list index; the immutable uploaded document
+   // manifests are the source of truth for an already-queued analysis.
+   const {list: listStored}=await import('../lib/customer-object-storage.mjs');
+   const docListing=await listStored({prefix:prefix+'docs/',limit:1});
+   if(!docListing.blobs.length)throw Error('CASE_DOCUMENTS_NOT_FOUND');
+   console.error('CASE_REGISTRY_MISSING_DOCUMENTS_PRESENT',JSON.stringify({caseId:job.caseId}));
+
   }
  // Never mark complete before OCR, image evidence, cross-document reasoning and independent verification have passed.
  const blob=(await import('../lib/customer-object-storage.mjs'));let cursor,paths=[];do{const listing=await blob.list({prefix:prefix+'docs/',limit:1000,...(cursor?{cursor}:{})});paths.push(...listing.blobs.filter(b=>b.pathname.endsWith('.json')).map(b=>b.pathname));cursor=listing.hasMore?listing.cursor:null}while(cursor);
