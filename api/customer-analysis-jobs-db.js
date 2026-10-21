@@ -115,6 +115,19 @@ export async function resumeJob(user,caseId,jobId,version){
  });
 }
 
+// Recover only the infrastructure-specific missing-index failure. Preserve
+// document version, immutable receipts and checkpoints; never restart billing.
+export async function recoverMissingRegistryJobs(){
+ return withLeaseDb(async db=>{
+  const r=await db.query(`UPDATE customer_analysis_jobs
+   SET status='queued',stage='resume_requested',error_code=NULL,attempts=0,
+       next_run_at=now(),updated_at=now()
+   WHERE status='failed' AND error_code='CASE_NOT_FOUND'
+   RETURNING job_id`);
+  return r.rowCount;
+ });
+}
+
 export async function queueSnapshot(user,caseId,id){
  return withLeaseDb(async db=>{
   const target=await db.query('SELECT created_at,job_id,status,(next_run_at<=now()) AS ready_now FROM customer_analysis_jobs WHERE customer_key=$1 AND case_id=$2 AND job_id=$3',[key(user),caseId,id]);
