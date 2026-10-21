@@ -9,7 +9,7 @@ import {findDeltaBaseline,verifyDeltaPlan} from '../lib/customer-delta-reanalysi
 import {runDeltaReviewStep} from './customer-delta-worker.mjs';
 import {get} from '../lib/customer-object-storage.mjs';
 export const maxDuration=300;
-const VISUAL_WINDOW_CONCURRENCY=3;
+const VISUAL_WINDOW_CONCURRENCY=Math.min(6,Math.max(1,Number.parseInt(process.env.SQUIDLAW_VISUAL_WINDOW_CONCURRENCY||'6',10)||6));
 const FINALIZATION_SOFT_BUDGET_MS=180000;
 export function shouldCheckpointFinalization({elapsedMs,completedRounds}){
  if(!Number.isFinite(elapsedMs)||elapsedMs<0||!Number.isSafeInteger(completedRounds)||completedRounds<0)throw Error('INVALID_FINALIZATION_BUDGET');
