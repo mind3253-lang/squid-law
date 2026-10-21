@@ -29,6 +29,10 @@ jobs:
           echo "EXTERNAL_PREVIEW_HTTP:$code"
           echo "EXTERNAL_PREVIEW_CURL_EXIT:$result"
           if [ "$result" -ne 0 ]; then echo EXTERNAL_PREVIEW_NOT_REACHABLE; fi
+          for page in / /index.html /admin/skynet.html /api/customer-auth; do
+            code=$(curl --connect-timeout 3 --max-time 5 -s -o /dev/null -w '%{http_code}' "http://1.201.111.35$page" || true)
+            echo "EXTERNAL_PAGE:$page:$code"
+          done
           for port in 80 443; do
             code=$(curl --noproxy '*' --connect-timeout 3 --max-time 5 -k -s -o /dev/null -w '%{http_code}' "http://1.201.111.35:$port/" || true)
             echo "EXTERNAL_PORT_${port}_HTTP:$code"
