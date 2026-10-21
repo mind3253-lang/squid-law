@@ -1,0 +1,82 @@
+name: Gabia direct code deployment
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/gabia-code-deploy.yml']
+permissions:
+  contents: write
+concurrency:
+  group: gabia-production-code-deploy
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare secure transport
+        env:
+          KEY: ${{ secrets.GABIA_SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "$KEY"
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$KEY" > ~/.ssh/gabia.pem
+          chmod 600 ~/.ssh/gabia.pem
+          ssh-keyscan -H -T 10 1.201.111.35 >> ~/.ssh/known_hosts
+      - name: Stage source archive
+        run: |
+          set -euo pipefail
+          git archive --format=tar HEAD | gzip -1 > /tmp/squidlaw-release.tar.gz
+          scp -i ~/.ssh/gabia.pem -o BatchMode=yes /tmp/squidlaw-release.tar.gz ubuntu@1.201.111.35:/tmp/squidlaw-release.tar.gz
+      - name: Install, restart and verify on Gabia
+        run: |
+          set -euo pipefail
+          ssh -T -i ~/.ssh/gabia.pem -o BatchMode=yes ubuntu@1.201.111.35 'sudo -n bash -s' <<'REMOTE' > /tmp/deploy.log 2>&1
+          set -euo pipefail
+          cd /opt/squidlaw/app
+          test -f package.json
+          mkdir -p /opt/squidlaw/deploy-backups
+          backup="/opt/squidlaw/deploy-backups/pre-$(date +%Y%m%d%H%M%S).tar.gz"
+          tar -czf "$backup" --exclude=node_modules --exclude=.git --exclude=.env --exclude=uploads --exclude=storage -C /opt/squidlaw/app .
+          tar -xzf /tmp/squidlaw-release.tar.gz -C /opt/squidlaw/app
+          npm ci --omit=dev --no-audit --no-fund
+          systemctl restart squidlaw-api.service
+          systemctl restart squidlaw-worker.service
+          sleep 5
+          if systemctl is-active --quiet squidlaw-api.service && systemctl is-active --quiet squidlaw-worker.service; then
+            echo DEPLOY_SERVICES_ACTIVE
+          else
+            echo DEPLOY_HEALTH_FAILED
+            tar -xzf "$backup" -C /opt/squidlaw/app
+            npm ci --omit=dev --no-audit --no-fund
+            systemctl restart squidlaw-api.service
+            systemctl restart squidlaw-worker.service
+            echo DEPLOY_ROLLED_BACK
+            exit 1
+          fi
+          echo DEPLOY_COMMIT=${GITHUB_SHA:-unknown}
+          REMOTE
+          grep -E '^DEPLOY_(SERVICES_ACTIVE|HEALTH_FAILED|ROLLED_BACK)' /tmp/deploy.log
+      - name: Record deployment result
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          python3 - <<'PY'
+          import os,json,re,datetime
+          lines=open('/tmp/deploy.log').read().splitlines() if os.path.isfile('/tmp/deploy.log') else []
+          safe=[x for x in lines if re.fullmatch(r'DEPLOY_(SERVICES_ACTIVE|HEALTH_FAILED|ROLLED_BACK)',x)]
+          with open('/tmp/deploy-result.json','w') as f:
+            json.dump({'status':os.environ['JOB_STATUS'],'commit':os.environ['GITHUB_SHA'],'timestamp':datetime.datetime.now(datetime.timezone.utc).isoformat(),'checks':safe},f)
+          PY
+          encoded=$(base64 -w0 /tmp/deploy-result.json)
+          path=docs/GABIA_CODE_DEPLOY_RESULT.json
+          old=$(gh api "repos/${GITHUB_REPOSITORY}/contents/$path" --jq .sha 2>/dev/null || true)
+          if [ -n "$old" ]; then
+            gh api -X PUT "repos/${GITHUB_REPOSITORY}/contents/$path" -f message='Record Gabia code deployment result' -f content="$encoded" -f sha="$old" >/dev/null
+          else
+            gh api -X PUT "repos/${GITHUB_REPOSITORY}/contents/$path" -f message='Record Gabia code deployment result' -f content="$encoded" >/dev/null
+          fi
