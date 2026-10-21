@@ -34,7 +34,7 @@ jobs:
       - name: Run allowlisted Gabia check
         env:
           GABIA_SSH_KEY_FILE: /home/runner/.ssh/gabia.pem
-        run: node scripts/gabia-admin.mjs "${{ inputs.check || 'status' }}"
+        run: node scripts/gabia-admin.mjs "${{ inputs.check || 'worker' }}"
       - name: Publish redacted diagnostics to repository
         if: always()
         env:
