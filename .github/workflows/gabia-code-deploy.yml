@@ -92,6 +92,7 @@ jobs:
           grep -q 'skynet-icon.svg' /opt/squidlaw/app/admin/skynet.html
           echo DEPLOY_SKYNET_ICON_VERIFIED
           REMOTE
+          grep -E '^(INTEGRATION_AUDIT_|AUDIT )' /tmp/deploy.log || true
           if ! grep -E '^DEPLOY_(SERVICES_ACTIVE|HEALTH_FAILED|ROLLED_BACK|PROBE_VERIFIED|SKYNET_ICON_VERIFIED)' /tmp/deploy.log; then
             echo DEPLOY_REMOTE_STEP_FAILED
             echo DEPLOY_DIAGNOSTIC_BEGIN
