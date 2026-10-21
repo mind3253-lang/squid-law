@@ -1,0 +1,62 @@
+name: Gabia OpenAI API live smoke test
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/gabia-openai-smoke.yml']
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Test live GPT API from Gabia
+        env:
+          KEY: ${{ secrets.GABIA_SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$KEY" > ~/.ssh/gabia.pem
+          chmod 600 ~/.ssh/gabia.pem
+          ssh -T -i ~/.ssh/gabia.pem -o StrictHostKeyChecking=accept-new ubuntu@1.201.111.35 'sudo -n bash -s' <<'REMOTE' > /tmp/smoke.log 2>&1
+          set -euo pipefail
+          set -a
+          source /etc/squidlaw/openai.env
+          set +a
+          test -n "${OPENAI_API_KEY:-}"
+          echo OPENAI_KEY_PRESENT
+          code=$(curl -sS -o /tmp/gabia-openai-smoke-response.json -w '%{http_code}' --connect-timeout 10 --max-time 45 -H "Authorization: Bearer $OPENAI_API_KEY" -H 'Content-Type: application/json' -d '{"model":"gpt-4.1-mini","input":"Reply with OK only.","max_output_tokens":16}' https://api.openai.com/v1/responses)
+          echo "OPENAI_HTTP_STATUS=$code"
+          python3 - <<'PY'
+          import json
+          p=json.load(open('/tmp/gabia-openai-smoke-response.json'))
+          if p.get('id') and p.get('object')=='response':
+            print('OPENAI_RESPONSE_OK')
+          else:
+            print('OPENAI_RESPONSE_ERROR_TYPE='+str(p.get('error',{}).get('type','unknown'))[:80])
+          PY
+          rm -f /tmp/gabia-openai-smoke-response.json
+          test "$code" = 200
+          REMOTE
+          grep -E '^(OPENAI_KEY_PRESENT|OPENAI_HTTP_STATUS=[0-9]+|OPENAI_RESPONSE_OK|OPENAI_RESPONSE_ERROR_TYPE=[a-z_]+)' /tmp/smoke.log || true
+      - name: Record safe smoke result
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          python3 - <<'PY'
+          import os,json,re,datetime
+          lines=open('/tmp/smoke.log').read().splitlines() if os.path.isfile('/tmp/smoke.log') else []
+          safe=[x for x in lines if re.fullmatch(r'OPENAI_KEY_PRESENT|OPENAI_HTTP_STATUS=[0-9]{3}|OPENAI_RESPONSE_OK|OPENAI_RESPONSE_ERROR_TYPE=[a-z_]+',x)]
+          with open('/tmp/result.json','w') as f: json.dump({'status':os.environ['JOB_STATUS'],'timestamp':datetime.datetime.now(datetime.timezone.utc).isoformat(),'diagnostics':safe},f)
+          PY
+          encoded=$(base64 -w0 /tmp/result.json)
+          path=docs/GABIA_OPENAI_SMOKE_RESULT.json
+          old=$(gh api "repos/${GITHUB_REPOSITORY}/contents/$path" --jq .sha 2>/dev/null || true)
+          if [ -n "$old" ]; then
+            gh api -X PUT "repos/${GITHUB_REPOSITORY}/contents/$path" -f message='Record Gabia OpenAI smoke test' -f content="$encoded" -f sha="$old" >/dev/null
+          else
+            gh api -X PUT "repos/${GITHUB_REPOSITORY}/contents/$path" -f message='Record Gabia OpenAI smoke test' -f content="$encoded" >/dev/null
+          fi
