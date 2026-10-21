@@ -1,30 +1,33 @@
 #!/usr/bin/env bash
-# One-way Neon -> isolated Gabia staging DB. Never alters source or live database.
+# Isolated Neon -> PostgreSQL 18 staging restore; never modifies Neon or port 5432.
 set -euo pipefail
 umask 077
-: "${NEON_DATABASE_URL:?NEON_DATABASE_URL missing}"
-command -v pg_dump >/dev/null
-command -v pg_restore >/dev/null
-command -v createdb >/dev/null
-command -v psql >/dev/null
+: "${NEON_DATABASE_URL:?NEON_DATABASE_URL is required}"
+export PGCONNECT_TIMEOUT=15
+export PGSSLMODE=require
+pgdump=/usr/lib/postgresql/18/bin/pg_dump
+pgrestore=/usr/lib/postgresql/18/bin/pg_restore
+psql18=/usr/lib/postgresql/18/bin/psql
+test -x "$pgdump" && test -x "$pgrestore" && test -x "$psql18"
+sudo -n -u postgres "$psql18" -p 5433 -X -At -c 'SELECT current_setting('\''server_version'\'')' | grep -q '^18\.'
 base=/var/lib/squidlaw/db-migration
-mkdir -p "$base"
-chmod 700 "$base"
+install -d -m 0700 "$base"
 stamp="$(date -u +%Y%m%dT%H%M%SZ)"
 dump="$base/neon-$stamp.dump"
 db="squidlaw_stage_$(date -u +%Y%m%d%H%M%S)"
-echo 'NEON_DUMP_BEGIN'
-pg_dump --dbname="$NEON_DATABASE_URL" --format=custom --no-owner --no-acl --file="$dump"
+echo NEON_DUMP_BEGIN
+# URI stays in environment, not process arguments or printed output.
+PGDATABASE="$NEON_DATABASE_URL" "$pgdump" --format=custom --no-owner --no-acl --file="$dump"
 sha256sum "$dump" | awk '{print "DUMP_SHA256:" $1}'
 echo "DUMP_BYTES:$(stat -c %s "$dump")"
-echo 'NEON_DUMP_COMPLETE'
-# Local PostgreSQL access is via the postgres system user; staging only.
-sudo -n -u postgres createdb "$db"
+echo NEON_DUMP_COMPLETE
+sudo -n -u postgres /usr/lib/postgresql/18/bin/createdb -p 5433 "$db"
 echo "STAGING_DATABASE_CREATED:$db"
-if ! sudo -n -u postgres pg_restore --no-owner --no-acl --exit-on-error --dbname="$db" "$dump"; then
- echo 'STAGING_RESTORE_FAILED_DATABASE_RETAINED_FOR_INSPECTION'
+# Feed dump over stdin so postgres need not read private backup directory.
+if ! sudo -n -u postgres "$pgrestore" -p 5433 --no-owner --no-acl --exit-on-error --dbname="$db" < "$dump"; then
+ echo STAGING_RESTORE_FAILED_DATABASE_RETAINED_FOR_INSPECTION
  exit 1
 fi
 echo "STAGING_RESTORE_COMPLETE:$db"
-sudo -n -u postgres psql -X -At -d "$db" -c "SELECT 'STAGING_USER_TABLES:'||count(*) FROM pg_tables WHERE schemaname NOT IN ('pg_catalog','information_schema');"
-echo 'NEON_SOURCE_UNCHANGED_NO_RUNTIME_CUTOVER'
+sudo -n -u postgres "$psql18" -p 5433 -X -At -d "$db" -c "SELECT 'STAGING_USER_TABLES:'||count(*) FROM pg_tables WHERE schemaname NOT IN ('pg_catalog','information_schema');"
+echo NEON_SOURCE_UNCHANGED_NO_RUNTIME_CUTOVER
