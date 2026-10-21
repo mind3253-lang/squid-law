@@ -73,7 +73,11 @@ jobs:
           grep -q 'skynet-icon.svg' /opt/squidlaw/app/admin/skynet.html
           echo DEPLOY_SKYNET_ICON_VERIFIED
           REMOTE
-          grep -E '^DEPLOY_(SERVICES_ACTIVE|HEALTH_FAILED|ROLLED_BACK|PROBE_VERIFIED|SKYNET_ICON_VERIFIED)' /tmp/deploy.log
+          if ! grep -E '^DEPLOY_(SERVICES_ACTIVE|HEALTH_FAILED|ROLLED_BACK|PROBE_VERIFIED|SKYNET_ICON_VERIFIED)' /tmp/deploy.log; then
+            echo DEPLOY_REMOTE_STEP_FAILED
+            grep -E '^(OBJECT_ROOT_ALIGNED|DEPLOY_|cp:|sed:|systemctl:|Failed to|Error:)' /tmp/deploy.log | tail -12 || true
+            exit 1
+          fi
       - name: Record deployment result
         if: always()
         env:
