@@ -575,10 +575,14 @@ export default async function handler(req,res){
    const outputPath='squidlaw/analysis-jobs/'+job.customerKey+'/'+job.caseId+'/'+job.jobId+'/visual-provider/'+doc.id+'.json';
    const providerResult=await load(outputPath);
    const extractedPages=[];
-   for(let start=0;start<doc.pageCount;start+=20){
-    const batch=await load(prefix+'verified/'+doc.id+'/batch-'+String(start).padStart(8,'0')+'.json');
-    if(!batch?.pages||batch.documentId!==doc.id||batch.sourcePdfSha256!==doc.sha256)throw Error('VISUAL_AUDIT_VERIFIED_BATCH_MISSING');
-    extractedPages.push(...batch.pages);
+   const verifiedStarts=Array.from({length:Math.ceil(doc.pageCount/20)},(_,i)=>i*20);
+   for(let i=0;i<verifiedStarts.length;i+=12){
+    const group=verifiedStarts.slice(i,i+12);
+    const batches=await Promise.all(group.map(start=>load(prefix+'verified/'+doc.id+'/batch-'+String(start).padStart(8,'0')+'.json')));
+    for(const batch of batches){
+     if(!batch?.pages||batch.documentId!==doc.id||batch.sourcePdfSha256!==doc.sha256)throw Error('VISUAL_AUDIT_VERIFIED_BATCH_MISSING');
+     extractedPages.push(...batch.pages);
+    }
    }
    const audit=auditVisualProviderCoverage({documentId:doc.id,sourcePdfSha256:doc.sha256,pageCount:doc.pageCount,providerResult,extractedPages});
    if(!audit.complete)auditFailures.push({documentId:doc.id,failures:audit.failures.slice(0,25)});
