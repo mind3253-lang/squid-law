@@ -8,6 +8,17 @@ const commands = {
   api: ['systemctl status squidlaw-api.service --no-pager -l','journalctl -u squidlaw-api.service -n 50 --no-pager -o cat'],
   workerconfig: ["systemctl show squidlaw-worker.service -p ActiveState -p Result -p ExecMainStatus --no-pager", "grep -q '^OPENAI_API_KEY=' /etc/squidlaw/openai.env && echo OPENAI_API_KEY_PRESENT", "grep -q '^DATABASE_URL=' /etc/squidlaw/worker.env && echo DATABASE_URL_PRESENT", "grep -q '^CRON_SECRET=' /etc/squidlaw/worker.env && echo CRON_SECRET_PRESENT", "grep -q '^BLOB_READ_WRITE_TOKEN=' /etc/squidlaw/worker.env && echo BLOB_READ_WRITE_TOKEN_PRESENT"],
   inventory: ["grep -q '^SQUID_CUSTOMER_DATABASE_URL=' /etc/squidlaw/api.env && echo API_DB_PRESENT", "grep -q '^DATABASE_URL=' /etc/squidlaw/api.env && echo API_DATABASE_URL_PRESENT", "grep -q '^CRON_SECRET=' /etc/squidlaw/api.env && echo API_CRON_PRESENT", "grep -q '^BLOB_READ_WRITE_TOKEN=' /etc/squidlaw/api.env && echo API_BLOB_PRESENT", "grep -q '^CRON_SECRET=' /etc/squidlaw/openai.env && echo OPENAI_CRON_PRESENT", "grep -q '^BLOB_READ_WRITE_TOKEN=' /etc/squidlaw/openai.env && echo OPENAI_BLOB_PRESENT"],
+  acceptance2: [
+    "systemctl show squidlaw-api.service -p ExecStart -p WorkingDirectory -p EnvironmentFiles --no-pager",
+    "sh -c 'ss -lntp | grep -E \":(3000|3001|8080|8000|80|443) \" || true'",
+    "sh -c 'curl -sS -o /dev/null -w PUBLIC_API_%{http_code} --max-time 12 https://squidlaw.co.kr/api/customer-case || true'",
+    "sh -c 'curl -sS -o /dev/null -w PUBLIC_REPORT_%{http_code} --max-time 12 https://squidlaw.co.kr/api/customer-text-review-report || true'",
+    "sh -c 'curl -sS -o /dev/null -w PUBLIC_MYPAGE_%{http_code} --max-time 12 https://squidlaw.co.kr/api/customer-mypage-summary || true'",
+    "sh -c 'test -f /opt/squidlaw/app/api/customer-auth.js && echo AUTH_MODULE_PRESENT'",
+    "sh -c 'test -f /opt/squidlaw/app/api/customer-case.js && echo CASE_MODULE_PRESENT'",
+    "sh -c 'test -f /opt/squidlaw/app/api/customer-analysis-jobs-db.js && echo JOB_MODULE_PRESENT'",
+    "sh -c 'test -f /opt/squidlaw/app/worker/continuous-worker.mjs && echo WORKER_MODULE_PRESENT'"
+  ],
   acceptance: [
     "psql -p 5433 -U root -d squidlaw_production -v ON_ERROR_STOP=1 -Atqc 'BEGIN; CREATE TEMP TABLE squidlaw_smoke_test (id integer); INSERT INTO squidlaw_smoke_test VALUES (1); SELECT CASE WHEN COUNT(*)=1 THEN 1 ELSE 0 END FROM squidlaw_smoke_test; ROLLBACK;'",
     "sh -c 'curl -sS -o /dev/null -w HTTP_LOCAL_%{http_code} --max-time 12 http://127.0.0.1:3000/ || true'",
