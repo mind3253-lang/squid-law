@@ -134,7 +134,7 @@ echo PUBLIC_HTTP_PREVIEW_PORT80_BEGIN
 sudo -n tee /etc/nginx/conf.d/squidlaw-preview-public.conf >/dev/null <<'NGINX_PUBLIC'
 server {
  listen 0.0.0.0:80;
- server_name 1.201.111.35;
+ server_name 1.201.111.35 squidlaw.co.kr www.squidlaw.co.kr;
  server_tokens off;
  client_max_body_size 100m;
  add_header X-Content-Type-Options nosniff always;
