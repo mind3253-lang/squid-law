@@ -8,6 +8,10 @@ on:
         type: choice
         options: [status, database, worker, api, config]
         default: status
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/gabia-admin.yml'
 permissions:
   contents: read
 jobs:
@@ -30,4 +34,4 @@ jobs:
       - name: Run allowlisted Gabia check
         env:
           GABIA_SSH_KEY_FILE: /home/runner/.ssh/gabia.pem
-        run: node scripts/gabia-admin.mjs "${{ inputs.check }}"
+        run: node scripts/gabia-admin.mjs "${{ inputs.check || 'status' }}"
