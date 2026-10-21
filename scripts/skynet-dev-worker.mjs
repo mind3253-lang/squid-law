@@ -3,6 +3,7 @@ import { initializeDevQueue, claimDevTask, updateDevTask, pool } from '../lib/sk
 
 const owner = 'skynet-dev-' + randomUUID();
 const model = process.env.SKYNET_DEV_MODEL || 'gpt-4.1';
+const apiTimeoutMs = 110000;
 const instructions = `You are SKYNET's persistent development planning worker. Return JSON with keys summary, proposed_files (array of {path,change}), checks (array of strings), risks (array of strings). Never include secrets, shell commands to execute, or claims of applied changes. Keep existing SKYNET topic-based memory and chat continuity intact.`;
 
 async function plan(task) {
@@ -17,10 +18,11 @@ async function plan(task) {
       input:JSON.stringify({topic:task.topic,instruction:task.instruction,checkpoint:task.checkpoint}),
       text:{format:{type:'json_object'}}
     }),
-    signal:AbortSignal.timeout(110000)
+    signal:AbortSignal.timeout(apiTimeoutMs)
   });
   if (!response.ok) throw new Error('GPT API request failed: HTTP '+response.status);
   const body = await response.json();
+  if (body.status !== 'completed') throw new Error('GPT API incomplete response: '+String(body.status));
   const text = (body.output || []).flatMap(x => x.content || []).filter(x => x.type === 'output_text').map(x => x.text).join('');
   if (!text) throw new Error('GPT API returned no text');
   return JSON.parse(text);
