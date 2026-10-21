@@ -347,7 +347,9 @@ export default async function handler(req,res){
    if(part.caseId!==job.caseId||part.sourceVersion!==job.documentVersion||part.task!==task||part.cursor!==cursor||part.sourceAudit?.complete!==true)throw Error('LEGAL_WINDOW_CACHE_INVALID');
    if(task==='claims_and_rebuttals'&&part.reviewAudit?.complete!==true)throw Error('LEGAL_WINDOW_CACHE_REQUIRES_SOURCE_READ_RECEIPTS');
   }else{
-   part=await timedAnalysisStep('legal_reasoning',()=>analyzeLegalWindow({request:authorized,sourceUnits:units,cursor,task,apiKey:process.env.OPENAI_API_KEY,model:process.env.SQUIDLAW_LEGAL_MODEL||'gpt-5.4',maxCharacters:64000}));
+   const priorPath=cursor>0?(previous.legalWindowPaths||[]).at(-1):null;
+   const previousWindow=priorPath?await load(priorPath):null;
+   part=await timedAnalysisStep('legal_reasoning',()=>analyzeLegalWindow({request:authorized,sourceUnits:units,cursor,task,previousWindow,apiKey:process.env.OPENAI_API_KEY,model:process.env.SQUIDLAW_LEGAL_MODEL||'gpt-5.4',maxCharacters:64000}));
    await put(path,JSON.stringify(part),{access:'private',allowOverwrite:false,addRandomSuffix:false,contentType:'application/json'});
   }
   const paths=[...(previous.legalWindowPaths||[]),path];
