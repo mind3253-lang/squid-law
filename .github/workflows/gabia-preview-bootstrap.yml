@@ -1,0 +1,41 @@
+name: Bootstrap Gabia web preview
+on:
+  push:
+    paths:
+      - '.github/workflows/gabia-preview-bootstrap.yml'
+      - 'deploy/gabia-preview-bootstrap.sh'
+permissions:
+  contents: write
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Bootstrap isolated web service
+        env:
+          KEY: ${{ secrets.GABIA_SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$KEY" > ~/.ssh/gabia.pem
+          chmod 600 ~/.ssh/gabia.pem
+          ssh -T -i ~/.ssh/gabia.pem -o StrictHostKeyChecking=accept-new ubuntu@1.201.111.35 'sudo -n git -c safe.directory=/opt/squidlaw/app -C /opt/squidlaw/app fetch origin main && sudo -n git -c safe.directory=/opt/squidlaw/app -C /opt/squidlaw/app merge --ff-only origin/main && bash /opt/squidlaw/app/deploy/gabia-preview-bootstrap.sh'
+      - name: Record preview status
+        if: ${{ always() }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          OUTCOME: ${{ job.status }}
+        run: |
+          python3 - <<'PY'
+          import os,json,base64,subprocess
+          repo=os.environ['REPO'];url='https://api.github.com/repos/'+repo+'/contents/docs/GABIA_PREVIEW_STATUS.json'
+          headers=['-H','Authorization: Bearer '+os.environ['GH_TOKEN'],'-H','Accept: application/vnd.github+json']
+          obj={'run_id':os.environ['GITHUB_RUN_ID'],'status':os.environ['OUTCOME'],'commit':os.environ['GITHUB_SHA']}
+          prior=subprocess.run(['curl','-fsS',*headers,url],capture_output=True,text=True)
+          prev=json.loads(prior.stdout) if prior.returncode==0 else {}
+          payload={'message':'Record Gabia preview status','content':base64.b64encode((json.dumps(obj,indent=2)+'\n').encode()).decode(),'branch':'main'}
+          if prev.get('sha'):payload['sha']=prev['sha']
+          p=subprocess.run(['curl','-fsS','-X','PUT',*headers,'-H','Content-Type: application/json','-d',json.dumps(payload),url],capture_output=True,text=True)
+          if p.returncode:raise SystemExit('STATUS_WRITE_FAILED')
+          PY
