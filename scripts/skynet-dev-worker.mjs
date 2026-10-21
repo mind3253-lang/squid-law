@@ -31,11 +31,12 @@ async function plan(task) {
 
 async function draftChanges(task, proposal) {
   const proposed = Array.isArray(proposal.proposed_files) ? proposal.proposed_files : [];
+  if (proposed.length > 10) throw new Error('Too many proposed files for single review');
   if (!proposed.length) return null;
   const changes = [];
-  for (const file of proposed.slice(0,10)) {
+  for (const file of proposed) {
     if (typeof file.path !== 'string' || !/^[a-zA-Z0-9_.\/-]+$/.test(file.path) || file.path.includes('..')) throw new Error('Unsafe proposed path');
-    if (file.path.startsWith('.github/workflows/') || file.path.startsWith('deploy/') || file.path.includes('.env')) throw new Error('Protected path requires manual change');
+    if (file.path.startsWith('.github/') || file.path.startsWith('deploy/') || file.path.includes('.env') || file.path === 'package.json' || file.path.endsWith('package-lock.json')) throw new Error('Protected path requires manual change');
     let current = '';
     try { current = (await readRepositoryFile(file.path)).content; }
     catch (e) { if (!String(e.message).includes(' 404')) throw e; }
