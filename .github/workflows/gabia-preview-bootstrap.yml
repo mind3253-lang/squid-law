@@ -4,6 +4,7 @@ on:
     paths:
       - '.github/workflows/gabia-preview-bootstrap.yml'
       - 'deploy/gabia-preview-bootstrap.sh'
+      - 'server/gabia-static-web.mjs'
 permissions:
   contents: write
 jobs:
