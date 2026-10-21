@@ -3,6 +3,7 @@ on:
   push:
     paths:
       - '.github/workflows/neon-staging-migration.yml'
+      - 'deploy/restore-neon-to-staging.sh'
 permissions:
   contents: read
 jobs:
@@ -24,4 +25,4 @@ jobs:
         run: |
           set -euo pipefail
           test -n "$SOURCE"
-          printf '%s\n' "$SOURCE" | ssh -T -i ~/.ssh/gabia.pem -o StrictHostKeyChecking=accept-new ubuntu@1.201.111.35 'IFS= read -r dburl; cd /opt/squidlaw/app; NEON_DATABASE_URL="$dburl" bash deploy/restore-neon-to-staging.sh'
+          printf '%s\n' "$SOURCE" | ssh -T -i ~/.ssh/gabia.pem -o StrictHostKeyChecking=accept-new ubuntu@1.201.111.35 'IFS= read -r dburl; sudo -n git -c safe.directory=/opt/squidlaw/app -C /opt/squidlaw/app fetch origin main; sudo -n git -c safe.directory=/opt/squidlaw/app -C /opt/squidlaw/app merge --ff-only origin/main; cd /opt/squidlaw/app; NEON_DATABASE_URL="$dburl" bash deploy/restore-neon-to-staging.sh'
