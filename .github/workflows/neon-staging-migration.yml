@@ -5,7 +5,7 @@ on:
       - '.github/workflows/neon-staging-migration.yml'
       - 'deploy/restore-neon-to-staging.sh'
 permissions:
-  contents: read
+  contents: write
 jobs:
   migrate:
     runs-on: ubuntu-latest
@@ -26,3 +26,25 @@ jobs:
           set -euo pipefail
           test -n "$SOURCE"
           printf '%s\n' "$SOURCE" | ssh -T -i ~/.ssh/gabia.pem -o StrictHostKeyChecking=accept-new ubuntu@1.201.111.35 'IFS= read -r dburl; sudo -n git -c safe.directory=/opt/squidlaw/app -C /opt/squidlaw/app fetch origin main; sudo -n git -c safe.directory=/opt/squidlaw/app -C /opt/squidlaw/app merge --ff-only origin/main; cd /opt/squidlaw/app; NEON_DATABASE_URL="$dburl" bash deploy/restore-neon-to-staging.sh'
+
+      - name: Publish staging migration result
+        if: ${{ always() }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          OUTCOME: ${{ job.status }}
+        run: |
+          python3 - <<'PY'
+          import os,json,base64,subprocess,datetime
+          repo=os.environ['REPO']
+          url='https://api.github.com/repos/'+repo+'/contents/docs/NEON_STAGING_MIGRATION_STATUS.json'
+          headers=['-H','Authorization: Bearer '+os.environ['GH_TOKEN'],'-H','Accept: application/vnd.github+json']
+          result={'run_id':os.environ['GITHUB_RUN_ID'],'run_url':'https://github.com/'+repo+'/actions/runs/'+os.environ['GITHUB_RUN_ID'],'status':os.environ['OUTCOME'],'commit':os.environ['GITHUB_SHA'],'recorded_at':datetime.datetime.now(datetime.timezone.utc).isoformat()}
+          prior=subprocess.run(['curl','-fsS',*headers,url],capture_output=True,text=True)
+          previous=json.loads(prior.stdout) if prior.returncode==0 else {}
+          payload={'message':'Record isolated Neon staging migration outcome','content':base64.b64encode((json.dumps(result,indent=2)+'\n').encode()).decode(),'branch':'main'}
+          if previous.get('sha'):payload['sha']=previous['sha']
+          p=subprocess.run(['curl','-fsS','-X','PUT',*headers,'-H','Content-Type: application/json','-d',json.dumps(payload),url],capture_output=True,text=True)
+          if p.returncode:print('STATUS_REPORT_WRITE_FAILED',p.stderr[:300]);raise SystemExit(1)
+          print('STAGING_STATUS_PUBLISHED')
+          PY
