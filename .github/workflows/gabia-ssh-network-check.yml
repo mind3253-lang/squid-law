@@ -161,30 +161,6 @@ jobs:
           echo "GABIA_ACTION_COMPLETE_NO_DNS_OR_DATABASE_CUTOVER"
           REMOTE
 
-      - name: Copy Vercel Blob objects in 200MB batches
-        if: ${{ inputs.action == 'migrate-blob' }}
-        env:
-          BLOB_TOKEN: ${{ secrets.BLOB_READ_WRITE_TOKEN }}
-        run: |
-          set -euo pipefail
-          if [ -z "$BLOB_TOKEN" ]; then echo 'BLOB_TOKEN_NOT_CONFIGURED_NO_COPY'; exit 1; fi
-          printf '%s\n' "$BLOB_TOKEN" | ssh -T -i "$HOME/.ssh/gabia.pem" -o BatchMode=yes -o StrictHostKeyChecking=accept-new ubuntu@1.201.111.35 'IFS= read -r token; cd /opt/squidlaw/app; BLOB_READ_WRITE_TOKEN="$token" node deploy/migrate-vercel-blob-200mb.mjs'
-
-      - name: Repair five staged zero-byte Blob conflicts
-        if: ${{ inputs.action == 'repair-blob-conflicts' }}
-        run: |
-          set -euo pipefail
-          ssh -T -i "$HOME/.ssh/gabia.pem" -o BatchMode=yes -o StrictHostKeyChecking=accept-new ubuntu@1.201.111.35 'cd /opt/squidlaw/app && node deploy/repair-staged-blob-conflicts.mjs'
-
-      - name: Verify all Vercel Blob objects against Gabia SHA256
-        if: ${{ inputs.action == 'verify-blob' }}
-        env:
-          BLOB_TOKEN: ${{ secrets.BLOB_READ_WRITE_TOKEN }}
-        run: |
-          set -euo pipefail
-          test -n "$BLOB_TOKEN"
-          printf '%s\n' "$BLOB_TOKEN" | ssh -T -i "$HOME/.ssh/gabia.pem" -o BatchMode=yes -o StrictHostKeyChecking=accept-new ubuntu@1.201.111.35 'IFS= read -r token; cd /opt/squidlaw/app; BLOB_READ_WRITE_TOKEN="$token" node deploy/verify-vercel-blob-migration.mjs'
-
       - name: Inspect Neon migration prerequisites without changing data
         if: ${{ inputs.action == 'neon-preflight' }}
         run: |
