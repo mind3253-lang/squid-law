@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Verify existing SSH key and server access (read-only)
+      - name: Verify SSH access and authorized maintenance capability
         env:
           GABIA_KEY: ${{ secrets.GABIA_SSH_PRIVATE_KEY }}
         run: |
@@ -21,4 +21,4 @@ jobs:
           install -d -m 700 ~/.ssh
           printf '%s\n' "$GABIA_KEY" > ~/.ssh/gabia.pem
           chmod 600 ~/.ssh/gabia.pem
-          ssh -T -o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=accept-new -i ~/.ssh/gabia.pem ubuntu@1.201.111.35 'echo GABIA_SSH_CONNECTED; hostname; id -un; sudo -n systemctl is-active squidlaw-api.service || true; sudo -n systemctl is-active squidlaw-worker.service || true; echo GABIA_REMOTE_MAINTENANCE_TRANSPORT_VERIFIED'
+          ssh -T -o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=accept-new -i ~/.ssh/gabia.pem ubuntu@1.201.111.35 'echo GABIA_SSH_CONNECTED; hostname; id -un; sudo -n systemctl is-active squidlaw-api.service || true; sudo -n systemctl is-active squidlaw-worker.service || true; sudo -n -l >/dev/null && echo GABIA_SUDO_AVAILABLE; echo GABIA_REMOTE_MAINTENANCE_TRANSPORT_VERIFIED'
