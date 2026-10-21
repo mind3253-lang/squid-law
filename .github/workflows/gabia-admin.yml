@@ -1,4 +1,4 @@
-name: Gabia admin diagnostics and acceptance
+name: Gabia admin diagnostics - routing check
 on:
   workflow_dispatch:
     inputs:
