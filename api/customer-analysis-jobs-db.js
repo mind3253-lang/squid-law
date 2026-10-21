@@ -1,5 +1,4 @@
 import {createHash,randomUUID} from 'node:crypto';
-import {errorRetryDelayMs,shouldPromptlyRedispatch} from '../lib/customer-worker-retry.mjs';
 import {withLeaseDb} from './customer-analysis-lease-db.js';
 import {assertCompletionTransition} from '../lib/analysis-stage-gates.mjs';
 import {scheduleCustomerWorker} from '../lib/customer-worker-dispatch.mjs';
@@ -80,7 +79,7 @@ export async function advanceJob(job,stage,checkpoint,status='running',errorCode
  const result=await withLeaseDb(async db=>{
   const r=await db.query(`UPDATE customer_analysis_jobs SET stage=$6,checkpoint=$7::jsonb,status=$8,error_code=$9,attempts=CASE WHEN $6='error' THEN attempts+1 ELSE attempts END,
  lease_expires_at=CASE WHEN $8='running' THEN now()+interval '90 seconds' ELSE NULL END,
- next_run_at=CASE WHEN $8='retry' THEN now()+CASE WHEN $6='error' THEN LEAST(3600,POWER(2,LEAST(attempts,10))) * interval '1 second' ELSE interval '250 milliseconds' END ELSE next_run_at END,
+ next_run_at=CASE WHEN $8='retry' THEN now()+interval '250 milliseconds' ELSE next_run_at END,
  owner_token=CASE WHEN $8='running' THEN owner_token ELSE NULL END,updated_at=now()
  WHERE customer_key=$1 AND case_id=$2 AND job_id=$3 AND owner_token=$4 AND fence=$5 AND status='running' AND lease_expires_at>now()
  RETURNING *`,[job.customerKey,job.caseId,job.jobId,job.token,job.fence,stage,JSON.stringify(checkpoint),status,errorCode]);
@@ -90,11 +89,6 @@ export async function advanceJob(job,stage,checkpoint,status='running',errorCode
  // Trigger the next checkpoint without waiting for the customer's browser
  // or the periodic cron. Claiming remains serialized by PG SKIP LOCKED/fence.
  if(shouldDispatchCustomerWorker()&&status==='retry'&&stage!=='error')scheduleCustomerWorker({delayMs:350});
- // A transient provider/transport failure should retry after its persisted
- // SQL backoff, not stall until the next 5-minute cron. Limit immediate
- // re-dispatch to the first four attempts; repeated failures still back off.
- if(shouldDispatchCustomerWorker()&&status==='retry'&&stage==='error'&&shouldPromptlyRedispatch(job.attempts))
-  scheduleCustomerWorker({delayMs:errorRetryDelayMs(job.attempts)});
  if(shouldDispatchCustomerWorker()&&status==='completed')scheduleCustomerWorker({delayMs:350});
  return result;
 }
