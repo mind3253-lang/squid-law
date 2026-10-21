@@ -6,7 +6,7 @@ on:
         description: Diagnostic group
         required: true
         type: choice
-        options: [status, database, worker, api, config, workerconfig, inventory]
+        options: [status, database, worker, api, config, workerconfig, inventory, terminal]
         default: status
   push:
     branches: [main]
@@ -35,7 +35,7 @@ jobs:
       - name: Run allowlisted Gabia check
         env:
           GABIA_SSH_KEY_FILE: /home/runner/.ssh/gabia.pem
-        run: node scripts/gabia-admin.mjs "${{ github.event_name == 'push' && 'status' || inputs.check || 'status' }}" | tee /tmp/gabia-admin-check.log
+        run: node scripts/gabia-admin.mjs "${{ github.event_name == 'push' && 'terminal' || inputs.check || 'status' }}" | tee /tmp/gabia-admin-check.log
       - name: Publish redacted diagnostics to repository
         if: always()
         env:
