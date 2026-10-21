@@ -828,6 +828,10 @@ export default async function handler(req,res){
  }catch(e){
   const diagnostic=String(e?.message||e||'UNKNOWN').slice(0,160);
   const safeCode=diagnostic.startsWith('GPT_LEGAL_SOURCE_REVIEW_FAILED:')?'SOURCE_READ_REVIEW_FAILED':/^[A-Z][A-Z0-9_]{2,100}$/.test(diagnostic)?diagnostic:'WORKER_ERROR';
+  // Diagnostic metadata only: no document text, customer IDs, URLs, credentials or raw exception messages.
+  const errorClass=String(e?.name||'Error').replace(/[^A-Za-z]/g,'').slice(0,32);
+  const errorStage=String(job?.stage||'unknown').replace(/[^a-zA-Z0-9_-]/g,'').slice(0,64);
+  console.error('CUSTOMER_WORKER_FAILURE',JSON.stringify({code:safeCode,errorClass,stage:errorStage,jobClaimed:Boolean(job)}));
   // A failed AI/provider operation must never become a 250ms retry storm.
   // Preserve the checkpoint for explicit manual resume.
   if(job){
