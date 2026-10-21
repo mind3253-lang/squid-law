@@ -21,3 +21,31 @@ sudo -n ss -lntp | head -40 || true
 if command -v nginx >/dev/null 2>&1; then sudo -n nginx -t || true; else echo NGINX_NOT_INSTALLED; fi
 if command -v ufw >/dev/null 2>&1; then sudo -n ufw status || true; fi
 echo SERVER_NETWORK_DIAGNOSTICS_END
+
+echo PUBLIC_PREVIEW_BOOTSTRAP_BEGIN
+if ! command -v nginx >/dev/null 2>&1; then
+ sudo -n env DEBIAN_FRONTEND=noninteractive apt-get update -qq
+ sudo -n env DEBIAN_FRONTEND=noninteractive apt-get install -y -qq nginx
+fi
+sudo -n tee /etc/nginx/conf.d/squidlaw-preview.conf >/dev/null <<'NGINX'
+server {
+ listen 0.0.0.0:8088;
+ server_name _;
+ server_tokens off;
+ client_max_body_size 100m;
+ add_header X-Content-Type-Options nosniff always;
+ location /api/ { return 503; }
+ location / {
+  proxy_pass http://127.0.0.1:3082;
+  proxy_set_header Host $host;
+  proxy_set_header X-Real-IP $remote_addr;
+  proxy_connect_timeout 5s;
+  proxy_read_timeout 30s;
+ }
+}
+NGINX
+sudo -n nginx -t
+sudo -n systemctl enable --now nginx
+sudo -n systemctl reload nginx
+curl -fsS -o /dev/null -w 'PUBLIC_PREVIEW_LOCAL_HTTP:%{http_code}\\n' http://127.0.0.1:8088/
+echo PUBLIC_PREVIEW_BOOTSTRAP_OK
