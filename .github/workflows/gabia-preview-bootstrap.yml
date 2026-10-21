@@ -61,6 +61,18 @@ jobs:
           printf '%s\n' "$KEY" > ~/.ssh/gabia.pem
           chmod 600 ~/.ssh/gabia.pem
           ssh -T -i ~/.ssh/gabia.pem -o StrictHostKeyChecking=accept-new ubuntu@1.201.111.35 'sudo -n apt-get update -qq && sudo -n env DEBIAN_FRONTEND=noninteractive apt-get install -y -qq certbot python3-certbot-nginx && sudo -n certbot --nginx --non-interactive --agree-tos --register-unsafely-without-email --keep-until-expiring --redirect -d squidlaw.co.kr -d www.squidlaw.co.kr'
+      - name: Verify HTTPS and local database structure
+        env:
+          KEY: ${{ secrets.GABIA_SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          for host in squidlaw.co.kr www.squidlaw.co.kr; do
+            echo "HTTPS_VERIFY:$host:$(curl --connect-timeout 8 --max-time 15 -sS -o /dev/null -w '%{http_code}' "https://$host/")"
+          done
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$KEY" > ~/.ssh/gabia.pem
+          chmod 600 ~/.ssh/gabia.pem
+          ssh -T -i ~/.ssh/gabia.pem -o StrictHostKeyChecking=accept-new ubuntu@1.201.111.35 'sudo -n -u postgres psql -p 5433 -d squidlaw_stage_20261021032706 -Atqc "SELECT schemaname||'\''.'\''||tablename FROM pg_tables WHERE schemaname='\''public'\'' ORDER BY tablename"; sudo -n -u postgres psql -p 5432 -Atqc "SELECT datname FROM pg_database WHERE datistemplate=false ORDER BY datname"'
       - name: Record preview status
         if: ${{ always() }}
         env:
