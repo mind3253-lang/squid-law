@@ -8,6 +8,12 @@ const commands = {
   api: ['systemctl status squidlaw-api.service --no-pager -l','journalctl -u squidlaw-api.service -n 50 --no-pager -o cat'],
   workerconfig: ["systemctl show squidlaw-worker.service -p ActiveState -p Result -p ExecMainStatus --no-pager", "grep -q '^OPENAI_API_KEY=' /etc/squidlaw/openai.env && echo OPENAI_API_KEY_PRESENT", "grep -q '^DATABASE_URL=' /etc/squidlaw/worker.env && echo DATABASE_URL_PRESENT", "grep -q '^CRON_SECRET=' /etc/squidlaw/worker.env && echo CRON_SECRET_PRESENT", "grep -q '^BLOB_READ_WRITE_TOKEN=' /etc/squidlaw/worker.env && echo BLOB_READ_WRITE_TOKEN_PRESENT"],
   inventory: ["grep -q '^SQUID_CUSTOMER_DATABASE_URL=' /etc/squidlaw/api.env && echo API_DB_PRESENT", "grep -q '^DATABASE_URL=' /etc/squidlaw/api.env && echo API_DATABASE_URL_PRESENT", "grep -q '^CRON_SECRET=' /etc/squidlaw/api.env && echo API_CRON_PRESENT", "grep -q '^BLOB_READ_WRITE_TOKEN=' /etc/squidlaw/api.env && echo API_BLOB_PRESENT", "grep -q '^CRON_SECRET=' /etc/squidlaw/openai.env && echo OPENAI_CRON_PRESENT", "grep -q '^BLOB_READ_WRITE_TOKEN=' /etc/squidlaw/openai.env && echo OPENAI_BLOB_PRESENT"],
+  routing: [
+    "curl -s -o /dev/null -w ROUTE_LOCAL_%{http_code} http://127.0.0.1:3084/api/customer-case",
+    "curl -s -o /dev/null -w ROUTE_PUBLIC_%{http_code} https://squidlaw.co.kr/api/customer-case",
+    "curl -s -o /dev/null -w ROUTE_AUTH_%{http_code} https://squidlaw.co.kr/api/customer-mypage-summary",
+    "systemctl is-active squidlaw-api.service"
+  ],
   acceptance2: [
     "systemctl show squidlaw-api.service -p ExecStart -p WorkingDirectory -p EnvironmentFiles --no-pager",
     "sh -c 'ss -lntp | grep -E \":(3000|3001|8080|8000|80|443) \" || true'",
