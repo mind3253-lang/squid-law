@@ -17,7 +17,7 @@ dump="$base/neon-$stamp.dump"
 db="squidlaw_stage_$(date -u +%Y%m%d%H%M%S)"
 echo NEON_DUMP_BEGIN
 # URI stays in environment, not process arguments or printed output.
-PGDATABASE="$NEON_DATABASE_URL" "$pgdump" --format=custom --no-owner --no-acl --file="$dump"
+"$pgdump" --dbname="$NEON_DATABASE_URL" --format=custom --no-owner --no-acl --file="$dump"
 sha256sum "$dump" | awk '{print "DUMP_SHA256:" $1}'
 echo "DUMP_BYTES:$(stat -c %s "$dump")"
 echo NEON_DUMP_COMPLETE
