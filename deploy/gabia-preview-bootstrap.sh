@@ -92,3 +92,17 @@ if [ "$test_rc" -ne 0 ]; then
 fi
 echo "GABIA_NODE_TESTS_EXIT:$test_rc"
 echo GABIA_NODE_TESTS_END
+
+echo FIVE_CATEGORY_E2E_BEGIN
+for spec in 'AUTH:tests/gabia-auth-stage3.test.mjs' 'STORAGE:tests/gabia-storage-consumer-e2e.test.mjs' 'QUEUE:tests/customer-queue-recovery.test.mjs' 'SKYNET_UI:tests/skynet-chat-ui-recovery.test.mjs' 'REPORT:tests/analysis-report-integration.test.mjs'; do
+ category="${spec%%:*}"
+ testfile="${spec#*:}"
+ set +e
+ node --test "$testfile" > "/tmp/gabia-e2e-${category}.log" 2>&1
+ rc=$?
+ set -e
+ echo "CATEGORY:${category}:EXIT:${rc}"
+ grep -E '^# (tests|pass|fail|cancelled|skipped) ' "/tmp/gabia-e2e-${category}.log" | sed "s/^/CATEGORY:${category}:/" || true
+ if [ "$rc" -ne 0 ]; then grep -A 15 -B 2 '^not ok' "/tmp/gabia-e2e-${category}.log" | head -100 || true; fi
+done
+echo FIVE_CATEGORY_E2E_END
