@@ -20,7 +20,7 @@ jobs:
           install -d -m 700 ~/.ssh
           printf '%s\n' "$KEY" > ~/.ssh/gabia.pem
           chmod 600 ~/.ssh/gabia.pem
-          ssh -T -i ~/.ssh/gabia.pem -o StrictHostKeyChecking=accept-new ubuntu@1.201.111.35 'sudo -n git -c safe.directory=/opt/squidlaw/app -C /opt/squidlaw/app fetch origin main && sudo -n git -c safe.directory=/opt/squidlaw/app -C /opt/squidlaw/app merge --ff-only origin/main && bash /opt/squidlaw/app/deploy/gabia-preview-bootstrap.sh'
+          ssh -T -i ~/.ssh/gabia.pem -o StrictHostKeyChecking=accept-new ubuntu@1.201.111.35 'sudo -n git -c safe.directory=/opt/squidlaw/app -C /opt/squidlaw/app fetch origin main && sudo -n git -c safe.directory=/opt/squidlaw/app -C /opt/squidlaw/app merge --ff-only origin/main && if sudo -n test -s /etc/letsencrypt/live/squidlaw.co.kr/fullchain.pem; then echo TLS_CERT_PRESENT_SKIP_HTTP_BOOTSTRAP; else bash /opt/squidlaw/app/deploy/gabia-preview-bootstrap.sh; fi'
       - name: Probe preview from outside Gabia
         run: |
           set +e
