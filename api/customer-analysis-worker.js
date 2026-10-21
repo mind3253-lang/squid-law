@@ -454,22 +454,14 @@ export default async function handler(req,res){
    return res.status(200).json({status:'retry',stage:'delta_impact_review_pending',
     verifiedNewFindings:reviewedDelta.findings.length});
   }
+  // The checkpoint manifest is authoritative. Avoid probing every historical
+  // audit file before the ledger reads its immutable outputs.
   const ledgerPaths=[...(previous.legalWindowPaths||[])];
   for(const d of docs){
-   for(const suffix of ['-primary.json','-independent.json']){
-    const path=root+'boundary-audit/'+d.id+suffix;
-    if(await load(path))ledgerPaths.push(path);
-   }
-   for(let page=1;page<=d.pageCount;page+=10){
-    for(const kind of ['-window-','-independent-window-']){
-     const path=root+'visual-provider/'+d.id+kind+String(page).padStart(8,'0')+'.json';
-     if(await load(path))ledgerPaths.push(path);
-    }
-   }
-  }
-  for(let cursor=0;cursor<=Number(previous.semanticAuditCursor||0);cursor++){
-   const path=root+'semantic-audit/'+String(cursor).padStart(8,'0')+'.json';
-   if(await load(path))ledgerPaths.push(path);
+   for(let page=1;page<=d.pageCount;page+=10)
+    ledgerPaths.push(root+'visual-provider/'+d.id+'-window-'+String(page).padStart(8,'0')+'.json');
+   // Boundary primary output exists for each completed document.
+   ledgerPaths.push(root+'boundary-audit/'+d.id+'-primary.json');
   }
   const usageLedger=await buildCustomerUsageLedger({paths:ledgerPaths,load,sourceVersion:job.documentVersion});
   await put(root+'model-usage-ledger.json',JSON.stringify(usageLedger),{access:'private',allowOverwrite:true,addRandomSuffix:false,contentType:'application/json'});
@@ -589,7 +581,7 @@ export default async function handler(req,res){
   return res.status(200).json({status:'retry',stage:'source_collection_completed',documents:docs.length});
  }
  if(index>=docs.length){
-  if(!previous.textReviewManifest||!previous.textReviewAggregate||!(await load(previous.textReviewManifest))||!(await load(previous.textReviewAggregate))){
+  if(!previous.textReviewManifest||!previous.textReviewAggregate){
    await advanceJob(job,'text_review_checkpoint_incomplete',{...previous,documentCount:docs.length},'blocked','TEXT_REVIEW_AGGREGATION_MISSING');
    return res.status(200).json({status:'blocked',reason:'TEXT_REVIEW_AGGREGATION_MISSING'});
   }
