@@ -85,7 +85,9 @@ jobs:
           REMOTE
           if ! grep -E '^DEPLOY_(SERVICES_ACTIVE|HEALTH_FAILED|ROLLED_BACK|PROBE_VERIFIED|SKYNET_ICON_VERIFIED)' /tmp/deploy.log; then
             echo DEPLOY_REMOTE_STEP_FAILED
-            grep -E '^(OBJECT_ROOT_ALIGNED|DEPLOY_|cp:|sed:|systemctl:|Failed to|Error:)' /tmp/deploy.log | tail -12 || true
+            echo DEPLOY_DIAGNOSTIC_BEGIN
+            tail -30 /tmp/deploy.log | sed -E 's/([A-Za-z_]*(KEY|TOKEN|SECRET|PASSWORD|DATABASE_URL)[A-Za-z_]*=)[^ ]+/\\1[REDACTED]/g' | tail -25
+            echo DEPLOY_DIAGNOSTIC_END
             exit 1
           fi
       - name: Record deployment result
