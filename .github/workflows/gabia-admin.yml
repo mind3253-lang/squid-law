@@ -6,7 +6,7 @@ on:
         description: Diagnostic group
         required: true
         type: choice
-        options: [status, database, worker, api, config]
+        options: [status, database, worker, api, config, workerconfig]
         default: status
   push:
     branches: [main]
@@ -34,7 +34,7 @@ jobs:
       - name: Run allowlisted Gabia check
         env:
           GABIA_SSH_KEY_FILE: /home/runner/.ssh/gabia.pem
-        run: node scripts/gabia-admin.mjs "${{ github.event_name == 'push' && 'config' || inputs.check || 'status' }}" | tee /tmp/gabia-admin-check.log
+        run: node scripts/gabia-admin.mjs "${{ github.event_name == 'push' && 'workerconfig' || inputs.check || 'status' }}" | tee /tmp/gabia-admin-check.log
       - name: Publish redacted diagnostics to repository
         if: always()
         env:
@@ -52,7 +52,7 @@ jobs:
           d=json.load(open(p))
           try: lines=open('/tmp/gabia-admin-check.log').read().splitlines()
           except FileNotFoundError: lines=[]
-          d['diagnostics']=[x[:300] for x in lines if re.match(r'^(CHECK_|EXIT_|active$|inactive$|failed$|[A-Z][A-Z0-9_]*=(SET|EMPTY)$|EnvironmentFile=|ExecStart=|User=|WorkingDirectory=)',x)][:70]
+          d['diagnostics']=[x[:300] for x in lines if re.match(r'^(CHECK_|EXIT_|active$|inactive$|failed$|[A-Z][A-Z0-9_]*=(SET|EMPTY)$|FILE:|MISSING$|EnvironmentFile=|ExecStart=|User=|WorkingDirectory=)',x)][:70]
           open(p,'w').write(json.dumps(d))
           PY
           encoded=$(base64 -w0 /tmp/gabia-admin-result.json)
