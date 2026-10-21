@@ -16,3 +16,8 @@ if ! curl -fsS -o /dev/null -w 'LOCAL_WEB_HTTP:%{http_code}\\n' http://127.0.0.1
  exit 1
 fi
 echo WEB_PREVIEW_LOOPBACK_READY
+echo SERVER_NETWORK_DIAGNOSTICS_BEGIN
+sudo -n ss -lntp | head -40 || true
+if command -v nginx >/dev/null 2>&1; then sudo -n nginx -t || true; else echo NGINX_NOT_INSTALLED; fi
+if command -v ufw >/dev/null 2>&1; then sudo -n ufw status || true; fi
+echo SERVER_NETWORK_DIAGNOSTICS_END
