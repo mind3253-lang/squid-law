@@ -53,6 +53,14 @@ jobs:
           printf '%s\n' "$KEY" > ~/.ssh/gabia.pem
           chmod 600 ~/.ssh/gabia.pem
           ssh -T -i ~/.ssh/gabia.pem -o StrictHostKeyChecking=accept-new ubuntu@1.201.111.35 'command -v certbot || true; sudo -n -u postgres psql -p 5433 -Atqc "SELECT datname FROM pg_database WHERE datname LIKE '\''squidlaw_stage_%'\''"; sudo -n pg_lsclusters'
+      - name: Prepare HTTPS on Gabia
+        env:
+          KEY: ${{ secrets.GABIA_SSH_PRIVATE_KEY }}
+        run: |
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$KEY" > ~/.ssh/gabia.pem
+          chmod 600 ~/.ssh/gabia.pem
+          ssh -T -i ~/.ssh/gabia.pem -o StrictHostKeyChecking=accept-new ubuntu@1.201.111.35 'sudo -n apt-get update -qq && sudo -n env DEBIAN_FRONTEND=noninteractive apt-get install -y -qq certbot python3-certbot-nginx && sudo -n certbot --nginx --non-interactive --agree-tos --register-unsafely-without-email --keep-until-expiring --redirect -d squidlaw.co.kr -d www.squidlaw.co.kr'
       - name: Record preview status
         if: ${{ always() }}
         env:
