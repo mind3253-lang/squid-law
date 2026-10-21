@@ -197,6 +197,27 @@ jobs:
           done
           echo 'WORKER_PREFLIGHT_DIAGNOSTIC'
           sudo -n bash -c 'set -a; source /etc/squidlaw/worker.env; set +a; cd /opt/squidlaw/app; node --input-type=module -e "import {workerPreflight} from \"./lib/gabia-worker-preflight.mjs\"; console.log(JSON.stringify(workerPreflight()))"' || true
+          echo 'DB_CONNECTIVITY_DIAGNOSTIC'
+          sudo -n bash -s <<'DBTEST'
+          set -a
+          source /etc/squidlaw/worker.env
+          set +a
+          cd /opt/squidlaw/app
+          node --input-type=module <<'NODE'
+          import {withLeaseDb} from './api/customer-analysis-lease-db.js';
+          try {
+            await withLeaseDb(async db => {
+              const r=await db.query('SELECT 1 AS ok');
+              console.log('DB_CONNECT_OK',r.rows[0]?.ok===1);
+              const t=await db.query("SELECT to_regclass('public.customer_analysis_jobs') IS NOT NULL AS exists");
+              console.log('DB_JOBS_TABLE_PRESENT',t.rows[0]?.exists===true);
+            });
+          } catch(e) {
+            console.log('DB_CONNECT_FAILED',String(e?.code||'NO_SQLSTATE'),String(e?.name||'Error'));
+            process.exitCode=1;
+          }
+          NODE
+          DBTEST
           echo 'WORKER_SERVICE_EXIT'
           systemctl show squidlaw-worker.service -p Result -p ExecMainStatus -p ActiveState --no-pager
           echo 'CUSTOMER_QUEUE_DIAGNOSTIC'
