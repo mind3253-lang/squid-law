@@ -1,4 +1,4 @@
-import {list} from '@vercel/blob';
+import {list} from '../lib/customer-object-storage.mjs';
 import {randomUUID} from 'node:crypto';
 import {readIndex} from './skynet-search-index.js';
 import {searchDbEnabled,indexSearchExcerpts,
