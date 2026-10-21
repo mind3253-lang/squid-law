@@ -1,4 +1,4 @@
-name: Gabia direct code deployment
+name: Gabia direct code deployment and maintenance verification
 on:
   workflow_dispatch:
   push:
