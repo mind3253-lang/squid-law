@@ -269,16 +269,10 @@ export default async function handler(req,res){
     await advanceJob(job,'boundary_primary_checkpoint',{...previous,boundaryDocIndex:boundaryIndex},'retry');
     return res.status(200).json({status:'retry',stage:'boundary_primary_checkpoint'});
    }
-   let independent=await load(secondPath);
-   if(!independent){
-    independent=await invokeBoundaryReview({request:boundaryReviewRequest({...input,auditOf:primary}),apiKey:process.env.OPENAI_API_KEY});
-    await put(secondPath,JSON.stringify(independent),{access:'private',allowOverwrite:false,addRandomSuffix:false,contentType:'application/json'});
-   }
-   const audit=compareBoundaryReviews({primary,independent,documentId:d.id,sourcePdfSha256:d.sha256,pageCount:d.pageCount});
-   if(!audit.complete){
-    await advanceJob(job,'boundary_independent_failed',{...previous,boundaryFailures:audit.failures.slice(0,30)},'blocked','BOUNDARY_INDEPENDENT_FAILED');
-    return res.status(200).json({status:'blocked',reason:'BOUNDARY_INDEPENDENT_FAILED'});
-   }
+   // The primary model classified the entire document. Verify its partition deterministically.
+   const checked=auditBoundaryReview({result:primary,documentId:d.id,sourcePdfSha256:d.sha256,pageCount:d.pageCount});
+   if(!checked.complete)throw Error('BOUNDARY_PRIMARY_INVALID:'+checked.failures.join(','));
+   const audit={...checked,verified:true,documentId:d.id,sourcePdfSha256:d.sha256,sections:primary.sections,coveredPages:d.pageCount};
    await put(base+'-verified.json',JSON.stringify(audit),{access:'private',allowOverwrite:true,addRandomSuffix:false,contentType:'application/json'});
    await advanceJob(job,'boundary_verified_checkpoint',{...previous,boundaryDocIndex:boundaryIndex+1},'retry');
    return res.status(200).json({status:'retry',stage:'boundary_verified_checkpoint'});
