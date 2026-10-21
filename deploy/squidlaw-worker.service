@@ -8,7 +8,6 @@ Type=simple
 User=root
 WorkingDirectory=/opt/squidlaw/app
 EnvironmentFile=/etc/squidlaw/worker.env
-EnvironmentFile=/etc/squidlaw/api.env
 ExecStart=/usr/bin/node /opt/squidlaw/app/worker/continuous-worker.mjs
 Restart=on-failure
 RestartPreventExitStatus=78
