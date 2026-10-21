@@ -571,10 +571,12 @@ export default async function handler(req,res){
   await advanceJob(job,'visual_source_coverage_completed',{...previous,visualSourceCoveragePassed:true},'retry');
   return res.status(200).json({status:'retry',stage:'visual_source_coverage_completed'});
   }
-  // Source coverage already verified: do not repeat identical AI visual analysis.
-  const visualReview={verified:true,independentAuditVerified:false,sourceVersion:job.documentVersion,verifiedDocumentCount:docs.length};
-  await advanceJob(job,'visual_source_audit_completed',{...previous,visualReview},'retry');
-  return res.status(200).json({status:'retry',stage:'visual_source_audit_completed'});
+  // Finalize the verified source audit exactly once; the next invocation proceeds.
+  if(!previous.visualReview?.verified){
+   const visualReview={verified:true,independentAuditVerified:false,sourceVersion:job.documentVersion,verifiedDocumentCount:docs.length};
+   await advanceJob(job,'visual_source_audit_completed',{...previous,visualReview},'retry');
+   return res.status(200).json({status:'retry',stage:'visual_source_audit_completed'});
+  }
  }
  if(index===docs.length&&extractionOnly){
   await advanceJob(job,'source_collection_completed',{phase:'analyze',nextDocument:0,nextPage:0,documentCount:docs.length,collectionCompletedAt:new Date().toISOString(),...(previous.delta?{delta:previous.delta}:{})},'retry');
