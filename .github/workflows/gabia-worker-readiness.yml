@@ -24,6 +24,7 @@ jobs:
           ssh -T -i ~/.ssh/gabia.pem -o StrictHostKeyChecking=accept-new ubuntu@1.201.111.35 'bash -s' <<'REMOTE'
           set -euo pipefail
           echo 'DIAG_API_SERVICE'; sudo -n systemctl is-active squidlaw-api.service || true
+          echo 'DIAG_DB'; sudo -n psql -p 5433 -U root -d squidlaw_production -Atqc 'SELECT current_database()' || true
           echo 'DIAG_WORKER_SERVICE'; sudo -n systemctl is-active squidlaw-worker.service || true
           echo 'DIAG_WORKER_UNIT'; sudo -n systemctl list-unit-files squidlaw-worker.service --no-pager || true
           echo 'DIAG_WORKER_STATUS'; sudo -n systemctl status squidlaw-worker.service --no-pager -l 2>&1 | tail -35 || true
@@ -42,6 +43,8 @@ jobs:
             sudo -n systemctl start squidlaw-worker.service
           fi
           echo 'DIAG_ENV_KEYS'; sudo -n awk -F= '/^(SQUIDLAW_CUSTOMER_WORKER_OWNER|SQUIDLAW_CONTINUOUS_WORKER|SQUIDLAW_WORKER_RUN_APPROVED|SQUIDLAW_WORKER_CUTOVER_APPROVED|CRON_SECRET|BLOB_READ_WRITE_TOKEN|DATABASE_URL|SQUID_CUSTOMER_DATABASE_URL)=/{print $1 "=" (length($2)>0?"SET":"EMPTY")}' /etc/squidlaw/api.env || true
+          echo 'DIAG_POST_CUTOVER_API'; sudo -n systemctl is-active squidlaw-api.service || true
+          echo 'DIAG_POST_CUTOVER_WORKER'; sudo -n systemctl is-active squidlaw-worker.service || true
           sudo -n systemctl is-active --quiet squidlaw-api.service
           test "$(sudo -n psql -p 5433 -U root -d squidlaw_production -Atqc 'SELECT current_database()')" = squidlaw_production
           # A healthy API does not establish that the background analysis worker is running.
