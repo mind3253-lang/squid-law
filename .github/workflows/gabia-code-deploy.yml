@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
-    paths: ['.github/workflows/gabia-code-deploy.yml']
+    paths: ['.github/workflows/gabia-code-deploy.yml', 'customer.html', 'api/**', 'server/**', 'lib/**', 'worker/**']
 permissions:
   contents: write
 concurrency:
