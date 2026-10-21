@@ -45,6 +45,7 @@ jobs:
           echo 'DIAG_ENV_KEYS'; sudo -n awk -F= '/^(SQUIDLAW_CUSTOMER_WORKER_OWNER|SQUIDLAW_CONTINUOUS_WORKER|SQUIDLAW_WORKER_RUN_APPROVED|SQUIDLAW_WORKER_CUTOVER_APPROVED|CRON_SECRET|BLOB_READ_WRITE_TOKEN|DATABASE_URL|SQUID_CUSTOMER_DATABASE_URL)=/{print $1 "=" (length($2)>0?"SET":"EMPTY")}' /etc/squidlaw/api.env || true
           echo 'DIAG_POST_CUTOVER_API'; sudo -n systemctl is-active squidlaw-api.service || true
           echo 'DIAG_POST_CUTOVER_WORKER'; sudo -n systemctl is-active squidlaw-worker.service || true
+          echo 'DIAG_WORKER_EXEC'; sudo -n systemctl show squidlaw-worker.service -p ExecMainStatus -p Result -p ActiveState -p SubState --no-pager || true
           sudo -n systemctl is-active --quiet squidlaw-api.service
           test "$(sudo -n psql -p 5433 -U root -d squidlaw_production -Atqc 'SELECT current_database()')" = squidlaw_production
           # A healthy API does not establish that the background analysis worker is running.
