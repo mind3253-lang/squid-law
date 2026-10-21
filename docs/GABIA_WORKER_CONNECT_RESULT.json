@@ -1,0 +1,1 @@
+{"status": "success", "checked_at": "2026-10-21T18:37:25.743403+00:00", "diagnostics": ["WORKER_ACTIVE", "Result=success", "ExecMainStatus=0", "ActiveState=active", "WORKER_CUTOVER_NOT_APPROVED", "WORKER_OWNER_NOT_GABIA", "WORKER_MISSING_CRON_SECRET", "WORKER_MISSING_BLOB_READ_WRITE_TOKEN", "WORKER_MISSING_DATABASE_URL"]}
