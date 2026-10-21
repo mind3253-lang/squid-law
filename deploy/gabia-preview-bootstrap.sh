@@ -166,3 +166,15 @@ for endpoint in /api/customer-auth /api/customer-cases /api/skynet-profile /api/
  echo "PUBLIC_API:$endpoint:$code"
 done
 echo PUBLIC_API_AUTH_SMOKE_END
+
+echo AUTH_AND_STORAGE_READINESS_BEGIN
+if sudo -n test -f /etc/squidlaw/api.env; then
+ for key in SQUID_AUTH_SECRET DATABASE_URL NEON_DATABASE_URL SQUIDLAW_OBJECT_BACKEND; do
+  if sudo -n grep -q "^${key}=" /etc/squidlaw/api.env; then echo "CONFIG:${key}:PRESENT"; else echo "CONFIG:${key}:MISSING"; fi
+ done
+else echo API_ENV_MISSING; fi
+for endpoint in /api/customer-auth /api/customer-cases /api/skynet-profile; do
+ code=$(curl --connect-timeout 3 --max-time 10 -s -o /dev/null -w '%{http_code}' -H 'Host: 1.201.111.35' "http://127.0.0.1$endpoint" || true)
+ echo "AUTH_BOUNDARY:$endpoint:$code"
+done
+echo AUTH_AND_STORAGE_READINESS_END
