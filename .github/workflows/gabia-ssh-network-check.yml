@@ -213,7 +213,9 @@ jobs:
               console.log('DB_JOBS_TABLE_PRESENT',t.rows[0]?.exists===true);
             });
           } catch(e) {
-            console.log('DB_CONNECT_FAILED',String(e?.code||'NO_SQLSTATE'),String(e?.name||'Error'));
+            const msg=String(e?.message||'');
+            const category=/self.signed|certificate|SSL|TLS/i.test(msg)?'TLS':/password|authentication|role/i.test(msg)?'AUTH':/ECONNREFUSED|ENOTFOUND|timeout|connect/i.test(msg)?'NETWORK':/database.*does not exist/i.test(msg)?'DATABASE_MISSING':'OTHER';
+            console.log('DB_CONNECT_FAILED',String(e?.code||'NO_SQLSTATE'),category);
             process.exitCode=1;
           }
           NODE
