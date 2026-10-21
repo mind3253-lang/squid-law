@@ -78,7 +78,7 @@ async function countByPrefix(prefix,upperBound=200000){
 export default async function handler(req,res){
  if(!authorize(req))return send(res,401,{error:'관리자 인증 필요'});
  if(req.method!=='POST')return send(res,405,{error:'POST only'});
- if(!process.env.BLOB_READ_WRITE_TOKEN)return send(res,503,{error:'비공개 기억 저장소 미연결'});
+ if(process.env.SQUIDLAW_OBJECT_BACKEND&&process.env.SQUIDLAW_OBJECT_BACKEND!=='gabia')return send(res,503,{error:'비공개 기억 저장소 미연결'});
  let input=req.body;try{if(typeof input==='string')input=JSON.parse(input)}catch{return send(res,400,{error:'JSON 형식 오류'})}
  const started=Date.now();
  if(input?.action==='step'){
