@@ -11,6 +11,7 @@ test('customer analysis never exposes non-JSON gateway body',()=>{
 test('transient status failures preserve persisted full-review job identifier',()=>{
  const restore=html.slice(html.indexOf('async function restoreFullReview()'),html.indexOf('fullReviewButton.onclick=',html.indexOf('async function restoreFullReview()')));
  assert.match(restore,/await fullReviewStatus\(id,select\.value\)/);
- assert.doesNotMatch(restore,/sessionStorage\.removeItem/);
+ assert.match(restore,/ANALYSIS_JOB_NOT_FOUND/);
+ assert.match(restore,/sessionStorage\.removeItem/);
  assert.match(restore,/기존 분석 작업을 보존했습니다/);
 });
