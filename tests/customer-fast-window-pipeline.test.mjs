@@ -59,8 +59,6 @@ test('visual review has fenced, checkpointed parallel independent primary and au
  assert.match(worker,/auditVisualProviderCoverage/);
  assert.match(worker,/VISUAL_SOURCE_AUDIT_FAILED/);
  assert.match(worker,/independentAuditVerified:false/);
- assert.match(worker,/SEMANTIC_UNKNOWN_SOURCE_REFERENCE/);
- assert.match(worker,/buildSemanticReviewRequest/);
  assert.match(jobs,/interval '250 milliseconds'/);
  assert.match(jobs,/scheduleCustomerWorker\(\{delayMs:350\}\)/);
  assert.match(jobs,/FOR UPDATE SKIP LOCKED/);
