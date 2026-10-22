@@ -80,9 +80,8 @@ test('PDF follow-up uses actual page context, crosschecks source count, and neve
  assert.match(follow,/!previous\?\.complete/);
  assert.doesNotMatch(follow,/if\(!activeReview\|\|!activeReview\.complete/);
  assert.match(html,/admin\/skynet-document-page-context/);
- const router=JSON.parse(read('vercel.json')).rewrites;
- assert.ok(router.some(r=>r.source==='/admin/skynet-document-page-context'&&
-  r.destination==='/api/skynet-document-page-context'));
+ const nginx=read('deploy/nginx-gabia-direct.conf.example');
+ assert.match(nginx,/location = \/admin\/skynet-document-page-context/);
  const api=read('api/skynet-document-page-context.js');
  assert.match(api,/readIndexedPageWindow/);
  assert.match(html,/for\(let page=startPage;page<=endPage;page\+\+\)if\(!seenPages\.has\(page\)\)/);
