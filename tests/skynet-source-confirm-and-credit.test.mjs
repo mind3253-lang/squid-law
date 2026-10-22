@@ -4,7 +4,7 @@ import {readFileSync} from 'node:fs';
 const ui=readFileSync(new URL('../admin/skynet.html',import.meta.url),'utf8');
 const source=readFileSync(new URL('../api/skynet-document-verify.js',import.meta.url),'utf8');
 const chat=readFileSync(new URL('../api/skynet-chat.js',import.meta.url),'utf8');
-const vercel=JSON.parse(readFileSync(new URL('../vercel.json',import.meta.url),'utf8'));
+const nginx=readFileSync(new URL('../deploy/nginx-gabia-direct.conf.example',import.meta.url),'utf8');
 const begin=ui.indexOf('function isSkynetPdfExistenceQuestion(');
 const end=ui.indexOf('function isReviewStatusQuestion(',begin);
 if(begin<0||end<begin)throw Error('PDF_VERIFY_ROUTE_MISSING');
@@ -59,8 +59,7 @@ test('server checks durable manifest, every expected segment blob and raw archiv
  assert.match(source,/skynet\/warehouse\//);
  assert.match(source,/skynet\/uploads\//);
  assert.match(source,/originalVerified/);
- assert.ok(vercel.rewrites.some(x=>x.source==='/admin/skynet-document-verify'&&
-  x.destination==='/api/skynet-document-verify'));
+ assert.match(nginx,/location = \/admin\/skynet-document-verify/);
 });
 test('billing exhaustion is an explicitly non-retryable 429',()=>{
  assert.match(chat,/credit_balance_exhausted/);
