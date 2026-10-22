@@ -5,9 +5,8 @@ const file=path=>readFileSync(new URL('../'+path,import.meta.url),'utf8');
 test('PDF upload and re-index route through persisted page windows',()=>{
  const html=file('admin/skynet.html');
  const api=file('api/skynet-document-range.js');
- const routes=JSON.parse(file('vercel.json'));
- assert.ok(routes.rewrites.some(x=>x.source==='/admin/skynet-document-range'&&
-  x.destination==='/api/skynet-document-range'));
+ const nginx=file('deploy/nginx-gabia-direct.conf.example');
+ assert.match(nginx,/location = \/admin\/skynet-document-range/);
  assert.match(html,/async function indexArchivedPdfInWindows\(/);
  assert.match(html,/info\.complete===true/);
  assert.match(html,/info\.processedPages!==totalPages/);
