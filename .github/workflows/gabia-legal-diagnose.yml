@@ -43,3 +43,5 @@ jobs:
 # Audit diagnostics after ba0ff735.
 
 # Diagnostic window extended for 8-page worker failure investigation.
+
+# Follow-up sanitized stack-origin check.
