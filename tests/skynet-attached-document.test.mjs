@@ -45,7 +45,7 @@ test('direct PDF endpoint is authenticated and has registered route',()=>{
 test('resumable PDF review uses durable keyed checkpoints and no file reupload',()=>{
  const chat=read('admin/skynet.html');
  const endpoint=read('api/skynet-document-review.js');
- const config=JSON.parse(read('vercel.json'));
+ const nginx=read('deploy/nginx-gabia-direct.conf.example');
  assert.match(chat,/function previousAttachedReview\(\)/);
  assert.match(chat,/if\(!archiveFiles\.length&&!attached\.length&&!pendingRestoredDocs\.length&&!uploadedDocs\.length&&isResumeReviewRequest\(msg\)\)/);
  assert.match(chat,/uploadedDocs=resume\.docs;reviewQuestion=resume\.question/);
