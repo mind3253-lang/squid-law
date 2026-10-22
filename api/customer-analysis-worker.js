@@ -847,14 +847,15 @@ export default async function handler(req,res){
   const dbFailureKind=job?'AFTER_CLAIM':'CLAIM_OR_DATABASE';
   if(safeCode==='SOURCE_READ_REVIEW_FAILED')console.error('SOURCE_REVIEW_AUDIT_CODES',JSON.stringify({failures:diagnostic.slice('GPT_LEGAL_SOURCE_REVIEW_FAILED:'.length).split(',').map(x=>x.split(':')[0]).slice(0,12)}));
   console.error('CUSTOMER_WORKER_FAILURE',JSON.stringify({code:safeCode,errorClass,stage:errorStage,jobClaimed:Boolean(job),dbCode,dbFailureKind}));
-  // A failed AI/provider operation must never become a 250ms retry storm.
-  // Preserve the checkpoint for explicit manual resume.
+  const attempts=Number(job?.checkpoint?.errorAttempts||0);
+  const disposition=visionFailureDisposition(safeCode,{attempts,maxAttempts:3});
+  // Invalid visual evidence is blocked; only transient provider failures may retry.
   if(job){
    try{
-    await advanceJob(job,'error',{...(job.checkpoint||{}),errorAttempts:Number(job.checkpoint?.errorAttempts||0)+1,lastFailedStage:job.stage||null,lastFailureCode:safeCode,lastFailureAt:new Date().toISOString(),message:diagnostic,...(safeCode==='VISION_PDF_INVALID_PAGE'?{visionPageDiagnostic:visionFailureDiagnostic(e)}:{})},'failed',safeCode);
+    await advanceJob(job,'error',{...(job.checkpoint||{}),errorAttempts:attempts+1,lastFailedStage:job.stage||null,lastFailureCode:safeCode,lastFailureAt:new Date().toISOString(),message:diagnostic,...(safeCode==='VISION_PDF_INVALID_PAGE'?{visionPageDiagnostic:visionFailureDiagnostic(e)}:{})},disposition.status,safeCode);
    }catch{}
   }
-  return res.status(503).json({error:safeCode,status:'failed',retryable:false});
+  return res.status(503).json({error:safeCode,status:disposition.status,retryable:disposition.retryable});
  }
  finally{if(heartbeat)clearInterval(heartbeat)}
 }
