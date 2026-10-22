@@ -56,7 +56,9 @@ test('visual review has fenced, checkpointed parallel independent primary and au
  assert.match(worker,/if\(failed\)throw failed.reason/);
  assert.match(worker,/OCR_CACHE_SOURCE_MISMATCH/);
  assert.match(worker,/OCR_INDEPENDENT_SOURCE_MISMATCH/);
- assert.match(worker,/compareIndependentVisualPass/);
+ assert.match(worker,/auditVisualProviderCoverage/);
+ assert.match(worker,/VISUAL_SOURCE_AUDIT_FAILED/);
+ assert.match(worker,/independentAuditVerified:false/);
  assert.match(worker,/SEMANTIC_UNKNOWN_SOURCE_REFERENCE/);
  assert.match(worker,/buildSemanticReviewRequest/);
  assert.match(jobs,/interval '250 milliseconds'/);
