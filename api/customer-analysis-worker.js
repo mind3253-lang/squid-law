@@ -94,8 +94,10 @@ export default async function handler(req,res){
    if(heartbeatBusy||leaseExpired)return;
    heartbeatBusy=true;
    void renewJobLease(job).catch(e=>{
-    leaseExpired=true;
-    console.error('CUSTOMER_JOB_LEASE_RENEWAL_FAILED',String(e?.message||e).slice(0,90));
+    // A transient DB failure does not prove another worker owns this job.
+    // Keep renewing; fenced checkpoint writes still prevent stale owners.
+    if(String(e?.message||'')==='JOB_LEASE_LOST')leaseExpired=true;
+    console.error('CUSTOMER_JOB_LEASE_RENEWAL_FAILED',JSON.stringify({kind:leaseExpired?'lease_lost':'transient',dbCode:/^[0-9A-Z]{5}$/.test(String(e?.code||''))?e.code:null}));
    }).finally(()=>{heartbeatBusy=false});
   },25000);
   heartbeat.unref?.();
