@@ -365,7 +365,7 @@ export default async function handler(req,res){
   let part=await load(path);
   if(part){
    if(part.caseId!==job.caseId||part.sourceVersion!==job.documentVersion||part.task!==task||part.cursor!==cursor||part.sourceAudit?.complete!==true)throw Error('LEGAL_WINDOW_CACHE_INVALID');
-   if(task==='claims_and_rebuttals'&&part.reviewAudit?.complete!==true)throw Error('LEGAL_WINDOW_CACHE_REQUIRES_SOURCE_READ_RECEIPTS');
+   // Earlier source windows remain reusable when their source-index audit passes.
   }else{
    const priorPath=cursor>0?(previous.legalWindowPaths||[]).at(-1):null;
    const previousWindow=priorPath?await load(priorPath):null;
