@@ -106,7 +106,7 @@ export async function renewJobLease(job){
 
 export async function resumeJob(user,caseId,jobId,version){
  return withLeaseDb(async db=>{
-  const r=await db.query("UPDATE customer_analysis_jobs SET status='queued',stage='resume_requested',error_code=NULL,attempts=0,next_run_at=now(),updated_at=now() WHERE customer_key=$1 AND case_id=$2 AND job_id=$3 AND document_version=$4 AND status IN ('blocked','failed') AND error_code IS DISTINCT FROM 'VISUAL_EVIDENCE_NOT_VERIFIED' AND error_code NOT LIKE 'VISION_PDF_%' RETURNING *",[key(user),caseId,jobId,version]);
+  const r=await db.query("UPDATE customer_analysis_jobs SET status='queued',stage='resume_requested',error_code=NULL,attempts=0,next_run_at=now(),updated_at=now() WHERE customer_key=$1 AND case_id=$2 AND job_id=$3 AND document_version=$4 AND status IN ('blocked','failed') AND error_code IS DISTINCT FROM 'VISUAL_EVIDENCE_NOT_VERIFIED' AND (error_code NOT LIKE 'VISION_PDF_%' OR (error_code='VISION_PDF_INVALID_PAGE' AND checkpoint->'visionPageDiagnostic'->>'reason'='observation_schema_invalid')) RETURNING *",[key(user),caseId,jobId,version]);
   if(r.rows[0])return publicJob(r.rows[0]);
   // A repeated resume request must not reset a job already queued or running.
   // Preserve its checkpoint, attempts, lease and owner fence unchanged.
