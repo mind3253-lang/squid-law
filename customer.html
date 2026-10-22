@@ -542,12 +542,21 @@ fullReviewButton.onclick=async()=>{
  if(false){
   notice('법원 접수 사건은 사건번호, 원고, 피고, 청구취지를 모두 저장한 뒤 분석을 신청해 주세요.','error');return;
  }
- const existingId=sessionStorage.getItem('squidlaw-full-review:'+select.value);
+ let existingId=sessionStorage.getItem('squidlaw-full-review:'+select.value);
  if(existingId){
   try{
-   const state=await fullReviewStatus(existingId,select.value);
-   if(state!=='blocked'){if(!['completed','failed'].includes(state)&&!fullReviewTimer)fullReviewTimer=setInterval(()=>fullReviewStatus(existingId,select.value).catch(e=>notice(e.message,'error')),15000);return;}
-  }catch(e){notice(e.message,'error');return}
+   const latest=await fullReviewRequest('/api/customer-analysis-job?caseId='+encodeURIComponent(select.value)+'&jobId=latest');
+   if(latest.job?.jobId){
+    existingId=latest.job.jobId;
+    sessionStorage.setItem('squidlaw-full-review:'+select.value,existingId);
+    const state=await fullReviewStatus(existingId,select.value);
+    if(state!=='blocked'){if(!['completed','failed'].includes(state)&&!fullReviewTimer)fullReviewTimer=setInterval(()=>fullReviewStatus(existingId,select.value).catch(e=>notice(e.message,'error')),15000);return;}
+   }
+  }catch(e){
+   if(!String(e.message||'').includes('ANALYSIS_JOB_NOT_FOUND')){notice(e.message,'error');return;}
+   sessionStorage.removeItem('squidlaw-full-review:'+select.value);
+   existingId=null;
+  }
  }
  if(!confirm('이 사건에 등록한 전체 문서의 장시간 분석을 신청하시겠습니까? 분석은 즉시 완료되지 않으며, 이미지 검증이 끝나기 전에는 완료로 표시되지 않습니다.'))return;
  try{const caseId=select.value;const j=await fullReviewRequest('/api/customer-analysis-job?caseId='+encodeURIComponent(caseId),{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(sessionStorage.getItem('squidlaw-full-review:'+caseId)?{action:'resume-analysis',approved:true,jobId:sessionStorage.getItem('squidlaw-full-review:'+caseId)}:{action:'approve-analysis',approved:true})});const id=j.job.jobId;sessionStorage.setItem('squidlaw-full-review:'+caseId,id);notice('전체 분석 작업 접수 · '+id);if(fullReviewTimer)clearInterval(fullReviewTimer);await fullReviewStatus(id,caseId);if(!['blocked','failed','completed'].includes(j.job.status))fullReviewTimer=setInterval(()=>fullReviewStatus(id,caseId).catch(e=>notice(e.message,'error')),15000)}
