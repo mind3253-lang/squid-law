@@ -24,7 +24,7 @@ jobs:
           set -euo pipefail
           echo LEGAL_PROVIDER_DIAGNOSIS_BEGIN
           journalctl -u squidlaw-worker.service --since '90 minutes ago' --no-pager -o cat |
-            grep '^GPT_LEGAL_PROVIDER_REJECTION ' |
+            grep -E '^GPT_LEGAL_PROVIDER_REJECTION |^CUSTOMER_WORKER_FAILURE ' |
             tail -12 |
             sed -E 's/[^[:print:]]//g' || true
           echo LEGAL_PROVIDER_DIAGNOSIS_END
