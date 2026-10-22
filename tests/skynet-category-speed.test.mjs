@@ -23,13 +23,13 @@ test('normal dashboard load performs one aggregate request, never a Blob corpus 
  const client=read('admin/skynet-layout.js');
  const route=read('api/skynet-category-dashboard.js');
  const db=read('lib/skynet-topic-db.mjs');
- const routes=JSON.parse(read('vercel.json')).rewrites;
+ const nginx=read('deploy/nginx-gabia-direct.conf.example');
  assert.match(client,/fetch\('\/admin\/skynet-category-dashboard'/);
  assert.doesNotMatch(client,/skynet-categories\?limit=/);
  assert.doesNotMatch(client,/loadCategoryTotal/);
  assert.match(route,/await topicDashboard\(\)/);
  assert.match(db,/SUM\(\(counts->>/);
- assert.ok(routes.some(x=>x.source==='/admin/skynet-category-dashboard'&&x.destination==='/api/skynet-category-dashboard'));
+ assert.match(nginx,/location = \/admin\/skynet-category-dashboard/);
 });
 
 test('migration is once-per-source and uses durable server leases and checkpoints',()=>{
