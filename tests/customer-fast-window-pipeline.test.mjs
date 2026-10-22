@@ -79,6 +79,6 @@ test('transient job failures restart after bounded SQL backoff, not on a five-mi
  const jobs=source('api/customer-analysis-jobs-db.js');
  const worker=source('worker/continuous-worker.mjs');
  assert.match(worker,/workerFailureDelayMs\(consecutiveFailures\)/);
- assert.match(jobs,/LEAST\(3600,POWER\(2,LEAST\(attempts,10\)\)\)/);
+ assert.match(jobs,/next_run_at=CASE WHEN \$8='retry' THEN now\(\)\+interval '250 milliseconds'/);
  assert.match(jobs,/interval '250 milliseconds'/);
 });
