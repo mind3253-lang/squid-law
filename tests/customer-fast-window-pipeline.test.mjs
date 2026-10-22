@@ -77,8 +77,8 @@ test('legal model window reuses only immutable SHA-verified original source bund
 });
 test('transient job failures restart after bounded SQL backoff, not on a five-minute stall',()=>{
  const jobs=source('api/customer-analysis-jobs-db.js');
- assert.match(jobs,/stage==='error'&&shouldPromptlyRedispatch\(job\.attempts\)/);
- assert.match(jobs,/errorRetryDelayMs\(job\.attempts\)/);
+ const worker=source('worker/continuous-worker.mjs');
+ assert.match(worker,/workerFailureDelayMs\(consecutiveFailures\)/);
  assert.match(jobs,/LEAST\(3600,POWER\(2,LEAST\(attempts,10\)\)\)/);
  assert.match(jobs,/interval '250 milliseconds'/);
 });
