@@ -6,7 +6,7 @@ const base={caseId:'SL-example',sourceVersion:sha,task:'evidence_weight',units:[
 test('LAW-043 client plaintiff and defendant both receive explicit strategy instructions',()=>{
  for(const role of ['plaintiff','defendant']){
   const r=buildLegalExpertRequest({...base,clientRole:role});
-  assert.equal(JSON.parse(r.input).clientSide,role);
+  assert.equal(JSON.parse(r.input[0].content[0].text.replace(/^Return a JSON object only\. /,'')).clientSide,role);
   for(const part of ['OFFENSE','DEFENSE','PROOF','RISK'])assert.ok(r.instructions.includes(part));
   assert.match(r.instructions,/client-owned claims/);
  }
