@@ -30,5 +30,7 @@ jobs:
             sed -E 's/[^[:print:]]//g' || true
           echo LEGAL_WORKER_RECENT_ERROR_CLASSES
           journalctl -u squidlaw-worker.service --since '8 minutes ago' --no-pager -o cat | grep -E 'GPT_LEGAL_|WORKER_ERROR|Error:|TypeError:|ReferenceError:|SyntaxError:|SQUIDLAW_MODEL_USAGE' | sed -E 's/(.{0,120}).*/\1/' | tail -25 || true
+          echo SOURCE_REVIEW_FAILURE_CODES
+          journalctl -u squidlaw-worker.service --since '35 minutes ago' --no-pager -o cat | grep -E 'SOURCE_READ_REVIEW_FAILED|SOURCE_REVIEW_|GPT_LEGAL_SOURCE_REVIEW_FAILED|WORKER_STEP_FAILED' | sed -E 's/(.{0,300}).*/\1/' | tail -20 || true
           echo LEGAL_PROVIDER_DIAGNOSIS_END
           REMOTE
