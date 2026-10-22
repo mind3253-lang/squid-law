@@ -839,14 +839,16 @@ export default async function handler(req,res){
 
  }catch(e){
   const diagnostic=String(e?.message||e||'UNKNOWN').slice(0,160);
-  const safeCode=diagnostic.startsWith('GPT_LEGAL_SOURCE_REVIEW_FAILED:')?'SOURCE_READ_REVIEW_FAILED':/^[A-Z][A-Z0-9_]{2,100}$/.test(diagnostic)?diagnostic:'WORKER_ERROR';
+  const providerHttp=/^GPT_LEGAL_HTTP_(\d{3})$/.exec(diagnostic);
+  const providerCode=typeof e?.providerCode==='string'?e.providerCode.replace(/[^A-Za-z0-9_]/g,'_').slice(0,64):null;
+  const safeCode=diagnostic.startsWith('GPT_LEGAL_SOURCE_REVIEW_FAILED:')?'SOURCE_READ_REVIEW_FAILED':providerHttp?'GPT_LEGAL_HTTP_'+providerHttp[1]:/^[A-Z][A-Z0-9_]{2,100}$/.test(diagnostic)?diagnostic:'WORKER_ERROR';
   // Diagnostic metadata only: no document text, customer IDs, URLs, credentials or raw exception messages.
   const errorClass=String(e?.name||'Error').replace(/[^A-Za-z]/g,'').slice(0,32);
   const errorStage=String(job?.stage||'unknown').replace(/[^a-zA-Z0-9_-]/g,'').slice(0,64);
   const dbCode=/^[0-9A-Z]{5}$/.test(String(e?.code||''))?String(e.code):null;
   const dbFailureKind=job?'AFTER_CLAIM':'CLAIM_OR_DATABASE';
   if(safeCode==='SOURCE_READ_REVIEW_FAILED')console.error('SOURCE_REVIEW_AUDIT_CODES',JSON.stringify({failures:diagnostic.slice('GPT_LEGAL_SOURCE_REVIEW_FAILED:'.length).split(',').map(x=>x.split(':')[0]).slice(0,12)}));
-  console.error('CUSTOMER_WORKER_FAILURE',JSON.stringify({code:safeCode,errorClass,stage:errorStage,jobClaimed:Boolean(job),dbCode,dbFailureKind}));
+  console.error('CUSTOMER_WORKER_FAILURE',JSON.stringify({code:safeCode,providerCode,errorClass,stage:errorStage,jobClaimed:Boolean(job),dbCode,dbFailureKind}));
   const attempts=Number(job?.checkpoint?.errorAttempts||0);
   const disposition=visionFailureDisposition(safeCode,{attempts,maxAttempts:3});
   // Invalid visual evidence is blocked; only transient provider failures may retry.
