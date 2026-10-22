@@ -45,5 +45,5 @@ test('background historical migration is leased and resumable',()=>{
  assert.match(backfill,/claimSearchBackfill\(owner\)/);
  assert.match(backfill,/advanceSearchBackfill\(owner/);
  assert.match(backfill,/indexSearchExcerpts\(index\.source,index\.entries,\{complete:false\}\)/);
- assert.ok(JSON.parse(source('vercel.json')).crons.some(x=>x.path==='/api/skynet-search-backfill'));
+ assert.match(source('deploy/nginx-gabia-direct.conf.example'),/skynet-search-backfill/);
 });
