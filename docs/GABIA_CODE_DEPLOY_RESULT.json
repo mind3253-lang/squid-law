@@ -1,1 +1,1 @@
-{"status": "success", "commit": "111315b6b39293858f85a1433bbc8a842855d7da", "timestamp": "2026-10-22T04:17:09.709197+00:00", "checks": ["DEPLOY_SERVICES_ACTIVE", "DEPLOY_PROBE_VERIFIED"]}
+{"status": "failure", "commit": "25e284ebff29d4fbcf03aa3086e66cfaed752eb6", "timestamp": "2026-10-22T04:17:48.324860+00:00", "checks": []}
