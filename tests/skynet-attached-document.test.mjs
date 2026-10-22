@@ -36,10 +36,10 @@ test('direct document chunks avoid unrelated long-term memory retrieval',()=>{
 
 test('direct PDF endpoint is authenticated and has registered route',()=>{
  const endpoint=read('api/skynet-document-context.js');
- const config=JSON.parse(read('vercel.json'));
+ const nginx=read('deploy/nginx-gabia-direct.conf.example');
  assert.match(endpoint,/if\(!authorized\(req\)\)/);
  assert.match(endpoint,/\^\[a-f0-9\]\{64\}\$/);
- assert.ok(config.rewrites.some(x=>x.source==='/admin/skynet-document-context'&&x.destination==='/api/skynet-document-context'));
+ assert.match(nginx,/location = \/admin\/skynet-document-context/);
 });
 
 test('resumable PDF review uses durable keyed checkpoints and no file reupload',()=>{
@@ -60,7 +60,7 @@ test('resumable PDF review uses durable keyed checkpoints and no file reupload',
  assert.match(endpoint,/AI_DRAFT_NOT_INDEPENDENTLY_VERIFIED/);
  assert.match(endpoint,/allowOverwrite:false/);
  assert.match(endpoint,/SOURCE_DOCUMENT_NOT_FOUND/);
- assert.ok(config.rewrites.some(x=>x.source==='/admin/skynet-document-review'&&x.destination==='/api/skynet-document-review'));
+ assert.match(nginx,/location = \/admin\/skynet-document-review/);
 });
 
 test('temporary OpenAI errors are retryable but bad model input is not',()=>{
