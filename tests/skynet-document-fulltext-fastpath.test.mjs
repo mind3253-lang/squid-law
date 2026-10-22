@@ -24,7 +24,7 @@ function mockHandler({documentLength=146,characters=75000,dropBatch=false}={}){
   return {statusCode:200,stream:(async function*(){yield bytes})()};
  };
  const src=repoFile('api/skynet-document-fulltext.js')
-  .replace("import {get} from '@vercel/blob';",'')
+  .replace(/^import\s+\{get\}\s+from\s+['"][^'"]+['"];?\s*$/m,'')
   .replace('export default async function handler','return async function handler');
  const handler=new Function('get','process','Buffer','console',src)(
   read,{env:{ADMIN_PASSWORD:'testpassword'}},Buffer,console
