@@ -28,5 +28,7 @@ jobs:
             grep -E '^GPT_LEGAL_PROVIDER_REJECTION |^CUSTOMER_WORKER_FAILURE |^SQUIDLAW_.*(ERROR|FAIL)|^Error:' |
             tail -12 |
             sed -E 's/[^[:print:]]//g' || true
+          echo LEGAL_WORKER_RECENT_ERROR_CLASSES
+          journalctl -u squidlaw-worker.service --since '8 minutes ago' --no-pager -o cat | grep -E 'GPT_LEGAL_|WORKER_ERROR|Error:|TypeError:|ReferenceError:|SyntaxError:|SQUIDLAW_MODEL_USAGE' | sed -E 's/(.{0,120}).*/\1/' | tail -25 || true
           echo LEGAL_PROVIDER_DIAGNOSIS_END
           REMOTE
