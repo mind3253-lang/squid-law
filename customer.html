@@ -391,7 +391,7 @@ function renderFullReview(job,queue,progress,billing){
   errorLine.textContent+=' · '+parts.join(' · ');
  }
  const billingLine=document.createElement('small');billingLine.style.cssText='display:block;margin-top:8px;color:#475569';billingLine.textContent=billing?.pageCountVerified&&Number.isSafeInteger(billing.verifiedPages)?'검증된 원본 '+billing.verifiedPages+'페이지 · 페이지 기준 과금 대상 · 결제 미승인 (청구 없음)':'원본 페이지 수 검증 대기 · 요금 미확정 · 청구 없음';fullReviewPanel.replaceChildren(title,detail,single,caption,legend,billingLine,nextStep,errorLine);fullReviewPanel.hidden=false;
- fullReviewButton.textContent=state==='blocked'?'분석 재개':state==='failed'?'분석 상태 확인':state==='completed'?'분석 완료 · 상태 확인':'분석 진행 상태 확인';
+ fullReviewButton.textContent=state==='blocked'||(state==='failed'&&safeError==='VISION_PDF_INVALID_PAGE'&&cp.visionPageDiagnostic?.reason==='observation_schema_invalid')?'분석 재개':state==='failed'?'분석 상태 확인':state==='completed'?'분석 완료 · 상태 확인':'분석 진행 상태 확인';
 }
 
 const legalReportPanel=document.createElement('section');
@@ -559,7 +559,7 @@ fullReviewButton.onclick=async()=>{
     existingId=latest.job.jobId;
     sessionStorage.setItem('squidlaw-full-review:'+select.value,existingId);
     const state=await fullReviewStatus(existingId,select.value);
-    if(state!=='blocked'){if(!['completed','failed'].includes(state)&&!fullReviewTimer)fullReviewTimer=setInterval(()=>fullReviewStatus(existingId,select.value).catch(e=>notice(e.message,'error')),15000);return;}
+    if(state!=='blocked'&&!(state==='failed'&&latest.job.errorCode==='VISION_PDF_INVALID_PAGE'&&latest.job.checkpoint?.visionPageDiagnostic?.reason==='observation_schema_invalid')){if(!['completed','failed'].includes(state)&&!fullReviewTimer)fullReviewTimer=setInterval(()=>fullReviewStatus(existingId,select.value).catch(e=>notice(e.message,'error')),15000);return;}
    }
   }catch(e){
    if(!String(e.message||'').includes('ANALYSIS_JOB_NOT_FOUND')){notice(e.message,'error');return;}
