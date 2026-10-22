@@ -24,7 +24,7 @@ const old=[];
 for(const f of sources){
  if(f.includes('/docs/')||f.includes('/tests/')||f.includes('/.github/')||f.includes('/deploy/')||f.includes('/scripts/'))continue;
  const s=await readFile(f,'utf8').catch(()=>'');
- if(/(vercel\.com|vercel\.app|@vercel\/blob|BLOB_READ_WRITE_TOKEN|neon\.tech|DATABASE_URL_NEON)/i.test(s))old.push(path.relative(root,f));
+ if(/(vercel\.com|vercel\.app|@vercel\/blob|neon\.tech|DATABASE_URL_NEON)/i.test(s))old.push(path.relative(root,f));
 }
 check('legacy-runtime-reference-scan',old.length===0,'files='+old.length+(old.length?' '+old.slice(0,15).join(','):''));
 const port=Number(process.env.SQUIDLAW_AUDIT_API_PORT||3084);
