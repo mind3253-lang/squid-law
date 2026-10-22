@@ -12,10 +12,10 @@ test('SKYNET recall and Naver account storage use a shared backend-aware adapter
   assert.equal(result.status,0,file+': '+result.stderr);
  }
 });
-test('legacy Blob token only required for Vercel backend',()=>{
+test('SKYNET and Naver storage do not depend on legacy Vercel Blob tokens',()=>{
  for(const file of ['api/skynet-recall-batch.js','api/auth/naver/callback.js']){
   const source=readFileSync(file,'utf8');
-  assert.match(source,/SQUIDLAW_OBJECT_BACKEND/);
-  assert.match(source,/BLOB_READ_WRITE_TOKEN/);
+  assert.match(source,/customer-object-storage\.mjs/);
+  assert.doesNotMatch(source,/BLOB_READ_WRITE_TOKEN/);
  }
 });
