@@ -11,7 +11,7 @@ const result={caseId:'case',sourceVersion:version,findings:[{type:'claim',claim:
 const fake=data=>async()=>({ok:true,json:async()=>({status:'completed',output:[{type:'message',content:[{type:'output_text',text:JSON.stringify(data)}]}]})});
 test('GPT request uses source citation and disables stored responses',()=>{
  const payload=buildLegalExpertRequest({caseId:'case',sourceVersion:version,task:'claims_and_rebuttals',units:[unit],clientRole:'plaintiff'});
- assert.equal(payload.store,false);assert.equal(JSON.parse(payload.input).units[0].hash,unit.hash);
+ assert.equal(payload.store,false);assert.equal(JSON.parse(payload.input[0].content[0].text.replace(/^Return a JSON object only\. /,'')).units[0].hash,unit.hash);
 });
 test('resumable legal GPT output passes only citation integrity and remains unverified',async()=>{
  const out=await analyzeLegalWindow({request,sourceUnits:[unit],apiKey:'test',fetchImpl:fake(result)});
