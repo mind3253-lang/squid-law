@@ -63,8 +63,16 @@ jobs:
               exit 1
             fi
           fi
-          systemctl restart squidlaw-api.service
-          systemctl restart squidlaw-worker.service
+          if ! systemctl restart squidlaw-api.service; then
+            echo DEPLOY_API_RESTART_FAILED
+            systemctl status squidlaw-api.service --no-pager --lines=8 | grep -E 'Active:|Main PID:|code=|status=' || true
+            exit 1
+          fi
+          if ! systemctl restart squidlaw-worker.service; then
+            echo DEPLOY_WORKER_RESTART_FAILED
+            systemctl status squidlaw-worker.service --no-pager --lines=8 | grep -E 'Active:|Main PID:|code=|status=' || true
+            exit 1
+          fi
           sleep 5
           if systemctl is-active --quiet squidlaw-api.service && systemctl is-active --quiet squidlaw-worker.service; then
             echo DEPLOY_SERVICES_ACTIVE
