@@ -846,7 +846,7 @@ export default async function handler(req,res){
   const errorName=String(e?.name||'');
   const systemCode=String(e?.code||'');
   const categorized=systemCode==='ETIMEDOUT'?'WORKER_NETWORK_TIMEOUT':systemCode==='ECONNRESET'?'WORKER_CONNECTION_RESET':systemCode==='ECONNREFUSED'?'WORKER_CONNECTION_REFUSED':systemCode==='ENOENT'?'WORKER_MISSING_FILE':errorName==='SyntaxError'?'WORKER_PARSE_ERROR':errorName==='TypeError'?'WORKER_TYPE_ERROR':errorName==='TimeoutError'?'WORKER_TIMEOUT':null;
-  const safeCode=diagnostic.startsWith('GPT_LEGAL_SOURCE_REVIEW_FAILED:')?'SOURCE_READ_REVIEW_FAILED':providerHttp?'GPT_LEGAL_HTTP_'+providerHttp[1]:/^[A-Z][A-Z0-9_]{2,100}$/.test(diagnostic)?diagnostic:categorized||'WORKER_ERROR';
+  const safeCode=diagnostic.startsWith('GPT_LEGAL_SOURCE_REVIEW_FAILED:')?'SOURCE_READ_REVIEW_FAILED':diagnostic.startsWith('GPT_LEGAL_SOURCE_AUDIT_FAILED:')?'GPT_LEGAL_SOURCE_AUDIT_FAILED':providerHttp?'GPT_LEGAL_HTTP_'+providerHttp[1]:/^[A-Z][A-Z0-9_]{2,100}$/.test(diagnostic)?diagnostic:categorized||'WORKER_ERROR';
   // Diagnostic metadata only: no document text, customer IDs, URLs, credentials or raw exception messages.
   const errorClass=String(e?.name||'Error').replace(/[^A-Za-z]/g,'').slice(0,32);
   const errorStage=String(job?.stage||'unknown').replace(/[^a-zA-Z0-9_-]/g,'').slice(0,64);
