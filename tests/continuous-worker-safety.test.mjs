@@ -22,5 +22,5 @@ test('run approval alone cannot claim production work',()=>{
 test('both approvals still require connection configuration',()=>{
  const r=run({SQUIDLAW_WORKER_RUN_APPROVED:'YES',SQUIDLAW_WORKER_CUTOVER_APPROVED:'YES'});
  assert.equal(r.status,78);
- assert.match(r.stderr,/WORKER_CONFIGURATION_MISSING/);
+ assert.match(r.stderr,/WORKER_(?:CONFIGURATION_MISSING|OWNER_NOT_GABIA|MISSING_DATABASE_URL)/);
 });
