@@ -63,6 +63,183 @@ jobs:
               exit 1
             fi
           fi
+          # Legal reasoning is a paid customer-approved stage. Enable only
+          # when the existing worker credential and approval flag are present.
+          if test -f /etc/squidlaw/worker.env; then
+            if grep -Eq '^OPENAI_API_KEY=.+
+            echo DEPLOY_API_RESTART_FAILED
+            systemctl status squidlaw-api.service --no-pager --lines=8 | grep -E 'Active:|Main PID:|code=|status=' || true
+            exit 1
+          fi
+          if ! systemctl restart squidlaw-worker.service; then
+            echo DEPLOY_WORKER_RESTART_FAILED
+            systemctl status squidlaw-worker.service --no-pager --lines=8 | grep -E 'Active:|Main PID:|code=|status=' || true
+            exit 1
+          fi
+          sleep 5
+          if systemctl is-active --quiet squidlaw-api.service && systemctl is-active --quiet squidlaw-worker.service; then
+            echo DEPLOY_SERVICES_ACTIVE
+          else
+            echo DEPLOY_HEALTH_FAILED
+            tar -xzf "$backup" -C /opt/squidlaw/app
+            npm ci --omit=dev --no-audit --no-fund
+            systemctl restart squidlaw-api.service
+            systemctl restart squidlaw-worker.service
+            echo DEPLOY_ROLLED_BACK
+            exit 1
+          fi
+          test -f /opt/squidlaw/app/docs/GABIA_MAINTENANCE_PROBE.txt
+          grep -qx 'GABIA_DIRECT_MAINTENANCE_PROBE_V1' /opt/squidlaw/app/docs/GABIA_MAINTENANCE_PROBE.txt
+          echo DEPLOY_PROBE_VERIFIED
+          echo INTEGRATION_AUDIT_BEGIN
+          (
+            set -a
+            . /etc/squidlaw/api.env
+            set +a
+            node /opt/squidlaw/app/deploy/gabia-integration-audit.mjs
+          ) > /tmp/squidlaw-integration-audit.json 2>/dev/null && echo INTEGRATION_AUDIT_PASS || echo INTEGRATION_AUDIT_FINDINGS
+          node -e "const f=require('fs');try{const x=JSON.parse(f.readFileSync('/tmp/squidlaw-integration-audit.json','utf8'));for(const c of x.checks)console.log('AUDIT',c.name,c.ok?'PASS':'FAIL',c.detail)}catch{console.log('AUDIT_EXECUTION_ERROR')}"
+
+          test -f /opt/squidlaw/app/admin/skynet-icon.svg
+          grep -q 'skynet-icon.svg' /opt/squidlaw/app/admin/skynet.html
+          echo DEPLOY_SKYNET_ICON_VERIFIED
+          REMOTE
+          deploy_rc=$?
+          set -e
+          grep -E '^(INTEGRATION_AUDIT_|AUDIT )' /tmp/deploy.log || true
+          if [ "$deploy_rc" -ne 0 ]; then
+            echo DEPLOY_SSH_EXIT_$deploy_rc
+            grep -E '^(DEPLOY_|OBJECT_ROOT|INTEGRATION_AUDIT_|AUDIT |npm error|npm ERR|Error:)' /tmp/deploy.log | tail -35 || true
+            exit "$deploy_rc"
+          fi
+          if ! grep -E '^DEPLOY_(SERVICES_ACTIVE|HEALTH_FAILED|ROLLED_BACK|PROBE_VERIFIED|SKYNET_ICON_VERIFIED)' /tmp/deploy.log; then
+            echo DEPLOY_REMOTE_STEP_FAILED
+            echo DEPLOY_DIAGNOSTIC_BEGIN
+            tail -30 /tmp/deploy.log | sed -E 's/([A-Za-z_]*(KEY|TOKEN|SECRET|PASSWORD|DATABASE_URL)[A-Za-z_]*=)[^ ]+/\\1[REDACTED]/g' | tail -25
+            echo DEPLOY_DIAGNOSTIC_END
+            exit 1
+          fi
+      - name: Record deployment result
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          python3 - <<'PY'
+          import os,json,re,datetime
+          lines=open('/tmp/deploy.log').read().splitlines() if os.path.isfile('/tmp/deploy.log') else []
+          safe=[x for x in lines if re.fullmatch(r'DEPLOY_(SERVICES_ACTIVE|HEALTH_FAILED|ROLLED_BACK|PROBE_VERIFIED)',x)]
+          with open('/tmp/deploy-result.json','w') as f:
+            json.dump({'status':os.environ['JOB_STATUS'],'commit':os.environ['GITHUB_SHA'],'timestamp':datetime.datetime.now(datetime.timezone.utc).isoformat(),'checks':safe},f)
+          PY
+          encoded=$(base64 -w0 /tmp/deploy-result.json)
+          path=docs/GABIA_CODE_DEPLOY_RESULT.json
+          # This is advisory bookkeeping; a concurrent main commit must not mark
+          # an otherwise healthy production deployment as failed.
+          for attempt in 1 2 3; do
+            old=$(gh api "repos/${GITHUB_REPOSITORY}/contents/$path" --jq .sha 2>/dev/null || true)
+            if [ -n "$old" ]; then
+              gh api -X PUT "repos/${GITHUB_REPOSITORY}/contents/$path" -f message='Record Gabia code deployment result' -f content="$encoded" -f sha="$old" >/dev/null && break
+            else
+              gh api -X PUT "repos/${GITHUB_REPOSITORY}/contents/$path" -f message='Record Gabia code deployment result' -f content="$encoded" >/dev/null && break
+            fi
+            echo DEPLOY_RESULT_RECORD_CONFLICT_RETRY_$attempt
+            sleep 2
+          done
+          echo DEPLOY_RESULT_RECORD_BEST_EFFORT
+ /etc/squidlaw/worker.env || test -s /etc/squidlaw/openai.env; then
+              if grep -Eq '^SQUIDLAW_GABIA_LEGAL_RUN_APPROVED=true
+            echo DEPLOY_API_RESTART_FAILED
+            systemctl status squidlaw-api.service --no-pager --lines=8 | grep -E 'Active:|Main PID:|code=|status=' || true
+            exit 1
+          fi
+          if ! systemctl restart squidlaw-worker.service; then
+            echo DEPLOY_WORKER_RESTART_FAILED
+            systemctl status squidlaw-worker.service --no-pager --lines=8 | grep -E 'Active:|Main PID:|code=|status=' || true
+            exit 1
+          fi
+          sleep 5
+          if systemctl is-active --quiet squidlaw-api.service && systemctl is-active --quiet squidlaw-worker.service; then
+            echo DEPLOY_SERVICES_ACTIVE
+          else
+            echo DEPLOY_HEALTH_FAILED
+            tar -xzf "$backup" -C /opt/squidlaw/app
+            npm ci --omit=dev --no-audit --no-fund
+            systemctl restart squidlaw-api.service
+            systemctl restart squidlaw-worker.service
+            echo DEPLOY_ROLLED_BACK
+            exit 1
+          fi
+          test -f /opt/squidlaw/app/docs/GABIA_MAINTENANCE_PROBE.txt
+          grep -qx 'GABIA_DIRECT_MAINTENANCE_PROBE_V1' /opt/squidlaw/app/docs/GABIA_MAINTENANCE_PROBE.txt
+          echo DEPLOY_PROBE_VERIFIED
+          echo INTEGRATION_AUDIT_BEGIN
+          (
+            set -a
+            . /etc/squidlaw/api.env
+            set +a
+            node /opt/squidlaw/app/deploy/gabia-integration-audit.mjs
+          ) > /tmp/squidlaw-integration-audit.json 2>/dev/null && echo INTEGRATION_AUDIT_PASS || echo INTEGRATION_AUDIT_FINDINGS
+          node -e "const f=require('fs');try{const x=JSON.parse(f.readFileSync('/tmp/squidlaw-integration-audit.json','utf8'));for(const c of x.checks)console.log('AUDIT',c.name,c.ok?'PASS':'FAIL',c.detail)}catch{console.log('AUDIT_EXECUTION_ERROR')}"
+
+          test -f /opt/squidlaw/app/admin/skynet-icon.svg
+          grep -q 'skynet-icon.svg' /opt/squidlaw/app/admin/skynet.html
+          echo DEPLOY_SKYNET_ICON_VERIFIED
+          REMOTE
+          deploy_rc=$?
+          set -e
+          grep -E '^(INTEGRATION_AUDIT_|AUDIT )' /tmp/deploy.log || true
+          if [ "$deploy_rc" -ne 0 ]; then
+            echo DEPLOY_SSH_EXIT_$deploy_rc
+            grep -E '^(DEPLOY_|OBJECT_ROOT|INTEGRATION_AUDIT_|AUDIT |npm error|npm ERR|Error:)' /tmp/deploy.log | tail -35 || true
+            exit "$deploy_rc"
+          fi
+          if ! grep -E '^DEPLOY_(SERVICES_ACTIVE|HEALTH_FAILED|ROLLED_BACK|PROBE_VERIFIED|SKYNET_ICON_VERIFIED)' /tmp/deploy.log; then
+            echo DEPLOY_REMOTE_STEP_FAILED
+            echo DEPLOY_DIAGNOSTIC_BEGIN
+            tail -30 /tmp/deploy.log | sed -E 's/([A-Za-z_]*(KEY|TOKEN|SECRET|PASSWORD|DATABASE_URL)[A-Za-z_]*=)[^ ]+/\\1[REDACTED]/g' | tail -25
+            echo DEPLOY_DIAGNOSTIC_END
+            exit 1
+          fi
+      - name: Record deployment result
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          python3 - <<'PY'
+          import os,json,re,datetime
+          lines=open('/tmp/deploy.log').read().splitlines() if os.path.isfile('/tmp/deploy.log') else []
+          safe=[x for x in lines if re.fullmatch(r'DEPLOY_(SERVICES_ACTIVE|HEALTH_FAILED|ROLLED_BACK|PROBE_VERIFIED)',x)]
+          with open('/tmp/deploy-result.json','w') as f:
+            json.dump({'status':os.environ['JOB_STATUS'],'commit':os.environ['GITHUB_SHA'],'timestamp':datetime.datetime.now(datetime.timezone.utc).isoformat(),'checks':safe},f)
+          PY
+          encoded=$(base64 -w0 /tmp/deploy-result.json)
+          path=docs/GABIA_CODE_DEPLOY_RESULT.json
+          # This is advisory bookkeeping; a concurrent main commit must not mark
+          # an otherwise healthy production deployment as failed.
+          for attempt in 1 2 3; do
+            old=$(gh api "repos/${GITHUB_REPOSITORY}/contents/$path" --jq .sha 2>/dev/null || true)
+            if [ -n "$old" ]; then
+              gh api -X PUT "repos/${GITHUB_REPOSITORY}/contents/$path" -f message='Record Gabia code deployment result' -f content="$encoded" -f sha="$old" >/dev/null && break
+            else
+              gh api -X PUT "repos/${GITHUB_REPOSITORY}/contents/$path" -f message='Record Gabia code deployment result' -f content="$encoded" >/dev/null && break
+            fi
+            echo DEPLOY_RESULT_RECORD_CONFLICT_RETRY_$attempt
+            sleep 2
+          done
+          echo DEPLOY_RESULT_RECORD_BEST_EFFORT
+ /etc/squidlaw/worker.env; then
+                sed -i '/^SQUIDLAW_LEGAL_API_ENABLED=/d' /etc/squidlaw/worker.env
+                printf 'SQUIDLAW_LEGAL_API_ENABLED=true\\n' >> /etc/squidlaw/worker.env
+                echo LEGAL_API_WORKER_ENABLED
+              else
+                echo LEGAL_API_APPROVAL_MISSING
+              fi
+            else
+              echo LEGAL_API_CREDENTIAL_MISSING
+            fi
+          fi
           if ! systemctl restart squidlaw-api.service; then
             echo DEPLOY_API_RESTART_FAILED
             systemctl status squidlaw-api.service --no-pager --lines=8 | grep -E 'Active:|Main PID:|code=|status=' || true
