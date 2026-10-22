@@ -411,20 +411,16 @@ export default async function handler(req,res){
   // Verify its cited references deterministically, without a second AI interpretation.
   const sourceRows=(await load(previous.sourceUnitIndex))?.sources||[];
   const sourceKeys=new Set(sourceRows.map(x=>x.documentId+':'+x.page+':'+x.part+':'+x.hash));
-  // Baseline report: unresolved citations are annotations, not job failures.
-  // Preserve only references matching the immutable source manifest.
+  // Stage 2: audit final-report citations without discarding source references.
+  // Keep verification failures separate from the customer's evidence needs.
   let citationWarnings=0;
   for(const finding of report.findings){
    if(!finding||typeof finding!=='object')continue;
-   const original=Array.isArray(finding.sources)?finding.sources:[];
-   finding.sources=original.filter(ref=>ref&&sourceKeys.has(ref.documentId+':'+ref.page+':'+ref.part+':'+ref.hash));
-   if(finding.sources.length!==original.length||!finding.sources.length){
-    citationWarnings++;
-    finding.status='draft';
-    finding.evidenceNeed=[finding.evidenceNeed,'출처 확인 필요'].filter(Boolean).join('; ');
-   }
+   const refs=Array.isArray(finding.sources)?finding.sources:[];
+   const unmatched=refs.filter(ref=>!ref||!sourceKeys.has(ref.documentId+':'+ref.page+':'+ref.part+':'+ref.hash));
+   if(unmatched.length||!refs.length)citationWarnings++;
   }
-  if(citationWarnings)console.warn('CITATION_INTEGRITY_WARN',JSON.stringify({count:citationWarnings}));
+  if(citationWarnings)console.warn('CITATION_INTEGRITY_STAGE2',JSON.stringify({count:citationWarnings}));
   const indexData=await load(previous.sourceUnitIndex);
   const aggregate=await load(previous.textReviewAggregate);
   const visualAudits=[];
