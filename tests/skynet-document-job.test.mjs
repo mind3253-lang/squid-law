@@ -22,7 +22,7 @@ function fixture(){
  };
  const list=async({prefix})=>({blobs:[...store.keys()].filter(p=>p.startsWith(prefix))
   .map(pathname=>({pathname})),cursor:null,hasMore:false});
- const code=src.replace("import {get,put,list} from '@vercel/blob';",'')
+ const code=src.replace(/^import\s+\{get,put,list\}\s+from\s+['"][^'"]+['"];?\s*$/m,'')
   .replace('export default async function handler','return async function handler');
  const fn=new Function('get','put','list','process','Buffer','console',code);
  const handler=fn(get,put,list,{env:{ADMIN_PASSWORD:'testpass',BLOB_READ_WRITE_TOKEN:'testblob'}},Buffer,console);
@@ -90,7 +90,7 @@ test('PDF review cannot start without registered source or with forged source bo
 });
 test('SKYNET PDF status questions do not fall through to memory-only chat',()=>{
  const html=readFileSync(new URL('../admin/skynet.html',import.meta.url),'utf8');
- const config=JSON.parse(readFileSync(new URL('../vercel.json',import.meta.url),'utf8'));
+ const nginx=readFileSync(new URL('../deploy/nginx-gabia-direct.conf.example',import.meta.url),'utf8');
  assert.match(html,/function isReviewStatusQuestion/);
  assert.match(html,/서버의 실제 PDF 분석 진행 기록 확인 중/);
  assert.match(html,/if\(activeReview&&!archiveFiles\.length&&!attached\.length&&isReviewStatusQuestion\(msg\)\)/);
@@ -99,6 +99,5 @@ test('SKYNET PDF status questions do not fall through to memory-only chat',()=>{
  assert.match(html,/reviewJobRequest\('start'/);
  assert.match(html,/reviewJobRequest\('finish'/);
  assert.match(html,/showReviewJobStatus\(\{showReport:true\}\)/);
- assert.ok(config.rewrites.some(x=>x.source==='/admin/skynet-document-job'&&
-  x.destination==='/api/skynet-document-job'));
+ assert.match(nginx,/location = \/admin\/skynet-document-job/);
 });
