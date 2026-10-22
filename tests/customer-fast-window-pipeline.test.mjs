@@ -48,7 +48,7 @@ test('visual review has fenced, checkpointed parallel independent primary and au
  const worker=source('api/customer-analysis-worker.js');
  const jobs=source('api/customer-analysis-jobs-db.js');
  assert.match(worker,/export const maxDuration=300/);
- assert.match(worker,/const VISUAL_WINDOW_CONCURRENCY=3/);
+ assert.match(worker,/const VISUAL_WINDOW_CONCURRENCY=Math\.min\(5,Math\.max\(1,/);
  assert.match(worker,/splitPdfVisualWindows\(\{pdfBytes:bytes,startPage/);
  assert.match(worker,/splitPdfVisualPageSet\(\{pdfBytes:source/);
  assert.match(worker,/Promise\.allSettled\(starts\.map\(async\(page,i\)=>/);
