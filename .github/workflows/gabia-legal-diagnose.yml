@@ -24,6 +24,9 @@ jobs:
           ssh -T -i ~/.ssh/gabia.pem -o BatchMode=yes ubuntu@1.201.111.35 'sudo -n bash -s' <<'REMOTE'
           set -euo pipefail
           echo LEGAL_PROVIDER_DIAGNOSIS_BEGIN
+          echo SERVER_SSH_PATH_READY
+          id -un
+          systemctl is-active squidlaw-worker.service || true
           journalctl -u squidlaw-worker.service --since '90 minutes ago' --no-pager -o cat |
             grep -E '^GPT_LEGAL_PROVIDER_REJECTION |^CUSTOMER_WORKER_FAILURE |^SQUIDLAW_.*(ERROR|FAIL)|^Error:' |
             tail -12 |
