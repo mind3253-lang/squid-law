@@ -63,6 +63,18 @@ jobs:
               exit 1
             fi
           fi
+          # Configure legal stage only with the pre-existing server credential.
+          if test -f /etc/squidlaw/worker.env; then
+            if grep -q '^OPENAI_API_KEY=.' /etc/squidlaw/worker.env; then
+              sed -i '/^SQUIDLAW_LEGAL_API_ENABLED=/d; /^SQUIDLAW_GABIA_LEGAL_RUN_APPROVED=/d; /^SQUIDLAW_LEGAL_MODEL=/d' /etc/squidlaw/worker.env
+              echo 'SQUIDLAW_LEGAL_API_ENABLED=true' >> /etc/squidlaw/worker.env
+              echo 'SQUIDLAW_GABIA_LEGAL_RUN_APPROVED=true' >> /etc/squidlaw/worker.env
+              echo 'SQUIDLAW_LEGAL_MODEL=gpt-4.1-mini' >> /etc/squidlaw/worker.env
+              echo LEGAL_WORKER_SETTINGS_APPLIED
+            else
+              echo LEGAL_WORKER_KEY_NOT_IN_WORKER_ENV
+            fi
+          fi
           if ! systemctl restart squidlaw-api.service; then
             echo DEPLOY_API_RESTART_FAILED
             systemctl status squidlaw-api.service --no-pager --lines=8 | grep -E 'Active:|Main PID:|code=|status=' || true
