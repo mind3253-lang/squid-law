@@ -9,9 +9,11 @@ test('LAW-033 retry nudge runs AFTER persisted SQL backoff',()=>{
  }
  assert.equal(shouldPromptlyRedispatch(4),false);
 });
-test('LAW-033 cron remains five-minute fallback and worker lease is fenced',()=>{
- const vercel=JSON.parse(readFileSync(new URL('../vercel.json',import.meta.url),'utf8'));
- assert.ok(vercel.crons.some(x=>x.path==='/api/customer-analysis-worker'&&x.schedule==='*/5 * * * *'));
+test('LAW-033 Gabia continuous worker retains fenced SQL lease and bounded retries',()=>{
+ const worker=readFileSync(new URL('../worker/continuous-worker.mjs',import.meta.url),'utf8');
+ assert.match(worker,/workerPreflight\(\)/);
+ assert.match(worker,/await handler\(req,res\)/);
+ assert.match(worker,/workerFailureDelayMs\(consecutiveFailures\)/);
  const db=readFileSync(new URL('../api/customer-analysis-jobs-db.js',import.meta.url),'utf8');
  assert.match(db,/pg_advisory_xact_lock/);
  assert.match(db,/lease_expires_at>now\(\)/);
