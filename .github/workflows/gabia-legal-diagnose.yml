@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - .github/workflows/gabia-legal-diagnose.yml
+      - lib/gpt-legal-expert.mjs
 permissions:
   contents: read
 jobs:
