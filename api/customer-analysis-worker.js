@@ -845,6 +845,7 @@ export default async function handler(req,res){
   const errorStage=String(job?.stage||'unknown').replace(/[^a-zA-Z0-9_-]/g,'').slice(0,64);
   const dbCode=/^[0-9A-Z]{5}$/.test(String(e?.code||''))?String(e.code):null;
   const dbFailureKind=job?'AFTER_CLAIM':'CLAIM_OR_DATABASE';
+  if(safeCode==='SOURCE_READ_REVIEW_FAILED')console.error('SOURCE_REVIEW_AUDIT_CODES',JSON.stringify({failures:diagnostic.slice('GPT_LEGAL_SOURCE_REVIEW_FAILED:'.length).split(',').map(x=>x.split(':')[0]).slice(0,12)}));
   console.error('CUSTOMER_WORKER_FAILURE',JSON.stringify({code:safeCode,errorClass,stage:errorStage,jobClaimed:Boolean(job),dbCode,dbFailureKind}));
   // A failed AI/provider operation must never become a 250ms retry storm.
   // Preserve the checkpoint for explicit manual resume.
