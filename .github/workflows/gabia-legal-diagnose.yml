@@ -1,0 +1,31 @@
+name: Gabia legal API rejection diagnosis
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - .github/workflows/gabia-legal-diagnose.yml
+permissions:
+  contents: read
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Read sanitized legal provider failures
+        env:
+          KEY: ${{ secrets.GABIA_SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$KEY" > ~/.ssh/gabia.pem
+          chmod 600 ~/.ssh/gabia.pem
+          ssh-keyscan -H -T 10 1.201.111.35 >> ~/.ssh/known_hosts
+          ssh -T -i ~/.ssh/gabia.pem -o BatchMode=yes ubuntu@1.201.111.35 'sudo -n bash -s' <<'REMOTE'
+          set -euo pipefail
+          echo LEGAL_PROVIDER_DIAGNOSIS_BEGIN
+          journalctl -u squidlaw-worker.service --since '90 minutes ago' --no-pager -o cat |
+            grep '^GPT_LEGAL_PROVIDER_REJECTION ' |
+            tail -12 |
+            sed -E 's/[^[:print:]]//g' || true
+          echo LEGAL_PROVIDER_DIAGNOSIS_END
+          REMOTE
