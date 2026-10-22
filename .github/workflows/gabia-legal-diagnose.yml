@@ -34,3 +34,5 @@ jobs:
           journalctl -u squidlaw-worker.service --since '35 minutes ago' --no-pager -o cat | grep -E 'SOURCE_READ_REVIEW_FAILED|SOURCE_REVIEW_|GPT_LEGAL_SOURCE_REVIEW_FAILED|WORKER_STEP_FAILED' | sed -E 's/(.{0,300}).*/\1/' | tail -20 || true
           echo LEGAL_PROVIDER_DIAGNOSIS_END
           REMOTE
+
+# Diagnostics run after latest source-review worker deployment.
