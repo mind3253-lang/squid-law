@@ -131,9 +131,16 @@ jobs:
           PY
           encoded=$(base64 -w0 /tmp/deploy-result.json)
           path=docs/GABIA_CODE_DEPLOY_RESULT.json
-          old=$(gh api "repos/${GITHUB_REPOSITORY}/contents/$path" --jq .sha 2>/dev/null || true)
-          if [ -n "$old" ]; then
-            gh api -X PUT "repos/${GITHUB_REPOSITORY}/contents/$path" -f message='Record Gabia code deployment result' -f content="$encoded" -f sha="$old" >/dev/null
-          else
-            gh api -X PUT "repos/${GITHUB_REPOSITORY}/contents/$path" -f message='Record Gabia code deployment result' -f content="$encoded" >/dev/null
-          fi
+          # This is advisory bookkeeping; a concurrent main commit must not mark
+          # an otherwise healthy production deployment as failed.
+          for attempt in 1 2 3; do
+            old=$(gh api "repos/${GITHUB_REPOSITORY}/contents/$path" --jq .sha 2>/dev/null || true)
+            if [ -n "$old" ]; then
+              gh api -X PUT "repos/${GITHUB_REPOSITORY}/contents/$path" -f message='Record Gabia code deployment result' -f content="$encoded" -f sha="$old" >/dev/null && break
+            else
+              gh api -X PUT "repos/${GITHUB_REPOSITORY}/contents/$path" -f message='Record Gabia code deployment result' -f content="$encoded" >/dev/null && break
+            fi
+            echo DEPLOY_RESULT_RECORD_CONFLICT_RETRY_$attempt
+            sleep 2
+          done
+          echo DEPLOY_RESULT_RECORD_BEST_EFFORT
