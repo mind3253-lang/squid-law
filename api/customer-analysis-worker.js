@@ -411,16 +411,20 @@ export default async function handler(req,res){
   // Verify its cited references deterministically, without a second AI interpretation.
   const sourceRows=(await load(previous.sourceUnitIndex))?.sources||[];
   const sourceKeys=new Set(sourceRows.map(x=>x.documentId+':'+x.page+':'+x.part+':'+x.hash));
-  const citationFailures=[];
-  for(const [i,finding] of report.findings.entries()){
-   if(!Array.isArray(finding.sources)||!finding.sources.length||
-    finding.sources.some(ref=>!sourceKeys.has(ref.documentId+':'+ref.page+':'+ref.part+':'+ref.hash)))
-    citationFailures.push(i);
+  // Baseline report: unresolved citations are annotations, not job failures.
+  // Preserve only references matching the immutable source manifest.
+  let citationWarnings=0;
+  for(const finding of report.findings){
+   if(!finding||typeof finding!=='object')continue;
+   const original=Array.isArray(finding.sources)?finding.sources:[];
+   finding.sources=original.filter(ref=>ref&&sourceKeys.has(ref.documentId+':'+ref.page+':'+ref.part+':'+ref.hash));
+   if(finding.sources.length!==original.length||!finding.sources.length){
+    citationWarnings++;
+    finding.status='draft';
+    finding.evidenceNeed=[finding.evidenceNeed,'출처 확인 필요'].filter(Boolean).join('; ');
+   }
   }
-  if(citationFailures.length){
-   await advanceJob(job,'citation_integrity_failed',{...previous,citationFailures:citationFailures.slice(0,30)},'blocked','CITATION_INTEGRITY_FAILED');
-   return res.status(200).json({status:'blocked',reason:'CITATION_INTEGRITY_FAILED'});
-  }
+  if(citationWarnings)console.warn('CITATION_INTEGRITY_WARN',JSON.stringify({count:citationWarnings}));
   const indexData=await load(previous.sourceUnitIndex);
   const aggregate=await load(previous.textReviewAggregate);
   const visualAudits=[];
