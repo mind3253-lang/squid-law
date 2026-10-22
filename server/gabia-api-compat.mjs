@@ -19,6 +19,7 @@ const routeModules={
  '/api/skynet-archive':'../api/skynet-archive.js',
  '/api/skynet-warehouse':'../api/skynet-warehouse.js',
  '/api/customer-auth':'../api/customer-auth.js',
+ '/api/admin-db-health':'../api/admin-db-health.js',
  '/api/customer-case':'../api/customer-case.js',
  '/api/customer-cases':'../api/customer-cases.js',
  '/api/customer-members':'../api/customer-members.js',
