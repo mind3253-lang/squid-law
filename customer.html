@@ -383,6 +383,14 @@ function renderFullReview(job,queue,progress,billing){
  if(fullReviewPanel.parentElement!==log)log.appendChild(fullReviewPanel);
 
  const cp=job.checkpoint||{},state=job.status;
+ const relevanceWait=state==='blocked'&&job.errorCode==='DOCUMENT_RELEVANCE_REVIEW_REQUIRED';
+ if(relevanceWait){
+  fullReviewPanel.replaceChildren();
+  fullReviewPanel.hidden=true;
+  return;
+ }
+ fullReviewPanel.hidden=false;
+
  const waiting=state==='queued'||(state==='retry'&&queue?.ahead>0);
  const total=Number(cp.documentCount)||0,done=Number(cp.verifiedTextDocuments)||0;
  const pageDone=Number(cp.nextPage)||0;
@@ -657,7 +665,7 @@ async function fullReviewStatus(jobId,caseId){
  const j=await fullReviewRequest('/api/customer-analysis-job?caseId='+encodeURIComponent(caseId)+'&jobId='+encodeURIComponent(jobId));
  const job=j.job,cp=job.checkpoint||{};renderFullReview(job,j.queue,j.progress,j.billing);const stageLabels={pdf_extraction_checkpoint:'PDF 원문 페이지별 추출',pdf_extraction_completed:'PDF 추출 완료 · 분석 대기',text_review_checkpoint:'원문 텍스트 검증',text_review_finalize_checkpoint:'전체 문서 교차검증 집계',text_review_completed_visual_pending:'이미지·OCR 검증 대기'};const progress=job.stage==='pdf_extraction_checkpoint'?' · 추출 '+(cp.extractionNextPage?cp.extractionNextPage-1:0)+'페이지':job.stage==='text_review_finalize_checkpoint'?' · 검증 배치 '+(cp.finalizeOffset||0):' · 확인된 문서 '+(cp.verifiedTextDocuments||0)+'/'+(cp.documentCount||'?');/* Status is rendered in the analysis panel; do not duplicate it below chat. */
  // Intermediate source verification remains available internally, not in the customer progress UI.
- if(['blocked','failed','completed'].includes(job.status)){clearInterval(fullReviewTimer);fullReviewTimer=null;if(job.status==='blocked'&&job.errorCode==='DELTA_BASELINE_UNAVAILABLE'&&log.dataset.deltaBlockedJob!==jobId){log.dataset.deltaBlockedJob=jobId;reanalysisStep=5;bubble('추가 자료의 사건 관련성 확인 또는 기존 보고서 연결이 필요해 분석을 보류했습니다. 잘못 첨부한 자료라면 채팅에 “잘못 첨부”라고 입력해 주세요. 고객 확인 후 해당 추가 파일의 폐기를 요청합니다.','system')}if(job.status==='completed'&&log.dataset.reportJob!==jobId){log.dataset.reportJob=jobId;bubble('전체 분석이 완료되었습니다. 보고서를 확인할 수 있습니다.','system');caseChatAction('법률 분석 보고서 여닫기',()=>legalReportButton.click());showReanalysisGuide(jobId);/* 원문 검증 중간보고서는 내부 검산 기능으로만 유지 */}}
+ if(['blocked','failed','completed'].includes(job.status)){clearInterval(fullReviewTimer);fullReviewTimer=null;if(job.status==='blocked'&&['DELTA_BASELINE_UNAVAILABLE','DOCUMENT_RELEVANCE_REVIEW_REQUIRED'].includes(job.errorCode)&&log.dataset.deltaBlockedJob!==jobId){log.dataset.deltaBlockedJob=jobId;reanalysisStep=5;bubble(job.errorCode==='DOCUMENT_RELEVANCE_REVIEW_REQUIRED'?'추가 자료가 이 사건과 어떤 관련이 있는지 확인이 필요합니다. 잘못 첨부하셨다면 “잘못 첨부”라고 입력해 주세요. 관련 자료라면 어떤 관련이 있는지 설명해 주세요. 기존 보고서는 유지됩니다.':'기존 완료 보고서의 연결을 확인하고 있습니다. 추가 자료가 잘못 첨부된 것이면 “잘못 첨부”라고 알려주세요.','system')}if(job.status==='completed'&&log.dataset.reportJob!==jobId){log.dataset.reportJob=jobId;bubble('전체 분석이 완료되었습니다. 보고서를 확인할 수 있습니다.','system');caseChatAction('법률 분석 보고서 여닫기',()=>legalReportButton.click());showReanalysisGuide(jobId);/* 원문 검증 중간보고서는 내부 검산 기능으로만 유지 */}}
  return job.status;
 }
 async function restoreFullReview(){if(!select.value)return;let id=sessionStorage.getItem('squidlaw-full-review:'+select.value);if(!id){try{const j=await fullReviewRequest('/api/customer-analysis-job?caseId='+encodeURIComponent(select.value)+'&jobId=latest');id=j.job?.jobId;if(!id)return;sessionStorage.setItem('squidlaw-full-review:'+select.value,id)}catch{return}}try{const latest=await fullReviewRequest('/api/customer-analysis-job?caseId='+encodeURIComponent(select.value)+'&jobId=latest');if(latest.job?.jobId&&latest.job.jobId!==id){id=latest.job.jobId;sessionStorage.setItem('squidlaw-full-review:'+select.value,id)}const state=await fullReviewStatus(id,select.value);if(fullReviewTimer)clearInterval(fullReviewTimer);if(['blocked','failed','completed'].includes(state))return;fullReviewTimer=setInterval(()=>fullReviewStatus(id,select.value).catch(e=>notice(e.message,'error')),15000)}catch(e){if(String(e.message||'').includes('ANALYSIS_JOB_NOT_FOUND')){sessionStorage.removeItem('squidlaw-full-review:'+select.value);notice('서버에 해당 분석 작업 기록이 없습니다. 기존 문서와 사건은 유지됩니다. 전체 분석을 다시 신청할 수 있습니다.','info');return}notice('기존 분석 작업을 보존했습니다. 상태 확인 실패: '+e.message,'error')}}
