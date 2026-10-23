@@ -2,8 +2,8 @@
    Captures only sanitized metadata; never request bodies, tokens or document text. */
 (()=>{'use strict';
  const MAX=80,KEY='squidlaw:error-diagnostics:v1';
- const clean=(v,n=240)=>String(v??'').replace(/(Bearer\\s+)[^\\s]+/ig,'$1[redacted]').replace(/(sk-[A-Za-z0-9_-]{8,})/g,'[redacted]').replace(/([?&](?:token|key|secret|password|code)=)[^&\\s]+/ig,'$1[redacted]').slice(0,n);
- const stackLocation=e=>{const line=String(e?.stack||'').split('\\n').find(x=>/https?:|\\.js:\\d+/.test(x))||'';return clean(line.replace(/https?:\\/\\/[^/]+/g,''),220)};
+ const clean=(v,n=240)=>String(v??'').replace(/(Bearer\s+)[^\s]+/ig,'$1[redacted]').replace(/(sk-[A-Za-z0-9_-]{8,})/g,'[redacted]').replace(/([?&](?:token|key|secret|password|code)=)[^&\s]+/ig,'$1[redacted]').slice(0,n);
+ const stackLocation=e=>{const line=String(e?.stack||'').split('\n').find(x=>/https?:|\.js:\d+/.test(x))||'';return clean(line.replace(/https?:\/\/[^/]+/g,''),220)};
  const records=[];
  const emit=(type,error,meta={})=>{try{
   const entry={time:new Date().toISOString(),id:'ERR-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,8),app:location.pathname.startsWith('/admin/skynet')?'SKYNET':'SQUIDLAW',type:clean(type,48),name:clean(error?.name||'Error',48),code:clean(error?.code||meta.code||'',100),message:clean(error?.message||error||'',320),location:stackLocation(error),stage:clean(meta.stage||'',80)};
