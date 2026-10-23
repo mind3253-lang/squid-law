@@ -19,7 +19,7 @@
 .case-chat-empty{color:#64748b;text-align:center;margin:auto;line-height:1.9}
 .case-chat-message{max-width:86%;padding:13px 17px;border-radius:14px;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.7}
 .case-chat-message.user{align-self:flex-end;background:#e8f2ff}
-.case-chat-message.system{align-self:flex-start;background:#f4f6fa}.case-chat-message.system{max-width:98%}.case-table-wrap{max-width:100%;overflow-x:auto;margin:12px 0}.case-markdown-table{border-collapse:collapse;min-width:560px;width:100%;font-size:14px;line-height:1.6;background:#fff;white-space:normal}.case-markdown-table th,.case-markdown-table td{border:1px solid #cbd5e1;padding:9px 11px;vertical-align:top;text-align:left;overflow-wrap:anywhere}.case-markdown-table th{background:#eaf1fa;font-weight:700}.case-markdown-text{white-space:pre-wrap}.case-markdown-table.issue-summary-table{table-layout:fixed;min-width:560px}
+.case-chat-message.system{align-self:flex-start;background:#f4f6fa}.case-chat-message.system{max-width:98%}.case-table-wrap{max-width:100%;overflow-x:auto;margin:12px 0}.case-markdown-table{border-collapse:collapse;min-width:560px;width:100%;font-size:14px;line-height:1.6;background:#fff;white-space:normal}.case-markdown-table th,.case-markdown-table td{border:1px solid #cbd5e1;padding:9px 11px;vertical-align:top;text-align:left;overflow-wrap:anywhere}.case-markdown-table th{background:#eaf1fa;font-weight:700}.case-markdown-text{white-space:pre-wrap;text-align:justify;text-align-last:left}.case-markdown-paragraph{text-indent:5mm;white-space:pre-wrap;overflow-wrap:break-word}.case-markdown-table.issue-summary-table{table-layout:fixed;min-width:560px}
 .issue-summary-table th{text-align:center;vertical-align:middle;white-space:pre-line;overflow-wrap:normal;word-break:keep-all}
 .issue-summary-table th:nth-child(1),.issue-summary-table td:first-child[rowspan]{width:19%;text-align:center;vertical-align:middle;word-break:keep-all}
 .issue-summary-table th:nth-child(2){width:110px}
@@ -181,7 +181,8 @@ function renderCaseMarkdown(target,source){
  const flush=()=>{
   if(!pending.length)return;
   const node=document.createElement('div');node.className='case-markdown-text';
-  node.textContent=pending.join('\n');target.append(node);pending=[];
+  for(const line of pending){const p=document.createElement('div');p.className='case-markdown-paragraph';p.textContent=line||'\u00a0';node.append(p)}
+  target.append(node);pending=[];
  };
  for(let i=0;i<lines.length;){
   const headers=caseTableCells(lines[i]),sep=i+1<lines.length?caseTableCells(lines[i+1]):null;
