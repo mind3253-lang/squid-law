@@ -104,6 +104,11 @@ export async function runDeltaReviewStep({job,previous,documents,prefix,load,put
   }
   const decision=affected[cursor],old=base.findings[decision.index];
   const related=decision.newFindingIndices.map(index=>fresh.findings[index]);
+  if(!related.length||related.some(f=>!f?.claim)){
+   const error=new Error('DELTA_REVISION_NEW_FINDINGS_MISSING');
+   error.deltaStage='revision';error.deltaCursor=cursor;
+   throw error;
+  }
   const sources=await originalSourceUnits({findings:[old,...related],documents,prefix,load});
   const sourceLength=sources.reduce((n,u)=>n+u.text.length,0);
   if(sourceLength>120000||sources.length>40)
