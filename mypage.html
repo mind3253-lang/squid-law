@@ -97,7 +97,7 @@
  }
  async function openReport(r){
   switchPanel('reportView');$('reportTitle').textContent=r.caseTitle+' · 보고서';$('reportText').textContent='보고서를 불러오는 중입니다.';currentReport=null;
-  try{const detail=await json('/api/customer-analysis-history?caseId='+encodeURIComponent(r.caseId)+'&analysisId='+encodeURIComponent(r.id));const body=String(detail.analysis?.reply||'');if(!body)throw Error('보고서 본문이 없습니다.');currentReport={id:r.id,text:body};$('reportText').textContent=body}
+  try{const detail=await json('/api/customer-analysis-history?caseId='+encodeURIComponent(r.caseId)+'&analysisId='+encodeURIComponent(r.id)+(r.source==='legal-job'?'&source=legal-job':''));const body=String(detail.analysis?.reply||'');if(!body)throw Error('보고서 본문이 없습니다.');currentReport={id:r.id,text:body};$('reportText').textContent=body}
   catch(e){$('reportText').textContent='보고서를 열지 못했습니다: '+e.message}
  }
  try{
@@ -111,6 +111,8 @@
     for(const r of h.analyses||[])if(r.status==='completed')reports.push({...r,caseId:c.id,caseTitle:c.title});
     offset=h.nextOffset??null;
    }while(offset!==null);
+   const legal=await json('/api/customer-analysis-history?caseId='+encodeURIComponent(c.id)+'&source=legal-job').catch(()=>({analyses:[]}));
+   for(const r of legal.analyses||[])if(!reports.some(x=>x.caseId===c.id&&x.id===r.id))reports.push({...r,caseId:c.id,caseTitle:c.title});
   }
   reports.sort((a,b)=>String(a.createdAt).localeCompare(String(b.createdAt)));
   $('reportTotal').textContent=reports.length;
