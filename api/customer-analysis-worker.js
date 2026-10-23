@@ -485,7 +485,7 @@ export default async function handler(req,res){
   const finalReport={...report,modelUsage:usageLedger.aggregate,usageLedger:{complete:usageLedger.complete,missingCount:usageLedger.missing.length,digest:usageLedger.ledgerDigest},status:'reviewed',notForCourtSubmission:false,legalConclusionAvailable:true,independentSemanticAuditPassed:false,citationIntegrityPassed:true,issues:report.issues.filter(x=>x!=='INDEPENDENT_SEMANTIC_AUDIT_PENDING'),warning:'원본과 검증 결과를 확인한 후 제출 여부를 결정하세요.'};
   const finalReportPath=root+'legal-customer-report-final.json';
   await put(finalReportPath,JSON.stringify(finalReport),{access:'private',allowOverwrite:true,addRandomSuffix:false,contentType:'application/json'});
-  await advanceJob(job,'analysis_completed',{...previous,semanticAuditPassed:true,completionReconciliation:finalPath,legalCustomerReport:finalReportPath,gates:completion.gates},'completed');
+  await advanceJob(job,'analysis_completed',{...previous,semanticAuditPassed:true,completionReconciliation:finalPath,legalCustomerReport:finalReportPath,deltaDocumentSnapshot:fullDocs.map(d=>({id:d.id,pageCount:d.pageCount,sha256:d.sha256})),gates:completion.gates},'completed');
   return res.status(200).json({status:'completed',report:finalReportPath});
  }
  if(index===docs.length&&previous.phase==='verify'&&previous.textReviewManifest&&(!previous.visualSourceCoveragePassed||!previous.visualReview?.verified)){
