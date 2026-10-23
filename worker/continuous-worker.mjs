@@ -1,5 +1,6 @@
 import {workerFailureDelayMs} from '../lib/gabia-worker-backoff.mjs';
 import {workerPreflight} from '../lib/gabia-worker-preflight.mjs';
+import {captureServerError} from '../lib/server-error-diagnostics.mjs';
 const preflight=workerPreflight();
 if(!preflight.ok){
  for(const error of preflight.errors)console.error(error);
@@ -28,7 +29,8 @@ while(!stopping){
   if(status!==200&&status!==503)console.error('WORKER_HTTP_STATUS',status);
   if(status===503)console.error('WORKER_STEP_FAILED',body?.error||'UNKNOWN');
  }catch(error){
-  console.error('WORKER_LOOP_FAILURE',String(error?.message||error).slice(0,160));
+  const {traceId}=captureServerError(error,{system:'SQUIDLAW',operation:'continuous-worker',stage:'loop'});
+  console.error('WORKER_LOOP_FAILURE',traceId);
  }
  consecutiveFailures=status===200?0:Math.min(32,consecutiveFailures+1);
  // Measure complete checkpoint roundtrip, including DB claim and persistence.
