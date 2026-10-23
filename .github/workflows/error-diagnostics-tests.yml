@@ -4,6 +4,10 @@ on:
     branches: [main]
     paths:
       - 'lib/server-error-diagnostics.mjs'
+      - 'lib/diagnostic-context.mjs'
+      - 'api/customer-delta-worker.mjs'
+      - 'api/customer-analysis-worker.js'
+      - 'tests/diagnostic-context.test.mjs'
       - 'shared-error-diagnostics.js'
       - 'api/skynet-diagnostics.js'
       - 'tests/error-diagnostics.test.mjs'
@@ -21,7 +25,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: node --test tests/error-diagnostics.test.mjs tests/shared-error-diagnostics-client.test.mjs
+      - run: node --test tests/error-diagnostics.test.mjs tests/shared-error-diagnostics-client.test.mjs tests/diagnostic-context.test.mjs
+      - run: node --check lib/diagnostic-context.mjs
+      - run: node --check api/customer-delta-worker.mjs
+      - run: node --check api/customer-analysis-worker.js
       - run: node --check lib/server-error-diagnostics.mjs
       - run: node --check api/skynet-diagnostics.js
       - run: node --check shared-error-diagnostics.js
