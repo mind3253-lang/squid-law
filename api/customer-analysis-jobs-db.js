@@ -164,3 +164,10 @@ export async function mayDiscardAdditionalDocument(user,caseId,remainingVersion,
    &&!rows.rows.some(x=>x.status==='completed'&&x.document_version===currentVersion);
  });
 }
+
+export async function completedCustomerReports(user,caseId,limit=100){
+ return withLeaseDb(async db=>{
+  const r=await db.query("SELECT * FROM customer_analysis_jobs WHERE customer_key=$1 AND case_id=$2 AND status='completed' AND checkpoint->>'legalCustomerReport' IS NOT NULL ORDER BY updated_at DESC LIMIT $3",[key(user),caseId,Math.min(200,Math.max(1,limit))]);
+  return r.rows.map(publicJob);
+ });
+}
