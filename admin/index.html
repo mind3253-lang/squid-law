@@ -16,4 +16,5 @@ a{color:#1762b4}small{color:#66758a}footer{margin-top:30px;color:#66758a;font-si
 <article><h3>고객 회원 관리</h3><p>고객 회원명부 및 검산용 계정을 SKYNET 대화 공간과 분리하여 관리합니다.</p><a href="/admin/members.html">회원명부 관리 →</a></article>
 <article><h3>콘텐츠 관리</h3><p>법률 안내와 게시물 관리 기능을 기존 사이트 구조에 맞춰 연결합니다.</p></article>
 </div><footer>관리자 인증이 적용된 별도 페이지입니다. 메인 홈페이지에는 관리자 링크가 없습니다.</footer></main>
+<script src="/shared-error-diagnostics.js"></script>
 <script>document.getElementById('adminLogin').onclick=async()=>{const pw=document.getElementById('adminPassword');const status=document.getElementById('adminAuthStatus');const auth='Basic '+btoa('admin:'+pw.value);pw.value='';status.textContent='확인 중';try{const r=await fetch('/api/customer-members',{headers:{authorization:auth},cache:'no-store'});if(!r.ok)throw Error();status.textContent='인증 완료';location.href='/admin/members.html';}catch{status.textContent='인증 실패';}};</script></body></html>
