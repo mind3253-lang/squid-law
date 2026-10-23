@@ -2,7 +2,9 @@ import {requireOwnedCase} from '../lib/customer-case-access.mjs';
 import {validClientRole} from '../lib/customer-case-intake.mjs';
 import {guard,respond,readJson,documents,casePrefix} from './customer-case.js';
 import {enqueueJob,getJob,resumeJob,queueSnapshot,documentVersion,latestCaseJob,confirmDocumentRelevance} from './customer-analysis-jobs-db.js';
-const kickWorker=()=>{};
+import {scheduleCustomerWorker} from '../lib/customer-worker-dispatch.mjs';
+import {shouldDispatchCustomerWorker} from '../lib/customer-worker-owner.mjs';
+const kickWorker=()=>{if(shouldDispatchCustomerWorker())scheduleCustomerWorker({delayMs:350})};
 const idOk=id=>/^SL-[a-zA-Z0-9-]{5,40}$/.test(id);
 // Compare explicit party metadata only. Filename keywords are never evidence of mismatch.
 const normParty=s=>String(s||'').replace(/\\s+/g,'').trim();
