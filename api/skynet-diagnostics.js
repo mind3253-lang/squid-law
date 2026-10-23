@@ -21,7 +21,8 @@ export default async function handler(req,res){
    checkpoint->>'errorClass' AS error_class,
    checkpoint->>'errorStackFrame' AS stack_frame,
    checkpoint->>'providerErrorSummary' AS provider_summary,
-   checkpoint->>'message' AS detail
+   checkpoint->>'message' AS detail,
+   checkpoint->'sourceDiagnostic' AS source_diagnostic
    FROM customer_analysis_jobs WHERE error_code IS NOT NULL
    AND ($2::text='' OR checkpoint->>'errorTraceId'=$2)
    ORDER BY updated_at DESC LIMIT $1`,[healthOnly?0:limit,traceFilter])).rows)}catch(e){jobsStatus=e?.code==='42P01'?'schema_missing':'query_failed';console.error('ANALYSIS_DIAGNOSTIC_READ_FAILURE',safe(e?.code||e?.name||'UNKNOWN',50))}
@@ -35,7 +36,7 @@ export default async function handler(req,res){
    code:safe(r.error_code,100),stage:safe(r.failure_stage||r.stage,100),
    cursor:r.failure_cursor===null?null:Number(r.failure_cursor),
    errorClass:safe(r.error_class,60),stackFrame:safe(r.stack_frame,180),
-   summary:safe(r.provider_summary||r.detail,180),updatedAt:r.updated_at
+   summary:safe(r.provider_summary||r.detail,180),sourceDiagnostic:r.source_diagnostic||null,updatedAt:r.updated_at
   }))});
  }catch(e){const {traceId,record}=captureServerError(e,{system:'SKYNET',operation:'diagnostics-query',stage:'read'});await record.persistence;return res.status(503).json({error:'DIAGNOSTIC_QUERY_UNAVAILABLE',traceId})}
 }
