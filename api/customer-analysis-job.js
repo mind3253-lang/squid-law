@@ -1,7 +1,7 @@
 import {requireOwnedCase} from '../lib/customer-case-access.mjs';
 import {validClientRole} from '../lib/customer-case-intake.mjs';
 import {guard,respond,readJson,documents,casePrefix} from './customer-case.js';
-import {enqueueJob,getJob,resumeJob,queueSnapshot,documentVersion,latestCaseJob,confirmDocumentRelevance} from './customer-analysis-jobs-db.js';
+import {enqueueJob,getJob,resumeJob,queueSnapshot,documentVersion,latestCaseJob,confirmDocumentRelevance,acceptCustomerRequestedEvidence} from './customer-analysis-jobs-db.js';
 import {scheduleCustomerWorker} from '../lib/customer-worker-dispatch.mjs';
 import {shouldDispatchCustomerWorker} from '../lib/customer-worker-owner.mjs';
 const kickWorker=()=>{if(shouldDispatchCustomerWorker())scheduleCustomerWorker({delayMs:350})};
@@ -34,6 +34,19 @@ export default async function handler(req,res){
  }
  if(req.method!=='POST')return respond(res,405,{error:'GET/POST만 허용'});
  let b=req.body;try{if(typeof b==='string')b=JSON.parse(b)}catch{return respond(res,400,{error:'요청 형식 오류'})}
+ if(b?.action==='include-unverified-evidence'){
+  const jobId=String(b.jobId||''),ids=b.documentIds;
+  if(!/^[0-9a-f-]{36}$/.test(jobId)||!Array.isArray(ids)||!ids.length||ids.length>30||
+    new Set(ids).size!==ids.length||ids.some(x=>typeof x!=='string'||!/^[0-9a-f-]{36}$/.test(x))||b.confirmed!==true)
+   return respond(res,400,{error:'분석 포함 의사를 확인해 주세요.'});
+  try{
+   const docs=await documents(a.user,caseId);
+   if(ids.some(id=>!docs.some(x=>x.id===id)))return respond(res,409,{error:'자료 목록이 변경되어 다시 확인해야 합니다.'});
+   const job=await acceptCustomerRequestedEvidence(a.user,caseId,jobId,documentVersion(docs),ids);
+   if(!job)return respond(res,409,{error:'확인 대기 상태가 변경되었습니다. 다시 확인해 주세요.'});
+   kickWorker(req);return respond(res,202,{job,notice:'고객 요청에 따라 관련성 미확인 자료를 분석에 포함합니다.'});
+  }catch{return respond(res,503,{error:'고객 결정 저장 실패'})}
+ }
  if(b?.action==='clarify-document-relevance'){
   const jobId=String(b.jobId||''),documentId=String(b.documentId||''),explanation=String(b.explanation||'').trim();
   if(!/^[0-9a-f-]{36}$/.test(jobId)||!/^[0-9a-f-]{36}$/.test(documentId)||explanation.length<1||explanation.length>200)
