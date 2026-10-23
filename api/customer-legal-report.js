@@ -50,6 +50,9 @@ export default async function handler(req,res){
    if(e?.message==='ANALYSIS_ROLE_CHANGED')return respond(res,409,{code:'ANALYSIS_ROLE_CHANGED',error:'분석 당시 의뢰인 지위와 현재 지위가 다릅니다. 다시 분석해 주세요.'});
    throw e;
   }
+  // Export exactly the same verified brief that the report viewer displays.
+  // Reject an empty source rather than delivering a blank file.
+  if(typeof brief.text!=='string'||!brief.text.trim())return respond(res,409,{error:'보고서 본문이 비어 있어 출력할 수 없습니다.'});
   const exportFormat=String(req.query?.download||'');
   if(['docx','hwpx','pdf'].includes(exportFormat)){
    const doc=normalizeDocument({title:report.title||'법률 분석 보고서',text:brief.text});
