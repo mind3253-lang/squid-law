@@ -121,6 +121,12 @@ const server=createServer(async(req,res)=>{
   req.query=query;req.body=body;
   await handler(req,res);
   if(!res.writableEnded)res.end();
- }catch(err){if(!res.headersSent)res.writeHead(503,{'content-type':'application/json','cache-control':'no-store'});if(!res.writableEnded)res.end('{"error":"SERVICE_UNAVAILABLE"}');}
+ }catch(err){
+  const errorCode=typeof err?.code==='string'&&/^[A-Z0-9_]{1,24}$/.test(err.code)?err.code:'UNKNOWN';
+  const errorType=String(err?.name||'Error').slice(0,40);
+  console.error('GABIA_COMPAT_API_FAILURE',JSON.stringify({route:path,errorCode,errorType,message:String(err?.message||'UNKNOWN').slice(0,180)}));
+  if(!res.headersSent)res.writeHead(503,{'content-type':'application/json','cache-control':'no-store'});
+  if(!res.writableEnded)res.end('{"error":"SERVICE_UNAVAILABLE"}');
+ }
 });
 server.listen(port,host,()=>console.log('GABIA_API_LISTEN',port));
