@@ -1,6 +1,6 @@
 import {isSkynetAdmin} from '../lib/skynet-job-api-auth.mjs';
 import {withLeaseDb} from './customer-analysis-lease-db.js';
-const safe=(v,n=180)=>String(v??'').replace(/(sk-[A-Za-z0-9_-]{8,}|Bearer\s+\S+)/ig,'[redacted]').slice(0,n);
+const safe=(v,n=180)=>String(v??'').replace(/(sk-[A-Za-z0-9_-]{8,}|Bearer\s+\S+|[?&](?:token|key|secret|password)=[^&\s]+)/ig,'[redacted]').slice(0,n);
 export default async function handler(req,res){
  res.setHeader('Cache-Control','no-store');res.setHeader('X-Content-Type-Options','nosniff');
  if(!isSkynetAdmin(req))return res.status(401).json({error:'ADMIN_REQUIRED'});
