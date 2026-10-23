@@ -1,6 +1,6 @@
 import {extractPdfPages} from './customer-pdf-extract.js';
 import {get,put,list,del} from '../lib/customer-object-storage.mjs';
-import {documentVersion,mayDiscardAdditionalDocument} from './customer-analysis-jobs-db.js';
+import {documentVersion,mayDiscardAdditionalDocument,closeDiscardedDocumentReview} from './customer-analysis-jobs-db.js';
 import {createHash,randomUUID} from 'node:crypto';
 import {authenticatedUser} from './customer-auth.js';
 const hash=s=>createHash('sha256').update(s).digest('hex');
@@ -69,6 +69,7 @@ if(b?.action==='discard-mistaken-document'){
   // Delete the metadata last so a partial storage failure remains visible and retryable.
   for(const path of paths.slice(1)){await del(path).catch(e=>{if(e?.code!=='ENOENT')throw e})}
   await del(paths[0]);
+  await closeDiscardedDocumentReview(user,id,target.id);
   await saveMessage(user,id,'system','고객 확인에 따라 잘못 첨부한 문서 '+target.name+'을 폐기했습니다. 새로운 자료를 첨부해 주세요.');
   return respond(res,200,{discarded:true,documentId:target.id});
  }catch(e){return respond(res,503,{code:'DISCARD_FAILED',error:'파일 폐기 처리에 실패했습니다. 다시 확인해 주세요.'})}
