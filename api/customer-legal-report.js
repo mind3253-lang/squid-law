@@ -1,4 +1,4 @@
-import {normalizeDocument,renderDocx,renderHwpx,renderPrintHtml} from '../lib/document-export.mjs';
+import {normalizeDocument,renderDocx,renderPrintHtml} from '../lib/document-export.mjs';
 import {buildCustomerAnalysisBrief} from '../lib/customer-analysis-brief.mjs';
 import {courtSubmissionGate} from '../lib/court-submission-gate.mjs';
 import {findReportEvidence} from '../lib/customer-report-evidence-search.mjs';
@@ -54,10 +54,10 @@ export default async function handler(req,res){
   // Reject an empty source rather than delivering a blank file.
   if(typeof brief.text!=='string'||!brief.text.trim())return respond(res,409,{error:'보고서 본문이 비어 있어 출력할 수 없습니다.'});
   const exportFormat=String(req.query?.download||'');
-  if(['docx','hwpx','pdf'].includes(exportFormat)){
+  if(['docx','pdf'].includes(exportFormat)){
    const doc=normalizeDocument({title:report.title||'법률 분석 보고서',text:brief.text});
-   const buffer=exportFormat==='docx'?renderDocx(doc):exportFormat==='hwpx'?renderHwpx(doc):Buffer.from(renderPrintHtml(doc),'utf8');
-   const type=exportFormat==='docx'?'application/vnd.openxmlformats-officedocument.wordprocessingml.document':exportFormat==='hwpx'?'application/hwp+zip':'text/html; charset=utf-8';
+   const buffer=exportFormat==='docx'?renderDocx(doc):Buffer.from(renderPrintHtml(doc),'utf8');
+   const type=exportFormat==='docx'?'application/vnd.openxmlformats-officedocument.wordprocessingml.document':'text/html; charset=utf-8';
    res.setHeader('Content-Type',type);
    res.setHeader('Content-Disposition',exportFormat==='pdf'?'inline; filename="squidlaw-report-print.html"':'attachment; filename="squidlaw-legal-report.'+exportFormat+'"');
    res.setHeader('X-Content-Type-Options','nosniff');
