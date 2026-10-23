@@ -18,7 +18,7 @@ function customerReadableReport(report){
   }
  }else lines.push('','표시할 쟁점별 분석 결과가 없습니다.');
  if(Array.isArray(report.uncertainties)&&report.uncertainties.length)lines.push('','추가 확인: '+report.uncertainties.join('; '));
- return lines.join('\\n');
+ return lines.join('\n');
 }
 export default async function handler(req,res){
  if(req.method!=='GET')return respond(res,405,{error:'GET만 지원'});
