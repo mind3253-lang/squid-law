@@ -151,6 +151,12 @@ export async function runDeltaReviewStep({job,previous,documents,prefix,load,put
   sourceVersion:job.documentVersion,baselineVersion:delta.baselineVersion,
   addedDocs:delta.addedDocuments,documentSnapshot:documents.map(d=>({
    id:d.id,sha256:d.sha256,pageCount:d.pageCount}))});
+ if(Array.isArray(previous.customerIncludeUnverified)&&previous.customerIncludeUnverified.length){
+  report.customerRequestedUnverifiedEvidence=previous.customerIncludeUnverified.map(id=>({
+   documentId:id,relatedness:'not_verified',includedBy:'explicit_customer_request',
+   warning:'사건 관련성이 확인되지 않았으나 고객 요청에 따라 분석에 포함했습니다. 증거가치 및 법적 관련성은 별도로 판단해야 합니다.'
+  }));
+ }
  const gates=inheritDeltaGates({baselineGates:delta.baselineGates,
   deltaGates:delta.deltaGates,baselineVersion:delta.baselineVersion,
   sourceVersion:job.documentVersion});
