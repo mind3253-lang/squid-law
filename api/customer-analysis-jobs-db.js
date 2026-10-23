@@ -115,19 +115,6 @@ export async function resumeJob(user,caseId,jobId,version){
  });
 }
 
-// Recover transient infrastructure outages without discarding immutable checkpoints.
-// Never touch completed jobs or deterministic evidence-validation failures.
-export async function recoverServiceUnavailableJobs(){
- return withLeaseDb(async db=>{
-  const r=await db.query(`UPDATE customer_analysis_jobs
-   SET status='queued',stage='resume_requested',error_code=NULL,attempts=0,
-       next_run_at=now(),updated_at=now()
-   WHERE status='failed' AND error_code='SERVICE_UNAVAILABLE'
-   RETURNING job_id`);
-  return r.rowCount;
- });
-}
-
 // Recover only the infrastructure-specific missing-index failure. Preserve
 // document version, immutable receipts and checkpoints; never restart billing.
 export async function recoverMissingRegistryJobs(){
