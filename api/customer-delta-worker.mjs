@@ -230,7 +230,16 @@ export async function runDeltaReviewStep({job,previous,documents,prefix,load,put
    }
    const check=validateSemanticReview({response:independent.result,caseId:job.caseId,
     sourceVersion:job.documentVersion,findings:[finding]});
-   if(!check.complete)throw Error('DELTA_REVISION_INDEPENDENT_REVIEW_FAILED');
+   if(!check.complete){
+    const error=new Error('DELTA_REVISION_INDEPENDENT_REVIEW_FAILED');
+    error.deltaStage='revision';error.deltaCursor=cursor;
+    error.reviewFailures=check.failures;
+    error.reviewVerdicts=(independent.result?.verdicts||[]).map(v=>({
+     index:v.index,supported:v.supported,reason:String(v.reason||'').slice(0,500)}));
+    error.providerErrorSummary=JSON.stringify({failures:check.failures,
+     verdicts:error.reviewVerdicts}).slice(0,1600);
+    throw error;
+   }
    validated={index:decision.index,finding,reason:decision.reason,
     independentVerified:true,sourceAuditPassed:true};
    await write(put,path,validated);
