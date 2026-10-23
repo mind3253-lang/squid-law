@@ -141,7 +141,11 @@ export default async function handler(req,res){
    }
    // Screen new documents against the existing case before spending on delta analysis.
    // Ambiguity is a customer clarification, never an automatic evidence deletion.
-   if(!job.checkpoint?.relevanceReviewed){
+   const customerInclude=job.checkpoint?.customerIncludeUnverified;
+   const customerOverride=Array.isArray(customerInclude)&&customerInclude.length>0&&
+    baseline.addedDocuments.some(d=>customerInclude.includes(d.id))&&
+    customerInclude.every(id=>baseline.addedDocuments.some(d=>d.id===id));
+   if(!customerOverride&&!job.checkpoint?.relevanceReviewed){
     if(process.env.SQUIDLAW_LEGAL_API_ENABLED!=='true'||!process.env.OPENAI_API_KEY){
      await advanceJob(job,'delta_relevance_api_pending',{...job.checkpoint},'blocked','LEGAL_API_NOT_ENABLED');
      return res.status(200).json({status:'blocked',reason:'LEGAL_API_NOT_ENABLED'});
@@ -171,7 +175,7 @@ export default async function handler(req,res){
     }
    }
    await advanceJob(job,'delta_evidence_selected',{
-    delta:baseline,phase:'extract',nextDocument:0,nextPage:0,
+    delta:baseline,phase:'extract',nextDocument:0,nextPage:0,customerIncludeUnverified:customerOverride?customerInclude:[],
     documentCount:baseline.addedDocuments.length},'retry');
    return res.status(200).json({status:'retry',stage:'delta_evidence_selected',
     addedDocuments:baseline.addedDocuments.length,baselineJobId:baseline.baselineJobId});
