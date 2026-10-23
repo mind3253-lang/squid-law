@@ -4,7 +4,7 @@
 <script>fetch('/api/customer-auth',{credentials:'same-origin',cache:'no-store'}).then(r=>r.json()).then(d=>{if(!d.authenticated)location.replace('login.html?next='+encodeURIComponent(location.pathname+location.search))}).catch(()=>location.replace('login.html'));</script>
 <style>
 .summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}.summary button,.summary .stat{font:inherit;text-align:left;background:#fff;border:1px solid #dce4ed;border-radius:14px;padding:18px;color:#17233b;min-height:100px}.summary button{cursor:pointer}.summary button:hover,.summary button[aria-expanded=true]{border-color:#1762b4;background:#f5f9ff}.summary strong{display:block;font-size:27px;margin-top:12px}.listing{margin-top:20px}.case-row{display:flex;gap:10px;align-items:center}.case-row .list-item{flex:1;min-width:0}.delete-case{border:1px solid #b45353;background:white;color:#a32b2b;border-radius:9px;padding:11px;cursor:pointer;white-space:nowrap}.warehouse{margin-top:20px}.warehouse[hidden]{display:none}.warehouse a{display:block;margin:8px 0}.pager{display:flex;align-items:center;gap:14px;margin-top:12px}.pager button{padding:8px 12px}.listing[hidden]{display:none}.list-item{display:block;width:100%;box-sizing:border-box;text-align:left;background:#fff;border:1px solid #dce4ed;border-radius:12px;padding:16px;margin:8px 0;color:#17233b;font:inherit;text-decoration:none;cursor:pointer}.list-item:hover{border-color:#1762b4;background:#f5f9ff}.list-item small{display:block;margin-top:7px;color:#64748b}.report-body{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.8;border:1px solid #dce4ed;padding:20px;border-radius:12px;margin-top:14px}.report-actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:12px}.report-actions button{padding:9px 15px;border:1px solid #1762b4;border-radius:9px;background:#fff;color:#1762b4;cursor:pointer}.hint{font-size:13px;color:#64748b}@media(max-width:600px){.summary{gap:7px}.summary button,.summary .stat{padding:11px;min-height:90px}.summary strong{font-size:23px}}
-</style></head><body>
+.rename-case{border:1px solid #b9cbe4;background:#f5f8ff;color:#24538d;border-radius:9px;padding:11px;cursor:pointer;white-space:nowrap;font-weight:600}.rename-case:hover{background:#e6f0ff}@media(max-width:540px){.case-row{flex-wrap:wrap}.case-row .list-item{flex-basis:100%}.rename-case,.delete-case{flex:1}}</style></head><body>
 <header class="site-header"><nav class="site-nav"><a class="brand" href="index.html">SQUID LAW</a><a href="howto.html">사용방법</a><a href="community.html">커뮤니티</a><a href="stories.html">소송이야기</a><a href="mypage.html">마이페이지</a><a class="nav-analysis" href="customer.html">내 사건 분석</a></nav></header>
 <main class="wrap"><section class="hero"><div class="eyebrow">MY PAGE</div><h1>마이페이지</h1></section>
 <section class="card"><div class="summary">
@@ -35,7 +35,24 @@
    const row=document.createElement('div');row.className='case-row';
    const open=line((page*10+i+1)+'. '+c.title,new Date(c.createdAt).toLocaleDateString('ko-KR')+' · '+c.id);
    open.href='#caseDetail';open.onclick=e=>{e.preventDefault();void showWarehouse(c)};
-   const remove=document.createElement('button');remove.type='button';remove.className='delete-case';remove.textContent='전체삭제';
+   const rename=document.createElement('button');rename.type='button';rename.className='rename-case';rename.textContent='이름변경';
+   rename.onclick=async()=>{
+    const next=prompt('새 사건명을 입력해 주세요. (최대 80자)',c.title);
+    if(next===null)return;
+    const title=next.trim();
+    if(!title||title.length>80){alert('사건명은 1~80자로 입력해 주세요.');return}
+    if(title===c.title)return;
+    rename.disabled=true;
+    try{
+     const response=await fetch('/api/customer-cases',{method:'PATCH',credentials:'same-origin',headers:{'content-type':'application/json'},body:JSON.stringify({caseId:c.id,title})});
+     const result=await response.json();if(!response.ok)throw Error(result.error||'이름변경 실패');
+     c.title=result.case.title;renderCases();
+     if(selectedCase===c.id)$('warehouseTitle').textContent=c.title+' · 사건 자료창고';
+     for(const report of reports)if(report.caseId===c.id)report.caseTitle=c.title;
+     $('reportRows').querySelectorAll('[data-case-id]').forEach(el=>{if(el.dataset.caseId===c.id){const titleEl=el.querySelector('.case-title');if(titleEl)titleEl.textContent=c.title}});
+    }catch(e){alert('사건명 변경 실패: '+e.message)}finally{rename.disabled=false}
+   };
+   const remove=document.createElement('button');remove.type='button';remove.className='delete-case';remove.textContent='사건삭제';
    remove.onclick=async()=>{
     if(!confirm('이 사건의 모든 원본 자료와 보고서가 영구 폐기됩니다. 계속하시겠습니까?'))return;
     remove.disabled=true;
@@ -51,9 +68,9 @@
      const summary=await json('/api/customer-mypage-summary').catch(()=>null);
      if(summary)$('casePending').textContent=summary.counts.pending;
      page=Math.min(page,Math.max(0,Math.ceil(cases.length/10)-1));renderCases();
-    }catch(e){alert('전체삭제 실패: '+e.message)}finally{remove.disabled=false}
+    }catch(e){alert('사건삭제 실패: '+e.message)}finally{remove.disabled=false}
    };
-   row.append(open,remove);root.append(row);
+   row.append(open,rename,remove);root.append(row);
   });
   if(!cases.length)root.textContent='접수된 사건이 없습니다.';
   $('pageLabel').textContent=(cases.length?page+1:0)+' / '+Math.ceil(cases.length/10);
