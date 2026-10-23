@@ -537,7 +537,7 @@ legalReportDownloadButton.onclick=async()=>{
  }catch(e){notice(e.message,'error')}
 };
 const reportExportButtons=[];
-for(const [format,label] of [['pdf','PDF 출력'],['docx','워드 DOCX 다운로드'],['hwpx','한글 HWPX 다운로드']]){
+for(const [format,label] of [['pdf','PDF 출력'],['docx','워드 DOCX 다운로드']]){
  const button=document.createElement('button');button.type='button';button.textContent=label;
  button.style.cssText='margin:8px;padding:10px 16px;border-radius:8px;cursor:pointer';
  button.hidden=true;legalReportButton.parentElement.appendChild(button);reportExportButtons.push(button);
