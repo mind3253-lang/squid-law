@@ -7,6 +7,8 @@ export default async function handler(req,res){
  if(req.method!=='GET')return res.status(405).json({error:'METHOD_NOT_ALLOWED'});
  try{
   const limit=Math.max(1,Math.min(100,Number(req.query?.limit)||40));
+  const traceFilter=String(req.query?.traceId||'').slice(0,80);
+  if(traceFilter&&!/^ERR-[0-9a-f-]{36}$|^AN-[a-f0-9]{16}$/.test(traceFilter))return res.status(400).json({error:'INVALID_TRACE_ID'});
   const rows=await withLeaseDb(async db=>(await db.query(
    `SELECT job_id,status,stage,error_code,updated_at,checkpoint->>'errorTraceId' AS trace,
    checkpoint->>'lastFailureStage' AS failure_stage,
@@ -20,7 +22,7 @@ export default async function handler(req,res){
   let central=[];
   try{central=await withLeaseDb(async db=>(await db.query(
    `SELECT trace_id,created_at,system,operation,stage,code,error_name,message,source
-    FROM squid_error_diagnostics ORDER BY created_at DESC LIMIT $1`,[limit])).rows)}
+    FROM squid_error_diagnostics WHERE ($2::text='' OR trace_id=$2) ORDER BY created_at DESC LIMIT $1`,[limit,traceFilter])).rows)}
   catch(e){if(e?.code!=='42P01')console.error('CENTRAL_DIAGNOSTIC_READ_FAILURE',safe(e?.code||e?.name||'UNKNOWN',50))}
   return res.status(200).json({ok:true,source:'customer_analysis_jobs',central:central.map(r=>({traceId:safe(r.trace_id,60),time:r.created_at,system:safe(r.system,32),operation:safe(r.operation,80),stage:safe(r.stage,80),code:safe(r.code,100),name:safe(r.error_name,60),message:safe(r.message,180),source:safe(r.source,180)})),records:rows.map(r=>({
    traceId:safe(r.trace,50),jobId:safe(r.job_id,40),status:safe(r.status,20),
