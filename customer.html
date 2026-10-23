@@ -180,7 +180,16 @@ function renderCaseMarkdown(target,source){
    while(i<lines.length){
     const cells=caseTableCells(lines[i]);if(!cells||cells.length!==headers.length)break;
     const row=document.createElement('tr');
-    for(const cell of cells){const td=document.createElement('td');td.textContent=cell;row.append(td)}
+    for(let col=0;col<cells.length;col++){
+     const cell=cells[col];
+     if(headers.length===3&&headers[0]==='핵심 쟁점'&&col===0&&!cell)continue;
+     const td=document.createElement('td');td.textContent=cell;
+     if(headers.length===3&&headers[0]==='핵심 쟁점'&&col===0&&cell){
+      let span=1;for(let n=i+1;n<lines.length;n++){const next=caseTableCells(lines[n]);if(!next||next.length!==3||next[0])break;span++}
+      td.rowSpan=span;td.style.verticalAlign='middle';
+     }
+     row.append(td);
+    }
     body.append(row);i++;
    }
    table.append(body);scroll.append(table);target.append(scroll);continue;
