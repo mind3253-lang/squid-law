@@ -11,6 +11,10 @@ on:
       - 'tests/skynet-maintenance-completion.test.mjs'
       - 'lib/skynet-worker-completion.mjs'
       - 'lib/skynet-maintenance-rollback.mjs'
+      - 'lib/skynet-maintenance-intake.mjs'
+      - 'lib/skynet-maintenance-diagnostic-bridge.mjs'
+      - 'tests/skynet-maintenance-intake.test.mjs'
+      - 'tests/skynet-maintenance-diagnostic-bridge.test.mjs'
       - 'tests/skynet-maintenance-rollback.test.mjs'
       - 'shared-error-diagnostics.js'
       - 'api/skynet-diagnostics.js'
@@ -29,7 +33,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: node --test tests/error-diagnostics.test.mjs tests/shared-error-diagnostics-client.test.mjs tests/diagnostic-context.test.mjs tests/skynet-maintenance-completion.test.mjs tests/skynet-maintenance-rollback.test.mjs
+      - run: node --test tests/error-diagnostics.test.mjs tests/shared-error-diagnostics-client.test.mjs tests/diagnostic-context.test.mjs tests/skynet-maintenance-completion.test.mjs tests/skynet-maintenance-rollback.test.mjs tests/skynet-maintenance-intake.test.mjs tests/skynet-maintenance-diagnostic-bridge.test.mjs
+      - run: node --check lib/skynet-maintenance-intake.mjs
+      - run: node --check lib/skynet-maintenance-diagnostic-bridge.mjs
       - run: node --check lib/skynet-maintenance-rollback.mjs
       - run: node --check lib/skynet-worker-completion.mjs
       - run: node --check lib/diagnostic-context.mjs
