@@ -19,7 +19,13 @@
 .case-chat-empty{color:#64748b;text-align:center;margin:auto;line-height:1.9}
 .case-chat-message{max-width:86%;padding:13px 17px;border-radius:14px;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.7}
 .case-chat-message.user{align-self:flex-end;background:#e8f2ff}
-.case-chat-message.system{align-self:flex-start;background:#f4f6fa}.case-chat-message.system{max-width:98%}.case-table-wrap{max-width:100%;overflow-x:auto;margin:12px 0}.case-markdown-table{border-collapse:collapse;min-width:560px;width:100%;font-size:14px;line-height:1.6;background:#fff;white-space:normal}.case-markdown-table th,.case-markdown-table td{border:1px solid #cbd5e1;padding:9px 11px;vertical-align:top;text-align:left;overflow-wrap:anywhere}.case-markdown-table th{background:#eaf1fa;font-weight:700}.case-markdown-text{white-space:pre-wrap}.case-markdown-heading{font-weight:700;margin:10px 0 6px;font-size:17px}
+.case-chat-message.system{align-self:flex-start;background:#f4f6fa}.case-chat-message.system{max-width:98%}.case-table-wrap{max-width:100%;overflow-x:auto;margin:12px 0}.case-markdown-table{border-collapse:collapse;min-width:560px;width:100%;font-size:14px;line-height:1.6;background:#fff;white-space:normal}.case-markdown-table th,.case-markdown-table td{border:1px solid #cbd5e1;padding:9px 11px;vertical-align:top;text-align:left;overflow-wrap:anywhere}.case-markdown-table th{background:#eaf1fa;font-weight:700}.case-markdown-text{white-space:pre-wrap}.case-markdown-table.issue-summary-table{table-layout:fixed;min-width:560px}
+.issue-summary-table th{text-align:center;vertical-align:middle;white-space:pre-line;overflow-wrap:normal;word-break:keep-all}
+.issue-summary-table th:nth-child(1),.issue-summary-table td:first-child[rowspan]{width:19%;text-align:center;vertical-align:middle;word-break:keep-all}
+.issue-summary-table th:nth-child(2){width:110px}
+.issue-summary-table td.issue-party-label{width:110px;text-align:center;vertical-align:middle;white-space:pre-line;word-break:keep-all;overflow-wrap:normal}
+.issue-summary-table td.issue-content{line-height:1.65;word-break:keep-all;overflow-wrap:break-word}
+.case-markdown-heading{font-weight:700;margin:10px 0 6px;font-size:17px}
 .case-chat-compose{border-top:1px solid #e5eaf0;padding:14px}
 .case-chat-compose textarea{width:100%;box-sizing:border-box;min-height:110px;resize:vertical;border:0;outline:0;padding:12px;font:inherit;color:#17233b}
 .case-chat-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
@@ -174,8 +180,10 @@ function renderCaseMarkdown(target,source){
   if(headers&&sep&&headers.length===sep.length&&sep.every(x=>/^:?-{3,}:?$/.test(x))){
    flush();const scroll=document.createElement('div');scroll.className='case-table-wrap';
    const table=document.createElement('table');table.className='case-markdown-table';
+   const issueSummary=headers.length===3&&headers[0]==='핵심 쟁점';
+   if(issueSummary)table.classList.add('issue-summary-table');
    const head=document.createElement('thead'),tr=document.createElement('tr');
-   for(const value of headers){const th=document.createElement('th');th.scope='col';th.textContent=value;tr.append(th)}
+   for(const value of headers){const th=document.createElement('th');th.scope='col';th.textContent=issueSummary&&value==='당사자 주장'?'당사자\n주장':value;tr.append(th)}
    head.append(tr);table.append(head);const body=document.createElement('tbody');i+=2;
    while(i<lines.length){
     const cells=caseTableCells(lines[i]);if(!cells||cells.length!==headers.length)break;
@@ -183,7 +191,10 @@ function renderCaseMarkdown(target,source){
     for(let col=0;col<cells.length;col++){
      const cell=cells[col];
      if(headers.length===3&&headers[0]==='핵심 쟁점'&&col===0&&!cell)continue;
-     const td=document.createElement('td');td.textContent=cell;
+     const td=document.createElement('td');
+     if(issueSummary&&col===1){td.classList.add('issue-party-label');td.textContent=cell.replace(' 주장 요지',' 주장\n요지').replace(' 입증사항','\n입증사항')}
+     else if(issueSummary&&col===2){td.classList.add('issue-content');const dots=(cell.match(/·/g)||[]).length;td.textContent=dots>=5?cell.replace(/([가-힣])\s*·\s*(?=[가-힣])/g,'$1'):cell}
+     else td.textContent=cell;
      if(headers.length===3&&headers[0]==='핵심 쟁점'&&col===0&&cell){
       let span=1;for(let n=i+1;n<lines.length;n++){const next=caseTableCells(lines[n]);if(!next||next.length!==3||next[0])break;span++}
       td.rowSpan=span;td.style.verticalAlign='middle';
