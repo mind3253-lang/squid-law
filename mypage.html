@@ -4,7 +4,15 @@
 <script>fetch('/api/customer-auth',{credentials:'same-origin',cache:'no-store'}).then(r=>r.json()).then(d=>{if(!d.authenticated)location.replace('login.html?next='+encodeURIComponent(location.pathname+location.search))}).catch(()=>location.replace('login.html'));</script>
 <style>
 .summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}.summary button,.summary .stat{font:inherit;text-align:left;background:#fff;border:1px solid #dce4ed;border-radius:14px;padding:18px;color:#17233b;min-height:100px}.summary button{cursor:pointer}.summary button:hover,.summary button[aria-expanded=true]{border-color:#1762b4;background:#f5f9ff}.summary strong{display:block;font-size:27px;margin-top:12px}.listing{margin-top:20px}.case-row{display:flex;gap:10px;align-items:center}.case-row .list-item{flex:1;min-width:0}.delete-case{border:1px solid #b45353;background:white;color:#a32b2b;border-radius:9px;padding:11px;cursor:pointer;white-space:nowrap}.warehouse{margin-top:20px}.warehouse[hidden]{display:none}.warehouse a{display:block;margin:8px 0}.pager{display:flex;align-items:center;gap:14px;margin-top:12px}.pager button{padding:8px 12px}.listing[hidden]{display:none}.list-item{display:block;width:100%;box-sizing:border-box;text-align:left;background:#fff;border:1px solid #dce4ed;border-radius:12px;padding:16px;margin:8px 0;color:#17233b;font:inherit;text-decoration:none;cursor:pointer}.list-item:hover{border-color:#1762b4;background:#f5f9ff}.list-item small{display:block;margin-top:7px;color:#64748b}.report-body{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.8;border:1px solid #dce4ed;padding:20px;border-radius:12px;margin-top:14px}.report-actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:12px}.report-actions button{padding:9px 15px;border:1px solid #1762b4;border-radius:9px;background:#fff;color:#1762b4;cursor:pointer}.hint{font-size:13px;color:#64748b}@media(max-width:600px){.summary{gap:7px}.summary button,.summary .stat{padding:11px;min-height:90px}.summary strong{font-size:23px}}
-.rename-case{border:1px solid #b9cbe4;background:#f5f8ff;color:#24538d;border-radius:9px;padding:11px;cursor:pointer;white-space:nowrap;font-weight:600}.rename-case:hover{background:#e6f0ff}@media(max-width:540px){.case-row{flex-wrap:wrap}.case-row .list-item{flex-basis:100%}.rename-case,.delete-case{flex:1}}.warehouse-heading{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:22px}.warehouse-heading h2{margin:0}.warehouse-heading #caseBack{padding:10px 18px;border:1px solid #c9d6e5;background:#fff;border-radius:10px;font-weight:700;cursor:pointer}.warehouse-layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(270px,36%);gap:22px;align-items:start}.warehouse-report-panel,.warehouse-doc-panel{min-width:0;border:1px solid #dce4ed;border-radius:14px;background:#fff;padding:20px}.warehouse-report-panel h3,.warehouse-doc-panel h3{margin:0 0 16px}.warehouse-doc-panel{position:relative}.warehouse-doc-panel #warehouseDocs{max-height:430px;overflow-y:auto;overscroll-behavior:contain;padding-right:9px}.warehouse-doc-panel #warehouseDocs a{display:block;padding:11px 8px;border-bottom:1px solid #e8edf4;overflow-wrap:anywhere;line-height:1.5}.warehouse-doc-panel #warehouseDocs a:last-child{border-bottom:0}.warehouse-reanalyze{display:inline-block!important;margin-top:22px!important;background:#2466bd;color:#fff!important;border-radius:10px;padding:12px 18px;text-decoration:none;font-weight:700}.warehouse-reanalyze:hover{background:#174f9c}@media(max-width:700px){.warehouse-layout{grid-template-columns:1fr}.warehouse-doc-panel #warehouseDocs{max-height:300px}}.mypage-hero{display:flex;justify-content:space-between;align-items:center;gap:20px;flex-wrap:wrap}.mypage-storage{margin-left:auto;min-width:225px;box-sizing:border-box;padding:16px 23px;border:1px solid #cbdcf2;border-radius:16px;background:linear-gradient(135deg,#f5f9ff,#eaf3ff);box-shadow:0 4px 16px rgba(20,71,136,.07)}.mypage-storage-label{font-size:13px;color:#45658b;font-weight:700}.mypage-storage-value{display:flex;align-items:baseline;gap:7px;margin:5px 0}.mypage-storage-value strong{font-size:30px;letter-spacing:-.7px;color:#163f79;font-weight:800;font-variant-numeric:tabular-nums}.mypage-storage-value span{font-size:15px;color:#45658b;font-weight:700}.mypage-storage-hint{font-size:11px;color:#6b7e99}@media(max-width:560px){.mypage-storage{width:100%;margin-left:0}}</style></head><body>
+.rename-case{border:1px solid #b9cbe4;background:#f5f8ff;color:#24538d;border-radius:9px;padding:11px;cursor:pointer;white-space:nowrap;font-weight:600}.rename-case:hover{background:#e6f0ff}@media(max-width:540px){.case-row{flex-wrap:wrap}.case-row .list-item{flex-basis:100%}.rename-case,.delete-case{flex:1}}.warehouse-heading{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:22px}.warehouse-heading h2{margin:0}.warehouse-heading #caseBack{padding:10px 18px;border:1px solid #c9d6e5;background:#fff;border-radius:10px;font-weight:700;cursor:pointer}.warehouse-layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(270px,36%);gap:22px;align-items:start}.warehouse-report-panel,.warehouse-doc-panel{min-width:0;border:1px solid #dce4ed;border-radius:14px;background:#fff;padding:20px}.warehouse-report-panel h3,.warehouse-doc-panel h3{margin:0 0 16px}.warehouse-doc-panel{position:relative}.warehouse-doc-panel #warehouseDocs{max-height:430px;overflow-y:auto;overscroll-behavior:contain;padding-right:9px}.warehouse-doc-panel #warehouseDocs a{display:block;padding:11px 8px;border-bottom:1px solid #e8edf4;overflow-wrap:anywhere;line-height:1.5}.warehouse-doc-panel #warehouseDocs a:last-child{border-bottom:0}.warehouse-reanalyze{display:inline-block!important;margin-top:22px!important;background:#2466bd;color:#fff!important;border-radius:10px;padding:12px 18px;text-decoration:none;font-weight:700}.warehouse-reanalyze:hover{background:#174f9c}@media(max-width:700px){.warehouse-layout{grid-template-columns:1fr}.warehouse-doc-panel #warehouseDocs{max-height:300px}}.mypage-hero{display:flex;justify-content:space-between;align-items:center;gap:20px;flex-wrap:wrap}.mypage-storage{margin-left:auto;min-width:225px;box-sizing:border-box;padding:16px 23px;border:1px solid #cbdcf2;border-radius:16px;background:linear-gradient(135deg,#f5f9ff,#eaf3ff);box-shadow:0 4px 16px rgba(20,71,136,.07)}.mypage-storage-label{font-size:13px;color:#45658b;font-weight:700}.mypage-storage-value{display:flex;align-items:baseline;gap:7px;margin:5px 0}.mypage-storage-value strong{font-size:30px;letter-spacing:-.7px;color:#163f79;font-weight:800;font-variant-numeric:tabular-nums}.mypage-storage-value span{font-size:15px;color:#45658b;font-weight:700}.mypage-storage-hint{font-size:11px;color:#6b7e99}@media(max-width:560px){.mypage-storage{width:100%;margin-left:0}}.case-table-wrap{max-width:100%;overflow-x:auto;margin:12px 0}.case-markdown-table{border-collapse:collapse;min-width:560px;width:100%;font-size:14px;line-height:1.6;background:#fff;white-space:normal}.case-markdown-table th,.case-markdown-table td{border:1px solid #cbd5e1;padding:9px 11px;vertical-align:top;text-align:left;overflow-wrap:anywhere}.case-markdown-table th{background:#eaf1fa;font-weight:700}.case-markdown-text{white-space:pre-wrap;text-align:justify;text-align-last:left}.case-markdown-paragraph{text-indent:5mm;white-space:pre-wrap;overflow-wrap:break-word}.case-markdown-table.issue-summary-table{table-layout:fixed;min-width:560px}
+.issue-summary-table th{text-align:center;vertical-align:middle;white-space:pre-line;overflow-wrap:normal;word-break:keep-all}
+.issue-summary-table th:nth-child(1),.issue-summary-table td:first-child[rowspan]{width:19%;text-align:center;vertical-align:middle;word-break:keep-all}
+.issue-summary-table th:nth-child(2){width:110px}
+.issue-summary-table td.issue-party-label{width:110px;text-align:center;vertical-align:middle;white-space:pre-line;word-break:keep-all;overflow-wrap:normal}
+.issue-summary-table td.issue-content{font-family:'Malgun Gothic','Apple SD Gothic Neo',Arial,sans-serif;line-height:1.65;word-break:keep-all;overflow-wrap:break-word}
+.case-markdown-heading{font-weight:700;margin:10px 0 6px;font-size:17px}
+
+</style></head><body>
 <header class="site-header"><nav class="site-nav"><a class="brand" href="index.html">SQUID LAW</a><a href="howto.html">사용방법</a><a href="community.html">커뮤니티</a><a href="stories.html">소송이야기</a><a href="mypage.html">마이페이지</a><a class="nav-analysis" href="customer.html">내 사건 분석</a></nav></header>
 <main class="wrap"><section class="hero mypage-hero"><div><div class="eyebrow">MY PAGE</div><h1>마이페이지</h1></div><div class="mypage-storage" aria-label="내 보관 데이터 용량"><div class="mypage-storage-label">내 보관 데이터</div><div class="mypage-storage-value"><strong id="storageTotal">—</strong><span>MB</span></div><div class="mypage-storage-hint">현재 서버에 보관 중인 전체 용량</div></div></section>
 <section class="card"><div class="summary">
@@ -95,9 +103,77 @@
    if(!own.length)out.textContent='완료된 보고서가 없습니다.';
   }catch(e){docs.textContent='자료 조회 실패: '+e.message;out.textContent='보고서를 조회하지 못했습니다.'}
  }
+function cleanIssueOcrText(value){return String(value||'').trim().replace(/[·•‧∙⋅]/g,'').replace(/_+/g,' ').replace(/\s+/g,' ').replace(/\s+([,.!?;:)'’”])/g,'$1')}
+function caseTableCells(line){
+ const value=String(line||'').trim();if(!value.includes('|'))return null;
+ const cells=[];let part='',escaped=false;
+ const row=value.replace(/^\|/,'').replace(/\|$/,'');
+ for(const ch of row){
+  if(escaped){part+=ch;escaped=false;continue}
+  if(ch==='\\'){escaped=true;continue}
+  if(ch==='|'){cells.push(part.trim());part='';continue}
+  part+=ch;
+ }
+ cells.push(part.trim());return cells.length>=2?cells:null;
+}
+function renderCaseMarkdown(target,source){
+ const lines=String(source||'').replace(/\r\n/g,'\n').split('\n');let pending=[];
+ const flush=()=>{
+  if(!pending.length)return;
+  const node=document.createElement('div');node.className='case-markdown-text';
+  for(const line of pending){const p=document.createElement('div');p.className='case-markdown-paragraph';p.textContent=line||'\u00a0';node.append(p)}
+  target.append(node);pending=[];
+ };
+ for(let i=0;i<lines.length;){
+  const headers=caseTableCells(lines[i]),sep=i+1<lines.length?caseTableCells(lines[i+1]):null;
+  if(headers&&sep&&headers.length===sep.length&&sep.every(x=>/^:?-{3,}:?$/.test(x))){
+   flush();const scroll=document.createElement('div');scroll.className='case-table-wrap';
+   const table=document.createElement('table');table.className='case-markdown-table';
+   const issueSummary=headers.length===3&&headers[0]==='핵심 쟁점';
+   if(issueSummary)table.classList.add('issue-summary-table');
+   const head=document.createElement('thead'),tr=document.createElement('tr');
+   for(const value of headers){const th=document.createElement('th');th.scope='col';th.textContent=issueSummary&&value==='당사자 주장'?'당사자\n주장':value;tr.append(th)}
+   head.append(tr);table.append(head);const body=document.createElement('tbody');i+=2;
+   while(i<lines.length){
+    const cells=caseTableCells(lines[i]);if(!cells||cells.length!==headers.length)break;
+    const row=document.createElement('tr');
+    for(let col=0;col<cells.length;col++){
+     const cell=cells[col];
+     if(headers.length===3&&headers[0]==='핵심 쟁점'&&col===0&&!cell)continue;
+     const td=document.createElement('td');
+     if(issueSummary&&col===1){td.classList.add('issue-party-label');td.textContent=cell.replace(' 주장 요지',' 주장\n요지').replace(' 입증사항','\n입증사항')}
+     else if(issueSummary&&col===2){td.classList.add('issue-content');td.textContent=cleanIssueOcrText(cell)}
+     else td.textContent=issueSummary&&col===0?cleanIssueOcrText(cell):cell;
+     if(headers.length===3&&headers[0]==='핵심 쟁점'&&col===0&&cell){
+      let span=1;for(let n=i+1;n<lines.length;n++){const next=caseTableCells(lines[n]);if(!next||next.length!==3||next[0])break;span++}
+      td.rowSpan=span;td.style.verticalAlign='middle';
+     }
+     row.append(td);
+    }
+    body.append(row);i++;
+   }
+   table.append(body);scroll.append(table);target.append(scroll);continue;
+  }
+  const h=/^(#{1,4})\s+(.+)$/.exec(lines[i]);
+  if(h){flush();const title=document.createElement('div');
+   title.className='case-markdown-heading';title.textContent=h[2];target.append(title);i++;continue}
+  pending.push(lines[i]);i++;
+ }
+ flush();
+}
+
  async function openReport(r){
   switchPanel('reportView');$('reportTitle').textContent=r.caseTitle+' · 보고서';$('reportText').textContent='보고서를 불러오는 중입니다.';currentReport=null;
-  try{const detail=await json('/api/customer-analysis-history?caseId='+encodeURIComponent(r.caseId)+'&analysisId='+encodeURIComponent(r.id)+(r.source==='legal-job'?'&source=legal-job':''));const raw=String(detail.analysis?.reply||'');if(!raw)throw Error('보고서 본문이 없습니다.');const body=r.source==='legal-job'?raw.replace(/\\\\r\\\\n/g,'\n').replace(/\\\\n/g,'\n'):raw;currentReport={id:r.id,text:body};$('reportText').textContent=body}
+  try{if(r.source==='legal-job'){
+   const detail=await json('/api/customer-legal-report?caseId='+encodeURIComponent(r.caseId)+'&jobId='+encodeURIComponent(r.id));
+   const report=detail.report,body=String(report?.briefText||'');
+   if(!body)throw Error('기존 분석보고서 본문이 없습니다.');
+   currentReport={id:r.id,text:body};$('reportText').replaceChildren();renderCaseMarkdown($('reportText'),body);
+  }else{
+   const detail=await json('/api/customer-analysis-history?caseId='+encodeURIComponent(r.caseId)+'&analysisId='+encodeURIComponent(r.id));
+   const body=String(detail.analysis?.reply||'');if(!body)throw Error('보고서 본문이 없습니다.');
+   currentReport={id:r.id,text:body};$('reportText').textContent=body;
+  }}
   catch(e){$('reportText').textContent='보고서를 열지 못했습니다: '+e.message}
  }
  try{
