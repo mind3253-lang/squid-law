@@ -158,10 +158,10 @@ export default async function handler(req,res){
      text:{format:{type:'json_object'}}};
     let reviewed;
     try{reviewed=(await invokeDeltaModel({request,apiKey:process.env.OPENAI_API_KEY})).result}
-    catch(e){await advanceJob(job,'delta_relevance_check_unavailable',{...job.checkpoint,relevanceDiagnostic:String(e.message||e).slice(0,160)},'blocked','DOCUMENT_RELEVANCE_REVIEW_REQUIRED');return res.status(200).json({status:'blocked',reason:'DOCUMENT_RELEVANCE_REVIEW_REQUIRED'})}
+    catch(e){await advanceJob(job,'delta_relevance_check_unavailable',{...job.checkpoint,relevanceDiagnostic:String(e.message||e).slice(0,160),relevanceDecisions:samples.map(x=>({id:x.id,status:'clarify',reason:'문서 원문 관련성 검토를 완료하지 못했습니다: '+x.name}))},'blocked','DOCUMENT_RELEVANCE_REVIEW_REQUIRED');return res.status(200).json({status:'blocked',reason:'DOCUMENT_RELEVANCE_REVIEW_REQUIRED'})}
     const decisions=reviewed?.decisions;
     if(!Array.isArray(decisions)||decisions.length!==samples.length||samples.some(d=>!decisions.some(x=>x.id===d.id&&['relevant','clarify'].includes(x.status)))){
-     await advanceJob(job,'delta_relevance_review_required',{...job.checkpoint},'blocked','DOCUMENT_RELEVANCE_REVIEW_REQUIRED');
+     await advanceJob(job,'delta_relevance_review_required',{...job.checkpoint,relevanceDecisions:samples.map(x=>({id:x.id,status:'clarify',reason:'관련성 검토 결과 확인이 필요합니다: '+x.name}))},'blocked','DOCUMENT_RELEVANCE_REVIEW_REQUIRED');
      return res.status(200).json({status:'blocked',reason:'DOCUMENT_RELEVANCE_REVIEW_REQUIRED'});
     }
     const uncertain=decisions.filter(x=>x.status==='clarify');
