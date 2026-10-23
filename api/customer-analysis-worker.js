@@ -199,8 +199,19 @@ export default async function handler(req,res){
    const originals=await completedCaseBaselines(job);
    const original=originals.find(x=>x.jobId===deltaPlan.baselineJobId&&x.documentVersion===deltaPlan.baselineVersion&&x.status==='completed');
    const originalCheck=validateCompletionGates(original?.checkpoint?.gates);
-   if(original&&originalCheck.complete){
-    const refreshed={...deltaPlan,baselineGates:original.checkpoint.gates};
+   // The completion reconciliation is an independently persisted receipt.
+   // Prefer its actual verified gates over an older, incomplete checkpoint.
+   let receiptGates=null;
+   if(original?.checkpoint?.completionReconciliation){
+    const receipt=await load(original.checkpoint.completionReconciliation).catch(()=>null);
+    if(receipt?.complete===true&&
+     validateCompletionGates(receipt.gates).complete&&
+     Object.values(receipt.gates).every(g=>g.sourceVersion===deltaPlan.baselineVersion))
+      receiptGates=receipt.gates;
+   }
+   const recoveredGates=originalCheck.complete?original.checkpoint.gates:receiptGates;
+   if(original&&recoveredGates){
+    const refreshed={...deltaPlan,baselineGates:recoveredGates};
     await advanceJob(job,'delta_baseline_receipts_refreshed',{...job.checkpoint,delta:refreshed},'retry');
     return res.status(200).json({status:'retry',stage:'delta_baseline_receipts_refreshed'});
    }
