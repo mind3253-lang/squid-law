@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {diagnoseDeltaSources,attachDiagnosticContext,traceEvidenceLineage,planDiagnosticRecovery} from '../lib/diagnostic-context.mjs';
+import {diagnoseDeltaSources,attachDiagnosticContext,traceEvidenceLineage,planDiagnosticRecovery,buildMaintenancePlan,evaluateMaintenanceResult} from '../lib/diagnostic-context.mjs';
 test('classifies empty evidence with source counts and safe recovery',()=>{
  const context=diagnoseDeltaSources({oldFinding:{sources:[{}]},newFindings:[{sources:[]}],sourceUnits:[]});
  assert.equal(context.reason,'SOURCE_UNITS_EMPTY');
@@ -29,4 +29,14 @@ test('never auto-approves missing legal evidence',()=>{
  const plan=planDiagnosticRecovery({reason:'SOURCE_UNITS_EMPTY'});
  assert.equal(plan.automatic,false);
  assert.equal(plan.requiresEvidenceValidation,true);
+});
+
+test('maintenance cannot be called complete from deployment alone',()=>{
+ const phases=['diagnosis','source_validation','implementation','regression','deployment','production_verification'];
+ const plan=buildMaintenancePlan({diagnostic:{reason:'SOURCE_UNITS_EMPTY'},checks:phases.slice(0,5).map(phase=>({phase,status:'passed'}))});
+ assert.equal(plan.verified,false);
+ assert.equal(plan.nextPhase,'production_verification');
+ assert.equal(evaluateMaintenanceResult({plan,verification:{deployed:true}}).complete,false);
+ const complete=buildMaintenancePlan({diagnostic:{reason:'SOURCE_UNITS_PRESENT'},checks:phases.map(phase=>({phase,status:'passed'}))});
+ assert.equal(evaluateMaintenanceResult({plan:complete,verification:{deployed:true,productionChecked:true,regressionPassed:true}}).complete,true);
 });
