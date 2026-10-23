@@ -156,6 +156,17 @@ const key='squidlaw-customer-request';try{retryRequest=JSON.parse(sessionStorage
 const url=(id=select.value)=>'/api/customer-case?caseId='+encodeURIComponent(id);
 async function api(method,body){const r=await fetch(url(),{method,credentials:'same-origin',cache:'no-store',headers:body?{'content-type':'application/json'}:{},body:body?JSON.stringify(body):undefined});const j=await r.json();if(!r.ok)throw Error(j.error||'서버 오류');return j}
 
+function cleanIssueOcrText(value){
+ const raw=String(value||'').trim();
+ // Only repair character-by-character OCR spacing; preserve ordinary prose unchanged.
+ const syllableSpaced=(raw.match(/[가-힣](?:\\s+[가-힣]){5,}/g)||[]).join('');
+ const noisy=(raw.match(/·/g)||[]).length>=5;
+ if(!noisy&&syllableSpaced.length<18)return raw;
+ const compact=raw.replace(/\\s*·\\s*/g,' ').replace(/([가-힣])\\s+(?=[가-힣])/g,'$1');
+ const segmenter=new Intl.Segmenter('ko',{granularity:'word'});
+ const segmented=[...segmenter.segment(compact)].map(x=>x.segment).join(' ');
+ return segmented.replace(/\\s+([,.!?;:)'’”])/g,'$1').replace(/([('‘“])\\s+/g,'$1').replace(/\\s+/g,' ').trim();
+}
 function caseTableCells(line){
  const value=String(line||'').trim();if(!value.includes('|'))return null;
  const cells=[];let part='',escaped=false;
@@ -193,7 +204,7 @@ function renderCaseMarkdown(target,source){
      if(headers.length===3&&headers[0]==='핵심 쟁점'&&col===0&&!cell)continue;
      const td=document.createElement('td');
      if(issueSummary&&col===1){td.classList.add('issue-party-label');td.textContent=cell.replace(' 주장 요지',' 주장\n요지').replace(' 입증사항','\n입증사항')}
-     else if(issueSummary&&col===2){td.classList.add('issue-content');td.textContent=cell.replace(/\s*·\s*/g,' ').replace(/\s+([,.!?;:])/g,'$1').replace(/([('‘“])\s+/g,'$1').replace(/\s+([)'’”])/g,'$1').replace(/\s+/g,' ').trim()}
+     else if(issueSummary&&col===2){td.classList.add('issue-content');td.textContent=cleanIssueOcrText(cell)}
      else td.textContent=cell;
      if(headers.length===3&&headers[0]==='핵심 쟁점'&&col===0&&cell){
       let span=1;for(let n=i+1;n<lines.length;n++){const next=caseTableCells(lines[n]);if(!next||next.length!==3||next[0])break;span++}
