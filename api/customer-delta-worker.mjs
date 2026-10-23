@@ -67,6 +67,25 @@ async function originalSourceUnits({findings,documents,prefix,load}){
    throw Error('DELTA_ORIGINAL_SOURCE_HASH_MISMATCH');
   units.push({documentId:d.id,page:r.page,part:r.part,hash:r.hash,text:unit.text});
  }
+ // A legacy finding can have old references while the new findings omit
+ // source pointers. Add verified NEW evidence units for the revision model
+ // rather than forcing it to cite an old source as if it were new.
+ const addedIds=new Set(findings.addedDocumentIds||[]);
+ if(addedIds.size&&!units.some(u=>addedIds.has(u.documentId))){
+  for(const d of documents.filter(d=>addedIds.has(d.id))){
+   for(let offset=0;offset<d.pageCount&&units.length<40;offset+=20){
+    const data=await load(prefix+'verified/'+d.id+'/batch-'+String(offset).padStart(8,'0')+'.json');
+    if(!data||data.documentId!==d.id||data.sourcePdfSha256!==d.sha256||!Array.isArray(data.pages))
+     throw Error('DELTA_NEW_EVIDENCE_RECEIPT_MISSING');
+    for(const u of segmentRecord({scope:'customer',documentId:d.id,pages:data.pages}).segments){
+     if(units.length>=40)break;
+     if(u.part<1||!u.text.trim())continue;
+     if(sha(u.text)!==u.hash)throw Error('DELTA_NEW_EVIDENCE_HASH_MISMATCH');
+     units.push({documentId:d.id,page:u.page,part:u.part,hash:u.hash,text:u.text});
+    }
+   }
+  }
+ }
  return units;
 }
 const deltaRoot=job=>'squidlaw/analysis-jobs/'+job.customerKey+'/'+job.caseId+'/'+job.jobId+'/';
