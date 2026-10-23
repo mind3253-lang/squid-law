@@ -82,7 +82,10 @@ jobs:
           fi
           if ! systemctl restart squidlaw-worker.service; then
             echo DEPLOY_WORKER_RESTART_FAILED
-            systemctl status squidlaw-worker.service --no-pager --lines=8 | grep -E 'Active:|Main PID:|code=|status=' || true
+            systemctl status squidlaw-worker.service --no-pager --lines=12 | grep -E 'Active:|Main PID:|code=|status=' || true
+            echo DEPLOY_WORKER_JOURNAL_BEGIN
+            journalctl -u squidlaw-worker.service -n 35 --no-pager -o cat | sed -E 's/([A-Za-z_]*(KEY|TOKEN|SECRET|PASSWORD|DATABASE_URL)[A-Za-z_]*=)[^ ]+/\\1[REDACTED]/g' | tail -35
+            echo DEPLOY_WORKER_JOURNAL_END
             exit 1
           fi
           sleep 5
@@ -119,6 +122,7 @@ jobs:
           if [ "$deploy_rc" -ne 0 ]; then
             echo DEPLOY_SSH_EXIT_$deploy_rc
             grep -E '^(DEPLOY_|OBJECT_ROOT|INTEGRATION_AUDIT_|AUDIT |npm error|npm ERR|Error:)' /tmp/deploy.log | tail -35 || true
+            sed -n '/^DEPLOY_WORKER_JOURNAL_BEGIN$/,/^DEPLOY_WORKER_JOURNAL_END$/p' /tmp/deploy.log | tail -38 || true
             exit "$deploy_rc"
           fi
           if ! grep -E '^DEPLOY_(SERVICES_ACTIVE|HEALTH_FAILED|ROLLED_BACK|PROBE_VERIFIED|SKYNET_ICON_VERIFIED)' /tmp/deploy.log; then
