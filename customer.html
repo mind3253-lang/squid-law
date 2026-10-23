@@ -518,6 +518,7 @@ function renderFullReview(job,queue,progress,billing){
  }
  const billingLine=document.createElement('small');billingLine.style.cssText='display:block;margin-top:8px;color:#475569';billingLine.textContent=billing?.pageCountVerified&&Number.isSafeInteger(billing.verifiedPages)?'검증된 원본 '+billing.verifiedPages+'페이지 · 페이지 기준 과금 대상 · 결제 미승인 (청구 없음)':'원본 페이지 수 검증 대기 · 요금 미확정 · 청구 없음';fullReviewPanel.replaceChildren(title,detail,single,caption,legend,billingLine,nextStep,errorLine,fullReviewButton);fullReviewPanel.hidden=false;
  log.appendChild(fullReviewPanel);
+ requestAnimationFrame(()=>{log.scrollTop=log.scrollHeight;fullReviewPanel.scrollIntoView({block:'nearest'});});
  fullReviewButton.textContent=state==='blocked'||state==='failed'?'분석 재개':state==='completed'?'분석 완료 · 상태 확인':'분석 진행 상태 확인';
  fullReviewButton.style.marginTop='12px';
 }
@@ -744,6 +745,19 @@ fullReviewButton.onclick=async()=>{
     existingId=latest.job.jobId;
     sessionStorage.setItem('squidlaw-full-review:'+select.value,existingId);
     const state=await fullReviewStatus(existingId,select.value);
+    if(state==='blocked'||state==='failed'){
+     const caseId=select.value;
+     try{
+      fullReviewButton.disabled=true;fullReviewButton.textContent='기존 작업 재개 중...';
+      const resumed=await fullReviewRequest('/api/customer-analysis-job?caseId='+encodeURIComponent(caseId),{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({action:'resume-analysis',approved:true,jobId:existingId})});
+      if(resumed.job?.jobId!==existingId)throw Error('기존 작업 식별 정보가 일치하지 않습니다.');
+      await fullReviewStatus(existingId,caseId);
+      if(fullReviewTimer)clearInterval(fullReviewTimer);
+      fullReviewTimer=setInterval(()=>fullReviewStatus(existingId,caseId).catch(e=>notice(e.message,'error')),15000);
+     }catch(e){notice('기존 분석 작업 재개 실패: '+String(e.message||e)+'. 새 분석은 시작하지 않았습니다.','error')}
+     finally{fullReviewButton.disabled=false;fullReviewButton.textContent='분석 재개'}
+     return;
+    }
     if(state!=='blocked'&&state!=='failed'){if(!['completed','failed'].includes(state)&&!fullReviewTimer)fullReviewTimer=setInterval(()=>fullReviewStatus(existingId,select.value).catch(e=>notice(e.message,'error')),15000);return;}
    }
   }catch(e){
