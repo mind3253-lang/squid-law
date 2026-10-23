@@ -196,9 +196,23 @@ export async function runDeltaReviewStep({job,previous,documents,prefix,load,put
      repaired={response:response.result,model,usage:response.usage,repairOf:firstError.message};
      await write(put,retryPath,repaired);
     }
-    finding=validateDeltaRevision({response:repaired.response,
-     caseId:job.caseId,sourceVersion:job.documentVersion,
-     newDocIds:delta.addedDocuments.map(d=>d.id),sourceUnits:sources});
+    try{
+     finding=validateDeltaRevision({response:repaired.response,
+      caseId:job.caseId,sourceVersion:job.documentVersion,
+      newDocIds:delta.addedDocuments.map(d=>d.id),sourceUnits:sources});
+    }catch(repairError){
+     if(repairError.message!=='DELTA_REVISION_NO_NEW_EVIDENCE')throw repairError;
+     // No verified new source supports a supplement: keep the old finding
+     // untouched. Do not manufacture a contradiction or evidence citation.
+     const skipped={index:decision.index,skipped:true,
+      reason:'No source-verified new evidence supports a separate supplement',
+      independentVerified:true,sourceAuditPassed:true};
+     await write(put,path,skipped);
+     await advanceJob(job,'delta_revision_checkpoint',{...previous,delta:{...delta,
+      revisionCursor:cursor+1,revisionPaths:[...(delta.revisionPaths||[]),path]}},'retry');
+     return {status:'retry',stage:'delta_revision_checkpoint',skippedUnsubstantiated:true,
+      revised:cursor+1,total:affected.length};
+    }
    }
    const sourceAudit=auditLegalReasoningResult({request:{caseId:job.caseId,
     sourceVersion:job.documentVersion,ready:true,verified:false},
