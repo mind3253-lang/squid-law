@@ -11,6 +11,7 @@ if(!Number.isSafeInteger(port)||port<1||port>65535)throw Error('INVALID_COMPAT_P
 if(process.env.SQUIDLAW_OBJECT_BACKEND!=='gabia')throw Error('GABIA_STORAGE_REQUIRED');
 // Only explicitly selected routes are exposed on loopback; individual handlers enforce authorization.
 const routeModules={
+ '/api/skynet-diagnostics':'../api/skynet-diagnostics.js',
  '/api/skynet-profile':'../api/skynet-profile.js',
  '/api/skynet-memory':'../api/skynet-memory.js',
  '/api/skynet-chat':'../api/skynet-chat.js',
