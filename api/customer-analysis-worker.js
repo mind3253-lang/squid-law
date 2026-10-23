@@ -897,6 +897,7 @@ export default async function handler(req,res){
   const stackFrame=String(e?.stack||'').split('\n').slice(1).map(line=>line.match(/(?:api|lib|worker)\/[A-Za-z0-9._/-]+:\d+:\d+/)?.[0]).find(Boolean)||null;
   if(safeCode==='SOURCE_READ_REVIEW_FAILED')console.error('SOURCE_REVIEW_AUDIT_CODES',JSON.stringify({failures:diagnostic.slice('GPT_LEGAL_SOURCE_REVIEW_FAILED:'.length).split(',').map(x=>x.split(':')[0]).slice(0,12)}));
   console.error('CUSTOMER_WORKER_FAILURE',JSON.stringify({code:safeCode,providerCode,errorClass,stage:errorStage,jobClaimed:Boolean(job),dbCode,dbFailureKind,failureFingerprint,stackFrame,errorTraceId,deltaStage:e?.deltaStage||job?.checkpoint?.delta?.stage||null,deltaCursor:Number.isSafeInteger(e?.deltaCursor)?e.deltaCursor:null}));
+  const sourceDiagnostic=e?.diagnosticContext&&typeof e.diagnosticContext==='object'?e.diagnosticContext:null;
   const attempts=Number(job?.checkpoint?.errorAttempts||0);
   const disposition=visionFailureDisposition(safeCode,{attempts,maxAttempts:3});
   // Invalid visual evidence is blocked; only transient provider failures may retry.
