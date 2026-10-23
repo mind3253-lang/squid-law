@@ -23,7 +23,7 @@
   const method=clean(init?.method||(typeof input==='object'?input.method:'GET')||'GET',12);
   try{
    const response=await nativeFetch(input,init);
-   if(!response.ok&&path.startsWith('/api/')){
+   if(!response.ok&&path.startsWith('/api/')&&response.status>=500){
     const e=new Error('HTTP '+response.status+' '+(response.statusText||''));
     e.code='HTTP_'+response.status;
     try{const type=response.headers.get('content-type')||'';if(type.includes('application/json')&&Number(response.headers.get('content-length'))>0&&Number(response.headers.get('content-length'))<=4096){const data=await response.clone().json();if(data&&typeof data==='object'){const code=String(data.error||data.code||'');if(/^[A-Z][A-Z0-9_]{2,100}$/.test(code))e.code=code;const trace=String(data.traceId||'');if(/^ERR-[0-9a-f-]{36}$|^AN-[a-f0-9]{16}$/.test(trace))e.message+=' traceId='+trace}}}catch{}
