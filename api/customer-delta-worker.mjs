@@ -32,12 +32,14 @@ async function originalSourceUnits({findings,documents,prefix,load}){
      throw Error('DELTA_NEW_EVIDENCE_RECEIPT_MISSING');
     for(const u of segmentRecord({scope:'customer',documentId:d.id,pages:data.pages}).segments){
      if(units.length>=40)break;
+     if(u.part<1||!u.text.trim())continue;
      if(sha(u.text)!==u.hash)throw Error('DELTA_NEW_EVIDENCE_HASH_MISMATCH');
      units.push({documentId:d.id,page:u.page,part:u.part,hash:u.hash,text:u.text});
     }
    }
   }
-  if(units.length)return units;
+  if(units.length&&units.reduce((n,u)=>n+u.text.length,0)<=120000)return units;
+  if(units.length)throw Error('DELTA_PRIMARY_CONTEXT_TOO_LARGE');
   throw attachDiagnosticContext(new Error('DELTA_SOURCE_REFERENCES_MISSING'),diagnoseDeltaSources({oldFinding:findings[0],newFindings:findings.slice(1),sourceUnits:[]}));
  }
  const batches=new Map();
