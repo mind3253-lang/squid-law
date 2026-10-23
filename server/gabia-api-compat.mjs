@@ -3,6 +3,7 @@
 // Routes can be opted into explicitly after reviewing authentication and storage.
 import {createServer} from 'node:http';
 import {Buffer} from 'node:buffer';
+import {captureServerError} from '../lib/server-error-diagnostics.mjs';
 const host=process.env.SQUIDLAW_COMPAT_HOST||'127.0.0.1';
 const port=Number(process.env.SQUIDLAW_COMPAT_PORT||3084);
 if(!['127.0.0.1','::1'].includes(host))throw Error('COMPAT_LOOPBACK_ONLY');
@@ -124,9 +125,10 @@ const server=createServer(async(req,res)=>{
  }catch(err){
   const errorCode=typeof err?.code==='string'&&/^[A-Z0-9_]{1,24}$/.test(err.code)?err.code:'UNKNOWN';
   const errorType=String(err?.name||'Error').slice(0,40);
-  console.error('GABIA_COMPAT_API_FAILURE',JSON.stringify({route:path,errorCode,errorType,message:String(err?.message||'UNKNOWN').slice(0,180)}));
-  if(!res.headersSent)res.writeHead(503,{'content-type':'application/json','cache-control':'no-store'});
-  if(!res.writableEnded)res.end('{"error":"SERVICE_UNAVAILABLE"}');
+  const diagnostic=captureServerError(err,{system:path.startsWith('/api/skynet-')?'SKYNET':'SQUIDLAW',operation:path,stage:'api-handler'});
+  console.error('GABIA_COMPAT_API_FAILURE',JSON.stringify({route:path,errorCode,errorType,traceId:diagnostic.traceId}));
+  if(!res.headersSent){res.writeHead(503,{'content-type':'application/json','cache-control':'no-store','x-error-trace-id':diagnostic.traceId});}
+  if(!res.writableEnded)res.end(JSON.stringify({error:'SERVICE_UNAVAILABLE',traceId:diagnostic.traceId}));
  }
 });
 server.listen(port,host,()=>console.log('GABIA_API_LISTEN',port));
