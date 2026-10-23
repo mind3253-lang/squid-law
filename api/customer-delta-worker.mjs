@@ -4,7 +4,7 @@ import {buildSemanticReviewRequest,invokeSemanticReview,validateSemanticReview} 
 import {buildDeltaImpactRequest,validateDeltaImpact,buildDeltaRevisionRequest,
  validateDeltaRevision,buildMergedDeltaReport,inheritDeltaGates,invokeDeltaModel} from '../lib/customer-delta-reanalysis.mjs';
 import {createHash} from 'node:crypto';
-import {diagnoseDeltaSources,attachDiagnosticContext} from '../lib/diagnostic-context.mjs';
+import {diagnoseDeltaSources,attachDiagnosticContext,traceEvidenceLineage,planDiagnosticRecovery} from '../lib/diagnostic-context.mjs';
 
 const sha=s=>createHash('sha256').update(s).digest('hex');
 const json=(o)=>JSON.stringify(o);
@@ -113,7 +113,7 @@ export async function runDeltaReviewStep({job,previous,documents,prefix,load,put
   }
   let sources;
   try{sources=await originalSourceUnits({findings:[old,...related],documents,prefix,load})}
-  catch(error){throw attachDiagnosticContext(error,diagnoseDeltaSources({oldFinding:old,newFindings:related,sourceUnits:[]}))}
+  catch(error){const diagnostic=diagnoseDeltaSources({oldFinding:old,newFindings:related,sourceUnits:[]});throw attachDiagnosticContext(error,{...diagnostic,recoveryPlan:planDiagnosticRecovery(diagnostic),lineage:traceEvidenceLineage({baseline:base,delta:fresh,decisions,documents})})}
   if(!sources.length)throw attachDiagnosticContext(new Error('DELTA_SOURCE_UNITS_EMPTY'),diagnoseDeltaSources({oldFinding:old,newFindings:related,sourceUnits:sources}));
   const sourceLength=sources.reduce((n,u)=>n+u.text.length,0);
   if(sourceLength>120000||sources.length>40)
