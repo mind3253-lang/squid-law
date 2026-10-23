@@ -1,3 +1,4 @@
+import {completedCustomerReports} from './customer-analysis-jobs-db.js';
 import {guard,respond,readJson,casePrefix,all} from './customer-case.js';
 import {latestSnapshot} from './customer-case-knowledge.js';
 export default async function handler(req,res){
@@ -8,6 +9,21 @@ export default async function handler(req,res){
  try{
   const registry=await readJson(casePrefix(auth.user,'_index').replace(/_index\/$/,'')+'registry/'+caseId+'.json');
   if(!registry||registry.id!==caseId)return respond(res,404,{error:'등록된 사건이 없습니다'});
+  if(req.query?.source==='legal-job'){
+   const jobs=await completedCustomerReports(auth.user,caseId);
+   const jobId=String(req.query?.analysisId||'');
+   if(jobId&&!/^[0-9a-f-]{36}$/.test(jobId))return respond(res,400,{error:'보고서 ID 오류'});
+   if(jobId){
+    const job=jobs.find(x=>x.jobId===jobId);
+    if(!job)return respond(res,404,{error:'완료 보고서 없음'});
+    const path=job.checkpoint?.legalCustomerReport;
+    if(typeof path!=='string'||!path.startsWith('squidlaw/analysis-jobs/')||!path.endsWith('.json'))return respond(res,409,{error:'보고서 저장 위치 오류'});
+    const report=await readJson(path);
+    if(!report||report.caseId!==caseId||report.sourceVersion!==job.documentVersion)return respond(res,409,{error:'보고서 원본 확인 실패'});
+    return respond(res,200,{analysis:{id:jobId,reply:report.briefText||report.reportText||JSON.stringify(report,null,2),createdAt:job.updatedAt}});
+   }
+   return respond(res,200,{analyses:jobs.map(x=>({id:x.jobId,question:'법률 분석 보고서',createdAt:x.updatedAt,status:'completed',source:'legal-job'})),nextOffset:null,total:jobs.length});
+  }
   const prefix=casePrefix(auth.user,caseId)+'analysis/result/';
   const analysisId=String(req.query?.analysisId||'');
   const rows=(await all(prefix,500)).filter(x=>x.pathname.endsWith('.json')&&!x.pathname.includes('/parts/')).sort((a,b)=>b.pathname.localeCompare(a.pathname));
