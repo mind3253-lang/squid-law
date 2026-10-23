@@ -89,8 +89,13 @@ test('merged report leaves unrelated old evidence and conclusions unchanged, rec
   decisions,revisions:[{index:0,finding:changed}],sourceVersion:nowVersion,
   baselineVersion:prevVersion,addedDocs:[after],documentSnapshot:[before,after]});
  assert.strictEqual(merged.findings[1],unaffected);
- assert.equal(merged.findings[0].claim,changed.claim);
+ assert.strictEqual(merged.findings[0],oldFinding);
+ assert.equal(merged.findings[3].claim,changed.claim);
+ assert.equal(merged.findings[3].deltaSupplement.baselineFindingIndex,0);
  assert.deepEqual(merged.findings[2],deltaFinding);
+ assert.equal(merged.findings.length,4);
+ assert.deepEqual(merged.findings[0].sources,[oldRef]);
+ assert.equal(merged.deltaReanalysis.supplementalFindings,1);
  assert.equal(merged.deltaReanalysis.changedFindings,1);
  assert.equal(merged.deltaReanalysis.unchangedFindings,1);
  assert.equal(merged.deltaReanalysis.newFindings,1);
