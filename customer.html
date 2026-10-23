@@ -324,8 +324,10 @@ const fullReviewPanel=document.createElement('section');
 fullReviewPanel.style.cssText='margin:12px 0;padding:16px;border:1px solid #cbd5e1;border-radius:12px;max-width:760px;background:#fff;color:#0f172a';
 fullReviewPanel.hidden=true;
 fullReviewPanel.setAttribute('aria-live','polite');
-feedback.parentElement.appendChild(fullReviewPanel);
+log.appendChild(fullReviewPanel);
 function renderFullReview(job,queue,progress,billing){
+ if(fullReviewPanel.parentElement!==log)log.appendChild(fullReviewPanel);
+
  const cp=job.checkpoint||{},state=job.status;
  const waiting=state==='queued'||(state==='retry'&&queue?.ahead>0);
  const total=Number(cp.documentCount)||0,done=Number(cp.verifiedTextDocuments)||0;
@@ -548,8 +550,8 @@ let fullReviewTimer=null;
 async function fullReviewStatus(jobId,caseId){
  const j=await fullReviewRequest('/api/customer-analysis-job?caseId='+encodeURIComponent(caseId)+'&jobId='+encodeURIComponent(jobId));
  const job=j.job,cp=job.checkpoint||{};renderFullReview(job,j.queue,j.progress,j.billing);const stageLabels={pdf_extraction_checkpoint:'PDF 원문 페이지별 추출',pdf_extraction_completed:'PDF 추출 완료 · 분석 대기',text_review_checkpoint:'원문 텍스트 검증',text_review_finalize_checkpoint:'전체 문서 교차검증 집계',text_review_completed_visual_pending:'이미지·OCR 검증 대기'};const progress=job.stage==='pdf_extraction_checkpoint'?' · 추출 '+(cp.extractionNextPage?cp.extractionNextPage-1:0)+'페이지':job.stage==='text_review_finalize_checkpoint'?' · 검증 배치 '+(cp.finalizeOffset||0):' · 확인된 문서 '+(cp.verifiedTextDocuments||0)+'/'+(cp.documentCount||'?');notice('전체 분석: '+job.status+' · '+(stageLabels[job.stage]||job.stage)+progress+' · '+(job.errorCode||'진행 중'),job.status==='blocked'?'error':'info');
- if(cp.textReviewIntermediateReport){try{const rr=await fetch('/api/customer-text-review-report?caseId='+encodeURIComponent(caseId)+'&jobId='+encodeURIComponent(jobId)+'&summary=1',{credentials:'same-origin',cache:'no-store'});if(rr.ok){const summary=(await rr.json()).summary;notice('원문 중간보고서: '+summary.documents+'개 문서 · '+summary.pages+'페이지 · 모순 후보 '+summary.opposingCandidates+'건 · 관련 증거 '+summary.evidenceLinks+'건 (모두 미검증 후보)','info')}}catch{}}
- if(['blocked','failed','completed'].includes(job.status)){clearInterval(fullReviewTimer);fullReviewTimer=null;if(job.status==='completed'&&log.dataset.reportJob!==jobId){log.dataset.reportJob=jobId;bubble('전체 분석이 완료되었습니다. 보고서를 확인할 수 있습니다.','system');caseChatAction('법률 분석 보고서 열기',()=>legalReportButton.click());caseChatAction('원문 검증 중간보고서',()=>textReportButton.click())}}
+ // Intermediate source verification remains available internally, not in the customer progress UI.
+ if(['blocked','failed','completed'].includes(job.status)){clearInterval(fullReviewTimer);fullReviewTimer=null;if(job.status==='completed'&&log.dataset.reportJob!==jobId){log.dataset.reportJob=jobId;bubble('전체 분석이 완료되었습니다. 보고서를 확인할 수 있습니다.','system');caseChatAction('법률 분석 보고서 열기',()=>legalReportButton.click());/* 원문 검증 중간보고서는 내부 검산 기능으로만 유지 */}}
  return job.status;
 }
 async function restoreFullReview(){if(!select.value)return;let id=sessionStorage.getItem('squidlaw-full-review:'+select.value);if(!id){try{const j=await fullReviewRequest('/api/customer-analysis-job?caseId='+encodeURIComponent(select.value)+'&jobId=latest');id=j.job?.jobId;if(!id)return;sessionStorage.setItem('squidlaw-full-review:'+select.value,id)}catch{return}}try{const latest=await fullReviewRequest('/api/customer-analysis-job?caseId='+encodeURIComponent(select.value)+'&jobId=latest');if(latest.job?.jobId&&latest.job.jobId!==id){id=latest.job.jobId;sessionStorage.setItem('squidlaw-full-review:'+select.value,id)}const state=await fullReviewStatus(id,select.value);if(fullReviewTimer)clearInterval(fullReviewTimer);if(['blocked','failed','completed'].includes(state))return;fullReviewTimer=setInterval(()=>fullReviewStatus(id,select.value).catch(e=>notice(e.message,'error')),15000)}catch(e){if(String(e.message||'').includes('ANALYSIS_JOB_NOT_FOUND')){sessionStorage.removeItem('squidlaw-full-review:'+select.value);notice('서버에 해당 분석 작업 기록이 없습니다. 기존 문서와 사건은 유지됩니다. 전체 분석을 다시 신청할 수 있습니다.','info');return}notice('기존 분석 작업을 보존했습니다. 상태 확인 실패: '+e.message,'error')}}
