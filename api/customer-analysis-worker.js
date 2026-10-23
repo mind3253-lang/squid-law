@@ -149,7 +149,7 @@ export default async function handler(req,res){
   // inherited (deleted/replaced sources or missing receipts). Never
   // surprise-bill the customer for a full rerun as an implicit fallback.
   if(candidates.length){
-   await advanceJob(job,'delta_baseline_unavailable',job.checkpoint||{},'blocked','DELTA_BASELINE_UNAVAILABLE');
+   await advanceJob(job,'delta_baseline_unavailable',{...job.checkpoint,deltaBaselineDiagnostic:{completedCandidates:candidates.length,candidateStages:candidates.slice(0,10).map(x=>({jobId:x.jobId,hasReport:!!x.checkpoint?.legalCustomerReport,hasManifest:!!x.checkpoint?.textReviewManifest,hasSnapshot:Array.isArray(x.checkpoint?.deltaDocumentSnapshot),hasGates:!!x.checkpoint?.gates,sourceVersionMatches:x.documentVersion===job.documentVersion}))}},'blocked','DELTA_BASELINE_UNAVAILABLE');
    return res.status(200).json({status:'blocked',reason:'DELTA_BASELINE_UNAVAILABLE'});
   }
  }
