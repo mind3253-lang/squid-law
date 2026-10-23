@@ -46,7 +46,7 @@
 @media(max-width:760px){.precedent-promo{grid-template-columns:1fr;padding:30px 23px;gap:24px;margin:35px auto}.precedent-promo .promo-side{padding:23px}}
 
 .category-resources{display:none;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;margin:24px 0}.category-resources a{display:block;background:#fff;border:1px solid #dce4ed;border-radius:16px;padding:28px 20px;text-decoration:none;color:#17233b;font-weight:750;font-size:19px;box-shadow:0 3px 12px #17233b08}.category-resources a span{display:block;font-size:13px;color:#64748b;font-weight:400;margin-top:9px}.category-analysis-label{display:none;font-size:23px;margin:32px 0 0}.category-analysis-box{border:1px solid #dce4ed;border-radius:18px;padding:20px;background:#f8fafc;margin-top:14px}.category-analysis-box .case-picker{margin-top:0}@media(max-width:720px){.category-resources{grid-template-columns:1fr}.category-analysis-box{padding:12px}}
-.case-chat-bar{justify-content:flex-end}.case-chat-bar button#caseChatSend{width:38px;height:38px;min-width:38px;border-radius:50%;padding:0;display:grid;place-items:center;background:#3987ef;color:#fff;box-shadow:0 2px 6px rgba(0,0,0,.12)}#caseChatSend.is-processing{border-radius:50%;background:#3987ef;opacity:1;cursor:wait}#caseChatSend.is-processing::before{content:"";display:block;width:13px;height:13px;background:#fff;border-radius:2px}#caseChatSend.is-processing svg{display:none}.case-chat-compose textarea:disabled{background:#f5f7fa;color:#667085;cursor:wait}.case-register-explicit{display:block;margin:12px auto;padding:10px 20px;border:1px solid #2766a2;border-radius:9px;background:#eaf3fc;color:#164d83;font-weight:700;cursor:pointer}.case-register-explicit:disabled{opacity:.55;cursor:wait}#caseChatInput,#caseChatSend{display:none!important}.case-chat-bar{display:none!important}.case-onboard-actions{display:flex;gap:10px;flex-wrap:wrap;margin:16px 0}.case-onboard-actions button{padding:11px 22px;border-radius:9px;border:1px solid #d4dce7;background:#f5f8fc;cursor:pointer;font-weight:700}</style>
+.case-chat-bar{justify-content:flex-end}.case-chat-bar button#caseChatSend{width:38px;height:38px;min-width:38px;border-radius:50%;padding:0;display:grid;place-items:center;background:#3987ef;color:#fff;box-shadow:0 2px 6px rgba(0,0,0,.12)}#caseChatSend.is-processing{border-radius:50%;background:#3987ef;opacity:1;cursor:wait}#caseChatSend.is-processing::before{content:"";display:block;width:13px;height:13px;background:#fff;border-radius:2px}#caseChatSend.is-processing svg{display:none}.case-chat-compose textarea:disabled{background:#f5f7fa;color:#667085;cursor:wait}.case-register-explicit{display:block;margin:12px auto;padding:10px 20px;border:1px solid #2766a2;border-radius:9px;background:#eaf3fc;color:#164d83;font-weight:700;cursor:pointer}.case-register-explicit:disabled{opacity:.55;cursor:wait}#caseChatInput,#caseChatSend{display:none!important}.case-chat-bar{display:none!important}.case-onboard-actions{display:flex;gap:10px;flex-wrap:wrap;margin:16px 0}.case-onboard-actions button{padding:11px 22px;border-radius:9px;border:1px solid #d4dce7;background:#f5f8fc;cursor:pointer;font-weight:700}.case-chat-log .case-chat-message.system{max-width:66.6667%;border-radius:16px 16px 16px 5px;padding:15px 19px;box-shadow:0 2px 9px rgba(15,23,42,.05)}.case-chat-log .case-chat-message.user{max-width:66.6667%;border-radius:16px 16px 5px 16px;padding:13px 19px}.case-guide-choices{align-self:flex-end;display:flex;justify-content:flex-end;gap:10px;width:100%;margin:2px 0 12px}.case-guide-choices button{min-width:106px;height:44px;padding:0 17px;border:1px solid #c7d8ee;border-radius:12px;background:#f1f6ff;color:#184c8d;font-weight:700;font-size:15px;cursor:pointer;box-shadow:0 2px 7px rgba(15,23,42,.05);transition:background .15s,transform .15s}.case-guide-choices button:hover{background:#dceaff;transform:translateY(-1px)}.case-guide-choices button:first-child{background:#2466bd;color:#fff;border-color:#2466bd}.case-guide-choices button:first-child:hover{background:#174f9c}@media(max-width:560px){.case-chat-log .case-chat-message.system,.case-chat-log .case-chat-message.user{max-width:66.6667%}.case-guide-choices button{min-width:88px;height:42px}}</style>
 <style>
 .case-intake-survey{margin:18px 0;padding:19px 22px;border:1px solid #cbd5e1;border-radius:12px;background:#f8fafc;color:#0f172a}
 .case-intake-survey h2{font-size:19px;margin:0 0 6px}
@@ -204,11 +204,26 @@ const flowPrompts={
 const flowRoles={sue:'plaintiff',served:'defendant',plaintiff:'plaintiff',defendant:'defendant'};
 let selectedFlow='',awaitingResume=false;
 let guideStep=0;
-function guideQuestion(message,choices){log.replaceChildren();bubble(message,'system');const wrap=document.createElement('div');wrap.className='case-onboard-actions';for(const [label,action] of choices){const b=document.createElement('button');b.type='button';b.textContent=label;b.onclick=action;wrap.append(b)}log.append(wrap)}
+function guideQuestion(message,choices){
+ bubble(message,'system');
+ const wrap=document.createElement('div');wrap.className='case-guide-choices';
+ for(const [label,action] of choices){
+  const button=document.createElement('button');button.type='button';button.textContent=label;
+  button.onclick=()=>{for(const child of wrap.querySelectorAll('button'))child.disabled=true;wrap.remove();bubble(label,'user');action()};
+  wrap.append(button);
+ }
+ log.append(wrap);log.scrollTop=log.scrollHeight;
+}
 function guideStop(message){guideQuestion(message,[['처음으로',()=>showOnboarding()]])}
-function guideAdvance(step){guideStep=step;const category=categoryLabel(categoryCode());if(step===1){guideQuestion('어떤 문제로 소송을 준비하고 계신가요? 현재 분석실은 ‘'+category+'’ 관련 카테고리입니다. 해당 사건이 맞으신가요?', [['예',()=>guideAdvance(2)],['아니오',()=>guideStop('해당 사건 분야의 분석실로 이동해 주세요.')]]);return}if(step===2){guideQuestion('스키드로우 분석실은 법률상담이 아닌 사건 자료 분석을 제공합니다. PDF 문서로 자료를 제출하셔야 합니다. 자료가 준비되셨나요?', [['예',()=>guideAdvance(3)],['아니오',()=>guideStop('자료를 준비하신 후 다시 방문해 주세요.')]]);return}if(step===3){guideQuestion('PDF 자료를 마우스로 끌어 대화창에 넣거나 첨부 버튼으로 선택해 주세요. 파일을 확인한 후 분석비용과 결제 절차를 안내합니다.',[['기존 사건 이어가기',()=>{awaitingResume=true;guideStop('기존 사건은 마이페이지의 사건 목록에서 선택해 주세요.')}],['처음으로',()=>showOnboarding()]]);return}}
-function showOnboarding(){selectedFlow='';awaitingResume=false;guideAdvance(1)}
+function guideAdvance(step){
+ guideStep=step;const category=categoryLabel(categoryCode());
+ if(step===1){guideQuestion('어떤 문제로 소송을 준비하고 계신가요? 현재 분석실은 ‘'+category+'’ 관련 카테고리입니다. 해당 사건이 맞으신가요?', [['예',()=>guideAdvance(2)],['아니오',()=>guideStop('해당 사건 분야의 분석실로 이동해 주세요.')]]);return}
+ if(step===2){guideQuestion('스키드로우 분석실은 법률상담이 아닌 사건 자료 분석을 제공합니다. PDF 문서로 자료를 제출하셔야 합니다. 자료가 준비되셨나요?', [['예',()=>guideAdvance(3)],['아니오',()=>guideStop('자료를 준비하신 후 다시 방문해 주세요.')]]);return}
+ if(step===3){guideQuestion('PDF 자료를 마우스로 끌어 대화창에 넣거나 첨부 버튼으로 선택해 주세요. 파일을 확인한 후 분석비용과 결제 절차를 안내합니다.',[['기존 사건 이어가기',()=>guideStop('기존 사건은 마이페이지의 사건 목록에서 선택해 주세요.')],['처음으로',()=>showOnboarding()]]);return}
+}
+function showOnboarding(){selectedFlow='';awaitingResume=false;log.replaceChildren();guideAdvance(1)}
 function chooseFlow(key,label){if(key==='resume'){awaitingResume=true;guideStop('기존 사건은 마이페이지의 사건 목록에서 선택해 주세요.');return}showOnboarding()}
+
 async function createCaseFromChat(text){
  const type=categoryCode();if(!type){notice('먼저 해당 사건 분야 채팅방을 선택해 주세요.','error');return false}
  const explicit=/피고|소장을 받|상대방이.*청구/.test(text)?'defendant':/원고|소송을 제기|청구하려/.test(text)?'plaintiff':null;
