@@ -29,7 +29,7 @@ export default async function handler(req,res){
   let cursor;
   do{
    const page=await list({prefix,limit:1000,...(cursor?{cursor}:{})});
-   for(let i=0;i<page.blobs.length;i+=100)await del(page.blobs.slice(i,i+100).map(b=>b.url));
+   for(let i=0;i<page.blobs.length;i+=100)await del(page.blobs.slice(i,i+100).map(b=>b.pathname));
    cursor=page.hasMore?page.cursor:null;
   }while(cursor);
   // Delete registry last so incomplete deletion cannot appear as success.
@@ -37,6 +37,6 @@ export default async function handler(req,res){
   return respond(res,200,{deleted:true,caseId:id});
  }catch(e){
   console.error('CASE_DELETE_FAILED',String(e?.message||e));
-  return respond(res,503,{error:'전체삭제가 완료되지 않았습니다. 잠시 후 다시 시도해 주세요.'});
+  return respond(res,503,{error:'사건삭제가 완료되지 않았습니다. 잠시 후 다시 시도해 주세요.'});
  }
 }
