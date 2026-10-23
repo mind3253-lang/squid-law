@@ -16,7 +16,7 @@ try{
    await client.query("INSERT INTO squid_error_diagnostics(trace_id,system,operation,code) VALUES($1,'SYSTEM','schema-check','SCHEMA_WRITE_TEST')",['ERR-schema-check-'+process.pid]);
    const check=await client.query('SELECT trace_id FROM squid_error_diagnostics WHERE trace_id=$1',['ERR-schema-check-'+process.pid]);
    if(check.rowCount!==1)throw Error('DIAGNOSTIC_WRITE_VERIFY_FAILED');
-  }finally{await client.query('ROLLBACK');client.release()}
+  }finally{try{await client.query('ROLLBACK')}finally{client.release()}}
   console.log('DIAGNOSTIC_SCHEMA_WRITE_READ_OK');
  });
  console.log('DIAGNOSTIC_SCHEMA_READY');
