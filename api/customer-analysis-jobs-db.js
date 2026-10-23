@@ -171,3 +171,17 @@ export async function completedCustomerReports(user,caseId,limit=100){
   return r.rows.map(publicJob);
  });
 }
+
+export async function confirmDocumentRelevance(user,caseId,jobId,version,documentId,explanation){
+ return withLeaseDb(async db=>{
+  const r=await db.query(`UPDATE customer_analysis_jobs
+   SET checkpoint=jsonb_set(coalesce(checkpoint,'{}'::jsonb),'{relevanceClarifications}',
+    coalesce(checkpoint->'relevanceClarifications','{}'::jsonb)||jsonb_build_object($5::text,$6::text),true),
+   status='queued',stage='relevance_customer_explained',error_code=NULL,attempts=0,next_run_at=now(),updated_at=now()
+   WHERE customer_key=$1 AND case_id=$2 AND job_id=$3 AND document_version=$4
+   AND status='blocked' AND error_code='DOCUMENT_RELEVANCE_REVIEW_REQUIRED'
+   AND EXISTS (SELECT 1 FROM jsonb_array_elements(coalesce(checkpoint->'relevanceDecisions','[]'::jsonb)) x WHERE x->>'id'=$5)
+   RETURNING *`,[key(user),caseId,jobId,version,documentId,explanation]);
+  return publicJob(r.rows[0]);
+ });
+}
