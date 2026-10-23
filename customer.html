@@ -248,17 +248,9 @@ function guideQuestion(message,choices){
  log.append(wrap);log.scrollTop=log.scrollHeight;
 }
 function relevanceAnswerPrompt(question){bubble(question,'system');guideQuestion('이전 질문으로 돌아갈 수 있습니다.',[['이전 단계',()=>{reanalysisStep=5;const caseId=select.value,jobId=sessionStorage.getItem('squidlaw-full-review:'+caseId);showRelevanceChoices(jobId,caseId,{})}]])}
-function showNewEvidenceUpload(restored=false){
+function showNewEvidenceUpload(){
  reanalysisStep=2;document.body.classList.remove('relevance-chat-active');
- if(!restored)bubble('새로운 사건 자료나 증거를 첨부해 주세요.','system');
- const wrap=document.createElement('div');wrap.className='case-guide-choices';
- const button=document.createElement('button');button.type='button';button.textContent='PDF 파일 선택';
- button.onclick=()=>{
-  const picker=document.createElement('input');picker.type='file';picker.accept='.pdf,application/pdf';picker.multiple=true;
-  picker.onchange=()=>{if(picker.files?.length)add(picker.files)};
-  picker.click();
- };
- wrap.append(button);log.append(wrap);log.scrollTop=log.scrollHeight;
+ bubble('새로운 자료를 첨부해 주세요.','system');
 }
 function showRelevanceChoices(jobId,caseId,cp){
  guideQuestion('자료의 관계를 선택해 주세요.',[
@@ -322,7 +314,7 @@ async function routeCaseMessage(message){
  if(awaitingResume||/(?:사건|자료).*(?:불러|가져|이어)|(?:이어|불러).*(?:사건|자료)/.test(q)){notice('해당 사건을 찾지 못했습니다. 마이페이지에서 사건번호를 확인해 주세요.','error');return true}
  return false;
 }
-async function refresh(){const token=++epoch,caseId=select.value;if(!select.value){status.textContent='';if(!selectedFlow&&!awaitingResume)showOnboarding();return}try{const data=await api('GET');if(token!==epoch||caseId!==select.value)return;if(!currentCase()?.intake?.clientRole){showOnboarding();return}const entries=[...data.documents.map(d=>({at:d.createdAt,role:'user',text:'📎 '+d.name+' · '+d.pageCount+'쪽 · '+d.status,doc:d})),...data.messages.map(m=>({at:m.createdAt,role:m.role,text:m.content}))].sort((a,b)=>a.at.localeCompare(b.at));const signature=JSON.stringify(entries.map(x=>[x.at,x.role,x.text,x.doc?.id]));if(log.dataset.renderSignature!==signature||log.dataset.renderCase!==caseId){log.replaceChildren();log.dataset.deltaBlockedJob='';for(const x of entries)bubble(x.text,x.role,x.doc);if(entries.some(x=>x.role==='system'&&/잘못 첨부한 문서.*폐기했습니다/.test(x.text))&&entries.at(-1)?.role==='system'&&/잘못 첨부한 문서.*폐기했습니다/.test(entries.at(-1).text)){showNewEvidenceUpload(true)}if(!fullReviewPanel.hidden)log.appendChild(fullReviewPanel);log.dataset.renderSignature=signature;log.dataset.renderCase=caseId}if(!entries.length){const p=document.createElement('p');p.className='case-chat-empty';p.textContent='분석할 사건 자료와 증거를 첨부해 주세요.';log.append(p)}status.textContent=''}catch(e){if(token===epoch)status.textContent='자료 조회 실패: '+e.message}}
+async function refresh(){const token=++epoch,caseId=select.value;if(!select.value){status.textContent='';if(!selectedFlow&&!awaitingResume)showOnboarding();return}try{const data=await api('GET');if(token!==epoch||caseId!==select.value)return;if(!currentCase()?.intake?.clientRole){showOnboarding();return}const entries=[...data.documents.map(d=>({at:d.createdAt,role:'user',text:'📎 '+d.name+' · '+d.pageCount+'쪽 · '+d.status,doc:d})),...data.messages.map(m=>({at:m.createdAt,role:m.role,text:m.content}))].sort((a,b)=>a.at.localeCompare(b.at));const signature=JSON.stringify(entries.map(x=>[x.at,x.role,x.text,x.doc?.id]));if(log.dataset.renderSignature!==signature||log.dataset.renderCase!==caseId){log.replaceChildren();log.dataset.deltaBlockedJob='';for(const x of entries)bubble(x.text,x.role,x.doc);if(entries.at(-1)?.role==='system'&&/잘못 첨부한 문서.*폐기했습니다/.test(entries.at(-1).text)){reanalysisStep=2;const last=log.lastElementChild;if(last&&last.classList.contains('case-chat-message')){last.textContent=String(entries.at(-1).text).replace(/\.\s*새로운 자료를 첨부해 주세요\.?$/,'')+'. 새로운 자료를 첨부해 주세요.'}}if(!fullReviewPanel.hidden)log.appendChild(fullReviewPanel);log.dataset.renderSignature=signature;log.dataset.renderCase=caseId}if(!entries.length){const p=document.createElement('p');p.className='case-chat-empty';p.textContent='분석할 사건 자료와 증거를 첨부해 주세요.';log.append(p)}status.textContent=''}catch(e){if(token===epoch)status.textContent='자료 조회 실패: '+e.message}}
 const feedback=$('caseChatFeedback');function notice(message,kind='info'){feedback.textContent=message;feedback.dataset.kind=kind;feedback.style.display='block'}function showPending(){area.replaceChildren();pending.forEach((f,i)=>{const span=document.createElement('span');span.className='case-chat-file';span.textContent=(/\.pdf$/i.test(f.name)?'📄 ':'📎 ')+f.name+(/\.pdf$/i.test(f.name)?' · 업로드 대기':' · 변환 기능 준비 중 (분석 제외)')+' ';const x=document.createElement('button');x.textContent='×';x.onclick=()=>{pending.splice(i,1);showPending();notice(pending.length?pending.length+'개 파일 선택됨':'첨부 목록이 비었습니다.')};span.append(x);area.append(span)})}
 async function loadCases(){const r=await fetch('/api/customer-cases',{credentials:'same-origin',cache:'no-store'});const j=await r.json();if(!r.ok)throw Error(j.error||'사건 목록 조회 실패');caseRecords=j.cases;select.replaceChildren();for(const c of j.cases){const o=document.createElement('option');o.value=c.id;o.textContent=c.id+' · '+c.title;select.append(o)}const preferred=new URLSearchParams(location.search).get('case'),cat=categoryCode(),item=j.cases.find(c=>c.id===preferred);if(item&&(!cat||item.type===cat))select.value=preferred;else select.value='';syncIntake();await refresh();await inspectRequest();await restoreFullReview();if(!currentCase()?.intake?.clientRole&&select.value)showOnboarding()}
 $('createCase').onclick=()=>{select.value='';newCaseMode=false;history.replaceState(null,'','?category='+encodeURIComponent(new URLSearchParams(location.search).get('category')||''));showOnboarding();status.textContent='어떤 상황인지 선택해 주세요.'};
@@ -389,7 +381,7 @@ async function inspectRequest(){if(!retryRequest||!select.value||retryRequest.ca
 async function send(){if(busy){notice('이전 업로드 요청이 진행 중입니다. 처리 상태를 확인해 주세요.','error');return}if(!select.value){if(awaitingResume){if(await routeCaseMessage(input.value))input.value='';else notice('등록된 사건 ID 또는 사건번호를 입력해 주세요.','info');return}notice('새 사건 등록 버튼을 눌러 사건을 등록해 주세요.','info');return}if(!currentCase()?.intake?.clientRole){notice('이 사건의 의뢰인 지위가 등록되지 않았습니다.','error');return}if([5,6].includes(reanalysisStep)&&input.value.trim()&&!pending.length){
  const explanation=input.value.trim();if(explanation.length>200){bubble('답변은 200자 이내로 입력해 주세요.','system');return}input.value='';bubble(explanation,'user');
  if(/^(?:잘못\s*(?:첨부|올렸|넣었)(?:했습니다|했어요|함)?|폐기\s*(?:해\s*주세요|요청|하겠습니다)|삭제\s*(?:해\s*주세요|요청))\s*[.!。]?$/u.test(explanation)){
-  bubble('요청하신 첨부자료를 폐기하고 있습니다.','system');reanalysisFiles=[];reanalysisStep=0;document.body.classList.remove('relevance-chat-active');
+  reanalysisFiles=[];reanalysisStep=0;document.body.classList.remove('relevance-chat-active');
   const caseId=select.value,storageKey='squidlaw-delta-uploaded:'+caseId;
   let uploaded=[];try{uploaded=JSON.parse(sessionStorage.getItem(storageKey)||'[]')}catch{}
   try{
@@ -397,9 +389,8 @@ async function send(){if(busy){notice('이전 업로드 요청이 진행 중입�
    const result=await api('POST',{action:'discard-mistaken-document',...selected});
    if(result.discarded){
     sessionStorage.removeItem(storageKey);log.dataset.deltaBlockedJob='';log.dataset.reanalysisGuide='';
-    bubble('최근 추가한 PDF를 폐기했습니다. 기존 보고서는 유지됩니다.','system');
+    bubble('첨부한 PDF를 폐기했습니다. 새로운 자료를 첨부해 주세요.','system');
     reanalysisStep=2;
-    showNewEvidenceUpload();
    }else bubble('폐기 결과를 확인하지 못했습니다. 자료는 유지됩니다.','system');
   }catch(e){bubble('폐기하지 못했습니다. 최근 추가 자료의 확인이 필요합니다. 기존 자료는 유지됩니다.','system')}
 
