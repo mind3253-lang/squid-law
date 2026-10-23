@@ -536,11 +536,33 @@ legalReportDownloadButton.onclick=async()=>{
   setTimeout(()=>URL.revokeObjectURL(url),10000);
  }catch(e){notice(e.message,'error')}
 };
+const reportExportButtons=[];
+for(const [format,label] of [['pdf','PDF 출력'],['docx','워드 DOCX 다운로드'],['hwpx','한글 HWPX 다운로드']]){
+ const button=document.createElement('button');button.type='button';button.textContent=label;
+ button.style.cssText='margin:8px;padding:10px 16px;border-radius:8px;cursor:pointer';
+ button.hidden=true;legalReportButton.parentElement.appendChild(button);reportExportButtons.push(button);
+ button.onclick=async()=>{
+  const caseId=select.value,jobId=sessionStorage.getItem('squidlaw-full-review:'+caseId);
+  if(!caseId||!jobId)return notice('분석 작업이 없습니다.','error');
+  try{
+   const response=await fetch('/api/customer-legal-report?caseId='+encodeURIComponent(caseId)+'&jobId='+encodeURIComponent(jobId)+'&download='+format,{credentials:'same-origin',cache:'no-store'});
+   if(!response.ok){const data=await response.json().catch(()=>({}));throw Error(data.error||'문서 출력 실패')}
+   const blob=await response.blob(),url=URL.createObjectURL(blob);
+   if(format==='pdf'){
+    const windowRef=window.open(url,'_blank');
+    if(!windowRef){URL.revokeObjectURL(url);throw Error('팝업 차단을 해제한 후 PDF 출력을 다시 눌러 주세요.')}
+    setTimeout(()=>URL.revokeObjectURL(url),60000);
+   }else{
+    const link=document.createElement('a');link.href=url;link.download='squidlaw-legal-report.'+format;document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),10000);
+   }
+  }catch(e){notice(e.message,'error')}
+ };
+}
 legalReportButton.onclick=async()=>{
- if(!legalReportPanel.hidden){legalReportPanel.hidden=true;legalReportDownloadButton.hidden=true;return}
+ if(!legalReportPanel.hidden){legalReportPanel.hidden=true;legalReportDownloadButton.hidden=true;reportExportButtons.forEach(b=>b.hidden=true);return}
  const caseId=select.value,jobId=sessionStorage.getItem('squidlaw-full-review:'+caseId);
  if(!jobId){notice('분석 작업이 없습니다.','error');return}
- try{const r=await fetch('/api/customer-legal-report?caseId='+encodeURIComponent(caseId)+'&jobId='+encodeURIComponent(jobId),{credentials:'same-origin',cache:'no-store'});const j=await r.json();if(!r.ok)throw Error(j.error||'보고서 조회 실패');showLegalReport(j.report);legalReportDownloadButton.hidden=false}catch(e){notice(e.message,'error')}
+ try{const r=await fetch('/api/customer-legal-report?caseId='+encodeURIComponent(caseId)+'&jobId='+encodeURIComponent(jobId),{credentials:'same-origin',cache:'no-store'});const j=await r.json();if(!r.ok)throw Error(j.error||'보고서 조회 실패');showLegalReport(j.report);legalReportDownloadButton.hidden=false;reportExportButtons.forEach(b=>b.hidden=false)}catch(e){notice(e.message,'error')}
 };
 function fullReviewFailure(method,url,status,code){
  const operation=method==='POST'?'분석 신청·재개':'분석 상태 조회';
