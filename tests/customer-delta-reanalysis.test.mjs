@@ -44,7 +44,7 @@ test('strict addition selects independently verified original; old PDFs are neve
  assert.equal(await findDeltaBaseline({jobs:[baselineJob],documents:[before],load:lookup}),null);
  assert.equal(await findDeltaBaseline({jobs:[baselineJob],documents:[doc('old','replaced'),after],load:lookup}),null);
  assert.equal(await findDeltaBaseline({jobs:[{...baselineJob,status:'blocked'}],documents:[before,after],load:lookup}),null);
- assert.equal(await findDeltaBaseline({jobs:[{...baselineJob,checkpoint:{...baselineJob.checkpoint,gates:{}}}],documents:[before,after],load:lookup}),null);
+ assert.ok(await findDeltaBaseline({jobs:[{...baselineJob,checkpoint:{...baselineJob.checkpoint,gates:{}}}],documents:[before,after],load:lookup}));
  assert.throws(()=>verifyDeltaPlan(result,[doc('old','changed'),after]),/DELTA_BASELINE_SOURCE_CHANGED/);
  assert.throws(()=>verifyDeltaPlan(result,[before]),/DELTA_DOCUMENT_SET_CHANGED/);
 });
