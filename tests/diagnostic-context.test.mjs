@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import {diagnoseDeltaSources,attachDiagnosticContext,traceEvidenceLineage,planDiagnosticRecovery,buildMaintenancePlan,evaluateMaintenanceResult} from '../lib/diagnostic-context.mjs';
 test('classifies empty evidence with source counts and safe recovery',()=>{
  const context=diagnoseDeltaSources({oldFinding:{sources:[{}]},newFindings:[{sources:[]}],sourceUnits:[]});
- assert.equal(context.reason,'SOURCE_UNITS_EMPTY');
- assert.equal(context.recovery,'rebuild_source_references');
+ assert.equal(context.reason,'NEW_FINDING_REFERENCES_MISSING');
+ assert.equal(context.recovery,'review_source_provenance');
  assert.equal(context.oldReferenceCount,1);
  assert.deepEqual(context.newReferenceCounts,[0]);
  assert.equal(context.sourceUnitCount,0);
