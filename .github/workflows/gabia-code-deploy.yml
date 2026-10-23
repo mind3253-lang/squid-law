@@ -104,6 +104,12 @@ jobs:
           test -f /opt/squidlaw/app/docs/GABIA_MAINTENANCE_PROBE.txt
           grep -qx 'GABIA_DIRECT_MAINTENANCE_PROBE_V1' /opt/squidlaw/app/docs/GABIA_MAINTENANCE_PROBE.txt
           echo DEPLOY_PROBE_VERIFIED
+          echo REPORT_MODULE_SYNTAX_CHECK_BEGIN
+          node --check api/customer-legal-report.js 2>&1 | tail -8 || true
+          node --check lib/customer-analysis-brief.mjs 2>&1 | tail -8 || true
+          node --check lib/document-export.mjs 2>&1 | tail -8 || true
+          node -e "import('./api/customer-legal-report.js').then(()=>console.log('REPORT_IMPORT_OK')).catch(e=>{console.error(e.name,e.message);process.exitCode=1})" 2>&1 | tail -12 || true
+          echo REPORT_MODULE_SYNTAX_CHECK_END
           echo RECENT_COMPAT_API_ERRORS_BEGIN
           journalctl -u squidlaw-api.service --since '45 minutes ago' --no-pager -o cat | \
             grep -E 'GABIA_COMPAT_API_FAILURE|TypeError:|ReferenceError:|ERR_MODULE_NOT_FOUND' | tail -25 | \
