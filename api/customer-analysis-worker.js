@@ -892,7 +892,8 @@ export default async function handler(req,res){
   const dbFailureKind=job?'AFTER_CLAIM':'CLAIM_OR_DATABASE';
   // Hash the message and report only the in-repository stack location; no customer content.
   const failureFingerprint=createHash('sha256').update(diagnostic).digest('hex').slice(0,16);
-  const {traceId:errorTraceId}=captureServerError(e,{system:'SQUIDLAW',operation:'customer-analysis-worker',stage:e?.deltaStage||job?.stage||'unknown',jobId:job?.jobId||null});
+  const {traceId:errorTraceId,record:diagnosticRecord}=captureServerError(e,{system:'SQUIDLAW',operation:'customer-analysis-worker',stage:e?.deltaStage||job?.stage||'unknown',jobId:job?.jobId||null});
+  await diagnosticRecord.persistence;
   const stackFrame=String(e?.stack||'').split('\n').slice(1).map(line=>line.match(/(?:api|lib|worker)\/[A-Za-z0-9._/-]+:\d+:\d+/)?.[0]).find(Boolean)||null;
   if(safeCode==='SOURCE_READ_REVIEW_FAILED')console.error('SOURCE_REVIEW_AUDIT_CODES',JSON.stringify({failures:diagnostic.slice('GPT_LEGAL_SOURCE_REVIEW_FAILED:'.length).split(',').map(x=>x.split(':')[0]).slice(0,12)}));
   console.error('CUSTOMER_WORKER_FAILURE',JSON.stringify({code:safeCode,providerCode,errorClass,stage:errorStage,jobClaimed:Boolean(job),dbCode,dbFailureKind,failureFingerprint,stackFrame,errorTraceId,deltaStage:e?.deltaStage||job?.checkpoint?.delta?.stage||null,deltaCursor:Number.isSafeInteger(e?.deltaCursor)?e.deltaCursor:null}));
