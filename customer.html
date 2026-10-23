@@ -521,6 +521,11 @@ function renderFullReview(job,queue,progress,billing){
   if(cp.errorTraceId)details.push('추적번호: '+String(cp.errorTraceId).slice(0,40));
   if(cp.lastFailureStage||cp.lastFailedStage)details.push('실패 단계: '+String(cp.lastFailureStage||cp.lastFailedStage).slice(0,90));
   if(Number.isSafeInteger(cp.lastFailureCursor))details.push('실패 항목: '+cp.lastFailureCursor);
+  if(safeError==='DELTA_BASELINE_VERIFICATION_REQUIRED'&&cp.deltaBaselineDiagnostic){
+   const diag=cp.deltaBaselineDiagnostic;
+   const original=Array.isArray(diag.originalMissingGates)?diag.originalMissingGates:[];
+   details.push('원본 검증 누락: '+(original.length?original.join(', '):'원본 기록 확인 필요'));
+  }
   if(cp.errorClass)details.push('오류 유형: '+String(cp.errorClass).slice(0,40));
   if(cp.errorStackFrame)details.push('발생 위치: '+String(cp.errorStackFrame).slice(0,160));
   const summary=String(cp.providerErrorSummary||cp.message||'').slice(0,500);
