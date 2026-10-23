@@ -36,13 +36,13 @@ export default async function handler(req,res){
  let b=req.body;try{if(typeof b==='string')b=JSON.parse(b)}catch{return respond(res,400,{error:'요청 형식 오류'})}
  if(b?.action==='clarify-document-relevance'){
   const jobId=String(b.jobId||''),documentId=String(b.documentId||''),explanation=String(b.explanation||'').trim();
-  if(!/^[0-9a-f-]{36}$/.test(jobId)||!/^[0-9a-f-]{36}$/.test(documentId)||explanation.length<12||explanation.length>2500)
-   return respond(res,400,{error:'관련 문서와 구체적인 설명(12~2500자)이 필요합니다.'});
+  if(!/^[0-9a-f-]{36}$/.test(jobId)||!/^[0-9a-f-]{36}$/.test(documentId)||explanation.length<1||explanation.length>200)
+   return respond(res,400,{error:'답변은 200자 이내로 입력해 주세요.'});
   try{
    const docs=await documents(a.user,caseId);
    if(!docs.some(x=>x.id===documentId))return respond(res,404,{error:'첨부 문서가 없습니다.'});
    const job=await confirmDocumentRelevance(a.user,caseId,jobId,documentVersion(docs),documentId,explanation);
-   if(!job)return respond(res,409,{error:'관련성 확인 대기 작업 또는 문서가 일치하지 않습니다.'});
+   if(!job)return respond(res,409,{error:'관련성 확인은 최대 3회까지 가능합니다. 추가 확인이 필요하면 담당자에게 문의해 주세요.'});
    kickWorker(req);return respond(res,202,{job,notice:'설명을 접수하고 관련성을 다시 검토합니다.'});
   }catch{return respond(res,503,{error:'관련성 설명 저장 실패'})}
  }
