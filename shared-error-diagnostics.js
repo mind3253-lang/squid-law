@@ -15,6 +15,22 @@
  }catch{return null}};
  try{const saved=JSON.parse(sessionStorage.getItem(KEY)||'[]');if(Array.isArray(saved))records.push(...saved.slice(-MAX))}catch{}
  window.SQUID_DIAGNOSTICS=Object.freeze({capture:emit,list:()=>records.slice(),export:()=>JSON.stringify(records,null,2),clear:()=>{records.length=0;try{sessionStorage.removeItem(KEY)}catch{}}});
+ const nativeFetch=window.fetch.bind(window);
+ window.fetch=async function(input,init){
+  const started=Date.now();
+  let path='unknown';try{const url=new URL(typeof input==='string'?input:input.url,location.href);path=url.pathname}catch{}
+  const method=clean(init?.method||(typeof input==='object'?input.method:'GET')||'GET',12);
+  try{
+   const response=await nativeFetch(input,init);
+   if(!response.ok&&path.startsWith('/api/')){
+    const e=new Error('HTTP '+response.status+' '+(response.statusText||''));
+    e.code='HTTP_'+response.status;
+    emit('api_http_error',e,{stage:method+' '+path});
+   }
+   return response;
+  }catch(e){if(path.startsWith('/api/'))emit('api_network_error',e,{stage:method+' '+path});throw e}
+ };
+ window.addEventListener('squidlaw:diagnostic',()=>{});
  window.addEventListener('error',event=>{if(event.error)emit('uncaught_exception',event.error);else emit('resource_error',new Error(clean(event.filename||event.target?.src||'Resource failed',180)))},true);
  window.addEventListener('unhandledrejection',event=>emit('unhandled_rejection',event.reason instanceof Error?event.reason:new Error(clean(event.reason))));
 })();
