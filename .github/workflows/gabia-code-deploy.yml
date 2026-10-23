@@ -107,7 +107,7 @@ jobs:
           echo RECENT_CUSTOMER_API_ERROR_DIAGNOSIS_BEGIN
           # Capture only error classes and correlation IDs; never print request payloads or credentials.
           journalctl -u squidlaw-api.service --since '30 minutes ago' --no-pager -o cat | \
-            grep 'GABIA_CUSTOMER_API_FAILURE' | tail -15 | \
+            grep -E 'GABIA_(CUSTOMER|COMPAT)_API_FAILURE' | tail -15 | \
             sed -E 's/"message":"[^"]*"/"message":"[REDACTED]"/g' || true
           echo RECENT_CUSTOMER_API_ERROR_DIAGNOSIS_END
           echo INTEGRATION_AUDIT_BEGIN
@@ -125,7 +125,7 @@ jobs:
           REMOTE
           deploy_rc=$?
           set -e
-          grep -E '^(INTEGRATION_AUDIT_|AUDIT |RECENT_CUSTOMER_API_ERROR_DIAGNOSIS_|GABIA_CUSTOMER_API_FAILURE)' /tmp/deploy.log || true
+          grep -E '^(INTEGRATION_AUDIT_|AUDIT |RECENT_CUSTOMER_API_ERROR_DIAGNOSIS_|GABIA_(CUSTOMER|COMPAT)_API_FAILURE)' /tmp/deploy.log || true
           if [ "$deploy_rc" -ne 0 ]; then
             echo DEPLOY_SSH_EXIT_$deploy_rc
             grep -E '^(DEPLOY_|OBJECT_ROOT|INTEGRATION_AUDIT_|AUDIT |npm error|npm ERR|Error:)' /tmp/deploy.log | tail -35 || true
