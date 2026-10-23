@@ -78,7 +78,12 @@ const server=createServer(async(req,res)=>{
   respond(res,405,{error:'METHOD_NOT_ALLOWED'});
  }catch(e){const known={INVALID_JOB_REQUEST:400,INVALID_PDF_UPLOAD:400,PDF_TOO_LARGE:413,CASE_NOT_FOUND:404,DOCUMENT_NOT_REGISTERED:409,GABIA_PDF_ROOT_MISSING:503};
   const status=known[e.message]||503;
-  respond(res,status,{error:known[e.message]?e.message:'SERVICE_UNAVAILABLE'});}
+  // Log a correlation ID and a sanitized error classification server-side only.
+  // Do not expose stack traces, SQL, file paths or customer identifiers to clients.
+  const errorId=createHash('sha256').update(String(Date.now())+':'+String(process.pid)+':'+String(Math.random())).digest('hex').slice(0,12);
+  const errorCode=typeof e?.code==='string'&&/^[A-Z0-9_]{1,20}$/.test(e.code)?e.code:'UNKNOWN';
+  console.error('GABIA_CUSTOMER_API_FAILURE',JSON.stringify({errorId,status,errorCode,errorType:e?.constructor?.name||'Error',route:req.method+' '+String(req.url||'').split('?')[0].replace(/[a-f0-9-]{36}/g,':id'),message:String(e?.message||'UNKNOWN').slice(0,160)}));
+  respond(res,status,{error:known[e.message]?e.message:'SERVICE_UNAVAILABLE',errorId});}
 });
 server.listen(port,host,()=>console.log('GABIA_API_PREVIEW_LOOPBACK_ONLY',port));
 for(const signal of ['SIGTERM','SIGINT'])process.on(signal,()=>server.close(()=>pool.end().finally(()=>process.exit(0))));
