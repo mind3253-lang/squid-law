@@ -46,14 +46,21 @@ if(Number(req.headers['content-length']||0)>8500000)return respond(res,413,{erro
 let b;try{b=typeof req.body==='string'?JSON.parse(req.body):req.body}catch{return respond(res,400,{error:'업로드 요청 형식 오류'})}
 if(b?.action==='discard-mistaken-document'){
  const documentId=String(b.documentId||''),confirmName=String(b.confirmName||'');
- if(!/^[0-9a-f-]{36}$/.test(documentId))return respond(res,400,{error:'문서 ID 오류'});
+ if(documentId&&!/^[0-9a-f-]{36}$/.test(documentId))return respond(res,400,{error:'문서 ID 오류'});
  try{
-  const docs=await documents(user,id),target=docs.find(d=>d.id===documentId);
-  if(!target||target.name!==confirmName)return respond(res,409,{error:'폐기 대상 문서 확인 실패'});
+  const docs=await documents(user,id);
+  let target=docs.find(d=>d.id===documentId);
+  if(!documentId&&b.discardLatest===true){
+   const ordered=[...docs].sort((a,b)=>String(b.createdAt||'').localeCompare(String(a.createdAt||'')));
+   const candidate=ordered[0];
+   if(candidate&&ordered.length>1&&String(candidate.createdAt||'')!==String(ordered[1].createdAt||'')&&
+    await mayDiscardAdditionalDocument(user,id,documentVersion(docs.filter(d=>d.id!==candidate.id)),documentVersion(docs)))target=candidate;
+  }
+  if(!target||(documentId&&target.name!==confirmName))return respond(res,409,{error:'최근 추가된 문서를 안전하게 특정할 수 없습니다. 기존 자료는 유지됩니다.'});
   const remaining=docs.filter(d=>d.id!==documentId);
   if(!remaining.length||!await mayDiscardAdditionalDocument(user,id,documentVersion(remaining),documentVersion(docs)))
    return respond(res,409,{code:'DISCARD_BASELINE_UNVERIFIED',error:'기존 완료 보고서의 원본을 보호하기 위해 폐기할 수 없습니다. 진행 중인 작업이 없는지 확인해 주세요.'});
-  const paths=[prefix+'docs/'+documentId+'.json',prefix+'extracted/'+documentId+'.json',prefix+'pdf/'+documentId+'.pdf'];
+  const paths=[prefix+'docs/'+target.id+'.json',prefix+'extracted/'+target.id+'.json',prefix+'pdf/'+target.id+'.pdf'];
   if(target.sourceKind==='private_chunked_pdf_v1'){
    const {customerPdfChunkPaths}=await import('../lib/customer-pdf-source.mjs');
    paths.push(...customerPdfChunkPaths(prefix,target.chunkUploadId,target.sourceParts,target.sourceChunkSize,target.size).map(x=>x.pathname));
@@ -63,7 +70,7 @@ if(b?.action==='discard-mistaken-document'){
   for(const path of paths.slice(1)){await del(path).catch(e=>{if(e?.code!=='ENOENT')throw e})}
   await del(paths[0]);
   await saveMessage(user,id,'system','고객 확인에 따라 잘못 첨부한 문서 '+target.name+'을 폐기했습니다.');
-  return respond(res,200,{discarded:true,documentId});
+  return respond(res,200,{discarded:true,documentId:target.id});
  }catch(e){return respond(res,503,{code:'DISCARD_FAILED',error:'파일 폐기 처리에 실패했습니다. 다시 확인해 주세요.'})}
 }
 if(b?.action==='note'){
