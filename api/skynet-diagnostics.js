@@ -9,7 +9,8 @@ export default async function handler(req,res){
   const limit=Math.max(1,Math.min(100,Number(req.query?.limit)||40));
   const traceFilter=String(req.query?.traceId||'').slice(0,80);
   if(traceFilter&&!/^(?:ERR-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|AN-[a-f0-9]{16})$/.test(traceFilter))return res.status(400).json({error:'INVALID_TRACE_ID'});
-  const rows=await withLeaseDb(async db=>(await db.query(
+  let rows=[],jobsStatus='available';
+  try{rows=await withLeaseDb(async db=>(await db.query(
    `SELECT job_id,status,stage,error_code,updated_at,checkpoint->>'errorTraceId' AS trace,
    checkpoint->>'lastFailureStage' AS failure_stage,
    checkpoint->>'lastFailureCursor' AS failure_cursor,
@@ -19,13 +20,13 @@ export default async function handler(req,res){
    checkpoint->>'message' AS detail
    FROM customer_analysis_jobs WHERE error_code IS NOT NULL
    AND ($2::text='' OR checkpoint->>'errorTraceId'=$2)
-   ORDER BY updated_at DESC LIMIT $1`,[limit,traceFilter])).rows);
+   ORDER BY updated_at DESC LIMIT $1`,[limit,traceFilter])).rows)}catch(e){jobsStatus=e?.code==='42P01'?'schema_missing':'query_failed';console.error('ANALYSIS_DIAGNOSTIC_READ_FAILURE',safe(e?.code||e?.name||'UNKNOWN',50))}
   let central=[],centralStatus='available';
   try{central=await withLeaseDb(async db=>(await db.query(
    `SELECT trace_id,created_at,system,operation,stage,code,error_name,message,source
     FROM squid_error_diagnostics WHERE ($2::text='' OR trace_id=$2) ORDER BY created_at DESC LIMIT $1`,[limit,traceFilter])).rows)}
   catch(e){centralStatus=e?.code==='42P01'?'schema_missing':'query_failed';console.error('CENTRAL_DIAGNOSTIC_READ_FAILURE',safe(e?.code||e?.name||'UNKNOWN',50))}
-  return res.status(200).json({ok:true,source:'customer_analysis_jobs',centralStatus,central:central.map(r=>({traceId:safe(r.trace_id,60),time:r.created_at,system:safe(r.system,32),operation:safe(r.operation,80),stage:safe(r.stage,80),code:safe(r.code,100),name:safe(r.error_name,60),message:safe(r.message,180),source:safe(r.source,180)})),records:rows.map(r=>({
+  return res.status(200).json({ok:true,source:'customer_analysis_jobs',jobsStatus,centralStatus,central:central.map(r=>({traceId:safe(r.trace_id,60),time:r.created_at,system:safe(r.system,32),operation:safe(r.operation,80),stage:safe(r.stage,80),code:safe(r.code,100),name:safe(r.error_name,60),message:safe(r.message,180),source:safe(r.source,180)})),records:rows.map(r=>({
    traceId:safe(r.trace,50),jobId:safe(r.job_id,40),status:safe(r.status,20),
    code:safe(r.error_code,100),stage:safe(r.failure_stage||r.stage,100),
    cursor:r.failure_cursor===null?null:Number(r.failure_cursor),
