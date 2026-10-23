@@ -20,12 +20,12 @@ export default async function handler(req,res){
    FROM customer_analysis_jobs WHERE error_code IS NOT NULL
    AND ($2::text='' OR checkpoint->>'errorTraceId'=$2)
    ORDER BY updated_at DESC LIMIT $1`,[limit,traceFilter])).rows);
-  let central=[];
+  let central=[],centralStatus='available';
   try{central=await withLeaseDb(async db=>(await db.query(
    `SELECT trace_id,created_at,system,operation,stage,code,error_name,message,source
     FROM squid_error_diagnostics WHERE ($2::text='' OR trace_id=$2) ORDER BY created_at DESC LIMIT $1`,[limit,traceFilter])).rows)}
-  catch(e){if(e?.code!=='42P01')console.error('CENTRAL_DIAGNOSTIC_READ_FAILURE',safe(e?.code||e?.name||'UNKNOWN',50))}
-  return res.status(200).json({ok:true,source:'customer_analysis_jobs',central:central.map(r=>({traceId:safe(r.trace_id,60),time:r.created_at,system:safe(r.system,32),operation:safe(r.operation,80),stage:safe(r.stage,80),code:safe(r.code,100),name:safe(r.error_name,60),message:safe(r.message,180),source:safe(r.source,180)})),records:rows.map(r=>({
+  catch(e){centralStatus=e?.code==='42P01'?'schema_missing':'query_failed';console.error('CENTRAL_DIAGNOSTIC_READ_FAILURE',safe(e?.code||e?.name||'UNKNOWN',50))}
+  return res.status(200).json({ok:true,source:'customer_analysis_jobs',centralStatus,central:central.map(r=>({traceId:safe(r.trace_id,60),time:r.created_at,system:safe(r.system,32),operation:safe(r.operation,80),stage:safe(r.stage,80),code:safe(r.code,100),name:safe(r.error_name,60),message:safe(r.message,180),source:safe(r.source,180)})),records:rows.map(r=>({
    traceId:safe(r.trace,50),jobId:safe(r.job_id,40),status:safe(r.status,20),
    code:safe(r.error_code,100),stage:safe(r.failure_stage||r.stage,100),
    cursor:r.failure_cursor===null?null:Number(r.failure_cursor),
