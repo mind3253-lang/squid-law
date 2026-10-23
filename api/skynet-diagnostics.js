@@ -1,6 +1,6 @@
 import {isSkynetAdmin} from '../lib/skynet-job-api-auth.mjs';
 import {withLeaseDb} from './customer-analysis-lease-db.js';
-const safe=(v,n=180)=>String(v??'').replace(/(sk-[A-Za-z0-9_-]{8,}|Bearer\s+\S+|[?&](?:token|key|secret|password)=[^&\s]+)/ig,'[redacted]').slice(0,n);
+const safe=(v,n=180)=>String(v??'').replace(/(sk-[A-Za-z0-9_-]{8,}|Bearer\s+\S+|[?&](?:token|key|secret|password|access_token|refresh_token)=[^&\s]+)/ig,'[redacted]').replace(/https?:\/\/\S+/ig,'[URL_REDACTED]').replace(/[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}/g,'[EMAIL_REDACTED]').slice(0,n);
 export default async function handler(req,res){
  res.setHeader('Cache-Control','no-store');res.setHeader('X-Content-Type-Options','nosniff');
  if(!isSkynetAdmin(req))return res.status(401).json({error:'ADMIN_REQUIRED'});
@@ -8,7 +8,7 @@ export default async function handler(req,res){
  try{
   const limit=Math.max(1,Math.min(100,Number(req.query?.limit)||40));
   const traceFilter=String(req.query?.traceId||'').slice(0,80);
-  if(traceFilter&&!/^ERR-[0-9a-f-]{36}$|^AN-[a-f0-9]{16}$/.test(traceFilter))return res.status(400).json({error:'INVALID_TRACE_ID'});
+  if(traceFilter&&!/^(?:ERR-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|AN-[a-f0-9]{16})$/.test(traceFilter))return res.status(400).json({error:'INVALID_TRACE_ID'});
   const rows=await withLeaseDb(async db=>(await db.query(
    `SELECT job_id,status,stage,error_code,updated_at,checkpoint->>'errorTraceId' AS trace,
    checkpoint->>'lastFailureStage' AS failure_stage,
@@ -18,7 +18,8 @@ export default async function handler(req,res){
    checkpoint->>'providerErrorSummary' AS provider_summary,
    checkpoint->>'message' AS detail
    FROM customer_analysis_jobs WHERE error_code IS NOT NULL
-   ORDER BY updated_at DESC LIMIT $1`,[limit])).rows);
+   AND ($2::text='' OR checkpoint->>'errorTraceId'=$2)
+   ORDER BY updated_at DESC LIMIT $1`,[limit,traceFilter])).rows);
   let central=[];
   try{central=await withLeaseDb(async db=>(await db.query(
    `SELECT trace_id,created_at,system,operation,stage,code,error_name,message,source
