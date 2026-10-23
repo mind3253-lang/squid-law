@@ -202,3 +202,15 @@ export async function acceptCustomerRequestedEvidence(user,caseId,jobId,version,
   return publicJob(r.rows[0]);
  });
 }
+
+export async function closeDiscardedDocumentReview(user,caseId,documentId){
+ return withLeaseDb(async db=>{
+  await db.query(`UPDATE customer_analysis_jobs
+   SET status='failed',stage='customer_discarded_document',error_code='CUSTOMER_DISCARDED_DOCUMENT',updated_at=now()
+   WHERE customer_key=$1 AND case_id=$2 AND status='blocked'
+   AND error_code='DOCUMENT_RELEVANCE_REVIEW_REQUIRED'
+   AND EXISTS (SELECT 1 FROM jsonb_array_elements(coalesce(checkpoint->'relevanceDecisions','[]'::jsonb)) x WHERE x->>'id'=$3)`,
+   [key(user),caseId,documentId]);
+  return true;
+ });
+}
