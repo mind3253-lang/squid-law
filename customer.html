@@ -430,8 +430,13 @@ fullReviewPanel.hidden=true;
 fullReviewPanel.setAttribute('aria-live','polite');
 log.appendChild(fullReviewPanel);
 function renderFullReview(job,queue,progress,billing){
- if(fullReviewPanel.parentElement!==log)log.appendChild(fullReviewPanel);
- if(!['completed','failed','blocked'].includes(job.status)||job.errorCode!=='DOCUMENT_RELEVANCE_REVIEW_REQUIRED')log.scrollTop=log.scrollHeight;
+ const relevanceMode=job.status==='blocked'&&job.errorCode==='DOCUMENT_RELEVANCE_REVIEW_REQUIRED';
+ const analysisMode=!relevanceMode&&['queued','running','retry','failed','completed'].includes(job.status);
+ log.style.display=analysisMode?'none':'';
+ $('caseChatComposer').style.display=analysisMode?'none':'';
+ const target=analysisMode?log.parentElement:log;
+ if(fullReviewPanel.parentElement!==target)target.appendChild(fullReviewPanel);
+ if(analysisMode)fullReviewPanel.scrollIntoView({block:'start',behavior:'instant'});
 
  const cp=job.checkpoint||{},state=job.status;
  const relevanceWait=state==='blocked'&&job.errorCode==='DOCUMENT_RELEVANCE_REVIEW_REQUIRED';
