@@ -1,3 +1,4 @@
+import {captureServerError} from '../lib/server-error-diagnostics.mjs';
 import {isSkynetAdmin} from '../lib/skynet-job-api-auth.mjs';
 import {withLeaseDb} from './customer-analysis-lease-db.js';
 const safe=(v,n=180)=>String(v??'').replace(/(sk-[A-Za-z0-9_-]{8,}|Bearer\s+\S+|[?&](?:token|key|secret|password|access_token|refresh_token)=[^&\s]+)/ig,'[redacted]').replace(/https?:\/\/\S+/ig,'[URL_REDACTED]').replace(/[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}/g,'[EMAIL_REDACTED]').slice(0,n);
@@ -35,5 +36,5 @@ export default async function handler(req,res){
    errorClass:safe(r.error_class,60),stackFrame:safe(r.stack_frame,180),
    summary:safe(r.provider_summary||r.detail,180),updatedAt:r.updated_at
   }))});
- }catch(e){console.error('SKYNET_DIAGNOSTIC_QUERY_FAILURE',safe(e?.code||e?.name||'UNKNOWN',60));return res.status(503).json({error:'DIAGNOSTIC_QUERY_UNAVAILABLE'})}
+ }catch(e){const {traceId,record}=captureServerError(e,{system:'SKYNET',operation:'diagnostics-query',stage:'read'});await record.persistence;return res.status(503).json({error:'DIAGNOSTIC_QUERY_UNAVAILABLE',traceId})}
 }
