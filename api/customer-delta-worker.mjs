@@ -19,7 +19,27 @@ const uniqueRefs=findings=>{
 };
 async function originalSourceUnits({findings,documents,prefix,load}){
  const byId=new Map(documents.map(d=>[d.id,d])),refs=uniqueRefs(findings);
- if(!refs.length)throw attachDiagnosticContext(new Error('DELTA_SOURCE_REFERENCES_MISSING'),diagnoseDeltaSources({oldFinding:findings[0],newFindings:findings.slice(1),sourceUnits:[]}));
+ if(!refs.length){
+  // Legacy completed reports may contain findings without source pointers.
+  // Reconstruct context only from actually verified newly uploaded pages.
+  const addedIds=new Set((findings.addedDocumentIds||[]));
+  const units=[];
+  for(const d of documents.filter(d=>addedIds.has(d.id))){
+   for(let offset=0;offset<d.pageCount&&units.length<40;offset+=20){
+    const path=prefix+'verified/'+d.id+'/batch-'+String(offset).padStart(8,'0')+'.json';
+    const data=await load(path);
+    if(!data||data.documentId!==d.id||data.sourcePdfSha256!==d.sha256||!Array.isArray(data.pages))
+     throw Error('DELTA_NEW_EVIDENCE_RECEIPT_MISSING');
+    for(const u of segmentRecord({scope:'customer',documentId:d.id,pages:data.pages}).segments){
+     if(units.length>=40)break;
+     if(sha(u.text)!==u.hash)throw Error('DELTA_NEW_EVIDENCE_HASH_MISMATCH');
+     units.push({documentId:d.id,page:u.page,part:u.part,hash:u.hash,text:u.text});
+    }
+   }
+  }
+  if(units.length)return units;
+  throw attachDiagnosticContext(new Error('DELTA_SOURCE_REFERENCES_MISSING'),diagnoseDeltaSources({oldFinding:findings[0],newFindings:findings.slice(1),sourceUnits:[]}));
+ }
  const batches=new Map();
  for(const r of refs){
   const d=byId.get(r.documentId);
@@ -112,7 +132,7 @@ export async function runDeltaReviewStep({job,previous,documents,prefix,load,put
    throw error;
   }
   let sources;
-  try{sources=await originalSourceUnits({findings:[old,...related],documents,prefix,load})}
+  try{sources=await originalSourceUnits({findings:Object.assign([old,...related],{addedDocumentIds:delta.addedDocuments.map(d=>d.id)}),documents,prefix,load})}
   catch(error){const diagnostic=diagnoseDeltaSources({oldFinding:old,newFindings:related,sourceUnits:[]});throw attachDiagnosticContext(error,{...diagnostic,recoveryPlan:planDiagnosticRecovery(diagnostic),lineage:traceEvidenceLineage({baseline:base,delta:fresh,decisions,documents})})}
   if(!sources.length)throw attachDiagnosticContext(new Error('DELTA_SOURCE_UNITS_EMPTY'),diagnoseDeltaSources({oldFinding:old,newFindings:related,sourceUnits:sources}));
   const sourceLength=sources.reduce((n,u)=>n+u.text.length,0);
