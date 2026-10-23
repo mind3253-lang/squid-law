@@ -158,12 +158,11 @@ async function api(method,body){const r=await fetch(url(),{method,credentials:'s
 
 function cleanIssueOcrText(value){
  const raw=String(value||'').trim();
- const noisy=(raw.match(/·/g)||[]).length>=5;
- const spaced=(raw.match(/[가-힣](?:\s+[가-힣]){5,}/g)||[]).join('').length>=18;
- if(!noisy&&!spaced)return raw;
- const compact=raw.replace(/\s*·\s*/g,' ').replace(/([가-힣])\s+(?=[가-힣])/g,'$1');
- const words=[...new Intl.Segmenter('ko',{granularity:'word'}).segment(compact)].map(x=>x.segment).join(' ');
- return words.replace(/\s+([,.!?;:)'’”])/g,'$1').replace(/([('‘“])\s+/g,'$1').replace(/\s+/g,' ').trim();
+ // OCR dot separators denote character boundaries, not reliable word boundaries.
+ // Remove visual artifacts without pretending to infer Korean spacing.
+ const cleaned=raw.replace(/[·•‧∙⋅]/g,'').replace(/_+/g,' ').replace(/\s+/g,' ').trim();
+ // Preserve all genuine whitespace; never join Korean syllables blindly.
+ return cleaned.replace(/\s+([,.!?;:)'’”])/g,'$1').replace(/([('‘“])\s+/g,'$1');
 }
 function caseTableCells(line){
  const value=String(line||'').trim();if(!value.includes('|'))return null;
@@ -203,7 +202,7 @@ function renderCaseMarkdown(target,source){
      const td=document.createElement('td');
      if(issueSummary&&col===1){td.classList.add('issue-party-label');td.textContent=cell.replace(' 주장 요지',' 주장\n요지').replace(' 입증사항','\n입증사항')}
      else if(issueSummary&&col===2){td.classList.add('issue-content');td.textContent=cleanIssueOcrText(cell)}
-     else td.textContent=cell;
+     else td.textContent=issueSummary&&col===0?cleanIssueOcrText(cell):cell;
      if(headers.length===3&&headers[0]==='핵심 쟁점'&&col===0&&cell){
       let span=1;for(let n=i+1;n<lines.length;n++){const next=caseTableCells(lines[n]);if(!next||next.length!==3||next[0])break;span++}
       td.rowSpan=span;td.style.verticalAlign='middle';
