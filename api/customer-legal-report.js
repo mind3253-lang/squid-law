@@ -67,7 +67,8 @@ export default async function handler(req,res){
    res.setHeader('Content-Type','text/plain; charset=utf-8');
    res.setHeader('Content-Disposition','attachment; filename="squidlaw-legal-report.txt"');
    res.setHeader('X-Content-Type-Options','nosniff');
-   return res.status(200).send(brief.text);
+   const indented=brief.text.split('\n').map(line=>{const t=line.trim();return !t||/^(?:#|\||\[\^|---|\*\*|※)/.test(t)||/^사건번호\s*:|^원고\s*:|^피고\s*:|^의뢰인\s*:/.test(t)?line:'\u3000'+line}).join('\n');
+   return res.status(200).send(indented);
   }
   return respond(res,200,{report:{...report,briefText:brief.text,briefMeta:{
    clientRole:brief.clientRole,chapters:brief.chapterCount,
