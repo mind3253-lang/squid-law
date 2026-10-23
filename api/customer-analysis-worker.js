@@ -1,4 +1,4 @@
-import {claimJob,recoverMissingRegistryJobs,advanceJob as advanceJobRaw,renewJobLease,completedCaseBaselines} from './customer-analysis-jobs-db.js';
+import {claimJob,recoverMissingRegistryJobs,recoverServiceUnavailableJobs,advanceJob as advanceJobRaw,renewJobLease,completedCaseBaselines} from './customer-analysis-jobs-db.js';
 import {mayClaimCustomerJob} from '../lib/customer-worker-owner.mjs';
 import {visionFailureDisposition,visionFailureDiagnostic} from '../lib/vision-failure-policy.mjs';
 import {timedAnalysisStep} from '../lib/analysis-timing.mjs';
@@ -87,6 +87,7 @@ export default async function handler(req,res){
  let job,heartbeat=null,heartbeatBusy=false,leaseExpired=false;
  try{
   await recoverMissingRegistryJobs();
+  await recoverServiceUnavailableJobs();
   job=await claimJob();
   if(!job)return res.status(200).json({status:'idle'});
   // Long PDF and vision windows must retain their fenced owner across stages.
