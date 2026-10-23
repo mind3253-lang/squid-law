@@ -705,7 +705,7 @@ async function fullReviewRequest(url,options={}){
   let j;
   try{j=JSON.parse(raw)}catch{throw Error('분석 서버가 JSON이 아닌 응답을 반환했습니다. 기존 작업은 보존됩니다.'+fullReviewFailure(options.method||'GET',url,r.status,'NON_JSON_RESPONSE'));}
   if(!j||typeof j!=='object'||Array.isArray(j))throw Error('분석 서버 응답 형식이 올바르지 않습니다. 기존 작업은 보존됩니다.'+fullReviewFailure(options.method||'GET',url,r.status,'INVALID_PAYLOAD'));
-  if(!r.ok)throw Error('분석 서버 요청 실패. 기존 작업은 보존됩니다.'+fullReviewFailure(options.method||'GET',url,r.status,j.code));
+  if(!r.ok)throw Error(String(j.error||'분석 요청을 처리하지 못했습니다. 기존 작업은 보존됩니다.'));
   return j;
  }finally{clearTimeout(timeout)}
 }
@@ -755,7 +755,7 @@ fullReviewButton.onclick=async()=>{
   ]);
  });
  if(!approved)return;
- try{const caseId=select.value;const j=await fullReviewRequest('/api/customer-analysis-job?caseId='+encodeURIComponent(caseId),{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(sessionStorage.getItem('squidlaw-full-review:'+caseId)?{action:'resume-analysis',approved:true,jobId:sessionStorage.getItem('squidlaw-full-review:'+caseId)}:{action:'approve-analysis',approved:true})});const id=j.job.jobId;sessionStorage.setItem('squidlaw-full-review:'+caseId,id);notice('전체 분석 작업 접수 · '+id);if(fullReviewTimer)clearInterval(fullReviewTimer);await fullReviewStatus(id,caseId);if(!['blocked','failed','completed'].includes(j.job.status))fullReviewTimer=setInterval(()=>fullReviewStatus(id,caseId).catch(e=>notice(e.message,'error')),15000)}
+ try{const caseId=select.value;const j=await fullReviewRequest('/api/customer-analysis-job?caseId='+encodeURIComponent(caseId),{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({action:'approve-analysis',approved:true})});const id=j.job.jobId;sessionStorage.setItem('squidlaw-full-review:'+caseId,id);notice('전체 분석 작업 접수 · '+id);if(fullReviewTimer)clearInterval(fullReviewTimer);await fullReviewStatus(id,caseId);if(!['blocked','failed','completed'].includes(j.job.status))fullReviewTimer=setInterval(()=>fullReviewStatus(id,caseId).catch(e=>notice(e.message,'error')),15000)}
  catch(e){notice(e.message,'error')}
 };
 window.__caseSendAction=()=>{send().catch(e=>notice('전송 오류: '+String(e.message||e),'error'))};select.onchange=()=>{if(busy)return;syncIntake();history.replaceState(null,'','?case='+encodeURIComponent(select.value));if(fullReviewTimer){clearInterval(fullReviewTimer);fullReviewTimer=null}refresh().then(restoreFullReview)};const params=new URLSearchParams(location.search);if([...select.options].some(o=>o.value===params.get('case')))select.value=params.get('case');input.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.isComposing&&!e.shiftKey&&!e.ctrlKey&&!e.altKey&&!e.metaKey){e.preventDefault();if(!busy)send().catch(err=>notice(err.message,'error'))}});loadCases().catch(e=>{status.textContent='사건 목록 조회 실패: '+e.message})})();
