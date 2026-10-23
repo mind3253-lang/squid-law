@@ -75,7 +75,9 @@ export async function runDeltaReviewStep({job,previous,documents,prefix,load,put
   let cached=await load(path);
   if(!cached){
    if(!apiKey)throw Error('OPENAI_API_KEY_MISSING');
-   const response=await invokeDeltaModel({request:req,apiKey});
+   let response;
+   try{response=await invokeDeltaModel({request:req,apiKey})}
+   catch(e){e.deltaStage=delta.stage;e.deltaCursor=delta.stage==='impact'?delta.impactCursor:delta.revisionCursor;throw e}
    cached={decisions:validateDeltaImpact({response:response.result,caseId:job.caseId,
     sourceVersion:job.documentVersion,cursor,count,newFindingCount:fresh.findings.length}),model,usage:response.usage};
    await write(put,path,cached);
