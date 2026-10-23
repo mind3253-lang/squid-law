@@ -193,7 +193,7 @@ function renderCaseMarkdown(target,source){
      if(headers.length===3&&headers[0]==='핵심 쟁점'&&col===0&&!cell)continue;
      const td=document.createElement('td');
      if(issueSummary&&col===1){td.classList.add('issue-party-label');td.textContent=cell.replace(' 주장 요지',' 주장\n요지').replace(' 입증사항','\n입증사항')}
-     else if(issueSummary&&col===2){td.classList.add('issue-content');const dots=(cell.match(/·/g)||[]).length;td.textContent=dots>=5?cell.replace(/([가-힣])\s*·\s*(?=[가-힣])/g,'$1'):cell}
+     else if(issueSummary&&col===2){td.classList.add('issue-content');td.textContent=cell.replace(/\s*·\s*/g,' ').replace(/\s+([,.!?;:])/g,'$1').replace(/([('‘“])\s+/g,'$1').replace(/\s+([)'’”])/g,'$1').replace(/\s+/g,' ').trim()}
      else td.textContent=cell;
      if(headers.length===3&&headers[0]==='핵심 쟁점'&&col===0&&cell){
       let span=1;for(let n=i+1;n<lines.length;n++){const next=caseTableCells(lines[n]);if(!next||next.length!==3||next[0])break;span++}
