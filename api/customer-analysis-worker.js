@@ -161,7 +161,7 @@ export default async function handler(req,res){
     }
     const request={model:process.env.SQUIDLAW_LEGAL_MODEL||'gpt-5.4',store:false,
      input:[{role:'system',content:'You assess whether uploaded documents are plausibly relevant to an existing Korean legal case. Consider witnesses, related litigation and third parties. Never infer relevance solely from a filename or shared name. If unclear or insufficient text, require clarification. Customer clarifications are claims to cross-check against document text and existing case, not automatic proof. Mark relevant only when supported. Respond as strict JSON {"decisions":[{"id":"...","status":"relevant|clarify","reason":"Korean concise explanation"}]}. Only use relevant when substantive connection is visible in document content.'},
-      {role:'user',content:JSON.stringify({case:{caseId:job.caseId,intake:registry.intake,priorIssues:prior?.findings?.slice(0,12).map(f=>({issueKey:f.issueKey,claim:String(f.claim||'').slice(0,350)}))},documents:samples,customerClarifications:job.checkpoint?.relevanceClarifications||{}})}],
+      {role:'user',content:'Return JSON only. '+JSON.stringify({case:{caseId:job.caseId,intake:registry.intake,priorIssues:prior?.findings?.slice(0,12).map(f=>({issueKey:f.issueKey,claim:String(f.claim||'').slice(0,350)}))},documents:samples,customerClarifications:job.checkpoint?.relevanceClarifications||{}})}],
      text:{format:{type:'json_object'}}};
     let reviewed;
     try{reviewed=(await invokeDeltaModel({request,apiKey:process.env.OPENAI_API_KEY})).result}
