@@ -42,6 +42,20 @@ jobs:
           tar -czf "$backup" --exclude=node_modules --exclude=.git --exclude=.env --exclude=uploads --exclude=storage -C /opt/squidlaw/app .
           tar -xzf /tmp/squidlaw-release.tar.gz -C /opt/squidlaw/app
           npm ci --omit=dev --no-audit --no-fund
+          # Validate critical entrypoints before restarting production services.
+          # A failed syntax check restores the pre-deploy code snapshot.
+          if ! (node --check api/customer-analysis-worker.js &&
+                node --check api/customer-delta-worker.mjs &&
+                node --check lib/diagnostic-context.mjs &&
+                node --check lib/skynet-worker-completion.mjs &&
+                node --check lib/skynet-maintenance-rollback.mjs); then
+            echo DEPLOY_SYNTAX_GATE_FAILED
+            tar -xzf "$backup" -C /opt/squidlaw/app
+            npm ci --omit=dev --no-audit --no-fund
+            echo DEPLOY_PRESTART_RESTORED
+            exit 1
+          fi
+          echo DEPLOY_SYNTAX_GATE_PASSED
           # Keep service-specific credentials intact; share only the canonical
           # object-store root between API and worker.
           if test -f /etc/squidlaw/api.env && test -f /etc/squidlaw/worker.env; then
