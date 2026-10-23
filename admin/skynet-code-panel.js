@@ -7,7 +7,7 @@ const request=async(path,method='GET',data)=>{const response=await fetch(path,{m
 const job=()=>$('skynetCodeJob').value.trim();
 const owner=()=>$('skynetCodeOwner').value.trim();
 const task=()=>$('skynetCodeTask').value.trim();
-const run=async(fn)=>{try{display('작업 처리 중…');await fn()}catch(e){display('오류: '+e.message)}};
+const run=async(fn)=>{try{display('작업 처리 중…');await fn()}catch(e){window.SQUID_DIAGNOSTICS?.capture('skynet_maintenance_action',e,{stage:'code-panel'});display('오류: '+e.message)}};
 function addButton(id,fn){const el=$(id);if(el)el.addEventListener('click',()=>run(fn))}
 addButton('skynetCodePlan',async()=>{const goal=$('skynetCodeGoal').value.trim();const repository=$('skynetCodeRepository').value.trim();const branch=$('skynetCodeBranch').value.trim();const r=await request('/admin/skynet-plan-job','POST',{goal,repository,branch});$('skynetCodeJob').value=r.jobId;display(r)});
 addButton('skynetCodeLease',async()=>display(await request('/admin/skynet-code-lease','POST',{jobId:job(),owner:owner()})));
