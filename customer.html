@@ -692,7 +692,13 @@ fullReviewButton.onclick=async()=>{
    existingId=null;
   }
  }
- if(!confirm('이 사건에 등록한 전체 문서의 장시간 분석을 신청하시겠습니까? 분석은 즉시 완료되지 않으며, 이미지 검증이 끝나기 전에는 완료로 표시되지 않습니다.'))return;
+ const approved=await new Promise(resolve=>{
+  guideQuestion('이 사건에 등록된 전체 문서를 다시 분석하시겠습니까? 기존 완료 보고서는 유지되며, 새 분석은 검증을 거쳐 완료됩니다.',[
+   ['분석 신청',()=>resolve(true)],
+   ['취소',()=>resolve(false)]
+  ]);
+ });
+ if(!approved)return;
  try{const caseId=select.value;const j=await fullReviewRequest('/api/customer-analysis-job?caseId='+encodeURIComponent(caseId),{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(sessionStorage.getItem('squidlaw-full-review:'+caseId)?{action:'resume-analysis',approved:true,jobId:sessionStorage.getItem('squidlaw-full-review:'+caseId)}:{action:'approve-analysis',approved:true})});const id=j.job.jobId;sessionStorage.setItem('squidlaw-full-review:'+caseId,id);notice('전체 분석 작업 접수 · '+id);if(fullReviewTimer)clearInterval(fullReviewTimer);await fullReviewStatus(id,caseId);if(!['blocked','failed','completed'].includes(j.job.status))fullReviewTimer=setInterval(()=>fullReviewStatus(id,caseId).catch(e=>notice(e.message,'error')),15000)}
  catch(e){notice(e.message,'error')}
 };
