@@ -104,6 +104,12 @@ jobs:
           test -f /opt/squidlaw/app/docs/GABIA_MAINTENANCE_PROBE.txt
           grep -qx 'GABIA_DIRECT_MAINTENANCE_PROBE_V1' /opt/squidlaw/app/docs/GABIA_MAINTENANCE_PROBE.txt
           echo DEPLOY_PROBE_VERIFIED
+          echo RECENT_CUSTOMER_API_ERROR_DIAGNOSIS_BEGIN
+          # Capture only error classes and correlation IDs; never print request payloads or credentials.
+          journalctl -u squidlaw-api.service --since '30 minutes ago' --no-pager -o cat | \
+            grep 'GABIA_CUSTOMER_API_FAILURE' | tail -15 | \
+            sed -E 's/"message":"[^"]*"/"message":"[REDACTED]"/g' || true
+          echo RECENT_CUSTOMER_API_ERROR_DIAGNOSIS_END
           echo INTEGRATION_AUDIT_BEGIN
           (
             set -a
