@@ -104,6 +104,11 @@ jobs:
           test -f /opt/squidlaw/app/docs/GABIA_MAINTENANCE_PROBE.txt
           grep -qx 'GABIA_DIRECT_MAINTENANCE_PROBE_V1' /opt/squidlaw/app/docs/GABIA_MAINTENANCE_PROBE.txt
           echo DEPLOY_PROBE_VERIFIED
+          echo RECENT_COMPAT_API_ERRORS_BEGIN
+          journalctl -u squidlaw-api.service --since '45 minutes ago' --no-pager -o cat | \
+            grep -E 'GABIA_COMPAT_API_FAILURE|TypeError:|ReferenceError:|ERR_MODULE_NOT_FOUND' | tail -25 | \
+            sed -E 's/"message":"[^"]*"/"message":"[REDACTED]"/g' | cut -c1-260 || true
+          echo RECENT_COMPAT_API_ERRORS_END
           echo RECENT_CUSTOMER_API_ERROR_DIAGNOSIS_BEGIN
           # Capture only error classes and correlation IDs; never print request payloads or credentials.
           journalctl -u squidlaw-api.service --since '30 minutes ago' --no-pager -o cat | \
@@ -125,7 +130,7 @@ jobs:
           REMOTE
           deploy_rc=$?
           set -e
-          grep -E '^(INTEGRATION_AUDIT_|AUDIT |RECENT_CUSTOMER_API_ERROR_DIAGNOSIS_|GABIA_(CUSTOMER|COMPAT)_API_FAILURE)' /tmp/deploy.log || true
+          grep -E '^(INTEGRATION_AUDIT_|AUDIT |RECENT_(CUSTOMER_API_ERROR_DIAGNOSIS|COMPAT_API_ERRORS)_|GABIA_(CUSTOMER|COMPAT)_API_FAILURE)' /tmp/deploy.log || true
           if [ "$deploy_rc" -ne 0 ]; then
             echo DEPLOY_SSH_EXIT_$deploy_rc
             grep -E '^(DEPLOY_|OBJECT_ROOT|INTEGRATION_AUDIT_|AUDIT |npm error|npm ERR|Error:)' /tmp/deploy.log | tail -35 || true
