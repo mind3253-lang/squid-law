@@ -1,0 +1,57 @@
+name: Gabia error diagnostics schema verification
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/gabia-error-diagnostics-schema.yml'
+permissions:
+  contents: read
+jobs:
+  diagnostics:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Initialize and verify diagnostics table on Gabia
+        env:
+          KEY: ${{ secrets.GABIA_SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "$KEY"
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$KEY" > ~/.ssh/gabia.pem
+          chmod 600 ~/.ssh/gabia.pem
+          ssh -T -i ~/.ssh/gabia.pem -o BatchMode=yes -o StrictHostKeyChecking=accept-new ubuntu@1.201.111.35 'bash -s' <<'REMOTE'
+          set -euo pipefail
+          db=squidlaw_production
+          test "$(sudo -n -u postgres psql -p 5433 -d "$db" -Atqc 'SELECT current_database()')" = "$db"
+          sudo -n -u postgres psql -p 5433 -d "$db" -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE TABLE IF NOT EXISTS public.squid_error_diagnostics (
+            trace_id TEXT PRIMARY KEY,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            system TEXT NOT NULL,
+            operation TEXT NOT NULL,
+            stage TEXT,
+            code TEXT NOT NULL,
+            error_name TEXT,
+            message TEXT,
+            source TEXT,
+            job_hash TEXT
+          );
+          CREATE INDEX IF NOT EXISTS squid_error_diagnostics_created_at_idx
+            ON public.squid_error_diagnostics(created_at DESC);
+          GRANT SELECT,INSERT ON public.squid_error_diagnostics TO root;
+          BEGIN;
+          INSERT INTO public.squid_error_diagnostics(trace_id,system,operation,code)
+            VALUES ('ERR-schema-verification','SYSTEM','schema-check','SCHEMA_WRITE_TEST');
+          DO $$
+          BEGIN
+            IF NOT EXISTS (SELECT 1 FROM public.squid_error_diagnostics WHERE trace_id='ERR-schema-verification')
+            THEN RAISE EXCEPTION 'DIAGNOSTIC_READ_VERIFY_FAILED'; END IF;
+          END $$;
+          ROLLBACK;
+          SQL
+          sudo -n psql -p 5433 -U root -d "$db" -v ON_ERROR_STOP=1 -Atqc 'SELECT count(*) FROM public.squid_error_diagnostics' >/dev/null
+          echo DIAGNOSTIC_SCHEMA_AND_ROOT_READ_OK
+          REMOTE
