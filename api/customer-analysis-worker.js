@@ -144,7 +144,8 @@ export default async function handler(req,res){
    const customerInclude=job.checkpoint?.customerIncludeUnverified;
    const customerOverride=Array.isArray(customerInclude)&&customerInclude.length>0&&
     baseline.addedDocuments.some(d=>customerInclude.includes(d.id))&&
-    customerInclude.every(id=>baseline.addedDocuments.some(d=>d.id===id));
+    customerInclude.every(id=>baseline.addedDocuments.some(d=>d.id===id))&&
+    (job.checkpoint?.relevanceDecisions||[]).filter(d=>d.status==='clarify').every(d=>customerInclude.includes(d.id));
    if(!customerOverride&&!job.checkpoint?.relevanceReviewed){
     if(process.env.SQUIDLAW_LEGAL_API_ENABLED!=='true'||!process.env.OPENAI_API_KEY){
      await advanceJob(job,'delta_relevance_api_pending',{...job.checkpoint},'blocked','LEGAL_API_NOT_ENABLED');
