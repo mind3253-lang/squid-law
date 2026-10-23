@@ -167,7 +167,7 @@ export async function runDeltaReviewStep({job,previous,documents,prefix,load,put
     if(!['INVALID_DELTA_REVISED_FINDING','DELTA_REVISED_SOURCE_NOT_VERIFIED',
      'DELTA_REVISION_NO_NEW_EVIDENCE'].includes(firstError.message))throw firstError;
     if(!apiKey)throw Error('OPENAI_API_KEY_MISSING');
-    const retryPath=path.replace(/\\.json$/,'-repaired.json');
+    const retryPath=path.slice(0,-5)+'-repaired.json';
     let repaired=await load(retryPath);
     if(!repaired){
      const corrected={...payload,instructions:payload.instructions+
