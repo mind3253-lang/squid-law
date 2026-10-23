@@ -96,7 +96,7 @@
 <section class="case-chat" aria-label="내 사건 분석 대화창">
 <div id="caseChatLog" class="case-chat-log" role="log" aria-live="polite"><p class="case-chat-empty">안녕하세요. 어떤 상황이신가요? 아래에서 선택하면 사건을 시작할 수 있습니다.</p></div>
 <div class="case-chat-compose" id="caseChatComposer">
-<div id="caseChatFeedback" class="case-chat-feedback" role="status" aria-live="polite"></div><div id="caseChatFiles" class="case-chat-files" aria-live="polite"></div>
+<div id="caseChatStatus" hidden style="display:none!important"></div><div id="caseChatFeedback" class="case-chat-feedback" role="status" aria-live="polite"></div><div id="caseChatFiles" class="case-chat-files" aria-live="polite"></div>
 <textarea id="caseChatInput" maxlength="9000" aria-label="내 사건 분석 메시지" placeholder="분석할 사건 자료와 증거를 첨부해 주세요."></textarea>
 <div class="case-chat-bar"><div><button id="caseChatSend" type="button" onclick="window.__caseSendAction()" aria-label="메시지 보내기" title="메시지 보내기"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M12 19V5m0 0-6 6m6-6 6 6" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div></div>
 </div>
@@ -512,7 +512,13 @@ async function startDeltaReanalysis(){
   await fullReviewStatus(id,caseId);
   if(fullReviewTimer)clearInterval(fullReviewTimer);
   if(!['completed','blocked','failed'].includes(j.job.status))fullReviewTimer=setInterval(()=>fullReviewStatus(id,caseId).catch(e=>notice(e.message,'error')),15000);
- }catch(e){bubble('추가 자료 분석 접수 실패: '+String(e.message||e),'system')}
+ }catch(e){
+  const message=String(e.message||e);
+  if(/CASE_PARTY_MISMATCH|DOCUMENT_RELEVANCE_REVIEW_REQUIRED|관련성|당사자/.test(message)){
+   bubble('추가 자료의 사건 관련성을 확인하지 못했습니다. 기존 보고서는 변경하지 않았습니다. 이 자료의 인물이 원고·피고·증인·관계자 중 누구인지, 어떤 쟁점과 연결되는지 채팅으로 설명해 주세요. 잘못 첨부했다면 “잘못 첨부”라고 알려주세요.','system');
+   reanalysisStep=5;
+  }else bubble('추가 자료 분석 접수 실패: '+message,'system');
+ }
 }
 function caseChatAction(label,action){const line=document.createElement('div');line.className='case-onboard-actions';line.style.cssText='align-self:flex-start;margin:8px 0 12px';const button=document.createElement('button');button.type='button';button.textContent=label;button.onclick=action;line.append(button);log.append(line);log.scrollTop=log.scrollHeight;return line}
 const textReportButton=document.createElement('button');textReportButton.type='button';
