@@ -1,7 +1,7 @@
 import {requireOwnedCase} from '../lib/customer-case-access.mjs';
 import {validClientRole} from '../lib/customer-case-intake.mjs';
 import {guard,respond,readJson,documents,casePrefix} from './customer-case.js';
-import {enqueueJob,getJob,resumeJob,queueSnapshot,documentVersion,latestCaseJob} from './customer-analysis-jobs-db.js';
+import {enqueueJob,getJob,resumeJob,queueSnapshot,documentVersion,latestCaseJob,confirmDocumentRelevance} from './customer-analysis-jobs-db.js';
 const kickWorker=()=>{};
 const idOk=id=>/^SL-[a-zA-Z0-9-]{5,40}$/.test(id);
 // Compare explicit party metadata only. Filename keywords are never evidence of mismatch.
@@ -32,6 +32,18 @@ export default async function handler(req,res){
  }
  if(req.method!=='POST')return respond(res,405,{error:'GET/POST만 허용'});
  let b=req.body;try{if(typeof b==='string')b=JSON.parse(b)}catch{return respond(res,400,{error:'요청 형식 오류'})}
+ if(b?.action==='clarify-document-relevance'){
+  const jobId=String(b.jobId||''),documentId=String(b.documentId||''),explanation=String(b.explanation||'').trim();
+  if(!/^[0-9a-f-]{36}$/.test(jobId)||!/^[0-9a-f-]{36}$/.test(documentId)||explanation.length<12||explanation.length>2500)
+   return respond(res,400,{error:'관련 문서와 구체적인 설명(12~2500자)이 필요합니다.'});
+  try{
+   const docs=await documents(a.user,caseId);
+   if(!docs.some(x=>x.id===documentId))return respond(res,404,{error:'첨부 문서가 없습니다.'});
+   const job=await confirmDocumentRelevance(a.user,caseId,jobId,documentVersion(docs),documentId,explanation);
+   if(!job)return respond(res,409,{error:'관련성 확인 대기 작업 또는 문서가 일치하지 않습니다.'});
+   kickWorker(req);return respond(res,202,{job,notice:'설명을 접수하고 관련성을 다시 검토합니다.'});
+  }catch{return respond(res,503,{error:'관련성 설명 저장 실패'})}
+ }
  if(b?.approved!==true||!['approve-analysis','resume-analysis'].includes(b?.action))return respond(res,400,{error:'고객의 명시적 전체 분석 승인이 필요합니다'});
  if(b.action==='resume-analysis'){
   if(!/^[0-9a-f-]{36}$/.test(String(b.jobId||'')))return respond(res,400,{error:'작업 ID 오류'});
