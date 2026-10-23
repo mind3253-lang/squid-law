@@ -118,7 +118,9 @@ export async function runDeltaReviewStep({job,previous,documents,prefix,load,put
    let candidate=await load(candidatePath);
    if(!candidate){
     if(!apiKey)throw Error('OPENAI_API_KEY_MISSING');
-    const response=await invokeDeltaModel({request:payload,apiKey});
+    let response;
+    try{response=await invokeDeltaModel({request:payload,apiKey})}
+    catch(e){e.deltaStage='revision';e.deltaCursor=cursor;throw e}
     candidate={response:response.result,model,usage:response.usage};
     await write(put,candidatePath,candidate);
    }
