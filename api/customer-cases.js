@@ -32,14 +32,14 @@ export default async function handler(req,res){
  }
  if(req.method!=='POST'&&req.method!=='PATCH')return respond(res,405,{error:'GET/POST/PATCH만 지원'});
  let body=req.body;try{if(typeof body==='string')body=JSON.parse(body)}catch{return respond(res,400,{error:'요청 형식 오류'})}
- let intake;try{intake=normalizeCaseIntake(body?.intake)}catch(e){return respond(res,400,{error:e.message})}
+ let intake;try{if(body?.intake!==undefined)intake=normalizeCaseIntake(body.intake);else if(req.method==='POST')intake=normalizeCaseIntake(body?.intake)}catch(e){return respond(res,400,{error:e.message})}
  if(req.method==='PATCH'){
   const id=String(body?.caseId||'');if(!idOk(id))return respond(res,400,{error:'사건 선택 오류'});
   try{
    const path=base(auth.user)+'registry/'+id+'.json';
    const existing=await readJson(path);
    if(!existing||existing.id!==id)return respond(res,404,{error:'등록된 사건이 없습니다'});
-   const updated={...existing,intake,updatedAt:new Date().toISOString()};
+   const rename=body?.title!==undefined;if(rename&&(typeof body.title!=='string'||!body.title.trim()||body.title.trim().length>80))return respond(res,400,{error:'사건명은 1~80자로 입력해 주세요'});const updated={...existing,intake:body?.intake===undefined?existing.intake:intake,...(rename?{title:body.title.trim()}:{}),updatedAt:new Date().toISOString()};
    await put(path,JSON.stringify(updated),{access:'private',allowOverwrite:true,addRandomSuffix:false,contentType:'application/json'});
    return respond(res,200,{case:updated});
   }catch{return respond(res,503,{error:'사건 의뢰인 정보 저장 실패'})}
