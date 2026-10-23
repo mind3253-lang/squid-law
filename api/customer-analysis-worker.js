@@ -876,7 +876,7 @@ export default async function handler(req,res){
  return res.status(200).json({status:'retry',processedDocuments:checkpoint.verifiedTextDocuments,processedPages:checkpoint.nextPage,totalDocuments:docs.length});
 
  }catch(e){
-  const diagnostic=String(e?.message||e||'UNKNOWN').slice(0,160);
+  const diagnostic=String(e?.message||e||'UNKNOWN').slice(0,500);
   const providerHttp=/^GPT_LEGAL_HTTP_(\d{3})$/.exec(diagnostic);
   const deltaHttpDetail=diagnostic.startsWith('DELTA_GPT_HTTP_')?diagnostic.slice(0,160):null;
   const providerCode=typeof e?.providerCode==='string'?e.providerCode.replace(/[^A-Za-z0-9_]/g,'_').slice(0,64):null;
@@ -891,15 +891,16 @@ export default async function handler(req,res){
   const dbFailureKind=job?'AFTER_CLAIM':'CLAIM_OR_DATABASE';
   // Hash the message and report only the in-repository stack location; no customer content.
   const failureFingerprint=createHash('sha256').update(diagnostic).digest('hex').slice(0,16);
+  const errorTraceId='AN-'+failureFingerprint;
   const stackFrame=String(e?.stack||'').split('\n').slice(1).map(line=>line.match(/(?:api|lib|worker)\/[A-Za-z0-9._/-]+:\d+:\d+/)?.[0]).find(Boolean)||null;
   if(safeCode==='SOURCE_READ_REVIEW_FAILED')console.error('SOURCE_REVIEW_AUDIT_CODES',JSON.stringify({failures:diagnostic.slice('GPT_LEGAL_SOURCE_REVIEW_FAILED:'.length).split(',').map(x=>x.split(':')[0]).slice(0,12)}));
-  console.error('CUSTOMER_WORKER_FAILURE',JSON.stringify({code:safeCode,providerCode,errorClass,stage:errorStage,jobClaimed:Boolean(job),dbCode,dbFailureKind,failureFingerprint,stackFrame}));
+  console.error('CUSTOMER_WORKER_FAILURE',JSON.stringify({code:safeCode,providerCode,errorClass,stage:errorStage,jobClaimed:Boolean(job),dbCode,dbFailureKind,failureFingerprint,stackFrame,errorTraceId,deltaStage:e?.deltaStage||job?.checkpoint?.delta?.stage||null,deltaCursor:Number.isSafeInteger(e?.deltaCursor)?e.deltaCursor:null}));
   const attempts=Number(job?.checkpoint?.errorAttempts||0);
   const disposition=visionFailureDisposition(safeCode,{attempts,maxAttempts:3});
   // Invalid visual evidence is blocked; only transient provider failures may retry.
   if(job){
    try{
-    await advanceJob(job,'error',{...(job.checkpoint||{}),errorAttempts:attempts+1,lastFailedStage:job.stage||null,lastFailureCode:safeCode,lastFailureAt:new Date().toISOString(),lastFailureStage:e?.deltaStage||job?.checkpoint?.delta?.stage||job?.stage||null,lastFailureCursor:Number.isSafeInteger(e?.deltaCursor)?e.deltaCursor:null,providerErrorSummary:deltaHttpDetail,message:diagnostic,...(safeCode==='VISION_PDF_INVALID_PAGE'?{visionPageDiagnostic:visionFailureDiagnostic(e)}:{})},disposition.status,safeCode);
+    await advanceJob(job,'error',{...(job.checkpoint||{}),errorAttempts:attempts+1,lastFailedStage:job.stage||null,lastFailureCode:safeCode,lastFailureAt:new Date().toISOString(),errorTraceId,errorClass,errorStackFrame:stackFrame,lastFailureStage:e?.deltaStage||job?.checkpoint?.delta?.stage||job?.stage||null,lastFailureCursor:Number.isSafeInteger(e?.deltaCursor)?e.deltaCursor:null,providerErrorSummary:deltaHttpDetail,message:diagnostic,...(safeCode==='VISION_PDF_INVALID_PAGE'?{visionPageDiagnostic:visionFailureDiagnostic(e)}:{})},disposition.status,safeCode);
    }catch{}
   }
   return res.status(503).json({error:safeCode,status:disposition.status,retryable:disposition.retryable});
