@@ -1,4 +1,5 @@
 import {randomUUID} from 'node:crypto';
+import {evaluateMaintenanceResult} from '../lib/diagnostic-context.mjs';
 import {atomicJobsEnabled} from '../lib/skynet-job-store-router.mjs';
 import {isSkynetAdmin} from '../lib/skynet-job-api-auth.mjs';
 import {validateJobInput} from '../lib/skynet-job-validation.mjs';
@@ -50,6 +51,10 @@ export default async function handler(req,res){
    if(body.taskId&&body.taskPatch){if(!body.taskPatch||typeof body.taskPatch!=='object'||Array.isArray(body.taskPatch))return res.status(400).json({error:'INVALID_TASK_PATCH'});if(current.status!=='running'||current.owner!==body.owner||(!Number.isFinite(Date.parse(current.leaseUntil))||Date.parse(current.leaseUntil)<=Date.now()))return res.status(409).json({error:'OWNER_MISMATCH'});if(body.taskPatch.status&&!['todo','in_progress','blocked','implemented','verified','failed'].includes(body.taskPatch.status))return res.status(400).json({error:'INVALID_TASK_STATUS'});if(body.taskPatch.status==='verified'&&(!Array.isArray(body.taskPatch.evidence)||body.taskPatch.evidence.length===0))return res.status(400).json({error:'TASK_EVIDENCE_REQUIRED'});if(body.taskPatch.status==='verified'){const task=current.tasks?.find(t=>t.id===body.taskId);if(task?.status!=='implemented')return res.status(409).json({error:'TASK_NOT_IMPLEMENTED'});}
    const job=checkpointTask(current,body.taskId,body.taskPatch);await saveJob(job,{expectedRevision:current.revision});return res.status(200).json({ok:true,job});}
    if(body.status==='completed'&&(!current.tasks?.length||current.tasks.some(t=>t.status!=='verified'||!Array.isArray(t.evidence)||!t.evidence.length)||Object.values(current.operations||{}).some(op=>op.status!=='completed')))return res.status(409).json({error:'UNVERIFIED_WORK_REMAINS'});
+   if(body.status==='completed'&&current.kind==='maintenance'){
+    const verdict=evaluateMaintenanceResult({plan:current.maintenancePlan,verification:current.maintenanceVerification});
+    if(!verdict.complete)return res.status(409).json({error:verdict.reason});
+   }
    const next=body.status==='queued'&&current.status==='running'&&body.recover===true?recoverJob(current):body.status==='running'?claimJob(current,body.owner):transitionJob(current,body?.status,{checkpoint:body?.checkpoint,reason:body?.reason,owner:body?.owner});
    const job=appendJobEvent(next,'status-changed',{from:current.status,to:next.status});
    await saveJob(job,{expectedRevision:current.revision});return res.status(200).json({ok:true,job,updatedAt:job.updatedAt});
