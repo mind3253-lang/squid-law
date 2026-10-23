@@ -507,6 +507,12 @@ function renderFullReview(job,queue,progress,billing){
  errorLine.style.cssText='display:block;color:#b91c1c;overflow-wrap:anywhere';
  const safeError=/^[A-Z][A-Z0-9_]{1,80}$/.test(String(job.errorCode||''))?job.errorCode:null;
  errorLine.textContent=safeError?'오류 코드: '+safeError:'';
+ if(safeError==='DELTA_GPT_HTTP_400'){
+  const summary=String(cp.providerErrorSummary||cp.message||'').slice(0,350);
+  if(summary)errorLine.textContent+=' · 서버 응답: '+summary;
+  if(cp.lastFailureStage)errorLine.textContent+=' · 단계: '+cp.lastFailureStage;
+  if(Number.isSafeInteger(cp.lastFailureCursor))errorLine.textContent+=' · 항목: '+cp.lastFailureCursor;
+ }
  if(safeError==='VISION_PDF_INVALID_PAGE'){
   const v=cp.visionPageDiagnostic||{};
   const parts=['사유: '+String(v.reason||'기록 없음')];
