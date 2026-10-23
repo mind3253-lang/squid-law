@@ -19,6 +19,7 @@ const uniqueRefs=findings=>{
 };
 async function originalSourceUnits({findings,documents,prefix,load}){
  const byId=new Map(documents.map(d=>[d.id,d])),refs=uniqueRefs(findings);
+ if(!refs.length)throw attachDiagnosticContext(new Error('DELTA_SOURCE_REFERENCES_MISSING'),diagnoseDeltaSources({oldFinding:findings[0],newFindings:findings.slice(1),sourceUnits:[]}));
  const batches=new Map();
  for(const r of refs){
   const d=byId.get(r.documentId);
