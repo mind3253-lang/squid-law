@@ -143,7 +143,7 @@ export default async function handler(req,res){
    // Ambiguity is a customer clarification, never an automatic evidence deletion.
    if(!job.checkpoint?.relevanceReviewed){
     if(process.env.SQUIDLAW_LEGAL_API_ENABLED!=='true'||!process.env.OPENAI_API_KEY){
-     await advanceJob(job,'delta_relevance_api_pending',{...job.checkpoint,delta:baseline},'blocked','LEGAL_API_NOT_ENABLED');
+     await advanceJob(job,'delta_relevance_api_pending',{...job.checkpoint},'blocked','LEGAL_API_NOT_ENABLED');
      return res.status(200).json({status:'blocked',reason:'LEGAL_API_NOT_ENABLED'});
     }
     const samples=[];
