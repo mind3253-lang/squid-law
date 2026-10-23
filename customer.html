@@ -431,6 +431,7 @@ fullReviewPanel.setAttribute('aria-live','polite');
 log.appendChild(fullReviewPanel);
 function renderFullReview(job,queue,progress,billing){
  if(fullReviewPanel.parentElement!==log)log.appendChild(fullReviewPanel);
+ if(!['completed','failed','blocked'].includes(job.status)||job.errorCode!=='DOCUMENT_RELEVANCE_REVIEW_REQUIRED')log.scrollTop=log.scrollHeight;
 
  const cp=job.checkpoint||{},state=job.status;
  const relevanceWait=state==='blocked'&&job.errorCode==='DOCUMENT_RELEVANCE_REVIEW_REQUIRED';
