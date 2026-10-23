@@ -125,7 +125,7 @@ jobs:
           REMOTE
           deploy_rc=$?
           set -e
-          grep -E '^(INTEGRATION_AUDIT_|AUDIT )' /tmp/deploy.log || true
+          grep -E '^(INTEGRATION_AUDIT_|AUDIT |RECENT_CUSTOMER_API_ERROR_DIAGNOSIS_|GABIA_CUSTOMER_API_FAILURE)' /tmp/deploy.log || true
           if [ "$deploy_rc" -ne 0 ]; then
             echo DEPLOY_SSH_EXIT_$deploy_rc
             grep -E '^(DEPLOY_|OBJECT_ROOT|INTEGRATION_AUDIT_|AUDIT |npm error|npm ERR|Error:)' /tmp/deploy.log | tail -35 || true
