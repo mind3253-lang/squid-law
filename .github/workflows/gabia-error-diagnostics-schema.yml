@@ -52,6 +52,12 @@ jobs:
           END $$;
           ROLLBACK;
           SQL
-          sudo -n psql -p 5433 -U root -d "$db" -v ON_ERROR_STOP=1 -Atqc 'SELECT count(*) FROM public.squid_error_diagnostics' >/dev/null
-          echo DIAGNOSTIC_SCHEMA_AND_ROOT_READ_OK
+          sudo -n psql -p 5433 -U root -d "$db" -v ON_ERROR_STOP=1 <<'SQL'
+          BEGIN;
+          INSERT INTO public.squid_error_diagnostics(trace_id,system,operation,code)
+            VALUES ('ERR-root-write-verification','SYSTEM','root-write-check','SCHEMA_WRITE_TEST');
+          SELECT trace_id FROM public.squid_error_diagnostics WHERE trace_id='ERR-root-write-verification';
+          ROLLBACK;
+          SQL
+          echo DIAGNOSTIC_SCHEMA_AND_ROOT_WRITE_READ_OK
           REMOTE
