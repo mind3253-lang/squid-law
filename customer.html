@@ -177,7 +177,7 @@ function caseTableCells(line){
  cells.push(part.trim());return cells.length>=2?cells:null;
 }
 function renderCaseMarkdown(target,source){
- const lines=String(source||'').replace(/\r\n/g,'\n').split('\n');let pending=[];
+ const lines=String(source||'').replace(/\\r\\n/g,'\n').replace(/\\n/g,'\n').replace(/\r\n/g,'\n').split('\n');let pending=[];
  const flush=()=>{
   if(!pending.length)return;
   const node=document.createElement('div');node.className='case-markdown-text';
