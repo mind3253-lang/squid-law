@@ -205,7 +205,8 @@ export default async function handler(req,res){
     return res.status(200).json({status:'retry',stage:'delta_baseline_receipts_refreshed'});
    }
    await advanceJob(job,'delta_baseline_verification_required',{
-    ...job.checkpoint,deltaBaselineDiagnostic:{missingGates:baselineCheck.missing,
+    ...job.checkpoint,errorTraceId:null,errorClass:null,errorStackFrame:null,providerErrorSummary:null,lastFailureStage:null,lastFailedStage:null,lastFailureCode:null,
+    deltaBaselineDiagnostic:{missingGates:baselineCheck.missing,
      originalMissingGates:originalCheck.missing,baselineJobId:deltaPlan.baselineJobId}
    },'blocked','DELTA_BASELINE_VERIFICATION_REQUIRED');
    return res.status(200).json({status:'blocked',reason:'DELTA_BASELINE_VERIFICATION_REQUIRED',
