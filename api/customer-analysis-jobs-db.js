@@ -186,3 +186,19 @@ export async function confirmDocumentRelevance(user,caseId,jobId,version,documen
   return publicJob(r.rows[0]);
  });
 }
+
+export async function acceptCustomerRequestedEvidence(user,caseId,jobId,version,documentIds){
+ return withLeaseDb(async db=>{
+  const r=await db.query(`UPDATE customer_analysis_jobs
+   SET checkpoint=jsonb_set(coalesce(checkpoint,'{}'::jsonb),'{customerIncludeUnverified}',to_jsonb($5::text[]),true),
+    status='queued',stage='relevance_customer_include',error_code=NULL,attempts=0,next_run_at=now(),updated_at=now()
+   WHERE customer_key=$1 AND case_id=$2 AND job_id=$3 AND document_version=$4
+    AND status='blocked' AND error_code='DOCUMENT_RELEVANCE_REVIEW_REQUIRED'
+    AND (SELECT count(*) FROM jsonb_array_elements(coalesce(checkpoint->'relevanceDecisions','[]'::jsonb)) x
+      WHERE x->>'status'='clarify')=cardinality($5::text[])
+    AND NOT EXISTS(SELECT 1 FROM unnest($5::text[]) d WHERE NOT EXISTS
+      (SELECT 1 FROM jsonb_array_elements(coalesce(checkpoint->'relevanceDecisions','[]'::jsonb)) x WHERE x->>'id'=d AND x->>'status'='clarify'))
+   RETURNING *`,[key(user),caseId,jobId,version,documentIds]);
+  return publicJob(r.rows[0]);
+ });
+}
