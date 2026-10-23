@@ -361,8 +361,18 @@ async function send(){if(busy){notice('이전 업로드 요청이 진행 중입�
    }catch(e){bubble('파일 폐기 실패: '+String(e.message||e)+'. 기존 자료는 유지됩니다.','system')}
   }else bubble('폐기 대상 추가 PDF를 하나로 특정할 수 없어 삭제하지 않았습니다. 기존 보고서는 유지됩니다.','system');
  }else{
-  reanalysisStep=6;
-  bubble('설명해 주신 관련성은 사용자 진술로 접수했습니다. 문서의 원문과 기존 사건의 당사자·쟁점이 실제로 연결되는지 확인해야 합니다. 자동 반영은 보류하며 기존 보고서는 변경하지 않습니다.','system');
+  const caseId=select.value,jobId=sessionStorage.getItem('squidlaw-full-review:'+caseId);
+  try{
+   const state=await fullReviewRequest('/api/customer-analysis-job?caseId='+encodeURIComponent(caseId)+'&jobId='+encodeURIComponent(jobId));
+   const decisions=(state.job?.checkpoint?.relevanceDecisions||[]).filter(x=>x.status==='clarify');
+   if(decisions.length!==1){bubble('확인이 필요한 문서가 여러 개입니다. 문서별 확인이 필요하므로 자료를 임의로 반영하지 않았습니다.','system');return}
+   const response=await fullReviewRequest('/api/customer-analysis-job?caseId='+encodeURIComponent(caseId),{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({action:'clarify-document-relevance',jobId,documentId:decisions[0].id,explanation})});
+   reanalysisStep=0;log.dataset.deltaBlockedJob='';
+   bubble('설명을 저장했습니다. 문서 본문과 기존 사건을 다시 대조합니다. 기존 보고서는 유지됩니다.','system');
+   await fullReviewStatus(response.job.jobId,caseId);
+   if(fullReviewTimer)clearInterval(fullReviewTimer);
+   fullReviewTimer=setInterval(()=>fullReviewStatus(jobId,caseId).catch(e=>notice(e.message,'error')),15000);
+  }catch(e){bubble('관련성 재검토 요청 실패: '+String(e.message||e),'system')}
  }
  return;
 }if(!input.value.trim()&&!pending.length){notice('첨부할 파일을 먼저 선택해 주세요.','error');return}if(!pending.some(f=>/\.pdf$/i.test(f.name))&&!input.value.trim()){notice('현재 PDF만 서버 저장·분석이 가능합니다. 다른 형식은 변환 기능 준비 중입니다.','error');return}busy=true;select.disabled=true;$('createCase').disabled=true;const caseId=select.value;input.disabled=true;$('caseChatSend').disabled=true;$('caseChatSend').classList.add('is-processing');$('caseChatSend').setAttribute('aria-label','처리 중');const hasPdf=pending.some(f=>/\.pdf$/i.test(f.name));const txt=input.value.trim();let progressTimer=null,startedAt=Date.now();try{while(pending.some(f=>/\.pdf$/i.test(f.name))){const f=pending.find(f=>/\.pdf$/i.test(f.name));status.textContent='PDF 서버 업로드 및 페이지 추출 중: '+f.name;notice('업로드 중: '+f.name);const result=await uploadLarge(f);pending.splice(pending.indexOf(f),1);showPending();notice(result.duplicate?'기존에 저장된 PDF입니다: '+f.name:result.extractionPending?'원본 저장 완료 · 페이지별 추출 대기: '+f.name:'서버 저장 완료: '+f.name,'success');if(result.duplicate)status.textContent='중복 PDF · 기존 문서 사용: '+f.name}await refresh();if(hasPdf&&!txt){const saved=await api('GET');const docs=saved.documents||[];const total=docs.reduce((n,d)=>n+(Number(d.pageCount)||0),0);status.textContent='PDF '+docs.length+'개, 총 '+total+'쪽이 등록되었습니다. 추가 자료가 있나요? 모두 제출하셨다면 [사건 전체 분석 신청·상태 확인] 버튼에서 승인해 주세요. 이미지 증거 검증 전에는 완료되지 않습니다.';notice(status.textContent,'success');return}if(pending.length)notice('기타 파일 '+pending.length+'개는 아직 변환·분석되지 않았습니다. PDF만 분석에 반영됩니다.','error');if(txt){
