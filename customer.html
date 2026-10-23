@@ -219,7 +219,7 @@ function guideAdvance(step){
  guideStep=step;const category=categoryLabel(categoryCode());
  if(step===1){guideQuestion('어떤 문제로 소송을 준비하고 계신가요? 현재 분석실은 ‘'+category+'’ 관련 카테고리입니다. 해당 사건이 맞으신가요?', [['예',()=>guideAdvance(2)],['아니오',()=>guideStop('해당 사건 분야의 분석실로 이동해 주세요.')]]);return}
  if(step===2){guideQuestion('스키드로우 분석실은 법률상담이 아닌 사건 자료 분석을 제공합니다. PDF 문서로 자료를 제출하셔야 합니다. 자료가 준비되셨나요?', [['예',()=>guideAdvance(3)],['아니오',()=>guideStop('자료를 준비하신 후 다시 방문해 주세요.')]]);return}
- if(step===3){guideQuestion('PDF 자료를 마우스로 끌어 대화창에 넣거나 첨부 버튼으로 선택해 주세요. 파일을 확인한 후 분석비용과 결제 절차를 안내합니다.',[['기존 사건 이어가기',()=>guideStop('기존 사건은 마이페이지의 사건 목록에서 선택해 주세요.')],['처음으로',()=>showOnboarding()]]);return}
+ if(step===3){guideQuestion('자료를 마우스로 끌어 대화창에 넣으세요.',[]);return}
 }
 function showOnboarding(){selectedFlow='';awaitingResume=false;log.replaceChildren();guideAdvance(1)}
 function chooseFlow(key,label){if(key==='resume'){awaitingResume=true;guideStop('기존 사건은 마이페이지의 사건 목록에서 선택해 주세요.');return}showOnboarding()}
