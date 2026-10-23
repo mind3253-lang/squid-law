@@ -188,7 +188,13 @@ export async function runDeltaReviewStep({job,previous,documents,prefix,load,put
    if(!sourceAudit.complete)throw Error('DELTA_REVISION_SOURCE_AUDIT_FAILED:'+sourceAudit.failures.join(','));
    const review=buildSemanticReviewRequest({caseId:job.caseId,
     sourceVersion:job.documentVersion,findings:[finding],sourceUnits:sources,model});
-   const independent=await invokeSemanticReview({request:review,apiKey});
+   let independent;
+   try{independent=await invokeSemanticReview({request:review,apiKey});}
+   catch(error){
+    error.deltaStage='revision';
+    error.deltaCursor=cursor;
+    throw error;
+   }
    const check=validateSemanticReview({response:independent.result,caseId:job.caseId,
     sourceVersion:job.documentVersion,findings:[finding]});
    if(!check.complete)throw Error('DELTA_REVISION_INDEPENDENT_REVIEW_FAILED');
