@@ -1,3 +1,4 @@
+import {validateCompletionGates} from '../lib/analysis-stage-gates.mjs';
 import {captureServerError} from '../lib/server-error-diagnostics.mjs';
 import {claimJob,recoverMissingRegistryJobs,advanceJob as advanceJobRaw,renewJobLease,completedCaseBaselines} from './customer-analysis-jobs-db.js';
 import {mayClaimCustomerJob} from '../lib/customer-worker-owner.mjs';
@@ -191,7 +192,26 @@ export default async function handler(req,res){
   }
  }
  if(job.checkpoint?.delta){
-  docs=verifyDeltaPlan(job.checkpoint.delta,fullDocs);
+  // Reconcile stale delta receipts only from the original completed job.
+  const deltaPlan=job.checkpoint.delta;
+  const baselineCheck=validateCompletionGates(deltaPlan.baselineGates);
+  if(!baselineCheck.complete){
+   const originals=await completedCaseBaselines(job);
+   const original=originals.find(x=>x.jobId===deltaPlan.baselineJobId&&x.documentVersion===deltaPlan.baselineVersion&&x.status==='completed');
+   const originalCheck=validateCompletionGates(original?.checkpoint?.gates);
+   if(original&&originalCheck.complete){
+    const refreshed={...deltaPlan,baselineGates:original.checkpoint.gates};
+    await advanceJob(job,'delta_baseline_receipts_refreshed',{...job.checkpoint,delta:refreshed},'retry');
+    return res.status(200).json({status:'retry',stage:'delta_baseline_receipts_refreshed'});
+   }
+   await advanceJob(job,'delta_baseline_verification_required',{
+    ...job.checkpoint,deltaBaselineDiagnostic:{missingGates:baselineCheck.missing,
+     originalMissingGates:originalCheck.missing,baselineJobId:deltaPlan.baselineJobId}
+   },'blocked','DELTA_BASELINE_VERIFICATION_REQUIRED');
+   return res.status(200).json({status:'blocked',reason:'DELTA_BASELINE_VERIFICATION_REQUIRED',
+    missingGates:baselineCheck.missing});
+  }
+  docs=verifyDeltaPlan(deltaPlan,fullDocs);
   if(!docs.length)throw Error('DELTA_EVIDENCE_EMPTY');
   if(['impact','revision','finalize'].includes(job.checkpoint.delta.stage)){
    if(process.env.SQUIDLAW_LEGAL_API_ENABLED!=='true'||!process.env.OPENAI_API_KEY){
