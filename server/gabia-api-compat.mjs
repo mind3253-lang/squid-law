@@ -137,6 +137,7 @@ const server=createServer(async(req,res)=>{
  }catch(err){
   const errorCode=typeof err?.code==='string'&&/^[A-Z0-9_]{1,24}$/.test(err.code)?err.code:'UNKNOWN';
   const errorType=String(err?.name||'Error').slice(0,40);
+  reported=true; // The exception is recorded here; do not record the resulting 503 twice.
   const diagnostic=captureServerError(err,{system:path.startsWith('/api/skynet-')?'SKYNET':'SQUIDLAW',operation:path,stage:'api-handler'});
   console.error('GABIA_COMPAT_API_FAILURE',JSON.stringify({route:path,errorCode,errorType,traceId:diagnostic.traceId}));
   if(!res.headersSent){res.writeHead(503,{'content-type':'application/json','cache-control':'no-store','x-error-trace-id':diagnostic.traceId});}
