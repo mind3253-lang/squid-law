@@ -57,7 +57,7 @@ if(b?.action==='discard-mistaken-document'){
     await mayDiscardAdditionalDocument(user,id,documentVersion(docs.filter(d=>d.id!==candidate.id)),documentVersion(docs)))target=candidate;
   }
   if(!target||(documentId&&target.name!==confirmName))return respond(res,409,{error:'최근 추가된 문서를 안전하게 특정할 수 없습니다. 기존 자료는 유지됩니다.'});
-  const remaining=docs.filter(d=>d.id!==documentId);
+  const remaining=docs.filter(d=>d.id!==target.id);
   if(!remaining.length||!await mayDiscardAdditionalDocument(user,id,documentVersion(remaining),documentVersion(docs)))
    return respond(res,409,{code:'DISCARD_BASELINE_UNVERIFIED',error:'기존 완료 보고서의 원본을 보호하기 위해 폐기할 수 없습니다. 진행 중인 작업이 없는지 확인해 주세요.'});
   const paths=[prefix+'docs/'+target.id+'.json',prefix+'extracted/'+target.id+'.json',prefix+'pdf/'+target.id+'.pdf'];
