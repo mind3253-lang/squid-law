@@ -10,6 +10,8 @@ on:
       - 'tests/diagnostic-context.test.mjs'
       - 'tests/skynet-maintenance-completion.test.mjs'
       - 'lib/skynet-worker-completion.mjs'
+      - 'lib/skynet-maintenance-rollback.mjs'
+      - 'tests/skynet-maintenance-rollback.test.mjs'
       - 'shared-error-diagnostics.js'
       - 'api/skynet-diagnostics.js'
       - 'tests/error-diagnostics.test.mjs'
@@ -27,7 +29,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: node --test tests/error-diagnostics.test.mjs tests/shared-error-diagnostics-client.test.mjs tests/diagnostic-context.test.mjs tests/skynet-maintenance-completion.test.mjs
+      - run: node --test tests/error-diagnostics.test.mjs tests/shared-error-diagnostics-client.test.mjs tests/diagnostic-context.test.mjs tests/skynet-maintenance-completion.test.mjs tests/skynet-maintenance-rollback.test.mjs
+      - run: node --check lib/skynet-maintenance-rollback.mjs
       - run: node --check lib/skynet-worker-completion.mjs
       - run: node --check lib/diagnostic-context.mjs
       - run: node --check api/customer-delta-worker.mjs
