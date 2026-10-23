@@ -4,6 +4,7 @@ import {buildSemanticReviewRequest,invokeSemanticReview,validateSemanticReview} 
 import {buildDeltaImpactRequest,validateDeltaImpact,buildDeltaRevisionRequest,
  validateDeltaRevision,buildMergedDeltaReport,inheritDeltaGates,invokeDeltaModel} from '../lib/customer-delta-reanalysis.mjs';
 import {createHash} from 'node:crypto';
+import {diagnoseDeltaSources,attachDiagnosticContext} from '../lib/diagnostic-context.mjs';
 
 const sha=s=>createHash('sha256').update(s).digest('hex');
 const json=(o)=>JSON.stringify(o);
