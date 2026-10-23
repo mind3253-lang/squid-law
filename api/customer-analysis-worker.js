@@ -5,7 +5,7 @@ import {timedAnalysisStep} from '../lib/analysis-timing.mjs';
 // Observe persistence latency across all existing checkpoint paths without changing write semantics.
 const advanceJob=(...args)=>timedAnalysisStep('checkpoint_write',()=>advanceJobRaw(...args));
 const put=(...args)=>timedAnalysisStep('blob_write',()=>putRaw(...args));
-import {findDeltaBaseline,verifyDeltaPlan} from '../lib/customer-delta-reanalysis.mjs';
+import {findDeltaBaseline,verifyDeltaPlan,invokeDeltaModel} from '../lib/customer-delta-reanalysis.mjs';
 import {runDeltaReviewStep} from './customer-delta-worker.mjs';
 import {get} from '../lib/customer-object-storage.mjs';
 export const maxDuration=300;
@@ -138,6 +138,37 @@ export default async function handler(req,res){
    if(prior?.clientRole!==registry.intake?.clientRole){
     await advanceJob(job,'delta_client_role_changed',job.checkpoint||{},'blocked','DELTA_CLIENT_ROLE_CHANGED');
     return res.status(200).json({status:'blocked',reason:'DELTA_CLIENT_ROLE_CHANGED'});
+   }
+   // Screen new documents against the existing case before spending on delta analysis.
+   // Ambiguity is a customer clarification, never an automatic evidence deletion.
+   if(!job.checkpoint?.relevanceReviewed){
+    if(process.env.SQUIDLAW_LEGAL_API_ENABLED!=='true'||!process.env.OPENAI_API_KEY){
+     await advanceJob(job,'delta_relevance_api_pending',{...job.checkpoint,delta:baseline},'blocked','LEGAL_API_NOT_ENABLED');
+     return res.status(200).json({status:'blocked',reason:'LEGAL_API_NOT_ENABLED'});
+    }
+    const samples=[];
+    for(const item of baseline.addedDocuments){
+     const doc=fullDocs.find(d=>d.id===item.id);
+     const sample=await extractCustomerPdfWindow(prefix,doc,{startPage:1,pageCount:Math.min(doc.pageCount,3),fastTextOnly:true});
+     samples.push({id:doc.id,name:doc.name,pageCount:doc.pageCount,text:(sample.pages||[]).map(p=>p.text||'').join('\\n').slice(0,11000)});
+    }
+    const request={model:process.env.SQUIDLAW_LEGAL_MODEL||'gpt-5.4',store:false,
+     input:[{role:'system',content:'You assess whether uploaded documents are plausibly relevant to an existing Korean legal case. Consider witnesses, related litigation and third parties. Never infer relevance solely from a filename or shared name. If unclear or insufficient text, require clarification. Respond as strict JSON {"decisions":[{"id":"...","status":"relevant|clarify","reason":"Korean concise explanation"}]}. Only use relevant when substantive connection is visible in document content.'},
+      {role:'user',content:JSON.stringify({case:{caseId:job.caseId,intake:registry.intake,priorIssues:prior?.findings?.slice(0,12).map(f=>({issueKey:f.issueKey,claim:String(f.claim||'').slice(0,350)}))},documents:samples})}],
+     text:{format:{type:'json_object'}}};
+    let reviewed;
+    try{reviewed=(await invokeDeltaModel({request,apiKey:process.env.OPENAI_API_KEY})).result}
+    catch(e){await advanceJob(job,'delta_relevance_check_unavailable',{...job.checkpoint,relevanceDiagnostic:String(e.message||e).slice(0,160)},'blocked','DOCUMENT_RELEVANCE_REVIEW_REQUIRED');return res.status(200).json({status:'blocked',reason:'DOCUMENT_RELEVANCE_REVIEW_REQUIRED'})}
+    const decisions=reviewed?.decisions;
+    if(!Array.isArray(decisions)||decisions.length!==samples.length||samples.some(d=>!decisions.some(x=>x.id===d.id&&['relevant','clarify'].includes(x.status)))){
+     await advanceJob(job,'delta_relevance_review_required',{...job.checkpoint},'blocked','DOCUMENT_RELEVANCE_REVIEW_REQUIRED');
+     return res.status(200).json({status:'blocked',reason:'DOCUMENT_RELEVANCE_REVIEW_REQUIRED'});
+    }
+    const uncertain=decisions.filter(x=>x.status==='clarify');
+    if(uncertain.length){
+     await advanceJob(job,'delta_relevance_review_required',{...job.checkpoint,relevanceDecisions:decisions},'blocked','DOCUMENT_RELEVANCE_REVIEW_REQUIRED');
+     return res.status(200).json({status:'blocked',reason:'DOCUMENT_RELEVANCE_REVIEW_REQUIRED',documents:uncertain.map(x=>x.id)});
+    }
    }
    await advanceJob(job,'delta_evidence_selected',{
     delta:baseline,phase:'extract',nextDocument:0,nextPage:0,
