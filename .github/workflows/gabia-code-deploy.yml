@@ -80,6 +80,7 @@ jobs:
             systemctl status squidlaw-api.service --no-pager --lines=8 | grep -E 'Active:|Main PID:|code=|status=' || true
             exit 1
           fi
+          systemctl reset-failed squidlaw-worker.service || true
           if ! systemctl restart squidlaw-worker.service; then
             echo DEPLOY_WORKER_RESTART_FAILED
             systemctl status squidlaw-worker.service --no-pager --lines=12 | grep -E 'Active:|Main PID:|code=|status=' || true
