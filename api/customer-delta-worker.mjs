@@ -111,7 +111,10 @@ export async function runDeltaReviewStep({job,previous,documents,prefix,load,put
    error.deltaStage='revision';error.deltaCursor=cursor;
    throw error;
   }
-  const sources=await originalSourceUnits({findings:[old,...related],documents,prefix,load});
+  let sources;
+  try{sources=await originalSourceUnits({findings:[old,...related],documents,prefix,load})}
+  catch(error){throw attachDiagnosticContext(error,diagnoseDeltaSources({oldFinding:old,newFindings:related,sourceUnits:[]}))}
+  if(!sources.length)throw attachDiagnosticContext(new Error('DELTA_SOURCE_UNITS_EMPTY'),diagnoseDeltaSources({oldFinding:old,newFindings:related,sourceUnits:sources}));
   const sourceLength=sources.reduce((n,u)=>n+u.text.length,0);
   if(sourceLength>120000||sources.length>40)
    throw Error('DELTA_PRIMARY_CONTEXT_TOO_LARGE');
