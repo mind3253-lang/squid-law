@@ -96,6 +96,18 @@ const server=createServer(async(req,res)=>{
  const path=new URL(req.url||'/','http://localhost').pathname;
  const handler=routes.get(path);
  if(!handler){res.writeHead(404,{'content-type':'application/json','cache-control':'no-store'});res.end('{"error":"NOT_FOUND"}');return;}
+ // Capture HTTP 5xx returned by handlers even when no exception escapes.
+ // Do not inspect response bodies: they may contain customer information.
+ const nativeEnd=res.end.bind(res);
+ let reported=false;
+ res.end=function(...args){
+  if(!reported&&res.statusCode>=500){
+   reported=true;
+   const diagnostic=captureServerError(new Error('HTTP_'+res.statusCode),{system:path.startsWith('/api/skynet-')?'SKYNET':'SQUIDLAW',operation:path,stage:'http-response'});
+   if(!res.headersSent)res.setHeader('x-error-trace-id',diagnostic.traceId);
+  }
+  return nativeEnd(...args);
+ };
  const chunks=[];let size=0;
  try{
   if(streamingRoutes.has(path)){
