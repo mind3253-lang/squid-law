@@ -1,5 +1,6 @@
 import {extractPdfPages} from './customer-pdf-extract.js';
-import {get,put,list} from '../lib/customer-object-storage.mjs';
+import {get,put,list,del} from '../lib/customer-object-storage.mjs';
+import {documentVersion,mayDiscardAdditionalDocument} from './customer-analysis-jobs-db.js';
 import {createHash,randomUUID} from 'node:crypto';
 import {authenticatedUser} from './customer-auth.js';
 const hash=s=>createHash('sha256').update(s).digest('hex');
@@ -43,6 +44,28 @@ return respond(res,200,{documents:await documents(user,id),messages:await messag
 if(req.method!=='POST')return respond(res,405,{error:'GET/POST만 허용'});
 if(Number(req.headers['content-length']||0)>8500000)return respond(res,413,{error:'PDF는 파일당 5MB 이하만 지원합니다'});
 let b;try{b=typeof req.body==='string'?JSON.parse(req.body):req.body}catch{return respond(res,400,{error:'업로드 요청 형식 오류'})}
+if(b?.action==='discard-mistaken-document'){
+ const documentId=String(b.documentId||''),confirmName=String(b.confirmName||'');
+ if(!/^[0-9a-f-]{36}$/.test(documentId))return respond(res,400,{error:'문서 ID 오류'});
+ try{
+  const docs=await documents(user,id),target=docs.find(d=>d.id===documentId);
+  if(!target||target.name!==confirmName)return respond(res,409,{error:'폐기 대상 문서 확인 실패'});
+  const remaining=docs.filter(d=>d.id!==documentId);
+  if(!remaining.length||!await mayDiscardAdditionalDocument(user,id,documentVersion(remaining),documentVersion(docs)))
+   return respond(res,409,{code:'DISCARD_BASELINE_UNVERIFIED',error:'기존 완료 보고서의 원본을 보호하기 위해 폐기할 수 없습니다. 진행 중인 작업이 없는지 확인해 주세요.'});
+  const paths=[prefix+'docs/'+documentId+'.json',prefix+'extracted/'+documentId+'.json',prefix+'pdf/'+documentId+'.pdf'];
+  if(target.sourceKind==='private_chunked_pdf_v1'){
+   const {customerPdfChunkPaths}=await import('../lib/customer-pdf-source.mjs');
+   paths.push(...customerPdfChunkPaths(prefix,target.chunkUploadId,target.sourceParts,target.sourceChunkSize,target.size).map(x=>x.pathname));
+   paths.push(prefix+'upload-receipts/'+target.chunkUploadId+'.json');
+  }
+  // Delete the metadata last so a partial storage failure remains visible and retryable.
+  for(const path of paths.slice(1)){await del(path).catch(e=>{if(e?.code!=='ENOENT')throw e})}
+  await del(paths[0]);
+  await saveMessage(user,id,'system','고객 확인에 따라 잘못 첨부한 문서 '+target.name+'을 폐기했습니다.');
+  return respond(res,200,{discarded:true,documentId});
+ }catch(e){return respond(res,503,{code:'DISCARD_FAILED',error:'파일 폐기 처리에 실패했습니다. 다시 확인해 주세요.'})}
+}
 if(b?.action==='note'){
  const text=typeof b.text==='string'?b.text.trim():'';
  if(!text||text.length>9000)return respond(res,400,{error:'사건 메모는 9,000자 이내로 입력해 주세요.'});
