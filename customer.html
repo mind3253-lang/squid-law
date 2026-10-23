@@ -24,7 +24,7 @@
 .issue-summary-table th:nth-child(1),.issue-summary-table td:first-child[rowspan]{width:19%;text-align:center;vertical-align:middle;word-break:keep-all}
 .issue-summary-table th:nth-child(2){width:110px}
 .issue-summary-table td.issue-party-label{width:110px;text-align:center;vertical-align:middle;white-space:pre-line;word-break:keep-all;overflow-wrap:normal}
-.issue-summary-table td.issue-content{line-height:1.65;word-break:keep-all;overflow-wrap:break-word}
+.issue-summary-table td.issue-content{font-family:'Malgun Gothic','Apple SD Gothic Neo',Arial,sans-serif;line-height:1.65;word-break:keep-all;overflow-wrap:break-word}
 .case-markdown-heading{font-weight:700;margin:10px 0 6px;font-size:17px}
 .case-chat-compose{border-top:1px solid #e5eaf0;padding:14px}
 .case-chat-compose textarea{width:100%;box-sizing:border-box;min-height:110px;resize:vertical;border:0;outline:0;padding:12px;font:inherit;color:#17233b}
@@ -158,14 +158,12 @@ async function api(method,body){const r=await fetch(url(),{method,credentials:'s
 
 function cleanIssueOcrText(value){
  const raw=String(value||'').trim();
- // Only repair character-by-character OCR spacing; preserve ordinary prose unchanged.
- const syllableSpaced=(raw.match(/[가-힣](?:\\s+[가-힣]){5,}/g)||[]).join('');
  const noisy=(raw.match(/·/g)||[]).length>=5;
- if(!noisy&&syllableSpaced.length<18)return raw;
- const compact=raw.replace(/\\s*·\\s*/g,' ').replace(/([가-힣])\\s+(?=[가-힣])/g,'$1');
- const segmenter=new Intl.Segmenter('ko',{granularity:'word'});
- const segmented=[...segmenter.segment(compact)].map(x=>x.segment).join(' ');
- return segmented.replace(/\\s+([,.!?;:)'’”])/g,'$1').replace(/([('‘“])\\s+/g,'$1').replace(/\\s+/g,' ').trim();
+ const spaced=(raw.match(/[가-힣](?:\s+[가-힣]){5,}/g)||[]).join('').length>=18;
+ if(!noisy&&!spaced)return raw;
+ const compact=raw.replace(/\s*·\s*/g,' ').replace(/([가-힣])\s+(?=[가-힣])/g,'$1');
+ const words=[...new Intl.Segmenter('ko',{granularity:'word'}).segment(compact)].map(x=>x.segment).join(' ');
+ return words.replace(/\s+([,.!?;:)'’”])/g,'$1').replace(/([('‘“])\s+/g,'$1').replace(/\s+/g,' ').trim();
 }
 function caseTableCells(line){
  const value=String(line||'').trim();if(!value.includes('|'))return null;
