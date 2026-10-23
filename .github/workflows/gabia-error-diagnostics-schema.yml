@@ -6,7 +6,7 @@ on:
     paths:
       - '.github/workflows/gabia-error-diagnostics-schema.yml'
 permissions:
-  contents: read
+  contents: write
 jobs:
   diagnostics:
     runs-on: ubuntu-latest
@@ -61,3 +61,23 @@ jobs:
           SQL
           echo DIAGNOSTIC_SCHEMA_AND_ROOT_WRITE_READ_OK
           REMOTE
+
+      - name: Record sanitized schema verification result
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CHECK_STATUS: ${{ job.status }}
+        run: |
+          python3 - <<'PY'
+          import os,json,datetime
+          with open('/tmp/diagnostics-schema-result.json','w') as f:
+            json.dump({'status':os.environ['CHECK_STATUS'],'commit':os.environ['GITHUB_SHA'],'checked_at':datetime.datetime.now(datetime.timezone.utc).isoformat()},f)
+          PY
+          encoded=$(base64 -w0 /tmp/diagnostics-schema-result.json)
+          path=docs/GABIA_ERROR_DIAGNOSTICS_DB_RESULT.json
+          old=$(gh api "repos/${GITHUB_REPOSITORY}/contents/$path" --jq .sha 2>/dev/null || true)
+          if [ -n "$old" ]; then
+            gh api -X PUT "repos/${GITHUB_REPOSITORY}/contents/$path" -f message='Record diagnostics schema verification' -f content="$encoded" -f sha="$old"
+          else
+            gh api -X PUT "repos/${GITHUB_REPOSITORY}/contents/$path" -f message='Record diagnostics schema verification' -f content="$encoded"
+          fi
