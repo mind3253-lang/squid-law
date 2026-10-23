@@ -883,6 +883,7 @@ export default async function handler(req,res){
   const diagnostic=String(e?.message||e||'UNKNOWN').slice(0,500);
   const providerHttp=/^GPT_LEGAL_HTTP_(\d{3})$/.exec(diagnostic);
   const deltaHttpDetail=diagnostic.startsWith('DELTA_GPT_HTTP_')?diagnostic.slice(0,160):null;
+  const providerFailureDetail=typeof e?.providerErrorSummary==='string'?e.providerErrorSummary.slice(0,240):deltaHttpDetail;
   const providerCode=typeof e?.providerCode==='string'?e.providerCode.replace(/[^A-Za-z0-9_]/g,'_').slice(0,64):null;
   const errorName=String(e?.name||'');
   const systemCode=String(e?.code||'');
@@ -906,7 +907,7 @@ export default async function handler(req,res){
   // Invalid visual evidence is blocked; only transient provider failures may retry.
   if(job){
    try{
-    await advanceJob(job,'error',{...(job.checkpoint||{}),errorAttempts:attempts+1,lastFailedStage:job.stage||null,lastFailureCode:safeCode,lastFailureAt:new Date().toISOString(),errorTraceId,errorClass,errorStackFrame:stackFrame,lastFailureStage:e?.deltaStage||job?.checkpoint?.delta?.stage||job?.stage||null,lastFailureCursor:Number.isSafeInteger(e?.deltaCursor)?e.deltaCursor:null,providerErrorSummary:deltaHttpDetail,message:diagnostic,...(sourceDiagnostic?{sourceDiagnostic}:{}),...(safeCode==='VISION_PDF_INVALID_PAGE'?{visionPageDiagnostic:visionFailureDiagnostic(e)}:{})},disposition.status,safeCode);
+    await advanceJob(job,'error',{...(job.checkpoint||{}),errorAttempts:attempts+1,lastFailedStage:job.stage||null,lastFailureCode:safeCode,lastFailureAt:new Date().toISOString(),errorTraceId,errorClass,errorStackFrame:stackFrame,lastFailureStage:e?.deltaStage||job?.checkpoint?.delta?.stage||job?.stage||null,lastFailureCursor:Number.isSafeInteger(e?.deltaCursor)?e.deltaCursor:null,providerErrorSummary:providerFailureDetail,message:diagnostic,...(sourceDiagnostic?{sourceDiagnostic}:{}),...(safeCode==='VISION_PDF_INVALID_PAGE'?{visionPageDiagnostic:visionFailureDiagnostic(e)}:{})},disposition.status,safeCode);
    }catch{}
   }
   return res.status(503).json({error:safeCode,status:disposition.status,retryable:disposition.retryable,traceId:errorTraceId});
