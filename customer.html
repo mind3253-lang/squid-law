@@ -507,7 +507,18 @@ function renderFullReview(job,queue,progress,billing){
  errorLine.style.cssText='display:block;color:#b91c1c;overflow-wrap:anywhere';
  const safeError=/^[A-Z][A-Z0-9_]{1,80}$/.test(String(job.errorCode||''))?job.errorCode:null;
  errorLine.textContent=safeError?'오류 코드: '+safeError:'';
- if(safeError==='DELTA_GPT_HTTP_400'){
+ if(safeError){
+  const details=[];
+  if(cp.errorTraceId)details.push('추적번호: '+String(cp.errorTraceId).slice(0,40));
+  if(cp.lastFailureStage||cp.lastFailedStage)details.push('실패 단계: '+String(cp.lastFailureStage||cp.lastFailedStage).slice(0,90));
+  if(Number.isSafeInteger(cp.lastFailureCursor))details.push('실패 항목: '+cp.lastFailureCursor);
+  if(cp.errorClass)details.push('오류 유형: '+String(cp.errorClass).slice(0,40));
+  if(cp.errorStackFrame)details.push('발생 위치: '+String(cp.errorStackFrame).slice(0,160));
+  const summary=String(cp.providerErrorSummary||cp.message||'').slice(0,500);
+  if(summary&&summary!==safeError&&!/(sk-|Bearer |api[_-]?key|password|secret)/i.test(summary))details.push('상세 원인: '+summary);
+  if(details.length)errorLine.textContent+=' · '+details.join(' · ');
+ }
+ if(false&&safeError==='DELTA_GPT_HTTP_400'){
   const summary=String(cp.providerErrorSummary||cp.message||'').slice(0,350);
   if(summary)errorLine.textContent+=' · 서버 응답: '+summary;
   if(cp.lastFailureStage)errorLine.textContent+=' · 단계: '+cp.lastFailureStage;
