@@ -7,7 +7,8 @@ export default async function handler(req,res){
  if(!isSkynetAdmin(req))return res.status(401).json({error:'ADMIN_REQUIRED'});
  if(req.method!=='GET')return res.status(405).json({error:'METHOD_NOT_ALLOWED'});
  try{
-  const limit=Math.max(1,Math.min(100,Number(req.query?.limit)||40));
+  const requestedLimit=Number(req.query?.limit);
+  const limit=Number.isFinite(requestedLimit)?Math.max(1,Math.min(100,Math.floor(requestedLimit))):40;
   const traceFilter=String(req.query?.traceId||'').slice(0,80);
   const healthOnly=String(req.query?.health||'')==='1';
   if(healthOnly&&traceFilter)return res.status(400).json({error:'HEALTH_TRACE_CONFLICT'});
