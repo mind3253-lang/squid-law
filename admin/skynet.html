@@ -2117,4 +2117,6 @@ resizeSkynetComposer();drawChat();render();const hydrateDb=()=>{if(el('sendChat'
 <pre id="skynetCodeStatus" role="status" style="white-space:pre-wrap;overflow-wrap:anywhere;max-height:450px;overflow:auto"></pre>
 </section>
 <script src="/admin/skynet-code-panel.js" defer></script>
-</body></html>
+<section id="skynetDiagnosticPanel" style="padding:16px;margin:16px;border:1px solid #94a3b8;border-radius:12px"><h3>공통 오류 진단 기록</h3><p>현재 브라우저에서 발생한 스키드로우·스카이넷 오류 기록입니다. 서버 작업 오류는 해당 작업의 추적번호와 함께 확인해야 합니다.</p><button type="button" id="skynetDiagnosticRefresh">오류 기록 보기</button> <button type="button" id="skynetDiagnosticCopy">진단 기록 복사</button> <button type="button" id="skynetDiagnosticClear">현재 브라우저 기록 비우기</button><pre id="skynetDiagnosticOutput" style="max-height:340px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere"></pre></section><script>
+(()=>{const output=document.getElementById('skynetDiagnosticOutput'),api=()=>window.SQUID_DIAGNOSTICS;document.getElementById('skynetDiagnosticRefresh').onclick=()=>{output.textContent=api()?.export()||'진단 모듈을 불러오지 못했습니다.'};document.getElementById('skynetDiagnosticCopy').onclick=async()=>{try{await navigator.clipboard.writeText(api()?.export()||'[]');output.textContent='진단 기록을 복사했습니다.'}catch(e){output.textContent='복사 실패: '+String(e.message||e)}};document.getElementById('skynetDiagnosticClear').onclick=()=>{api()?.clear();output.textContent='현재 브라우저 기록을 비웠습니다.'};window.addEventListener('squidlaw:diagnostic',()=>{output.textContent=api()?.export()||'[]'});})();
+</script></body></html>
