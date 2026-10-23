@@ -151,3 +151,16 @@ export async function queueSnapshot(user,caseId,id){
 }
 
 export async function latestCaseJob(user,caseId){return withLeaseDb(async db=>{const r=await db.query('SELECT * FROM customer_analysis_jobs WHERE customer_key=$1 AND case_id=$2 ORDER BY created_at DESC,job_id DESC LIMIT 1',[key(user),caseId]);return publicJob(r.rows[0]);});}
+
+// Permit removing a mistaken additional document only when the remaining source
+// set is an already completed immutable baseline. Never remove evidence used
+// by an active or completed report.
+export async function mayDiscardAdditionalDocument(user,caseId,remainingVersion,currentVersion){
+ return withLeaseDb(async db=>{
+  const k=key(user);
+  const rows=await db.query("SELECT status,document_version FROM customer_analysis_jobs WHERE customer_key=$1 AND case_id=$2",[k,caseId]);
+  if(rows.rows.some(x=>['running','queued','retry'].includes(x.status)))return false;
+  return rows.rows.some(x=>x.status==='completed'&&x.document_version===remainingVersion)
+   &&!rows.rows.some(x=>x.status==='completed'&&x.document_version===currentVersion);
+ });
+}
