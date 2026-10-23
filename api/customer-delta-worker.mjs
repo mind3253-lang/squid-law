@@ -156,9 +156,31 @@ export async function runDeltaReviewStep({job,previous,documents,prefix,load,put
     candidate={response:response.result,model,usage:response.usage};
     await write(put,candidatePath,candidate);
    }
-   const finding=validateDeltaRevision({response:candidate.response,
-    caseId:job.caseId,sourceVersion:job.documentVersion,
-    newDocIds:delta.addedDocuments.map(d=>d.id),sourceUnits:sources});
+   let finding;
+   try{
+    finding=validateDeltaRevision({response:candidate.response,
+     caseId:job.caseId,sourceVersion:job.documentVersion,
+     newDocIds:delta.addedDocuments.map(d=>d.id),sourceUnits:sources});
+   }catch(firstError){
+    // A malformed persisted candidate must not permanently poison retries.
+    // Regenerate once with the validator error and the exact verified references.
+    if(!['INVALID_DELTA_REVISED_FINDING','DELTA_REVISED_SOURCE_NOT_VERIFIED',
+     'DELTA_REVISION_NO_NEW_EVIDENCE'].includes(firstError.message))throw firstError;
+    if(!apiKey)throw Error('OPENAI_API_KEY_MISSING');
+    const retryPath=path.replace(/\\.json$/,'-repaired.json');
+    let repaired=await load(retryPath);
+    if(!repaired){
+     const corrected={...payload,instructions:payload.instructions+
+      ' CORRECTION: Return exactly the required JSON object. The finding must have type from claim,rebuttal,admission,counterclaim,legal_element,legal_conclusion; a nonempty claim; status exactly draft; and sources copied exactly from supplied sourceUnits including a NEW document. Do not invent references.',
+      input:payload.input};
+     const response=await invokeDeltaModel({request:corrected,apiKey});
+     repaired={response:response.result,model,usage:response.usage,repairOf:firstError.message};
+     await write(put,retryPath,repaired);
+    }
+    finding=validateDeltaRevision({response:repaired.response,
+     caseId:job.caseId,sourceVersion:job.documentVersion,
+     newDocIds:delta.addedDocuments.map(d=>d.id),sourceUnits:sources});
+   }
    const sourceAudit=auditLegalReasoningResult({request:{caseId:job.caseId,
     sourceVersion:job.documentVersion,ready:true,verified:false},
     result:{caseId:job.caseId,sourceVersion:job.documentVersion,findings:[finding]},
