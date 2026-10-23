@@ -380,13 +380,17 @@ async function send(){if(busy){notice('이전 업로드 요청이 진행 중입�
   bubble('요청하신 첨부자료를 폐기하고 있습니다.','system');reanalysisFiles=[];reanalysisStep=0;document.body.classList.remove('relevance-chat-active');
   const caseId=select.value,storageKey='squidlaw-delta-uploaded:'+caseId;
   let uploaded=[];try{uploaded=JSON.parse(sessionStorage.getItem(storageKey)||'[]')}catch{}
-  if(uploaded.length===1){
-   try{
-    const result=await api('POST',{action:'discard-mistaken-document',documentId:uploaded[0].id,confirmName:uploaded[0].name});
-    if(result.discarded){sessionStorage.removeItem(storageKey);bubble('고객 확인에 따라 잘못 첨부한 PDF를 서버에서 폐기했습니다. 기존 보고서는 유지됩니다.','system');refresh().catch(()=>{})}
-    else bubble('폐기 결과를 확인할 수 없습니다. 기존 보고서는 유지됩니다.','system');
-   }catch(e){bubble('파일 폐기 실패: '+String(e.message||e)+'. 기존 자료는 유지됩니다.','system')}
-  }else bubble('폐기 대상 추가 PDF를 하나로 특정할 수 없어 삭제하지 않았습니다. 기존 보고서는 유지됩니다.','system');
+  try{
+   const selected=uploaded.length===1?{documentId:uploaded[0].id,confirmName:uploaded[0].name}:{discardLatest:true};
+   const result=await api('POST',{action:'discard-mistaken-document',...selected});
+   if(result.discarded){
+    sessionStorage.removeItem(storageKey);log.dataset.deltaBlockedJob='';log.dataset.reanalysisGuide='';
+    bubble('최근 추가한 PDF를 폐기했습니다. 기존 보고서는 유지됩니다.','system');
+    reanalysisStep=2;
+    guideQuestion('새로운 사건 자료나 증거를 첨부해 주세요.',[]);
+   }else bubble('폐기 결과를 확인하지 못했습니다. 자료는 유지됩니다.','system');
+  }catch(e){bubble('폐기하지 못했습니다. 최근 추가 자료의 확인이 필요합니다. 기존 자료는 유지됩니다.','system')}
+
  }else{
   const caseId=select.value,jobId=sessionStorage.getItem('squidlaw-full-review:'+caseId);
   guideQuestion('설명을 확인했습니다. 이 자료를 포함해 재분석을 진행하시겠습니까?', [['예, 재분석',()=>submitRelevanceExplanation(caseId,jobId,explanation)],['아니오, 이전 단계',()=>{reanalysisStep=5;showRelevanceChoices(jobId,caseId,{})}]]);
@@ -403,7 +407,7 @@ async function send(){if(busy){notice('이전 업로드 요청이 진행 중입�
    const response=await fullReviewRequest('/api/customer-analysis-job?caseId='+encodeURIComponent(caseId),{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({action:'clarify-document-relevance',jobId,documentId:decisions[0].id,explanation})});
    reanalysisStep=0;document.body.classList.remove('relevance-chat-active');log.dataset.deltaBlockedJob='';
    bubble('설명을 저장했습니다. 문서 본문과 기존 사건을 다시 대조합니다. 기존 보고서는 유지됩니다.','system');
-   await fullReviewStatus(response.job.jobId,caseId);
+   fullReviewStatus(response.job.jobId,caseId).catch(()=>{});
    if(fullReviewTimer)clearInterval(fullReviewTimer);
    fullReviewTimer=setInterval(()=>fullReviewStatus(jobId,caseId).catch(e=>notice(e.message,'error')),15000);
   }catch(e){bubble('설명 접수에 실패했습니다. 자료는 보존됩니다. 다시 시도해 주세요.','system')}
@@ -579,7 +583,7 @@ async function startDeltaReanalysis(){
   sessionStorage.setItem('squidlaw-full-review:'+caseId,id);
   reanalysisFiles=[];reanalysisStep=0;
   bubble('추가 자료 분석 작업을 접수했습니다. 기존 완료 분석을 기준으로 변경사항을 확인합니다.','system');
-  await fullReviewStatus(id,caseId);
+  fullReviewStatus(id,caseId).catch(()=>{});
   if(fullReviewTimer)clearInterval(fullReviewTimer);
   if(!['completed','blocked','failed'].includes(j.job.status))fullReviewTimer=setInterval(()=>fullReviewStatus(id,caseId).catch(e=>notice(e.message,'error')),15000);
  }catch(e){
