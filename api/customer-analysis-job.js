@@ -4,10 +4,16 @@ import {guard,respond,readJson,documents,casePrefix} from './customer-case.js';
 import {enqueueJob,getJob,resumeJob,queueSnapshot,documentVersion,latestCaseJob} from './customer-analysis-jobs-db.js';
 const kickWorker=()=>{};
 const idOk=id=>/^SL-[a-zA-Z0-9-]{5,40}$/.test(id);
-// High-confidence intake quarantine. A document with a clearly unrelated purpose
-// must not be silently merged into a legal report. Filename-only screening is
-// conservative; full semantic relevance review remains a separate gate.
-const unrelatedDocument=docs=>docs.find(d=>/(?:사주|팔자|만세력|토정비결|오늘의\\s*운세|별자리\\s*운세|타로\\s*점|궁합\\s*풀이)/i.test(String(d.name||d.filename||d.originalName||'')));
+// Compare explicit party metadata only. Filename keywords are never evidence of mismatch.
+const normParty=s=>String(s||'').replace(/\\s+/g,'').trim();
+const partyMismatch=(docs,intake)=>{
+ const plaintiff=normParty(intake?.plaintiffName),defendant=normParty(intake?.defendantName);
+ if(!plaintiff||!defendant)return null;
+ return docs.find(d=>{
+  const p=normParty(d?.plaintiffName||d?.parties?.plaintiff),q=normParty(d?.defendantName||d?.parties?.defendant);
+  return p&&q&&p!==plaintiff&&q!==defendant&&p!==defendant&&q!==plaintiff;
+ });
+};
 const verifiedSourcePages=docs=>Array.isArray(docs)&&docs.length>0&&docs.every(d=>Number.isSafeInteger(d?.pageCount)&&d.pageCount>0&&/^[0-9a-f]{64}$/i.test(String(d?.sha256||'')));
 export default async function handler(req,res){
  const a=guard(req);if(a.error)return respond(res,a.status,{error:a.error});
@@ -33,8 +39,8 @@ export default async function handler(req,res){
  }
  try{const docs=await documents(a.user,caseId);if(!docs.length)return respond(res,409,{error:'분석할 문서가 없습니다'});
  if(!verifiedSourcePages(docs))return respond(res,409,{code:'SOURCE_PAGES_NOT_VERIFIED',error:'원본 PDF의 페이지 수와 파일 무결성을 먼저 검증해야 합니다.'});
- const unrelated=unrelatedDocument(docs);
- if(unrelated)return respond(res,409,{code:'DOCUMENT_RELEVANCE_REVIEW_REQUIRED',error:'추가하신 자료는 사주·운세 등 현재 법률 사건과 직접 관련되지 않는 자료로 보입니다. 기존 분석과 보고서는 변경하지 않았습니다. 잘못 첨부하셨다면 해당 자료를 확인해 주세요. 사건과 관련된 자료라면 어떤 쟁점의 증거인지 설명한 후 검토가 필요합니다.',documentName:String(unrelated.name||unrelated.filename||unrelated.originalName||'').slice(0,160)});
+ const mismatch=partyMismatch(docs,registry.intake);
+ if(mismatch)return respond(res,409,{code:'CASE_PARTY_MISMATCH',error:'추가 문서의 원고·피고가 등록된 사건의 당사자와 일치하지 않습니다. 다른 사건의 자료인지 확인해 주세요. 기존 분석 결과는 변경하지 않았습니다.',documentId:mismatch.id});
  const job=await enqueueJob(a.user,caseId,documentVersion(docs));kickWorker(req);return respond(res,202,{job,notice:'분석 요청이 저장되었습니다. 실행 워커 활성화 여부는 별도로 확인해야 합니다.'})}
  catch(e){const code=e?.name==='LeaseUnavailable'?'DB_URL_MISSING':e?.code==='42P01'?'DB_TABLE_MISSING':e?.code==='28P01'?'DB_AUTH_FAILED':e?.code==='3D000'?'DB_NAME_INVALID':'DB_REGISTRATION_FAILED';return respond(res,503,{error:'분석 작업 등록 실패',code})}
 }
