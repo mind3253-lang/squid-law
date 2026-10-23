@@ -502,7 +502,9 @@ function renderFullReview(job,queue,progress,billing){
   failed:'다음 단계: 오류 코드를 확인해 관리자에게 문의해 주세요. 기존 자료는 유지됩니다.',
   completed:'다음 단계: 법률 분석 보고서 열기에서 결과와 근거를 확인해 주세요.'
  };
- nextStep.textContent=job.errorCode==='DELTA_BASELINE_UNAVAILABLE'?'기존 완료 보고서의 검증 기록을 연결하지 못했습니다. 기존 보고서는 유지됩니다.':job.errorCode==='DOCUMENT_RELEVANCE_REVIEW_REQUIRED'?'추가 문서의 사건 관련성을 확인해야 합니다. 아래 채팅에서 잘못 첨부한 자료인지, 어떤 관련이 있는지 알려주세요.':nextByStatus[state]||'다음 단계: 분석 상태를 다시 확인해 주세요.';
+ nextStep.textContent=nextByStatus[state]||'다음 단계: 분석 상태를 다시 확인해 주세요.';
+ if(job.errorCode==='DELTA_BASELINE_UNAVAILABLE')nextStep.textContent='기존 완료 보고서의 검증 기록을 연결하지 못했습니다. 기존 보고서는 유지됩니다.';
+ if(job.errorCode==='DOCUMENT_RELEVANCE_REVIEW_REQUIRED')nextStep.textContent='추가 문서의 사건 관련성을 확인해야 합니다. 아래 채팅에서 잘못 첨부한 자료인지, 어떤 관련이 있는지 알려주세요.'
  const errorLine=document.createElement('small');
  errorLine.style.cssText='display:block;color:#b91c1c;overflow-wrap:anywhere';
  const safeError=/^[A-Z][A-Z0-9_]{1,80}$/.test(String(job.errorCode||''))?job.errorCode:null;
