@@ -506,6 +506,13 @@ function renderFullReview(job,queue,progress,billing){
  const errorLine=document.createElement('small');
  errorLine.style.cssText='display:block;color:#b91c1c;overflow-wrap:anywhere';
  const safeError=/^[A-Z][A-Z0-9_]{1,80}$/.test(String(job.errorCode||''))?job.errorCode:null;
+ if(safeError&&['failed','blocked'].includes(state)){
+  const signature=[job.jobId,safeError,cp.errorAttempts||0,cp.lastFailureAt||''].join(':');
+  if(fullReviewPanel.dataset.lastDiagnostic!==signature){
+   fullReviewPanel.dataset.lastDiagnostic=signature;
+   window.SQUID_DIAGNOSTICS?.capture('analysis_job_failure',Object.assign(new Error(safeError),{code:safeError}),{stage:cp.lastFailureStage||job.stage});
+  }
+ }
  errorLine.textContent=safeError?'오류 코드: '+safeError:'';
  if(safeError){
   const details=[];
