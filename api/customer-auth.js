@@ -1,6 +1,9 @@
 import {get,put} from '../lib/customer-object-storage.mjs';
 import {createHash,createHmac,randomBytes,scryptSync,timingSafeEqual} from 'node:crypto';
 const COOKIE='squid_session',TTL=7*86400;
+const ADMIN_COOKIE='squid_admin_session';
+function adminSession(req){try{const token=String(req.headers.cookie||'').split(';').map(x=>x.trim()).find(x=>x.startsWith(ADMIN_COOKIE+'='))?.slice(ADMIN_COOKIE.length+1);if(!token||!process.env.ADMIN_PASSWORD)return false;const [time,sig]=token.split('.');if(!/^\d{13}$/.test(time)||Number(time)<=Date.now()||Number(time)>Date.now()+86400000)return false;const expected=createHmac('sha256',process.env.ADMIN_PASSWORD).update(time).digest('hex');return sig?.length===expected.length&&timingSafeEqual(Buffer.from(sig),Buffer.from(expected))}catch{return false}}
+
 const hash=s=>createHash('sha256').update(s).digest('hex');
 const path=id=>'squidlaw/users/'+hash(id)+'.json';
 const fail=(res,status,error)=>res.status(status).setHeader('Cache-Control','no-store').json({error});
@@ -14,13 +17,13 @@ async function load(id){const x=await get(path(id),{access:'private'}).catch(()=
 export default async function handler(req,res){
 res.setHeader('Cache-Control','no-store');res.setHeader('X-Content-Type-Options','nosniff');
 if(!process.env.SQUID_AUTH_SECRET||(process.env.SQUIDLAW_OBJECT_BACKEND&&process.env.SQUIDLAW_OBJECT_BACKEND!=='gabia'))return fail(res,503,'회원 서비스 준비 중');
-if(req.method==='GET'){const id=authenticatedUser(req);if(!id)return res.status(200).json({authenticated:false});const u=await load(id).catch(()=>null);return res.status(200).json({authenticated:true,id,name:u?.name||'',gender:u?.gender||'',birthyear:u?.birthyear||'',phone:u?.phone||'',membership:u?.membership||{type:'general',status:'active'}})}
+if(req.method==='GET'){if(adminSession(req))return res.status(200).json({authenticated:true,id:'admin',name:'관리자',role:'admin'});const id=authenticatedUser(req);if(!id)return res.status(200).json({authenticated:false});const u=await load(id).catch(()=>null);return res.status(200).json({authenticated:true,id,name:u?.name||'',gender:u?.gender||'',birthyear:u?.birthyear||'',phone:u?.phone||'',membership:u?.membership||{type:'general',status:'active'}})}
 if(req.method!=='POST')return fail(res,405,'허용되지 않은 요청');
 if(Number(req.headers['content-length']||0)>5000)return fail(res,413,'요청이 너무 큽니다');
 const origin=req.headers.origin;const host=req.headers.host;if(origin){let o;try{o=new URL(origin)}catch{return fail(res,403,'요청 출처 오류')}if(o.host!==host||o.protocol!=='https:')return fail(res,403,'요청 출처 오류')}
 let b=req.body;try{if(typeof b==='string')b=JSON.parse(b)}catch{return fail(res,400,'입력 오류')}
 const action=String(b?.action||'');
-if(action==='logout'){res.setHeader('Set-Cookie',cookie('',0));return res.status(200).json({ok:true})}
+if(action==='logout'){res.setHeader('Set-Cookie',[cookie('',0),'squid_admin_session=; Path=/api; HttpOnly; Secure; SameSite=Strict; Max-Age=0']);return res.status(200).json({ok:true})}
 if(!['register','login'].includes(action))return fail(res,400,'요청 오류');
 const id=normalize(b?.id),password=String(b?.password||'');
 if(!(action==='login'&&/^a[123]$/.test(id))&&!/^[a-z0-9][a-z0-9_-]{3,29}$/.test(id)||password.length<10||password.length>128)return fail(res,400,'아이디는 영문·숫자 4~30자, 비밀번호는 10~128자로 입력해 주세요');
