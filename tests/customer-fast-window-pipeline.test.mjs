@@ -60,7 +60,7 @@ test('visual review has fenced, checkpointed parallel independent primary and au
  assert.match(worker,/VISUAL_SOURCE_AUDIT_FAILED/);
  assert.match(worker,/independentAuditVerified:false/);
  assert.match(jobs,/interval '250 milliseconds'/);
- assert.match(jobs,/scheduleCustomerWorker\(\{delayMs:350\}\)/);
+ assert.doesNotMatch(jobs,/scheduleCustomerWorker/);
  assert.match(jobs,/FOR UPDATE SKIP LOCKED/);
  assert.match(jobs,/AND owner_token=\$4 AND fence=\$5 AND status='running' AND lease_expires_at>now\(\)/);
 });
