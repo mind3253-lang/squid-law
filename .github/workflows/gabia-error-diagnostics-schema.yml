@@ -98,9 +98,14 @@ jobs:
           PY
           encoded=$(base64 -w0 /tmp/diagnostics-schema-result.json)
           path=docs/GABIA_ERROR_DIAGNOSTICS_DB_RESULT.json
-          old=$(gh api "repos/${GITHUB_REPOSITORY}/contents/$path" --jq .sha 2>/dev/null || true)
-          if [ -n "$old" ]; then
-            gh api -X PUT "repos/${GITHUB_REPOSITORY}/contents/$path" -f message='Record diagnostics schema verification' -f content="$encoded" -f sha="$old"
-          else
-            gh api -X PUT "repos/${GITHUB_REPOSITORY}/contents/$path" -f message='Record diagnostics schema verification' -f content="$encoded"
-          fi
+          for attempt in 1 2 3 4; do
+            old=$(gh api "repos/${GITHUB_REPOSITORY}/contents/$path" --jq .sha 2>/dev/null || true)
+            if [ -n "$old" ]; then
+              gh api -X PUT "repos/${GITHUB_REPOSITORY}/contents/$path" -f message='Record diagnostics schema verification' -f content="$encoded" -f sha="$old" >/dev/null && break
+            else
+              gh api -X PUT "repos/${GITHUB_REPOSITORY}/contents/$path" -f message='Record diagnostics schema verification' -f content="$encoded" >/dev/null && break
+            fi
+            echo SCHEMA_RESULT_RECORD_CONFLICT_RETRY_$attempt
+            sleep 2
+          done
+          echo SCHEMA_RESULT_RECORD_BEST_EFFORT
