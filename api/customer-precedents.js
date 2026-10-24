@@ -22,9 +22,11 @@ async function verifyPrecedent(row){
   const response=await fetch(url,{signal:ctrl.signal,redirect:'error',headers:{accept:'text/html'}});
   if(!response.ok||!String(response.headers.get('content-type')||'').includes('text/html'))return null;
   const html=(await response.text()).slice(0,1500000);
+  const heading=html.match(/\[\s*대법원\s+\d{4}\.\s*\d{1,2}\.\s*\d{1,2}\.\s*선고\s+[^<\]]+판결\s*\]/)?.[0]||'';
+  if(!heading)return null;
   const text=normalized(html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi,' ').replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi,' '));
   const caseNumber=normalized(row.caseNumber),date=normalized(row.date);
-  if(!caseNumber||!date||!text.includes(caseNumber)||!text.includes(date))return null;
+  if(!caseNumber||!date||!normalized(heading).includes(caseNumber)||!normalized(heading).includes(date))return null;
   // The cited holding must be independently visible in the original ruling.
   const excerpt=normalized(row.originalExcerpt);
   if(excerpt.length<24||excerpt.length>350||!text.includes(excerpt))return null;
