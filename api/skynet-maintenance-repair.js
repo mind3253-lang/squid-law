@@ -15,7 +15,7 @@ export default async function handler(req,res){
  if((method&&!/^[A-Za-z0-9_.:-]+$/.test(method))||(reference&&!/^[A-Za-z0-9_.:-]+$/.test(reference)))
   return res.status(400).json({error:'INVALID_VERIFICATION_REFERENCE'});
  try{
-  const result=await withLeaseDb(async db=>{
+  const result=await withLeaseDb(async pool=>{const db=await pool.connect();try{
    await db.query('BEGIN');
    try{
     // Serialize transitions per trace without mutating original diagnostic records.
@@ -39,7 +39,7 @@ export default async function handler(req,res){
       [traceId,status,transition.verificationMethod,transition.verificationReference]);
     await db.query('COMMIT');
     return {ok:true,traceId,status,verified:transition.verified};
-   }catch(e){await db.query('ROLLBACK').catch(()=>{});throw e}
+   }catch(e){await db.query('ROLLBACK').catch(()=>{});throw e}finally{db.release()}
   });
   if(result.missing)return res.status(404).json({error:'DIAGNOSTIC_NOT_FOUND'});
   if(result.invalid)return res.status(409).json({error:result.invalid});
