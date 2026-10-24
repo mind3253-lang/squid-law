@@ -109,6 +109,9 @@ export default async function handler(req,res){
   const citations=unique(content.flatMap(x=>(x.annotations||[]).filter(a=>a.type==='url_citation').map(a=>a.url))).filter(u=>/^https:\/\//.test(u)).slice(0,25);
   if(!report)return respond(res,502,{code:'PRECEDENT_EMPTY',error:'GPT 판례 검색 응답에 확인 가능한 내용이 없습니다.'});
   const candidates=parsePrecedents(report);
+  // Do not trust a model's case-number/link pairing. The official ruling is authoritative.
+  // If the source identifies another case, never display the model's original number.
+
   const checked=await Promise.all(candidates.map(verifyPrecedent));
   const results=checked.filter(x=>x.ok).map(x=>x.item).slice(0,6);
   const diagnostics=Object.entries(checked.filter(x=>!x.ok).reduce((a,x)=>(a[x.reason]=(a[x.reason]||0)+1,a),{})).map(([reason,count])=>({reason,count}));
