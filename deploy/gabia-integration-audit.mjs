@@ -40,7 +40,7 @@ for(const [name,uri] of [['api-auth','/api/customer-auth'],['analysis-status-rou
 const objectRoot=process.env.SQUIDLAW_OBJECT_ROOT||'/var/lib/squidlaw/objects';
 try{const st=await stat(objectRoot);check('object-root-readable',st.isDirectory())}
 catch(e){check('object-root-readable',false,e.code||'ERROR')}
-if(process.env.SQUID_CUSTOMER_DATABASE_URL||process.env.SQUID_CUSTOMER_DATABASE_DATABASE_URL){
+if(process.env.SQUID_CUSTOMER_DATABASE_URL){
  try{
   const {withLeaseDb}=await import('../api/customer-analysis-lease-db.js');
   const result=await withLeaseDb(async db=>db.query("SELECT count(*)::integer AS total, count(*) FILTER (WHERE status='failed' AND error_code='CASE_NOT_FOUND')::integer AS missing_registry FROM customer_analysis_jobs"));
