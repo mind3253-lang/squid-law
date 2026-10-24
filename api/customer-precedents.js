@@ -62,7 +62,7 @@ async function filterByCaseRelevance(context,items){
  const ctrl=new AbortController(),timer=setTimeout(()=>ctrl.abort(),45000);
  try{
   const response=await fetch('https://api.openai.com/v1/responses',{method:'POST',signal:ctrl.signal,headers:{authorization:'Bearer '+process.env.OPENAI_API_KEY,'content-type':'application/json'},body:JSON.stringify({
-   model:process.env.SQUID_PRECEDENT_MODEL||'gpt-6',max_output_tokens:2200,
+   model:'gpt-6',max_output_tokens:2200,
    instructions:'당신은 판례 관련성 심사자입니다. 입력된 판례의 실제 공식 판결요지와 사건 쟁점을 비교하십시오. 같은 죄명이나 추상적인 사기 법리만 같으면 제외하십시오. 구체적 법률 쟁점과 판단구조가 실질적으로 맞는 판례만 채택하십시오. 관련성이 약한 의료법, 도박, 민사 구상금, 기업대출 등은 구체적인 공통 법리와 적용 이유가 없으면 제외하십시오. 추측하거나 없는 사실을 만들지 마십시오. JSON 객체만 반환: {"reviews":[{"caseNumber":"사건번호","keep":true,"relevance":"판례의 실제 판단과 본건의 사실관계 공통점·차이 및 입증할 사실을 쉬운 한국어 2~3문장으로","caution":"적용의 한계 1문장"}]}. 확실하지 않으면 keep:false.',
    input:JSON.stringify({caseContext:context,officialPrecedents:items.map(x=>({caseNumber:x.caseNumber,date:x.date,summary:x.summary,url:x.url}))}).slice(0,29000)
   })})});
@@ -113,7 +113,7 @@ export default async function handler(req,res){
   const ctrl=new AbortController();const timer=setTimeout(()=>ctrl.abort(),85000);
   let response;
   try{response=await fetch('https://api.openai.com/v1/responses',{method:'POST',signal:ctrl.signal,headers:{authorization:'Bearer '+process.env.OPENAI_API_KEY,'content-type':'application/json'},body:JSON.stringify({
-   model:process.env.SQUID_PRECEDENT_MODEL||'gpt-6',
+   model:'gpt-6',
    tools:[{type:'web_search',filters:{allowed_domains:['law.go.kr']}}],
    tool_choice:'required',
    max_output_tokens:4500,
