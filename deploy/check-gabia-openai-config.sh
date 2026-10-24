@@ -2,7 +2,7 @@
 # Read-only, redacted Gabia GPT readiness check. Never prints credentials.
 set -euo pipefail
 echo "GABIA_GPT_READINESS_CHECK"
-for file in /etc/squidlaw/worker.env /etc/squidlaw/gabia.env /opt/squidlaw/app/.env; do
+for file in /etc/squidlaw/api.env /etc/squidlaw/worker.env /etc/squidlaw/gabia.env /opt/squidlaw/app/.env; do
   if [ ! -f "$file" ]; then
     echo "ENV_FILE_ABSENT=$file"
     continue
