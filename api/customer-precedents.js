@@ -19,29 +19,29 @@ function visibleText(html){
  return html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi,' ').replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi,' ').replace(/<[^>]+>/g,' ').replace(/&nbsp;|&#160;/gi,' ').replace(/&amp;/gi,'&').replace(/\s+/g,' ');
 }
 async function verifyPrecedent(row){
- const url=officialUrl(row.url);if(!url)return null;
+ const url=officialUrl(row.url);if(!url)return {ok:false,reason:'invalid_official_url'};
  const ctrl=new AbortController(),timer=setTimeout(()=>ctrl.abort(),12000);
  try{
   const response=await fetch(url,{signal:ctrl.signal,redirect:'follow',headers:{accept:'text/html'}});
-  if(!response.ok||!officialUrl(response.url))return null;
-  const html=(await response.text()).slice(0,2000000);
-  const text=visibleText(html);
-  // Some law.go.kr pages split heading text across HTML elements.
-  const heading=text.slice(0,15000);
-  const number=String(row.caseNumber).replace(/\s/g,'');
-  const escaped=number.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
-  const dateParts=String(row.date).match(/(\d{4})\s*[.\-]\s*(\d{1,2})\s*[.\-]\s*(\d{1,2})/);
-  if(!dateParts)return null;
-  const datePattern=new RegExp(dateParts[1]+'\\s*\\.\\s*0?'+Number(dateParts[2])+'\\s*\\.\\s*0?'+Number(dateParts[3])+'\\s*\\.?');
-  const headingPattern=new RegExp('(?:대법원|[가-힣]+법원)\\s+[^\\n]{0,100}?선고\\s+'+escaped+'\\s*(?:전원합의체\\s*)?판결');
-  const headerMatch=heading.match(headingPattern);
-  if(!headerMatch||!datePattern.test(headerMatch[0]))return null;
-  const section=text.match(/(?:〖|【)?판결요지(?:〗|】)?([\\s\\S]{40,2500}?)(?:참조조문|참조판례|전문)/);
-  if(!section)return null;
-  const officialSummary=clean(section[1]).slice(0,600);
-  if(officialSummary.length<40)return null;
-  return {...row,summary:officialSummary,url,verification:'국가법령정보센터 사건번호·선고일·판결요지 확인'};
- }catch{return null}finally{clearTimeout(timer)}
+  if(!response.ok)return {ok:false,reason:'http_'+response.status};
+  if(!officialUrl(response.url))return {ok:false,reason:'redirected_outside_official'};
+  const text=visibleText((await response.text()).slice(0,2000000));
+  const header=text.slice(0,15000);
+  // Verify the actual ruling header, never references to other cases in the body.
+  const headers=[...header.matchAll(/(?:대법원|[가-힣]+법원)\s+(\d{4})\.\s*(\d{1,2})\.\s*(\d{1,2})\.\s*선고\s+(\d{2,4}[가-힣]+\d+)\s*(?:전원합의체\s*)?판결/g)];
+  if(!headers.length)return {ok:false,reason:'header_not_found'};
+  const expected=String(row.caseNumber).replace(/\s/g,'');
+  const date=String(row.date).match(/(\d{4})\s*[.\-]\s*(\d{1,2})\s*[.\-]\s*(\d{1,2})/);
+  if(!date)return {ok:false,reason:'invalid_date'};
+  const found=headers.find(m=>m[4]===expected);
+  if(!found)return {ok:false,reason:'case_number_mismatch'};
+  if(found[1]!==date[1]||Number(found[2])!==Number(date[2])||Number(found[3])!==Number(date[3]))return {ok:false,reason:'date_mismatch'};
+  // The source itself supplies the legal holding. Do not require exact AI quotation.
+  const start=text.indexOf('판결요지');
+  const end=start<0?-1:text.indexOf('참조조문',start+4);
+  const summary=start>=0&&end>start?clean(text.slice(start+4,end)).replace(/^[〗】\s]+/,'').slice(0,650):'';
+  return {ok:true,item:{...row,summary:summary.length>=25?summary:row.summary,url,verification:'국가법령정보센터 사건번호·선고일 확인'}};
+ }catch(e){return {ok:false,reason:e?.name==='AbortError'?'timeout':'fetch_or_parse_error'}}finally{clearTimeout(timer)}
 }
 function parsePrecedents(raw){
  let parsed;try{parsed=JSON.parse(raw.replace(/^\s*```(?:json)?\s*/i,'').replace(/\s*```\s*$/,''))}catch{return []}
@@ -110,8 +110,10 @@ export default async function handler(req,res){
   if(!report)return respond(res,502,{code:'PRECEDENT_EMPTY',error:'GPT 판례 검색 응답에 확인 가능한 내용이 없습니다.'});
   const candidates=parsePrecedents(report);
   const checked=await Promise.all(candidates.map(verifyPrecedent));
-  const results=checked.filter(Boolean).slice(0,6);
-  if(!results.length)return respond(res,200,{caseId:id,source:'공식 판결 원문 대조',query:record.title||'선택한 사건',count:0,results:[],report:'',citations:[],notice:'공식 판결문에서 사건번호·선고일·판결요지를 확인한 판례가 없습니다. 검증 대상 '+candidates.length+'건, 통과 0건입니다.'});
+  const results=checked.filter(x=>x.ok).map(x=>x.item).slice(0,6);
+  const diagnostics=Object.entries(checked.filter(x=>!x.ok).reduce((a,x)=>(a[x.reason]=(a[x.reason]||0)+1,a),{})).map(([reason,count])=>({reason,count}));
+  console.info('precedent_validation',{caseId:id,candidates:candidates.length,verified:results.length,diagnostics});
+  if(!results.length)return respond(res,200,{caseId:id,source:'공식 판결 원문 대조',query:record.title||'선택한 사건',count:0,results:[],report:'',citations:[],notice:'공식 판결문에서 사건번호·선고일·판결요지를 확인한 판례가 없습니다. 검증 대상 '+candidates.length+'건, 통과 0건입니다. 실패 유형: '+diagnostics.map(x=>x.reason+' '+x.count+'건').join(', ')+'.'});
   return respond(res,200,{caseId:id,source:'국가법령정보센터 원문 검증',query:record.title||'선택한 사건',count:results.length,results,report:'',citations:[],notice:'공식 판결 원문에서 사건번호·선고일·판결요지를 확인한 판례만 표시합니다. 법리의 사건 적용은 별도 검토가 필요합니다.'});
  }catch(e){return respond(res,502,{code:'PRECEDENT_SEARCH_ERROR',error:'GPT 판례 검색 실패: '+clean(e.message).slice(0,180)})}
 }
