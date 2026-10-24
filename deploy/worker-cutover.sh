@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Safe local preparation only: never change Vercel, never start a live worker.
+# Safe local preparation only: never change external routing or start a live worker.
 set -euo pipefail
 action="${1:-}"
 unit=squidlaw-worker.service
@@ -14,7 +14,7 @@ case "$action" in
   cd /opt/squidlaw/app
   node --test tests/continuous-worker-safety.test.mjs tests/customer-worker-owner.test.mjs
   echo PREFLIGHT_LOCAL_OK_NOT_CUTOVER_APPROVED
-  echo "VERIFY_VERCEL_OWNER_ENV_AND_CRON_BEFORE_ANY_START"
+  echo "VERIFY_ACTIVE_JOB_OWNER_ENV_AND_SCHEDULERS_BEFORE_ANY_START"
   ;;
  rollback)
   test "$(id -u)" -eq 0 || { echo ROOT_REQUIRED; exit 2; }
@@ -22,7 +22,7 @@ case "$action" in
   systemctl disable "$unit"
   systemctl reset-failed "$unit" || true
   echo GABIA_WORKER_STOPPED_AND_DISABLED
-  echo "IMPORTANT: restore/verify Vercel owner routing separately; this command cannot change Vercel."
+  echo "IMPORTANT: verify the active job owner and scheduler routing separately; this command only stops the Gabia worker."
   ;;
  status)
   echo "active: $(systemctl is-active "$unit" || true)"
