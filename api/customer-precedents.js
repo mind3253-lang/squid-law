@@ -34,7 +34,7 @@ async function verifyPrecedent(row){
   const date=String(row.date).match(/(\d{4})\s*[.\-]\s*(\d{1,2})\s*[.\-]\s*(\d{1,2})/);
   if(!date)return {ok:false,reason:'invalid_date'};
   const found=headers.find(m=>m[4]===expected);
-  if(!found)return {ok:false,reason:'case_number_mismatch'};
+  if(!found)return {ok:false,reason:'case_number_mismatch',expected,actual:headers.slice(0,3).map(m=>m[4]),url};
   if(found[1]!==date[1]||Number(found[2])!==Number(date[2])||Number(found[3])!==Number(date[3]))return {ok:false,reason:'date_mismatch'};
   // The source itself supplies the legal holding. Do not require exact AI quotation.
   const start=text.indexOf('판결요지');
@@ -112,7 +112,8 @@ export default async function handler(req,res){
   const checked=await Promise.all(candidates.map(verifyPrecedent));
   const results=checked.filter(x=>x.ok).map(x=>x.item).slice(0,6);
   const diagnostics=Object.entries(checked.filter(x=>!x.ok).reduce((a,x)=>(a[x.reason]=(a[x.reason]||0)+1,a),{})).map(([reason,count])=>({reason,count}));
-  console.info('precedent_validation',{caseId:id,candidates:candidates.length,verified:results.length,diagnostics});
+  const mismatchSamples=checked.filter(x=>x.reason==='case_number_mismatch').slice(0,6).map(x=>({expected:x.expected,actual:x.actual,url:x.url}));
+  console.info('precedent_validation',{caseId:id,candidates:candidates.length,verified:results.length,diagnostics,mismatchSamples});
   if(!results.length)return respond(res,200,{caseId:id,source:'공식 판결 원문 대조',query:record.title||'선택한 사건',count:0,results:[],report:'',citations:[],notice:'공식 판결문에서 사건번호·선고일·판결요지를 확인한 판례가 없습니다. 검증 대상 '+candidates.length+'건, 통과 0건입니다. 실패 유형: '+diagnostics.map(x=>x.reason+' '+x.count+'건').join(', ')+'.'});
   return respond(res,200,{caseId:id,source:'국가법령정보센터 원문 검증',query:record.title||'선택한 사건',count:results.length,results,report:'',citations:[],notice:'공식 판결 원문에서 사건번호·선고일·판결요지를 확인한 판례만 표시합니다. 법리의 사건 적용은 별도 검토가 필요합니다.'});
  }catch(e){return respond(res,502,{code:'PRECEDENT_SEARCH_ERROR',error:'GPT 판례 검색 실패: '+clean(e.message).slice(0,180)})}
