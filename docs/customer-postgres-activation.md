@@ -3,7 +3,7 @@
 This database is exclusively for customer analysis execution leases. Do not point it at SKYNET or an existing customer document database.
 
 1. Provision a dedicated PostgreSQL 15+ database under the account owner.
-2. Set `SQUID_CUSTOMER_DATABASE_URL` in the Vercel production environment to its authenticated connection URL, or use the Neon integration-provided `SQUID_CUSTOMER_DATABASE_DATABASE_URL` (the application accepts either). Use verified TLS; set `SQUID_CUSTOMER_DATABASE_SSL=disable` only for a trusted local test database.
+2. Set `SQUID_CUSTOMER_DATABASE_URL` in the Gabia worker environment to the authenticated PostgreSQL connection URL. Use verified TLS; set `SQUID_CUSTOMER_DATABASE_SSL=disable` only for a trusted local test database.
 3. Run `node scripts/customer-db-migrate.mjs` with that URL available in the environment. This creates/verifies `customer_analysis_leases` without dropping or altering unrelated tables.
 4. Redeploy the GitHub `main` revision. Confirm the production deployment SHA and customer API behavior using authenticated test cases.
 
