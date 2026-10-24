@@ -23,6 +23,7 @@ const routeModules={
  '/api/customer-auth':'../api/customer-auth.js',
  '/api/admin-db-health':'../api/admin-db-health.js',
  '/api/customer-case':'../api/customer-case.js',
+ '/api/customer-precedents':'../api/customer-precedents.js',
  '/api/customer-cases':'../api/customer-cases.js',
  '/api/customer-members':'../api/customer-members.js',
  '/api/customer-case-delete':'../api/customer-case-delete.js',
