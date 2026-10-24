@@ -85,7 +85,7 @@ async function savedLegalContext(user,id){
    const chunks=[];let size=0;
    for await(const part of r.stream){size+=part.length;if(size>4*1024*1024)throw Error('REPORT_TOO_LARGE');chunks.push(Buffer.from(part))}
    const report=JSON.parse(Buffer.concat(chunks).toString('utf8'));
-   if(report?.caseId!==id||report?.reportType!=='gpt_legal_analysis'||report?.sourceVersion!==job.documentVersion)continue;
+   if(report?.caseId!==id||report?.reportType!=='gpt_legal_analysis'||report?.sourceVersion!==job.documentVersion||report?.analysisEngineVersion!=='gpt-6-claims-v1')continue;
    return {reportJobId:job.jobId,reportTitle:report.title,issues:report.issues,findings:report.findings,conclusion:report.conclusion,summary:report.summary,analysis:report.analysis,legalSearchKeywords:report.legalSearchKeywords||[]};
   }catch{}
  }
