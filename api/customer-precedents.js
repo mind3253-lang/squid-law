@@ -34,10 +34,17 @@ async function verifyPrecedent(row){
   const found=headers[0];
   const actualNumber=found[4];
   const actualDate=`${found[1]}. ${Number(found[2])}. ${Number(found[3])}.`;
-  const start=text.indexOf('판결요지');
-  const end=start<0?-1:text.indexOf('참조조문',start+4);
-  const summary=start>=0&&end>start?clean(text.slice(start+4,end)).replace(/^[〗】\s]+/,'').slice(0,650):'';
-  if(summary.length<25)return {ok:false,reason:'official_holding_missing',actual:actualNumber};
+  const headings=['판결요지','판시사항','이유'];
+  let summary='';
+  for(const heading of headings){
+   const at=text.indexOf(heading);
+   if(at<0)continue;
+   const tail=text.slice(at+heading.length);
+   const stop=tail.search(/참조조문|참조판례|판례정보|주\s*문|이\s*유|전\s*문/);
+   const candidate=clean(stop>30?tail.slice(0,stop):tail.slice(0,900)).replace(/^[〗】\s]+/,'');
+   if(candidate.length>=25){summary=candidate.slice(0,650);break}
+  }
+  if(summary.length<25)return {ok:false,reason:'official_holding_missing',actual:actualNumber,textLength:text.length,headings:headings.filter(x=>text.includes(x))};
   return {ok:true,item:{caseNumber:actualNumber,date:actualDate,court:found[0].split(/\s+/)[0],name:row.name,summary,relevance:row.relevance,caution:row.caution,url,verification:'국가법령정보센터 원문 기준 사건번호·선고일·판결요지 확인'},corrected:actualNumber!==String(row.caseNumber).replace(/\s/g,'')};
  }catch(e){return {ok:false,reason:e?.name==='AbortError'?'timeout':'fetch_or_parse_error'}}finally{clearTimeout(timer)}
 }
@@ -113,7 +120,7 @@ export default async function handler(req,res){
   const results=[...new Map(checked.filter(x=>x.ok).map(x=>[x.item.caseNumber,x.item])).values()].slice(0,6);
   const diagnostics=Object.entries(checked.filter(x=>!x.ok).reduce((a,x)=>(a[x.reason]=(a[x.reason]||0)+1,a),{})).map(([reason,count])=>({reason,count}));
   const corrected=checked.filter(x=>x.ok&&x.corrected).length;
-  const mismatchSamples=checked.filter(x=>x.reason==='case_number_mismatch').slice(0,6).map(x=>({expected:x.expected,actual:x.actual,url:x.url}));
+  const mismatchSamples=checked.filter(x=>!x.ok).slice(0,6).map(x=>({reason:x.reason,expected:x.expected,actual:x.actual,url:x.url,textLength:x.textLength,headings:x.headings}));
   console.info('precedent_validation',{caseId:id,candidates:candidates.length,verified:results.length,corrected,diagnostics,mismatchSamples});
   if(!results.length)return respond(res,200,{caseId:id,source:'공식 판결 원문 대조',query:record.title||'선택한 사건',count:0,results:[],report:'',citations:[],notice:'공식 판결문에서 사건번호·선고일·판결요지를 확인한 판례가 없습니다. 검증 대상 '+candidates.length+'건, 통과 0건입니다. 실패 유형: '+diagnostics.map(x=>x.reason+' '+x.count+'건').join(', ')+'.'});
   return respond(res,200,{caseId:id,source:'국가법령정보센터 원문 검증',query:record.title||'선택한 사건',count:results.length,results,report:'',citations:[],notice:'공식 판결 원문에서 사건번호·선고일·판결요지를 확인한 판례만 표시합니다. 법리의 사건 적용은 별도 검토가 필요합니다.'});
