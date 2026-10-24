@@ -1,7 +1,7 @@
 import {captureServerError} from '../lib/server-error-diagnostics.mjs';
 import {isSkynetAdmin} from '../lib/skynet-job-api-auth.mjs';
 import {withLeaseDb} from './customer-analysis-lease-db.js';
-import {maintenanceIntakesFromDiagnostics} from '../lib/skynet-maintenance-diagnostic-bridge.mjs';
+import {maintenanceIntakesFromDiagnostics,unifiedMaintenanceReport} from '../lib/skynet-maintenance-diagnostic-bridge.mjs';
 const safe=(v,n=180)=>String(v??'').replace(/(sk-[A-Za-z0-9_-]{8,}|Bearer\s+\S+|[?&](?:token|key|secret|password|access_token|refresh_token)=[^&\s]+)/ig,'[redacted]').replace(/https?:\/\/\S+/ig,'[URL_REDACTED]').replace(/[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}/g,'[EMAIL_REDACTED]').slice(0,n);
 export default async function handler(req,res){
  res.setHeader('Cache-Control','no-store');res.setHeader('X-Content-Type-Options','nosniff');
@@ -23,7 +23,7 @@ export default async function handler(req,res){
    checkpoint->>'errorStackFrame' AS stack_frame,
    checkpoint->>'providerErrorSummary' AS provider_summary,
    checkpoint->>'message' AS detail,
-   checkpoint->'sourceDiagnostic' AS source_diagnostic
+   checkpoint->'sourceDiagnostic' AS source_diagnostic,\n   checkpoint->'gateDiagnostics' AS gate_diagnostics
    FROM customer_analysis_jobs WHERE error_code IS NOT NULL
    AND ($2::text='' OR checkpoint->>'errorTraceId'=$2)
    ORDER BY updated_at DESC LIMIT $1`,[healthOnly?0:limit,traceFilter])).rows)}catch(e){jobsStatus=e?.code==='42P01'?'schema_missing':'query_failed';console.error('ANALYSIS_DIAGNOSTIC_READ_FAILURE',safe(e?.code||e?.name||'UNKNOWN',50))}
@@ -37,9 +37,9 @@ export default async function handler(req,res){
    code:safe(r.error_code,100),stage:safe(r.failure_stage||r.stage,100),
    cursor:r.failure_cursor===null?null:Number(r.failure_cursor),
    errorClass:safe(r.error_class,60),stackFrame:safe(r.stack_frame,180),
-   summary:safe(r.provider_summary||r.detail,180),sourceDiagnostic:r.source_diagnostic||null,updatedAt:r.updated_at
+   summary:safe(r.provider_summary||r.detail,180),sourceDiagnostic:r.source_diagnostic||null,gateDiagnostics:r.gate_diagnostics||null,updatedAt:r.updated_at
   }))};
-  if(String(req.query?.maintenance||'')==='1')response.maintenance=maintenanceIntakesFromDiagnostics(response,{limit});
+  if(String(req.query?.report||'')==='1')response.report=unifiedMaintenanceReport(response,{limit});\n  if(String(req.query?.maintenance||'')==='1')response.maintenance=maintenanceIntakesFromDiagnostics(response,{limit});
   return res.status(200).json(response);
  }catch(e){const {traceId,record}=captureServerError(e,{system:'SKYNET',operation:'diagnostics-query',stage:'read'});await record.persistence;return res.status(503).json({error:'DIAGNOSTIC_QUERY_UNAVAILABLE',traceId})}
 }
