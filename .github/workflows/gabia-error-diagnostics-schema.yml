@@ -5,6 +5,8 @@ on:
     branches: [main]
     paths:
       - '.github/workflows/gabia-error-diagnostics-schema.yml'
+      - 'sql/squid_error_diagnostics.sql'
+      - 'api/skynet-maintenance-repair.js'
 permissions:
   contents: write
 jobs:
@@ -42,6 +44,17 @@ jobs:
           CREATE INDEX IF NOT EXISTS squid_error_diagnostics_created_at_idx
             ON public.squid_error_diagnostics(created_at DESC);
           GRANT SELECT,INSERT ON public.squid_error_diagnostics TO root;
+          CREATE TABLE IF NOT EXISTS public.squid_maintenance_repairs (
+            trace_id TEXT PRIMARY KEY,
+            repair_status TEXT NOT NULL CHECK (repair_status IN ('pending','diagnosing','repairing','verifying','verified','failed','reopened')),
+            verification_method TEXT,
+            verification_reference TEXT,
+            verified_at TIMESTAMPTZ,
+            updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+          );
+          CREATE INDEX IF NOT EXISTS squid_maintenance_repairs_updated_idx
+            ON public.squid_maintenance_repairs(updated_at DESC);
+          GRANT SELECT,INSERT,UPDATE ON public.squid_maintenance_repairs TO root;
           BEGIN;
           INSERT INTO public.squid_error_diagnostics(trace_id,system,operation,code)
             VALUES ('ERR-schema-verification','SYSTEM','schema-check','SCHEMA_WRITE_TEST');
@@ -60,6 +73,16 @@ jobs:
           ROLLBACK;
           SQL
           echo DIAGNOSTIC_SCHEMA_AND_ROOT_WRITE_READ_OK
+          sudo -n psql -p 5433 -U root -d "$db" -v ON_ERROR_STOP=1 <<'SQL'
+          BEGIN;
+          INSERT INTO public.squid_maintenance_repairs(trace_id,repair_status)
+            VALUES('ERR-schema-verification','diagnosing');
+          UPDATE public.squid_maintenance_repairs SET repair_status='repairing'
+            WHERE trace_id='ERR-schema-verification';
+          SELECT repair_status FROM public.squid_maintenance_repairs WHERE trace_id='ERR-schema-verification';
+          ROLLBACK;
+          SQL
+          echo MAINTENANCE_REPAIR_SCHEMA_VERIFIED
           REMOTE
 
       - name: Record sanitized schema verification result
