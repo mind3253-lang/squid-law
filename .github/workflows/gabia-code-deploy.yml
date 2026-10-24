@@ -83,7 +83,7 @@ jobs:
               sed -i '/^SQUIDLAW_LEGAL_API_ENABLED=/d; /^SQUIDLAW_GABIA_LEGAL_RUN_APPROVED=/d; /^SQUIDLAW_LEGAL_MODEL=/d' /etc/squidlaw/worker.env
               echo 'SQUIDLAW_LEGAL_API_ENABLED=true' >> /etc/squidlaw/worker.env
               echo 'SQUIDLAW_GABIA_LEGAL_RUN_APPROVED=true' >> /etc/squidlaw/worker.env
-              echo 'SQUIDLAW_LEGAL_MODEL=gpt-6' >> /etc/squidlaw/worker.env
+              echo 'SQUIDLAW_LEGAL_MODEL=gpt-6-astra' >> /etc/squidlaw/worker.env
               echo LEGAL_WORKER_SETTINGS_APPLIED
             else
               echo LEGAL_WORKER_KEY_NOT_IN_WORKER_ENV
