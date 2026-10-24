@@ -27,7 +27,7 @@ export default async function handler(req,res){
    checkpoint->>'message' AS detail,
    checkpoint->'sourceDiagnostic' AS source_diagnostic,
    checkpoint->'gateDiagnostics' AS gate_diagnostics
-   FROM customer_analysis_jobs WHERE error_code IS NOT NULL
+   FROM customer_analysis_jobs WHERE (error_code IS NOT NULL OR checkpoint->>'lastFailureCode' IS NOT NULL OR stage='completion_gates_pending')
    AND ($2::text='' OR checkpoint->>'errorTraceId'=$2)
    ORDER BY updated_at DESC LIMIT $1 OFFSET $3`,[healthOnly?0:limit,traceFilter,offset])).rows)}catch(e){jobsStatus=e?.code==='42P01'?'schema_missing':'query_failed';console.error('ANALYSIS_DIAGNOSTIC_READ_FAILURE',safe(e?.code||e?.name||'UNKNOWN',50))}
   let central=[],centralStatus='available';
@@ -37,7 +37,7 @@ export default async function handler(req,res){
   catch(e){centralStatus=e?.code==='42P01'?'schema_missing':'query_failed';console.error('CENTRAL_DIAGNOSTIC_READ_FAILURE',safe(e?.code||e?.name||'UNKNOWN',50))}
   const response={offset,limit,hasMore:rows.length===limit||central.length===limit,ok:jobsStatus==='available'&&centralStatus==='available',source:'customer_analysis_jobs',jobsStatus,centralStatus,central:central.map(r=>({traceId:safe(r.trace_id,60),time:r.created_at,system:safe(r.system,32),operation:safe(r.operation,80),stage:safe(r.stage,80),code:safe(r.code,100),name:safe(r.error_name,60),message:safe(r.message,180),source:safe(r.source,180)})),records:rows.map(r=>({
    traceId:safe(r.trace,50),jobId:safe(r.job_id,40),status:safe(r.status,20),
-   code:safe(r.error_code,100),stage:safe(r.failure_stage||r.stage,100),
+   code:safe(r.error_code||'COMPLETION_GATES_PENDING',100),stage:safe(r.stage==='completion_gates_pending'?r.stage:r.failure_stage||r.stage,100),
    cursor:r.failure_cursor===null?null:Number(r.failure_cursor),
    errorClass:safe(r.error_class,60),stackFrame:safe(r.stack_frame,180),
    summary:safe(r.provider_summary||r.detail,180),sourceDiagnostic:r.source_diagnostic||null,gateDiagnostics:r.gate_diagnostics||null,updatedAt:r.updated_at
