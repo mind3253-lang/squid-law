@@ -159,7 +159,7 @@ export default async function handler(req,res){
      const sample=await extractCustomerPdfWindow(prefix,doc,{startPage:1,pageCount:Math.min(doc.pageCount,3),fastTextOnly:true});
      samples.push({id:doc.id,name:doc.name,pageCount:doc.pageCount,text:(sample.pages||[]).map(p=>p.text||'').join('\\n').slice(0,11000)});
     }
-    const request={model:process.env.SQUIDLAW_LEGAL_MODEL||'gpt-5.4',store:false,
+    const request={model:process.env.SQUIDLAW_LEGAL_MODEL||'gpt-6',store:false,
      input:[{role:'system',content:'You assess whether uploaded documents are plausibly relevant to an existing Korean legal case. Consider witnesses, related litigation and third parties. Never infer relevance solely from a filename or shared name. If unclear or insufficient text, require clarification. Customer clarifications are claims to cross-check against document text and existing case, not automatic proof. Mark relevant only when supported. Respond as strict JSON {"decisions":[{"id":"...","status":"relevant|clarify","reason":"Korean concise explanation"}]}. Only use relevant when substantive connection is visible in document content.'},
       {role:'user',content:'Return JSON only. '+JSON.stringify({case:{caseId:job.caseId,intake:registry.intake,priorIssues:prior?.findings?.slice(0,12).map(f=>({issueKey:f.issueKey,claim:String(f.claim||'').slice(0,350)}))},documents:samples,customerClarifications:job.checkpoint?.relevanceClarifications||{}})}],
      text:{format:{type:'json_object'}}};
@@ -203,7 +203,7 @@ export default async function handler(req,res){
    }
    const outcome=await runDeltaReviewStep({job,previous:job.checkpoint,documents:fullDocs,
     prefix,load,put,advanceJob,apiKey:process.env.OPENAI_API_KEY,
-    model:process.env.SQUIDLAW_LEGAL_MODEL||'gpt-5.4'});
+    model:process.env.SQUIDLAW_LEGAL_MODEL||'gpt-6'});
    return res.status(200).json(outcome);
   }
  }
@@ -319,7 +319,7 @@ export default async function handler(req,res){
      for(const p of batch.pages)pageEvidence.push({page:p.page,text:String(p.text||'').slice(0,450),visualFacts:(visualByPage.get(p.page)||[]).slice(0,5)});
     }
    }
-   const input={documentId:d.id,sourcePdfSha256:d.sha256,pageCount:d.pageCount,candidates:candidate?.sections||[],pageEvidence,model:process.env.SQUIDLAW_LEGAL_MODEL||'gpt-4.1-mini'};
+   const input={documentId:d.id,sourcePdfSha256:d.sha256,pageCount:d.pageCount,candidates:candidate?.sections||[],pageEvidence,model:process.env.SQUIDLAW_LEGAL_MODEL||'gpt-6'};
    let primary=await load(primaryPath);
    if(!primary){
     primary=await invokeBoundaryReview({request:boundaryReviewRequest(input),apiKey:process.env.OPENAI_API_KEY});
@@ -409,7 +409,7 @@ export default async function handler(req,res){
   }else{
    const priorPath=cursor>0?(previous.legalWindowPaths||[]).at(-1):null;
    const previousWindow=priorPath?await load(priorPath):null;
-   part=await timedAnalysisStep('legal_reasoning',()=>analyzeLegalWindow({request:authorized,sourceUnits:units,cursor,task,previousWindow,apiKey:process.env.OPENAI_API_KEY,model:process.env.SQUIDLAW_LEGAL_MODEL||'gpt-5.4',maxCharacters:64000}));
+   part=await timedAnalysisStep('legal_reasoning',()=>analyzeLegalWindow({request:authorized,sourceUnits:units,cursor,task,previousWindow,apiKey:process.env.OPENAI_API_KEY,model:process.env.SQUIDLAW_LEGAL_MODEL||'gpt-6',maxCharacters:64000}));
    await put(path,JSON.stringify(part),{access:'private',allowOverwrite:false,addRandomSuffix:false,contentType:'application/json'});
   }
   const paths=[...(previous.legalWindowPaths||[]),path];
