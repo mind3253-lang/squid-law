@@ -18,7 +18,7 @@ export default async function handler(req,res){
   if(traceFilter&&!/^(?:ERR-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|AN-[a-f0-9]{16})$/.test(traceFilter))return res.status(400).json({error:'INVALID_TRACE_ID'});
   let rows=[],jobsStatus='available';
   try{rows=await withLeaseDb(async db=>(await db.query(
-   `SELECT job_id,status,stage,error_code,updated_at,checkpoint->>'errorTraceId' AS trace,
+   `SELECT job_id,status,stage,error_code,checkpoint->>'lastFailureCode' AS historical_code,updated_at,checkpoint->>'errorTraceId' AS trace,
    checkpoint->>'lastFailureStage' AS failure_stage,
    checkpoint->>'lastFailureCursor' AS failure_cursor,
    checkpoint->>'errorClass' AS error_class,
@@ -37,7 +37,7 @@ export default async function handler(req,res){
   catch(e){centralStatus=e?.code==='42P01'?'schema_missing':'query_failed';console.error('CENTRAL_DIAGNOSTIC_READ_FAILURE',safe(e?.code||e?.name||'UNKNOWN',50))}
   const response={offset,limit,hasMore:rows.length===limit||central.length===limit,ok:jobsStatus==='available'&&centralStatus==='available',source:'customer_analysis_jobs',jobsStatus,centralStatus,central:central.map(r=>({traceId:safe(r.trace_id,60),time:r.created_at,system:safe(r.system,32),operation:safe(r.operation,80),stage:safe(r.stage,80),code:safe(r.code,100),name:safe(r.error_name,60),message:safe(r.message,180),source:safe(r.source,180)})),records:rows.map(r=>({
    traceId:safe(r.trace,50),jobId:safe(r.job_id,40),status:safe(r.status,20),
-   code:safe(r.error_code||'COMPLETION_GATES_PENDING',100),stage:safe(r.stage==='completion_gates_pending'?r.stage:r.failure_stage||r.stage,100),
+   code:safe(r.error_code||r.historical_code||(r.stage==='completion_gates_pending'?'COMPLETION_GATES_PENDING':'UNKNOWN_FAILURE'),100),stage:safe(r.stage==='completion_gates_pending'?r.stage:r.failure_stage||r.stage,100),
    cursor:r.failure_cursor===null?null:Number(r.failure_cursor),
    errorClass:safe(r.error_class,60),stackFrame:safe(r.stack_frame,180),
    summary:safe(r.provider_summary||r.detail,180),sourceDiagnostic:r.source_diagnostic||null,gateDiagnostics:r.gate_diagnostics||null,updatedAt:r.updated_at
