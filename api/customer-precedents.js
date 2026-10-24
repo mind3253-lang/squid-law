@@ -30,17 +30,15 @@ async function verifyPrecedent(row){
   // Verify the actual ruling header, never references to other cases in the body.
   const headers=[...header.matchAll(/(?:대법원|[가-힣]+법원)\s+(\d{4})\.\s*(\d{1,2})\.\s*(\d{1,2})\.\s*선고\s+(\d{2,4}[가-힣]+\d+)\s*(?:전원합의체\s*)?판결/g)];
   if(!headers.length)return {ok:false,reason:'header_not_found'};
-  const expected=String(row.caseNumber).replace(/\s/g,'');
-  const date=String(row.date).match(/(\d{4})\s*[.\-]\s*(\d{1,2})\s*[.\-]\s*(\d{1,2})/);
-  if(!date)return {ok:false,reason:'invalid_date'};
-  const found=headers.find(m=>m[4]===expected);
-  if(!found)return {ok:false,reason:'case_number_mismatch',expected,actual:headers.slice(0,3).map(m=>m[4]),url};
-  if(found[1]!==date[1]||Number(found[2])!==Number(date[2])||Number(found[3])!==Number(date[3]))return {ok:false,reason:'date_mismatch'};
-  // The source itself supplies the legal holding. Do not require exact AI quotation.
+  // The official page's ruling heading is authoritative; the AI's number/date may be wrong.
+  const found=headers[0];
+  const actualNumber=found[4];
+  const actualDate=`${found[1]}. ${Number(found[2])}. ${Number(found[3])}.`;
   const start=text.indexOf('판결요지');
   const end=start<0?-1:text.indexOf('참조조문',start+4);
   const summary=start>=0&&end>start?clean(text.slice(start+4,end)).replace(/^[〗】\s]+/,'').slice(0,650):'';
-  return {ok:true,item:{...row,summary:summary.length>=25?summary:row.summary,url,verification:'국가법령정보센터 사건번호·선고일 확인'}};
+  if(summary.length<25)return {ok:false,reason:'official_holding_missing',actual:actualNumber};
+  return {ok:true,item:{caseNumber:actualNumber,date:actualDate,court:found[0].split(/\s+/)[0],name:row.name,summary,relevance:row.relevance,caution:row.caution,url,verification:'국가법령정보센터 원문 기준 사건번호·선고일·판결요지 확인'},corrected:actualNumber!==String(row.caseNumber).replace(/\s/g,'')};
  }catch(e){return {ok:false,reason:e?.name==='AbortError'?'timeout':'fetch_or_parse_error'}}finally{clearTimeout(timer)}
 }
 function parsePrecedents(raw){
@@ -109,14 +107,14 @@ export default async function handler(req,res){
   const citations=unique(content.flatMap(x=>(x.annotations||[]).filter(a=>a.type==='url_citation').map(a=>a.url))).filter(u=>/^https:\/\//.test(u)).slice(0,25);
   if(!report)return respond(res,502,{code:'PRECEDENT_EMPTY',error:'GPT 판례 검색 응답에 확인 가능한 내용이 없습니다.'});
   const candidates=parsePrecedents(report);
-  // Do not trust a model's case-number/link pairing. The official ruling is authoritative.
-  // If the source identifies another case, never display the model's original number.
+  // Never display model-supplied ruling metadata when the official source differs.
 
   const checked=await Promise.all(candidates.map(verifyPrecedent));
-  const results=checked.filter(x=>x.ok).map(x=>x.item).slice(0,6);
+  const results=[...new Map(checked.filter(x=>x.ok).map(x=>[x.item.caseNumber,x.item])).values()].slice(0,6);
   const diagnostics=Object.entries(checked.filter(x=>!x.ok).reduce((a,x)=>(a[x.reason]=(a[x.reason]||0)+1,a),{})).map(([reason,count])=>({reason,count}));
+  const corrected=checked.filter(x=>x.ok&&x.corrected).length;
   const mismatchSamples=checked.filter(x=>x.reason==='case_number_mismatch').slice(0,6).map(x=>({expected:x.expected,actual:x.actual,url:x.url}));
-  console.info('precedent_validation',{caseId:id,candidates:candidates.length,verified:results.length,diagnostics,mismatchSamples});
+  console.info('precedent_validation',{caseId:id,candidates:candidates.length,verified:results.length,corrected,diagnostics,mismatchSamples});
   if(!results.length)return respond(res,200,{caseId:id,source:'공식 판결 원문 대조',query:record.title||'선택한 사건',count:0,results:[],report:'',citations:[],notice:'공식 판결문에서 사건번호·선고일·판결요지를 확인한 판례가 없습니다. 검증 대상 '+candidates.length+'건, 통과 0건입니다. 실패 유형: '+diagnostics.map(x=>x.reason+' '+x.count+'건').join(', ')+'.'});
   return respond(res,200,{caseId:id,source:'국가법령정보센터 원문 검증',query:record.title||'선택한 사건',count:results.length,results,report:'',citations:[],notice:'공식 판결 원문에서 사건번호·선고일·판결요지를 확인한 판례만 표시합니다. 법리의 사건 적용은 별도 검토가 필요합니다.'});
  }catch(e){return respond(res,502,{code:'PRECEDENT_SEARCH_ERROR',error:'GPT 판례 검색 실패: '+clean(e.message).slice(0,180)})}
