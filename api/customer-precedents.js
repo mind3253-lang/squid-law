@@ -23,18 +23,22 @@ async function verifyPrecedent(row){
  const ctrl=new AbortController(),timer=setTimeout(()=>ctrl.abort(),12000);
  try{
   const response=await fetch(url,{signal:ctrl.signal,redirect:'follow',headers:{accept:'text/html'}});
-  if(!response.ok||!officialUrl(response.url)||!String(response.headers.get('content-type')||'').includes('html'))return null;
-  const text=visibleText((await response.text()).slice(0,2000000));
-  const header=text.slice(0,Math.max(0,text.indexOf('판시사항'))+100);
-  const match=header.match(/(?:대법원|고등법원|지방법원|특허법원|헌법재판소|[가-힣]+법원)\s+(\d{4})\.\s*(\d{1,2})\.\s*(\d{1,2})\.\s*선고\s+([0-9]{2,4}[가-힣]+\d+)\s*(?:전원합의체\s*)?판결/);
-  if(!match)return null;
-  const foundDate=`${match[1]}.${Number(match[2])}.${Number(match[3])}`;
-  const requestedDate=String(row.date).replace(/\s/g,'').replace(/\.$/,'').replace(/\.(0?\d{1,2})/g,(_,n)=>'.'+Number(n));
-  if(normalized(match[4])!==normalized(row.caseNumber)||foundDate!==requestedDate)return null;
-  const excerpt=normalized(row.originalExcerpt),body=normalized(text);
-  // Verify an actual quotation in the official text, not a paraphrase from a third party.
-  if(excerpt.length<12||excerpt.length>350||!body.includes(excerpt))return null;
-  return {...row,date:`${match[1]}. ${Number(match[2])}. ${Number(match[3])}.`,url,verification:'국가법령정보센터 원문 대조 완료'};
+  if(!response.ok||!officialUrl(response.url))return null;
+  const html=(await response.text()).slice(0,2000000);
+  const text=visibleText(html);
+  // Some law.go.kr pages split heading text across HTML elements.
+  const heading=text.slice(0,15000);
+  const number=String(row.caseNumber).replace(/\s/g,'');
+  const escaped=number.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+  const dateParts=String(row.date).match(/(\d{4})\s*[.\-]\s*(\d{1,2})\s*[.\-]\s*(\d{1,2})/);
+  if(!dateParts)return null;
+  const datePattern=new RegExp(dateParts[1]+'\\s*\\.\\s*0?'+Number(dateParts[2])+'\\s*\\.\\s*0?'+Number(dateParts[3])+'\\s*\\.?');
+  const headingPattern=new RegExp('(?:대법원|[가-힣]+법원)\\s+[^\\n]{0,100}?선고\\s+'+escaped+'\\s*(?:전원합의체\\s*)?판결');
+  const headerMatch=heading.match(headingPattern);
+  if(!headerMatch||!datePattern.test(headerMatch[0]))return null;
+  const excerpt=normalized(row.originalExcerpt);
+  if(excerpt.length<12||!normalized(text).includes(excerpt))return null;
+  return {...row,url,verification:'국가법령정보센터 원문 대조 완료'};
  }catch{return null}finally{clearTimeout(timer)}
 }
 function parsePrecedents(raw){
