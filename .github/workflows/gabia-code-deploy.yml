@@ -140,11 +140,18 @@ jobs:
             grep 'BOUNDARY_PROVIDER_REJECTION' | tail -12 | \
             sed -E 's/([A-Za-z_]*(KEY|TOKEN|SECRET|PASSWORD|DATABASE_URL)[A-Za-z_]*=)[^ ]+/\\1[REDACTED]/g' | cut -c1-800 || true
           echo BOUNDARY_PROVIDER_DIAGNOSIS_END
-          echo RECENT_ANALYSIS_WORKER_ERRORS_BEGIN
-          journalctl -u squidlaw-worker.service --since '45 minutes ago' --no-pager -o cat | \
-            grep -E 'COMPLETION_GATES_PENDING|BOUNDARY_API_|BOUNDARY_PROVIDER_REJECTION|JOB_LEASE_LOST|resume_requested' | tail -20 | \
-            sed -E 's/"message":"[^"]*"/"message":"[REDACTED]"/g' | cut -c1-350 || true
-          echo RECENT_ANALYSIS_WORKER_ERRORS_END
+          echo ANALYSIS_DIAGNOSTICS_BEGIN
+          for service in squidlaw-api.service squidlaw-worker.service; do
+            echo "DIAG_SERVICE=$service"
+            systemctl is-active "$service" | sed 's/^/DIAG_SERVICE_STATE=/' || true
+            journalctl -u "$service" --since '90 minutes ago' --no-pager -o cat | \
+              grep -E 'BOUNDARY_|COMPLETION_|VISION_|VISUAL_|OCR_|PDF_|SOURCE_|MODEL_|OPENAI_|LEGAL_|CITATION_|SEMANTIC_|LEASE_|QUEUE_|CHECKPOINT_|DATABASE_|POSTGRES_|STORAGE_|UPLOAD_|REPORT_|WORKER_|CUSTOMER_|INTEGRATION_|SyntaxError|TypeError|ReferenceError|ECONN|ETIMEDOUT|ENOSPC|ENOMEM|HTTP_[45][0-9][0-9]|429|502|503|504' | \
+              sed -E 's/("message"|"input"|"text"|"content"|"password"|"token"|"api_key"|"authorization"):"[^"]*"/\1:"[REDACTED]"/g' | \
+              sed -E 's/([A-Za-z_]*(KEY|TOKEN|SECRET|PASSWORD|DATABASE_URL)[A-Za-z_]*=)[^ ]+/\1[REDACTED]/g' | \
+              cut -c1-280 | tail -80 || true
+          done
+          echo ANALYSIS_DIAGNOSTICS_END
+
           echo INTEGRATION_AUDIT_BEGIN
           (
             set -a
@@ -160,7 +167,7 @@ jobs:
           REMOTE
           deploy_rc=$?
           set -e
-          grep -E '^(BOUNDARY_PROVIDER_DIAGNOSIS_|BOUNDARY_PROVIDER_REJECTION|RECENT_ANALYSIS_WORKER_ERRORS_|COMPLETION_GATES_PENDING|INTEGRATION_AUDIT_|AUDIT |RECENT_(CUSTOMER_API_ERROR_DIAGNOSIS|COMPAT_API_ERRORS)_|REPORT_(MODULE_SYNTAX_CHECK_(BEGIN|END)|IMPORT_OK)|^(SyntaxError|Error \[|file:|[[:space:]]*at )|GABIA_(CUSTOMER|COMPAT)_API_FAILURE)' /tmp/deploy.log || true
+          grep -E '^(BOUNDARY_PROVIDER_DIAGNOSIS_|BOUNDARY_PROVIDER_REJECTION|ANALYSIS_DIAGNOSTICS_|DIAG_SERVICE|COMPLETION_GATES_PENDING|INTEGRATION_AUDIT_|AUDIT |RECENT_(CUSTOMER_API_ERROR_DIAGNOSIS|COMPAT_API_ERRORS)_|REPORT_(MODULE_SYNTAX_CHECK_(BEGIN|END)|IMPORT_OK)|^(SyntaxError|Error \[|file:|[[:space:]]*at )|GABIA_(CUSTOMER|COMPAT)_API_FAILURE)' /tmp/deploy.log || true
           if [ "$deploy_rc" -ne 0 ]; then
             echo DEPLOY_SSH_EXIT_$deploy_rc
             grep -E '^(DEPLOY_|OBJECT_ROOT|INTEGRATION_AUDIT_|AUDIT |npm error|npm ERR|Error:)' /tmp/deploy.log | tail -35 || true
