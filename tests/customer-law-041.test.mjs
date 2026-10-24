@@ -7,7 +7,7 @@ test('LAW-041: customer sees verified page count but no unauthorized charge',()=
  assert.match(ui,/renderFullReview\(job,j\.queue,j\.progress,j\.billing\)/);
  assert.match(ui,/billing\?\.pageCountVerified/);
  assert.match(ui,/청구 없음/);
- assert.match(api,/verifiedPages:verifiedSourcePages\(allDocs\)/);
- assert.match(api,/pageCountVerified:verifiedSourcePages\(allDocs\)/);
+ assert.match(api,/verifiedPages:pagesVerified/);
+ assert.match(api,/pageCountVerified:pagesVerified/);
  assert.match(api,/priceConfirmed:false,chargeAuthorized:false/);
 });
