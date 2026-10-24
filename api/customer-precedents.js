@@ -8,29 +8,33 @@ const unique=a=>[...new Set(a.filter(Boolean))];
 function normalized(s){return String(s||'').replace(/<[^>]*>/g,' ').replace(/&(?:nbsp|#160);/gi,' ').replace(/&(?:quot|#34);/gi,'"').replace(/&(?:amp|#38);/gi,'&').replace(/\s+/g,'').replace(/[·.,:;()[\]{}"'‘’“”]/g,'').toLowerCase()}
 function officialUrl(s){
  try{
-  const u=new URL(String(s||''));if(u.protocol!=='https:'||u.username||u.password||u.port)return null;
-  if(!['law.go.kr','www.law.go.kr','scourt.go.kr','www.scourt.go.kr','glaw.scourt.go.kr'].includes(u.hostname.toLowerCase()))return null;
+  const u=new URL(String(s||''));
+  if(u.protocol!=='https:'||u.username||u.password||u.port||!['law.go.kr','www.law.go.kr'].includes(u.hostname.toLowerCase()))return null;
   if(!/\/(?:LSW\/)?precInfoP\.do$/i.test(u.pathname))return null;
   if(!u.searchParams.has('precSeq')&&!u.searchParams.has('evtNo'))return null;
   u.searchParams.delete('utm_source');return u.toString();
  }catch{return null}
 }
+function visibleText(html){
+ return html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi,' ').replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi,' ').replace(/<[^>]+>/g,' ').replace(/&nbsp;|&#160;/gi,' ').replace(/&amp;/gi,'&').replace(/\s+/g,' ');
+}
 async function verifyPrecedent(row){
  const url=officialUrl(row.url);if(!url)return null;
- const ctrl=new AbortController(),timer=setTimeout(()=>ctrl.abort(),9000);
+ const ctrl=new AbortController(),timer=setTimeout(()=>ctrl.abort(),12000);
  try{
-  const response=await fetch(url,{signal:ctrl.signal,redirect:'error',headers:{accept:'text/html'}});
-  if(!response.ok||!String(response.headers.get('content-type')||'').includes('text/html'))return null;
-  const html=(await response.text()).slice(0,1500000);
-  const heading=html.match(/\[\s*대법원\s+\d{4}\.\s*\d{1,2}\.\s*\d{1,2}\.\s*선고\s+[^<\]]+판결\s*\]/)?.[0]||'';
-  if(!heading)return null;
-  const text=normalized(html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi,' ').replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi,' '));
-  const caseNumber=normalized(row.caseNumber),date=normalized(row.date);
-  if(!caseNumber||!date||!normalized(heading).includes(caseNumber)||!normalized(heading).includes(date))return null;
-  // The cited holding must be independently visible in the original ruling.
-  const excerpt=normalized(row.originalExcerpt);
-  if(excerpt.length<24||excerpt.length>350||!text.includes(excerpt))return null;
-  return {...row,url,verification:'판결 원문·사건번호·선고일·인용문 확인',originalExcerpt:row.originalExcerpt};
+  const response=await fetch(url,{signal:ctrl.signal,redirect:'follow',headers:{accept:'text/html'}});
+  if(!response.ok||!officialUrl(response.url)||!String(response.headers.get('content-type')||'').includes('html'))return null;
+  const text=visibleText((await response.text()).slice(0,2000000));
+  const header=text.slice(0,Math.max(0,text.indexOf('판시사항'))+100);
+  const match=header.match(/(?:대법원|고등법원|지방법원|특허법원|헌법재판소|[가-힣]+법원)\s+(\d{4})\.\s*(\d{1,2})\.\s*(\d{1,2})\.\s*선고\s+([0-9]{2,4}[가-힣]+\d+)\s*(?:전원합의체\s*)?판결/);
+  if(!match)return null;
+  const foundDate=`${match[1]}.${Number(match[2])}.${Number(match[3])}`;
+  const requestedDate=String(row.date).replace(/\s/g,'').replace(/\.$/,'').replace(/\.(0?\d{1,2})/g,(_,n)=>'.'+Number(n));
+  if(normalized(match[4])!==normalized(row.caseNumber)||foundDate!==requestedDate)return null;
+  const excerpt=normalized(row.originalExcerpt),body=normalized(text);
+  // Verify an actual quotation in the official text, not a paraphrase from a third party.
+  if(excerpt.length<12||excerpt.length>350||!body.includes(excerpt))return null;
+  return {...row,date:`${match[1]}. ${Number(match[2])}. ${Number(match[3])}.`,url,verification:'국가법령정보센터 원문 대조 완료'};
  }catch{return null}finally{clearTimeout(timer)}
 }
 function parsePrecedents(raw){
@@ -38,7 +42,7 @@ function parsePrecedents(raw){
  const rows=Array.isArray(parsed?.precedents)?parsed.precedents:[],seen=new Set(),out=[];
  for(const row of rows){
   const caseNumber=clean(row?.caseNumber).replace(/\s/g,'');
-  if(!/^(?:19|20)?\d{2,4}(?:도|다|두|마|카|가|나|누|므|헌)[가-힣A-Za-z]*\d{1,9}$/.test(caseNumber)||seen.has(caseNumber))continue;
+  if(!/^\d{2,4}[가-힣]+\d{1,9}$/.test(caseNumber)||seen.has(caseNumber))continue;
   const date=clean(row.date),court=clean(row.court);
   if(!/^\d{4}[.-]\s*\d{1,2}[.-]\s*\d{1,2}\.?$/.test(date)||!court||!officialUrl(row.url))continue;
   seen.add(caseNumber);
@@ -85,10 +89,10 @@ export default async function handler(req,res){
   let response;
   try{response=await fetch('https://api.openai.com/v1/responses',{method:'POST',signal:ctrl.signal,headers:{authorization:'Bearer '+process.env.OPENAI_API_KEY,'content-type':'application/json'},body:JSON.stringify({
    model:process.env.SQUID_PRECEDENT_MODEL||'gpt-5.1',
-   tools:[{type:'web_search'}],
+   tools:[{type:'web_search',filters:{allowed_domains:['law.go.kr']}}],
    tool_choice:'required',
    max_output_tokens:4500,
-   instructions:'반드시 JSON 객체 하나만 출력하십시오. 형식: {"precedents":[{"caseNumber":"2012도14516","court":"대법원","date":"2016. 4. 28.","name":"","summary":"핵심 법리","relevance":"이 사건과의 직접 관련성","caution":"적용상 주의점","url":"공식 판결 원문 URL","originalExcerpt":"원문에서 그대로 복사한 판시 문장 24자 이상"}]}. 3~6개만 제시하고 같은 사건번호는 중복하지 마십시오. 사건번호·선고일·판시내용이 불확실하면 제외하십시오. URL은 실제 검색 결과에서 확인한 경우에만 쓰십시오. originalExcerpt는 해당 판결 원문에 실제 존재하는 문장을 띄어쓰기 포함 그대로 옮기십시오. 당신은 한국 판례 검색 보조 도구입니다. 제공된 기존 사건 요약을 다시 분석하지 말고 법률 쟁점에 맞는 실제 공개 판례만 웹에서 검색하십시오. 판례번호를 추측하거나 만들어내지 마십시오. 판결 법원, 선고일, 사건번호를 확인할 수 없으면 결과로 제시하지 마십시오. 원문 확인 가능한 법원 또는 국가법령정보센터 URL을 우선하십시오. 반드시 한국어로 각 판례의 관련성 및 사건에 적용할 때 주의할 점을 간결히 설명하십시오. 검색으로 확인되지 않은 사실은 확인 불가라고 하십시오.',
+   instructions:'반드시 JSON 객체 하나만 출력하십시오. 형식: {"precedents":[{"caseNumber":"2012도14516","court":"대법원","date":"2016. 4. 28.","name":"","summary":"핵심 법리","relevance":"이 사건과의 직접 관련성","caution":"적용상 주의점","url":"공식 판결 원문 URL","originalExcerpt":"원문에서 그대로 복사한 판시 문장 24자 이상"}]}. 3~6개만 제시하고 같은 사건번호는 중복하지 마십시오. 사건번호·선고일·판시내용이 불확실하면 제외하십시오. URL은 실제 검색 결과에서 확인한 경우에만 쓰십시오. originalExcerpt는 국가법령정보센터 판결요지 또는 전문에 실제 존재하는 12자 이상의 문장을 그대로 옮기십시오. 국가법령정보센터(law.go.kr)만 검색하십시오. 블로그, 법률사무소, 포털 검색 결과는 사용하지 마십시오. 원문 URL과 실제 판시사항·판결요지에서 인용문을 가져오십시오. 당신은 한국 판례 검색 보조 도구입니다. 제공된 기존 사건 요약을 다시 분석하지 말고 법률 쟁점에 맞는 실제 공개 판례만 웹에서 검색하십시오. 판례번호를 추측하거나 만들어내지 마십시오. 판결 법원, 선고일, 사건번호를 확인할 수 없으면 결과로 제시하지 마십시오. 원문 확인 가능한 법원 또는 국가법령정보센터 URL을 우선하십시오. 반드시 한국어로 각 판례의 관련성 및 사건에 적용할 때 주의할 점을 간결히 설명하십시오. 검색으로 확인되지 않은 사실은 확인 불가라고 하십시오.',
    input:'다음은 고객이 선택한 단일 사건의 기존 저장 맥락입니다. 완료된 법률 분석 보고서의 쟁점을 최우선으로 사용하십시오. 파일명은 원문 증거가 아닙니다. 새 분석을 실행하지 말고 이 사건의 핵심 쟁점과 직접 관련된 실제 판례를 3~6개 검색하고 판례번호, 선고일, 법원, 쟁점, 출처 링크를 적으십시오.\\n'+JSON.stringify(context).slice(0,26000)
   })})}finally{clearTimeout(timer)}
   const data=await response.json().catch(()=>null);
@@ -101,7 +105,7 @@ export default async function handler(req,res){
   const candidates=parsePrecedents(report);
   const checked=await Promise.all(candidates.map(verifyPrecedent));
   const results=checked.filter(Boolean).slice(0,6);
-  if(!results.length)return respond(res,200,{caseId:id,source:'공식 판결 원문 대조',query:record.title||'선택한 사건',count:0,results:[],report:'',citations:[],notice:'원문에서 사건번호·선고일·판시 인용문을 모두 확인한 판례가 없어 결과에서 제외했습니다.'});
-  return respond(res,200,{caseId:id,source:'OpenAI 웹 검색 (기존 사건 맥락 활용)',query:record.title||'선택한 사건',count:results.length,results,report:'',citations:[],notice:'공식 판결 원문에서 사건번호·선고일·인용문을 확인한 판례만 표시합니다. 실제 사건에 대한 적용은 별도 법률 검토가 필요합니다.'});
+  if(!results.length)return respond(res,200,{caseId:id,source:'공식 판결 원문 대조',query:record.title||'선택한 사건',count:0,results:[],report:'',citations:[],notice:'국가법령정보센터에서 사건번호·선고일·판시 인용문을 대조한 판례가 없습니다. 외부 웹사이트 판례는 표시하지 않습니다.'});
+  return respond(res,200,{caseId:id,source:'국가법령정보센터 원문 검증',query:record.title||'선택한 사건',count:results.length,results,report:'',citations:[],notice:'공식 판결 원문에서 사건번호·선고일·인용문을 확인한 판례만 표시합니다. 실제 사건에 대한 적용은 별도 법률 검토가 필요합니다.'});
  }catch(e){return respond(res,502,{code:'PRECEDENT_SEARCH_ERROR',error:'GPT 판례 검색 실패: '+clean(e.message).slice(0,180)})}
 }
