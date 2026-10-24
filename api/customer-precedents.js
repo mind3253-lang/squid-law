@@ -1,7 +1,7 @@
 import {guard,respond,readJson,casePrefix,documents} from './customer-case.js';
 import {latestSnapshot} from './customer-case-knowledge.js';
 const validId=s=>/^SL-[A-Za-z0-9-]{5,40}$/.test(s);
-const clean=s=>String(s||'').replace(/\\s+/g,' ').trim();
+const clean=s=>String(s||'').replace(/\s+/g,' ').trim();
 const unique=a=>[...new Set(a.filter(Boolean))];
 export default async function handler(req,res){
  const auth=guard(req);if(auth.error)return respond(res,auth.status,{error:auth.error});
@@ -9,7 +9,7 @@ export default async function handler(req,res){
  const id=String(req.query?.caseId||'');if(!validId(id))return respond(res,400,{error:'사건 ID 오류'});
  try{
   const user=auth.user;
-  const record=await readJson(casePrefix(user,'_index').replace(/_index\\/$/,'')+'registry/'+id+'.json');
+  const record=await readJson(casePrefix(user,'_index').replace(/_index\/$/,'')+'registry/'+id+'.json');
   if(!record||record.id!==id)return respond(res,404,{error:'사건을 찾을 수 없습니다.'});
   if(!process.env.OPENAI_API_KEY)return respond(res,503,{code:'OPENAI_NOT_CONFIGURED',error:'기존 OpenAI API 설정이 없습니다.'});
   const [docs,snapshot]=await Promise.all([documents(user,id),latestSnapshot(user,id,'knowledge').catch(()=>null)]);
@@ -33,8 +33,8 @@ export default async function handler(req,res){
   if(!response.ok)return respond(res,502,{code:'OPENAI_PRECEDENT_ERROR',error:'GPT 판례 검색 호출 실패 ('+response.status+'): '+clean(data?.error?.message||'API 오류').slice(0,200)});
   const outputs=(data?.output||[]).filter(x=>x.type==='message');
   const content=outputs.flatMap(x=>x.content||[]);
-  const report=content.filter(x=>x.type==='output_text').map(x=>x.text||'').join('\\n').trim();
-  const citations=unique(content.flatMap(x=>(x.annotations||[]).filter(a=>a.type==='url_citation').map(a=>a.url))).filter(u=>/^https:\\/\\//.test(u)).slice(0,25);
+  const report=content.filter(x=>x.type==='output_text').map(x=>x.text||'').join('\n').trim();
+  const citations=unique(content.flatMap(x=>(x.annotations||[]).filter(a=>a.type==='url_citation').map(a=>a.url))).filter(u=>/^https:\/\//.test(u)).slice(0,25);
   if(!report)return respond(res,502,{code:'PRECEDENT_EMPTY',error:'GPT 판례 검색 응답에 확인 가능한 내용이 없습니다.'});
   return respond(res,200,{caseId:id,source:'OpenAI 웹 검색 (기존 사건 맥락 활용)',query:record.title||'선택한 사건',count:citations.length,results:[],report,citations,notice:'판례번호와 판시 내용은 링크된 판결 원문과 대조 후 서면에 인용해야 합니다. 원문 미확인 결과는 확정 판례로 취급하지 않습니다.'});
  }catch(e){return respond(res,502,{code:'PRECEDENT_SEARCH_ERROR',error:'GPT 판례 검색 실패: '+clean(e.message).slice(0,180)})}
