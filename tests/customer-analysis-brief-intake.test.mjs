@@ -67,3 +67,16 @@ test('customer API and UI require intake; customer chat no longer bills AI advic
  assert.match(notes,/action==='note'/);
  assert.match(chat,/code:'LEGAL_CHAT_DISABLED'/);
 });
+
+test('brief table escapes literal pipes and normalizes whitespace without changing words',()=>{
+ const brief=buildCustomerAnalysisBrief({
+  caseRecord:record,
+  report:{findings:[{issueKey:'정산 | 상계',party:'defendant',type:'rebuttal',
+   claim:'정산  완료\\n상계 주장',analysis:'서면 대조',evidenceNeed:'계좌 | 거래명세서'}]},
+  documents:[]
+ });
+ assert.match(brief.text,/정산 · 상계/);
+ assert.match(brief.text,/정산 완료 상계 주장/);
+ assert.match(brief.text,/계좌 · 거래명세서/);
+ assert.doesNotMatch(brief.text,/정산  완료/);
+});
