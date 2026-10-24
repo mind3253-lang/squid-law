@@ -6,7 +6,7 @@ const customerKey=user=>createHash('sha256').update(user).digest('hex');
 // needlessly amplifies latency and connection churn under concurrent users.
 let cachedPool=null,cachedKey=null;
 const db=async()=>{
- const url=process.env.SQUID_CUSTOMER_DATABASE_URL||process.env.SQUID_CUSTOMER_DATABASE_DATABASE_URL;
+ const url=process.env.SQUID_CUSTOMER_DATABASE_URL;
  if(!url)throw new LeaseUnavailable();
  // Local PostgreSQL does not require TLS; preserve verified TLS for remote endpoints.
  const localHost=(()=>{try{const h=new URL(url).hostname;return ['localhost','127.0.0.1','::1'].includes(h)}catch{return false}})();
