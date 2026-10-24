@@ -491,7 +491,10 @@ export default async function handler(req,res){
   const finalPath=root+'completion-reconciliation.json';
   await put(finalPath,JSON.stringify(completion),{access:'private',allowOverwrite:true,addRandomSuffix:false,contentType:'application/json'});
   if(!completion.complete){
-   await advanceJob(job,'completion_gates_pending',{...previous,semanticAuditPassed:true,semanticAuditTotal:report.findings.length,completionReconciliation:finalPath,missingGates:completion.missing,gateDiagnostics},'blocked','COMPLETION_GATES_PENDING');
+   const gateError=new Error('COMPLETION_GATES_PENDING');
+   const {traceId:gateTrace,record:gateRecord}=captureServerError(gateError,{system:'SQUIDLAW',operation:'analysis-completion',stage:'completion_gates_pending',jobId:job.jobId||job.id});
+   await gateRecord.persistence;
+   await advanceJob(job,'completion_gates_pending',{...previous,semanticAuditPassed:true,semanticAuditTotal:report.findings.length,completionReconciliation:finalPath,missingGates:completion.missing,gateDiagnostics,errorTraceId:gateTrace,lastFailureCode:'COMPLETION_GATES_PENDING',lastFailureStage:'completion_gates_pending',lastFailureAt:new Date().toISOString()},'blocked','COMPLETION_GATES_PENDING');
    return res.status(200).json({status:'blocked',reason:'COMPLETION_GATES_PENDING',missing:completion.missing,gateDiagnostics});
   }
   // Newly submitted documents have passed the full verification gates.
