@@ -151,7 +151,7 @@ test('finalization checkpoint reuses reviewed delta decisions, never calls GPT',
 test('worker routes additions ahead of old-document extraction; non-delta full path remains',()=>{
  const worker=readFileSync(new URL('../api/customer-analysis-worker.js',import.meta.url),'utf8');
  assert.match(worker,/completedCaseBaselines\(job\)/);
- assert.match(worker,/docs=verifyDeltaPlan\(job\.checkpoint\.delta,fullDocs\)/);
+ assert.match(worker,/const deltaPlan=job\.checkpoint\.delta;/);assert.match(worker,/docs=verifyDeltaPlan\(deltaPlan,fullDocs\)/);
  assert.match(worker,/runDeltaReviewStep/);
  assert.match(worker,/delta_impact_review_pending/);
  const incremental=readFileSync(new URL('../api/customer-delta-worker.mjs',import.meta.url),'utf8');
