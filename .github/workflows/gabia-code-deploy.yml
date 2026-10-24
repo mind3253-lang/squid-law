@@ -164,10 +164,25 @@ jobs:
           test -f /opt/squidlaw/app/admin/skynet-icon.svg
           grep -q 'skynet-icon.svg' /opt/squidlaw/app/admin/skynet.html
           echo DEPLOY_SKYNET_ICON_VERIFIED
+          echo MAINTENANCE_PAGE_SMOKE_BEGIN
+          test -f /opt/squidlaw/app/admin1974/index.html
+          grep -q 'SKYNET 유지보수 기록' /opt/squidlaw/app/admin1974/index.html
+          maintenance_http=$(curl --silent --show-error --output /tmp/squidlaw-maintenance-smoke.html --write-out '%{http_code}' --max-time 12 -H 'Host: www.squidlaw.co.kr' http://127.0.0.1/admin1974/ || true)
+          echo MAINTENANCE_PAGE_HTTP_STATUS=$maintenance_http
+          if [ "$maintenance_http" = "200" ]; then
+            grep -q 'SKYNET 유지보수 기록' /tmp/squidlaw-maintenance-smoke.html
+            echo MAINTENANCE_PAGE_SMOKE_PASS
+          else
+            echo MAINTENANCE_PAGE_SMOKE_NEEDS_REVIEW
+          fi
+          diagnostic_http=$(curl --silent --output /dev/null --write-out '%{http_code}' --max-time 12 -H 'Host: www.squidlaw.co.kr' 'http://127.0.0.1/api/skynet-diagnostics?report=1&limit=20' || true)
+          echo MAINTENANCE_DIAGNOSTICS_UNAUTH_HTTP=$diagnostic_http
+          if [ "$diagnostic_http" = "401" ]; then echo MAINTENANCE_DIAGNOSTICS_AUTH_PASS; else echo MAINTENANCE_DIAGNOSTICS_AUTH_NEEDS_REVIEW; fi
+          echo MAINTENANCE_PAGE_SMOKE_END
           REMOTE
           deploy_rc=$?
           set -e
-          grep -E '^(BOUNDARY_PROVIDER_DIAGNOSIS_|BOUNDARY_PROVIDER_REJECTION|ANALYSIS_DIAGNOSTICS_|DIAG_SERVICE|COMPLETION_GATES_PENDING|INTEGRATION_AUDIT_|AUDIT |RECENT_(CUSTOMER_API_ERROR_DIAGNOSIS|COMPAT_API_ERRORS)_|REPORT_(MODULE_SYNTAX_CHECK_(BEGIN|END)|IMPORT_OK)|^(SyntaxError|Error \[|file:|[[:space:]]*at )|GABIA_(CUSTOMER|COMPAT)_API_FAILURE)' /tmp/deploy.log || true
+          grep -E '^(MAINTENANCE_(PAGE|DIAGNOSTICS)_|BOUNDARY_PROVIDER_DIAGNOSIS_|BOUNDARY_PROVIDER_REJECTION|ANALYSIS_DIAGNOSTICS_|DIAG_SERVICE|COMPLETION_GATES_PENDING|INTEGRATION_AUDIT_|AUDIT |RECENT_(CUSTOMER_API_ERROR_DIAGNOSIS|COMPAT_API_ERRORS)_|REPORT_(MODULE_SYNTAX_CHECK_(BEGIN|END)|IMPORT_OK)|^(SyntaxError|Error \[|file:|[[:space:]]*at )|GABIA_(CUSTOMER|COMPAT)_API_FAILURE)' /tmp/deploy.log || true
           if [ "$deploy_rc" -ne 0 ]; then
             echo DEPLOY_SSH_EXIT_$deploy_rc
             grep -E '^(DEPLOY_|OBJECT_ROOT|INTEGRATION_AUDIT_|AUDIT |npm error|npm ERR|Error:)' /tmp/deploy.log | tail -35 || true
