@@ -1,35 +1,41 @@
 import {guard,respond,readJson,casePrefix,documents} from './customer-case.js';
-const okId=s=>/^SL-[A-Za-z0-9-]{5,40}$/.test(s);
-const strip=s=>String(s||'').replace(/<[^>]*>/g,'').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&amp;/g,'&').trim();
-const tag=(s,n)=>strip(s.match(new RegExp('<'+n+'(?:\\s[^>]*)?>([\\s\\S]*?)<\\/'+n+'>','i'))?.[1]||'');
-const compact=s=>String(s||'').replace(/\s+/g,' ').trim();
-function keywords(record,docs){
- const text=[record.title,record.type,record.intake?.claimSummary,record.intake?.caseSummary,...docs.map(d=>d.name)].filter(Boolean).join(' ');
- const stop=new Set(['원고','피고','사건','자료','소장','의견서','준비서면','증거','첨부','분석','보고서','관련','사실','주장']);
- return [...new Set((text.match(/[가-힣]{2,12}/g)||[]).filter(x=>!stop.has(x)))].slice(0,8);
-}
+import {latestSnapshot} from './customer-case-knowledge.js';
+const validId=s=>/^SL-[A-Za-z0-9-]{5,40}$/.test(s);
+const clean=s=>String(s||'').replace(/\\s+/g,' ').trim();
+const unique=a=>[...new Set(a.filter(Boolean))];
 export default async function handler(req,res){
  const auth=guard(req);if(auth.error)return respond(res,auth.status,{error:auth.error});
  if(req.method!=='GET')return respond(res,405,{error:'GET만 지원'});
- const id=String(req.query?.caseId||'');if(!okId(id))return respond(res,400,{error:'사건 ID 오류'});
- const oc=process.env.LAW_GO_KR_OC||process.env.LAW_API_OC;
- if(!oc)return respond(res,503,{code:'PRECEDENT_SOURCE_NOT_CONFIGURED',error:'공식 판례 검색 API 인증값이 설정되지 않았습니다. 검색 결과를 만들어내지 않았습니다.'});
+ const id=String(req.query?.caseId||'');if(!validId(id))return respond(res,400,{error:'사건 ID 오류'});
  try{
   const user=auth.user;
-  const path=casePrefix(user,'_index').replace(/_index\/$/,'')+'registry/'+id+'.json';
-  const record=await readJson(path);if(!record||record.id!==id)return respond(res,404,{error:'사건을 찾을 수 없습니다.'});
-  const docs=await documents(user,id);
-  const terms=keywords(record,docs);if(!terms.length)return respond(res,422,{error:'검색어를 추출할 사건 정보가 없습니다.'});
-  const search=terms.slice(0,3).join(' ');
-  const url=new URL('https://www.law.go.kr/DRF/lawSearch.do');
-  url.searchParams.set('OC',oc);url.searchParams.set('target','prec');url.searchParams.set('type','XML');url.searchParams.set('query',search);url.searchParams.set('display','20');
-  const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),25000);
-  let response;try{response=await fetch(url,{signal:controller.signal,headers:{accept:'application/xml,text/xml'}})}finally{clearTimeout(timer)}
-  if(!response.ok)throw Error('공식 판례 검색 서버 응답 '+response.status);
-  const xml=await response.text();
-  if(!xml.includes('<')||/오류|인증 실패|인증오류/.test(xml.slice(0,450)))throw Error('공식 판례 검색 응답 확인 실패');
-  const blocks=[...xml.matchAll(/<prec(?:\s[^>]*)?>([\s\S]*?)<\/prec>/gi)].map(m=>m[1]);
-  const results=blocks.map(x=>({caseNumber:tag(x,'사건번호'),name:tag(x,'사건명'),court:tag(x,'법원명'),date:tag(x,'선고일자'),summary:tag(x,'판시사항'),id:tag(x,'판례일련번호'),url:tag(x,'판례상세링크')})).filter(x=>x.caseNumber||x.id);
-  return respond(res,200,{caseId:id,query:search,source:'국가법령정보센터 판례검색 API',count:results.length,results,notice:'검색 결과는 판례 원문을 확인해야 합니다. 사건 적용 여부를 자동 판단하지 않습니다.'});
- }catch(e){return respond(res,502,{code:'PRECEDENT_SOURCE_ERROR',error:'공식 판례 검색에 실패했습니다: '+String(e.message||e).slice(0,160)})}
+  const record=await readJson(casePrefix(user,'_index').replace(/_index\\/$/,'')+'registry/'+id+'.json');
+  if(!record||record.id!==id)return respond(res,404,{error:'사건을 찾을 수 없습니다.'});
+  if(!process.env.OPENAI_API_KEY)return respond(res,503,{code:'OPENAI_NOT_CONFIGURED',error:'기존 OpenAI API 설정이 없습니다.'});
+  const [docs,snapshot]=await Promise.all([documents(user,id),latestSnapshot(user,id,'knowledge').catch(()=>null)]);
+  const context={
+   title:record.title,type:record.type,
+   intake:record.intake?{claimSummary:record.intake.claimSummary,caseSummary:record.intake.caseSummary,clientRole:record.intake.clientRole}:null,
+   priorAnalysis:snapshot?{summary:snapshot.summary,createdAt:snapshot.createdAt,facts:(snapshot.facts||[]).slice(0,24).map(f=>({statement:f.statement,status:f.status}))}:null,
+   filenames:docs.slice(-35).map(d=>d.name)
+  };
+  const ctrl=new AbortController();const timer=setTimeout(()=>ctrl.abort(),85000);
+  let response;
+  try{response=await fetch('https://api.openai.com/v1/responses',{method:'POST',signal:ctrl.signal,headers:{authorization:'Bearer '+process.env.OPENAI_API_KEY,'content-type':'application/json'},body:JSON.stringify({
+   model:process.env.SQUID_PRECEDENT_MODEL||'gpt-5.1',
+   tools:[{type:'web_search'}],
+   tool_choice:'required',
+   max_output_tokens:2500,
+   instructions:'당신은 한국 판례 검색 보조 도구입니다. 제공된 기존 사건 요약을 다시 분석하지 말고 법률 쟁점에 맞는 실제 공개 판례만 웹에서 검색하십시오. 판례번호를 추측하거나 만들어내지 마십시오. 판결 법원, 선고일, 사건번호를 확인할 수 없으면 결과로 제시하지 마십시오. 원문 확인 가능한 법원 또는 국가법령정보센터 URL을 우선하십시오. 반드시 한국어로 각 판례의 관련성 및 사건에 적용할 때 주의할 점을 간결히 설명하십시오. 검색으로 확인되지 않은 사실은 확인 불가라고 하십시오.',
+   input:'다음은 고객이 선택한 단일 사건의 기존 저장 맥락입니다. 파일명은 원문 증거가 아닙니다. 새 분석을 실행하지 말고 이 사건의 핵심 쟁점과 직접 관련된 실제 판례를 3~6개 검색하고 판례번호, 선고일, 법원, 쟁점, 출처 링크를 적으십시오.\\n'+JSON.stringify(context).slice(0,16000)
+  })})}finally{clearTimeout(timer)}
+  const data=await response.json().catch(()=>null);
+  if(!response.ok)return respond(res,502,{code:'OPENAI_PRECEDENT_ERROR',error:'GPT 판례 검색 호출 실패 ('+response.status+'): '+clean(data?.error?.message||'API 오류').slice(0,200)});
+  const outputs=(data?.output||[]).filter(x=>x.type==='message');
+  const content=outputs.flatMap(x=>x.content||[]);
+  const report=content.filter(x=>x.type==='output_text').map(x=>x.text||'').join('\\n').trim();
+  const citations=unique(content.flatMap(x=>(x.annotations||[]).filter(a=>a.type==='url_citation').map(a=>a.url))).filter(u=>/^https:\\/\\//.test(u)).slice(0,25);
+  if(!report)return respond(res,502,{code:'PRECEDENT_EMPTY',error:'GPT 판례 검색 응답에 확인 가능한 내용이 없습니다.'});
+  return respond(res,200,{caseId:id,source:'OpenAI 웹 검색 (기존 사건 맥락 활용)',query:record.title||'선택한 사건',count:citations.length,results:[],report,citations,notice:'판례번호와 판시 내용은 링크된 판결 원문과 대조 후 서면에 인용해야 합니다. 원문 미확인 결과는 확정 판례로 취급하지 않습니다.'});
+ }catch(e){return respond(res,502,{code:'PRECEDENT_SEARCH_ERROR',error:'GPT 판례 검색 실패: '+clean(e.message).slice(0,180)})}
 }
