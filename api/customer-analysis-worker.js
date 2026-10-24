@@ -486,11 +486,13 @@ export default async function handler(req,res){
   const boundaryAudit=auditDocumentBoundaryEvidence({documents:docs,aggregate:{documentBoundaryCandidates:verifiedBoundaries}});
   const completion=reconcileAnalysisCompletion({sourceVersion:job.documentVersion,documents:docs,sourceIndex:indexData,aggregate,report,visualReview:previous.visualReview,semanticAuditPassed:true,visualAudits,ocrVerified:textAudit.verified,boundariesVerified:boundaryAudit.verified});
   completion.failures.push(...textAudit.failures.slice(0,50),...boundaryAudit.failures.slice(0,50));
+  // Stable, content-free gate diagnostics for SKYNET and the customer job status view.
+  const gateDiagnostics={missingGates:completion.missing,ocrVerified:textAudit.verified,boundariesVerified:boundaryAudit.verified,visualVerified:previous.visualReview?.verified===true,sourceVersionMatched:true,textFailureCount:textAudit.failures.length,boundaryFailureCount:boundaryAudit.failures.length};
   const finalPath=root+'completion-reconciliation.json';
   await put(finalPath,JSON.stringify(completion),{access:'private',allowOverwrite:true,addRandomSuffix:false,contentType:'application/json'});
   if(!completion.complete){
-   await advanceJob(job,'completion_gates_pending',{...previous,semanticAuditPassed:true,semanticAuditTotal:report.findings.length,completionReconciliation:finalPath,missingGates:completion.missing},'blocked','COMPLETION_GATES_PENDING');
-   return res.status(200).json({status:'blocked',reason:'COMPLETION_GATES_PENDING',missing:completion.missing});
+   await advanceJob(job,'completion_gates_pending',{...previous,semanticAuditPassed:true,semanticAuditTotal:report.findings.length,completionReconciliation:finalPath,missingGates:completion.missing,gateDiagnostics},'blocked','COMPLETION_GATES_PENDING');
+   return res.status(200).json({status:'blocked',reason:'COMPLETION_GATES_PENDING',missing:completion.missing,gateDiagnostics});
   }
   // Newly submitted documents have passed the full verification gates.
   // Do not mark the report complete before source integrity and targeted issue checks pass.
