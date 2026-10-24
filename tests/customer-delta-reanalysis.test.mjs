@@ -25,7 +25,7 @@ const deltaFinding={type:'rebuttal',claim:'변경합의가 없다는 자료',iss
 const unaffected={type:'claim',claim:'상대방은 보증금을 지급함',issueKey:'보증금',
  sources:[oldRef],status:'draft'};
 const oldReport={caseId:'SL-demo',sourceVersion:prevVersion,reportType:'gpt_legal_analysis',
- clientRole:'defendant',findings:[oldFinding,unaffected],uncertainties:[],
+ analysisEngineVersion:'gpt-6-claims-v1',clientRole:'defendant',findings:[oldFinding,unaffected],uncertainties:[],
  sourceReviewCoverage:{complete:true},issues:[],status:'reviewed',
  notForCourtSubmission:false,independentSemanticAuditPassed:true};
 const freshReport={...oldReport,sourceVersion:nowVersion,findings:[deltaFinding]};
