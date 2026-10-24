@@ -27,6 +27,7 @@ if(!(action==='login'&&/^a[123]$/.test(id))&&!/^[a-z0-9][a-z0-9_-]{3,29}$/.test(
 try{
 let user=await load(id);
 if(action==='register'){
+if(id==='admin')return fail(res,403,'관리자 아이디는 일반 가입으로 만들 수 없습니다');
 if(user)return fail(res,409,'이미 사용 중인 아이디입니다');
 const salt=randomBytes(24).toString('hex'),derived=scryptSync(password,salt,64).toString('hex');
 const professional=b?.membershipType==='professional';if(b?.membershipType&&!['general','professional'].includes(b.membershipType))return fail(res,400,'회원 유형 오류');const credential=String(b?.credentialNumber||'').trim(),business=String(b?.businessNumber||'').replace(/[^0-9]/g,'');const profession=String(b?.profession||'');if(professional&&(!['lawyer','judicial_scrivener'].includes(profession)||credential.length<3||credential.length>80||business.length!==10))return fail(res,400,'전문자격 종류·자격번호·사업자등록번호를 확인해 주세요');user={id,salt,derived,createdAt:new Date().toISOString(),membership:professional?{type:'professional',status:'pending',profession,credentialNumber:credential,businessNumber:business,requestedAt:new Date().toISOString()}:{type:'general',status:'active'}};
