@@ -34,18 +34,13 @@ async function verifyPrecedent(row){
   const found=headers[0];
   const actualNumber=found[4];
   const actualDate=`${found[1]}. ${Number(found[2])}. ${Number(found[3])}.`;
-  const headings=['판결요지','판시사항','이유'];
-  let summary='';
-  for(const heading of headings){
-   const at=text.indexOf(heading);
-   if(at<0)continue;
-   const tail=text.slice(at+heading.length);
-   const stop=tail.search(/참조조문|참조판례|판례정보|주\s*문|이\s*유|전\s*문/);
-   const candidate=clean(stop>30?tail.slice(0,stop):tail.slice(0,900)).replace(/^[〗】\s]+/,'');
-   if(candidate.length>=25){summary=candidate.slice(0,650);break}
-  }
-  if(summary.length<25)return {ok:false,reason:'official_holding_missing',actual:actualNumber,textLength:text.length,headings:headings.filter(x=>text.includes(x))};
-  return {ok:true,item:{caseNumber:actualNumber,date:actualDate,court:found[0].split(/\s+/)[0],name:row.name,summary,relevance:row.relevance,caution:row.caution,url,verification:'국가법령정보센터 원문 기준 사건번호·선고일·판결요지 확인'},corrected:actualNumber!==String(row.caseNumber).replace(/\s/g,'')};
+  // Search AFTER the ruling title, not the site's navigation bar.
+  const body=text.slice(Math.max(0,header.indexOf(found[0])+found[0].length));
+  const section=body.match(/【판결요지】\s*([\s\S]*?)(?=【(?:참조조문|참조판례|전\s*문|주\s*문)】|$)/);
+  const fallback=body.match(/【판시사항】\s*([\s\S]*?)(?=【(?:판결요지|참조조문|참조판례|전\s*문)】|$)/);
+  const summary=clean((section?.[1]||fallback?.[1]||'').slice(0,1800)).slice(0,650);
+  if(summary.length<25)return {ok:false,reason:'official_holding_missing',actual:actualNumber,textLength:text.length,hasHolding:body.includes('【판결요지】')};
+  return {ok:true,item:{caseNumber:actualNumber,date:actualDate,court:found[0].split(/\s+/)[0],name:row.name,summary,relevance:row.relevance,caution:row.caution||'판결의 사실관계와 이 사건의 차이, 기망행위·처분행위·고의의 입증 여부를 별도로 검토해야 합니다.',url,verification:'국가법령정보센터 원문 기준 사건번호·선고일·판결요지 확인'},corrected:actualNumber!==String(row.caseNumber).replace(/\s/g,'')};
  }catch(e){return {ok:false,reason:e?.name==='AbortError'?'timeout':'fetch_or_parse_error'}}finally{clearTimeout(timer)}
 }
 function parsePrecedents(raw){
