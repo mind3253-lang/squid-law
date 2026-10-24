@@ -4,7 +4,7 @@ import {guard,respond,readJson,documents,casePrefix} from './customer-case.js';
 import {enqueueJob,getJob,resumeJob,queueSnapshot,documentVersion,latestCaseJob,confirmDocumentRelevance,acceptCustomerRequestedEvidence} from './customer-analysis-jobs-db.js';
 const idOk=id=>/^SL-[a-zA-Z0-9-]{5,40}$/.test(id);
 // Compare explicit party metadata only. Filename keywords are never evidence of mismatch.
-const normParty=s=>String(s||'').replace(/\\s+/g,'').trim();
+const normParty=s=>String(s||'').replace(/\s+/g,'').trim();
 const partyMismatch=(docs,intake)=>{
  const plaintiff=normParty(intake?.plaintiffName),defendant=normParty(intake?.defendantName);
  if(!plaintiff||!defendant)return null;
