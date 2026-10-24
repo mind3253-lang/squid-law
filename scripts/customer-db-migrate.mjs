@@ -1,6 +1,6 @@
 import {readFileSync} from 'node:fs';
 import {Pool} from 'pg';
-const url=process.env.SQUID_CUSTOMER_DATABASE_URL||process.env.SQUID_CUSTOMER_DATABASE_DATABASE_URL;
+const url=process.env.SQUID_CUSTOMER_DATABASE_URL;
 if(!url){console.error('SQUID_CUSTOMER_DATABASE_URL is required; migration not attempted');process.exitCode=2}
 else{
  const pool=new Pool({connectionString:url,max:1,connectionTimeoutMillis:3500,ssl:process.env.SQUID_CUSTOMER_DATABASE_SSL==='disable'?false:{rejectUnauthorized:true}});
