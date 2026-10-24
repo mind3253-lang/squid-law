@@ -72,7 +72,7 @@ test('brief table escapes literal pipes and normalizes whitespace without changi
  const brief=buildCustomerAnalysisBrief({
   caseRecord:record,
   report:{findings:[{issueKey:'정산 | 상계',party:'defendant',type:'rebuttal',
-   claim:'정산  완료\\n상계 주장',analysis:'서면 대조',evidenceNeed:'계좌 | 거래명세서'}]},
+   claim:'정산  완료\n상계 주장',analysis:'서면 대조',evidenceNeed:'계좌 | 거래명세서'}]},
   documents:[]
  });
  assert.match(brief.text,/정산 · 상계/);
