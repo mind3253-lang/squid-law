@@ -12,7 +12,7 @@ const sign=s=>createHmac('sha256',process.env.SQUID_AUTH_SECRET).update(s).diges
 const encode=o=>Buffer.from(JSON.stringify(o)).toString('base64url');
 const cookie=(token,age)=>`${COOKIE}=${token}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${age}`;
 function session(req){try{const raw=String(req.headers.cookie||'').split(';').map(s=>s.trim()).find(s=>s.startsWith(COOKIE+'='))?.slice(COOKIE.length+1);if(!raw)return null;const [payload,mac]=raw.split('.');if(!payload||!mac||!timingSafeEqual(Buffer.from(sign(payload)),Buffer.from(mac)))return null;const obj=JSON.parse(Buffer.from(payload,'base64url').toString());return obj.exp>Date.now()&&typeof obj.id==='string'?obj:null}catch{return null}}
-export function authenticatedUser(req){return session(req)?.id||null}
+export function authenticatedUser(req){return adminSession(req)?'admin':session(req)?.id||null}
 async function load(id){const x=await get(path(id),{access:'private'}).catch(()=>null);if(!x||x.statusCode!==200)return null;let bytes=0,parts=[];for await(const chunk of x.stream){bytes+=chunk.length;if(bytes>10000)throw Error('record oversized');parts.push(Buffer.from(chunk))}return JSON.parse(Buffer.concat(parts).toString('utf8'))}
 export default async function handler(req,res){
 res.setHeader('Cache-Control','no-store');res.setHeader('X-Content-Type-Options','nosniff');
