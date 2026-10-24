@@ -86,7 +86,7 @@ async function savedLegalContext(user,id){
    for await(const part of r.stream){size+=part.length;if(size>4*1024*1024)throw Error('REPORT_TOO_LARGE');chunks.push(Buffer.from(part))}
    const report=JSON.parse(Buffer.concat(chunks).toString('utf8'));
    if(report?.caseId!==id||report?.reportType!=='gpt_legal_analysis'||report?.sourceVersion!==job.documentVersion)continue;
-   return {reportJobId:job.jobId,reportTitle:report.title,issues:report.issues,findings:report.findings,conclusion:report.conclusion,summary:report.summary,analysis:report.analysis};
+   return {reportJobId:job.jobId,reportTitle:report.title,issues:report.issues,findings:report.findings,conclusion:report.conclusion,summary:report.summary,analysis:report.analysis,legalSearchKeywords:report.legalSearchKeywords||[]};
   }catch{}
  }
  return null;
@@ -103,6 +103,7 @@ export default async function handler(req,res){
   const [docs,snapshot,legalReport]=await Promise.all([documents(user,id),latestSnapshot(user,id,'knowledge').catch(()=>null),savedLegalContext(user,id)]);
   const context={
    title:record.title,type:record.type,
+   legalSearchKeywords:(legalReport?.legalSearchKeywords||[]).slice(0,3),
    completedLegalReport:legalReport,
    intake:record.intake?{claimSummary:record.intake.claimSummary,caseSummary:record.intake.caseSummary,clientRole:record.intake.clientRole}:null,
    priorAnalysis:snapshot?{summary:snapshot.summary,createdAt:snapshot.createdAt,facts:(snapshot.facts||[]).slice(0,24).map(f=>({statement:f.statement,status:f.status}))}:null,
@@ -116,7 +117,7 @@ export default async function handler(req,res){
    tool_choice:'required',
    max_output_tokens:4500,
    instructions:'반드시 JSON 객체 하나만 출력하십시오. 형식: {"precedents":[{"caseNumber":"2012도14516","court":"대법원","date":"2016. 4. 28.","name":"","summary":"핵심 법리","relevance":"이 사건과의 직접 관련성","caution":"적용상 주의점","url":"공식 판결 원문 URL","originalExcerpt":"원문에서 그대로 복사한 판시 문장 24자 이상"}]}. 3~6개만 제시하고 같은 사건번호는 중복하지 마십시오. 판례의 관련성은 단순히 같은 죄명이나 추상적 법리라는 이유로 인정하지 마십시오. 각 판례의 구체적 사실관계, 법원이 실제 판단한 쟁점, 이 사건에서 입증된 사실을 각각 대조하십시오. 직접 관련성이 약한 판례는 검색 결과에서 제외하고 개수를 억지로 채우지 마십시오. relevance는 반드시 (1) 이 사건의 특정 쟁점 (2) 판례가 판단한 정확한 법리 (3) 양 사건의 공통점과 차이 (4) 적용에 필요한 입증 사실을 쉬운 한국어 2~3문장으로 작성하십시오. 대출·회계·보조금 사건을 입장권 결제 사건에 연결할 때는 동일한 법적 판단구조를 구체적으로 설명할 수 없으면 제외하십시오. 사건번호·선고일·판시내용이 불확실하면 제외하십시오. URL은 실제 검색 결과에서 확인한 경우에만 쓰십시오. originalExcerpt는 국가법령정보센터 판결요지 또는 전문에 실제 존재하는 12자 이상의 문장을 그대로 옮기십시오. 국가법령정보센터(law.go.kr)만 검색하십시오. 블로그, 법률사무소, 포털 검색 결과는 사용하지 마십시오. 원문 URL과 실제 판시사항·판결요지에서 인용문을 가져오십시오. 당신은 한국 판례 검색 보조 도구입니다. 제공된 기존 사건 요약을 다시 분석하지 말고 법률 쟁점에 맞는 실제 공개 판례만 웹에서 검색하십시오. 판례번호를 추측하거나 만들어내지 마십시오. 판결 법원, 선고일, 사건번호를 확인할 수 없으면 결과로 제시하지 마십시오. 원문 확인 가능한 법원 또는 국가법령정보센터 URL을 우선하십시오. 반드시 한국어로 각 판례의 관련성 및 사건에 적용할 때 주의할 점을 간결히 설명하십시오. 검색으로 확인되지 않은 사실은 확인 불가라고 하십시오.',
-   input:'다음은 고객이 선택한 단일 사건의 기존 저장 맥락입니다. 완료된 법률 분석 보고서의 쟁점을 최우선으로 사용하십시오. 파일명은 원문 증거가 아닙니다. 새 분석을 실행하지 말고 이 사건의 핵심 쟁점과 직접 관련된 실제 판례를 3~6개 검색하고 판례번호, 선고일, 법원, 쟁점, 출처 링크를 적으십시오.\\n'+JSON.stringify(context).slice(0,26000)
+   input:'다음은 고객이 선택한 단일 사건의 기존 저장 맥락입니다. 완료된 법률 분석 보고서의 legalSearchKeywords가 3개 있으면 이를 판례 검색의 우선 검색어로 사용하십시오. 업종이나 주변 사건 소재로 검색 범위를 확장하지 마십시오. 법률요건에 부합하지 않는 판례는 제외하십시오. 완료된 법률 분석 보고서의 쟁점을 최우선으로 사용하십시오. 파일명은 원문 증거가 아닙니다. 새 분석을 실행하지 말고 이 사건의 핵심 쟁점과 직접 관련된 실제 판례를 3~6개 검색하고 판례번호, 선고일, 법원, 쟁점, 출처 링크를 적으십시오.\\n'+JSON.stringify(context).slice(0,26000)
   })})}finally{clearTimeout(timer)}
   const data=await response.json().catch(()=>null);
   if(!response.ok)return respond(res,502,{code:'OPENAI_PRECEDENT_ERROR',error:'GPT 판례 검색 호출 실패 ('+response.status+'): '+clean(data?.error?.message||'API 오류').slice(0,200)});
