@@ -2,9 +2,8 @@ import {normalizeDocument,renderDocx,renderPrintHtml} from '../lib/document-expo
 import {buildCustomerAnalysisBrief} from '../lib/customer-analysis-brief.mjs';
 import {courtSubmissionGate} from '../lib/court-submission-gate.mjs';
 import {findReportEvidence} from '../lib/customer-report-evidence-search.mjs';
-import {documents} from './customer-case.js';
 import {get} from '../lib/customer-object-storage.mjs';
-import {guard,respond,readJson,casePrefix} from './customer-case.js';
+import {guard,respond,readJson,casePrefix,documents} from './customer-case.js';
 import {getJob} from './customer-analysis-jobs-db.js';
 const idOk=s=>/^SL-[A-Za-z0-9-]{5,40}$/.test(s);
 async function load(path){
