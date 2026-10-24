@@ -17,7 +17,6 @@ export default async function handler(req,res){
  try{
   const result=await withLeaseDb(async pool=>{const db=await pool.connect();try{
    await db.query('BEGIN');
-   try{
     // Serialize transitions per trace without mutating original diagnostic records.
     await db.query('SELECT pg_advisory_xact_lock(hashtext($1))',[traceId]);
     const source=await db.query(`SELECT trace_id FROM squid_error_diagnostics WHERE trace_id=$1
