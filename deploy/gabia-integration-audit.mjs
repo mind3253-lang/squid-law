@@ -1,9 +1,7 @@
 #!/usr/bin/env node
 // Read-only production integration audit. Never prints credentials or customer data.
 import {readFile,readdir,stat} from 'node:fs/promises';
-import {createHash} from 'node:crypto';
 import path from 'node:path';
-import {connect} from 'node:net';
 const root=process.cwd(),checks=[];
 function check(name,ok,detail=''){checks.push({name,ok:Boolean(ok),detail});}
 async function exists(p){try{return (await stat(p)).isFile()}catch{return false}}
@@ -22,9 +20,12 @@ for(const f of ['server/gabia-api-compat.mjs','server/gabia-static-web.mjs','api
 const sources=await walk(root);
 const old=[];
 for(const f of sources){
- if(f.includes('/docs/')||f.includes('/tests/')||f.includes('/.github/')||f.includes('/deploy/')||f.includes('/scripts/'))continue;
- const s=await readFile(f,'utf8').catch(()=>'');
- if(/(vercel\.com|vercel\.app|@vercel\/blob|neon\.tech|DATABASE_URL_NEON)/i.test(s))old.push(path.relative(root,f));
+ const relative=path.relative(root,f).replaceAll('\\','/');
+ // Operational entrypoints only: historical documents, tests and deployment
+ // tooling are audited separately rather than treated as runtime dependencies.
+ if(/^(docs|tests|\.github|deploy|scripts)\//.test(relative))continue;
+ const contents=await readFile(f,'utf8').catch(()=>'');
+ if(/(vercel\.com|vercel\.app|@vercel\/blob|neon\.tech|DATABASE_URL_NEON)/i.test(contents))old.push(relative);
 }
 check('legacy-runtime-reference-scan',old.length===0,'files='+old.length+(old.length?' '+old.slice(0,15).join(','):''));
 const port=Number(process.env.SQUIDLAW_AUDIT_API_PORT||3084);
