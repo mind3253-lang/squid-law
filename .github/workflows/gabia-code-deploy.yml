@@ -83,7 +83,7 @@ jobs:
               sed -i '/^SQUIDLAW_LEGAL_API_ENABLED=/d; /^SQUIDLAW_GABIA_LEGAL_RUN_APPROVED=/d; /^SQUIDLAW_LEGAL_MODEL=/d' /etc/squidlaw/worker.env
               echo 'SQUIDLAW_LEGAL_API_ENABLED=true' >> /etc/squidlaw/worker.env
               echo 'SQUIDLAW_GABIA_LEGAL_RUN_APPROVED=true' >> /etc/squidlaw/worker.env
-              echo 'SQUIDLAW_LEGAL_MODEL=gpt-4.1-mini' >> /etc/squidlaw/worker.env
+              echo 'SQUIDLAW_LEGAL_MODEL=gpt-6' >> /etc/squidlaw/worker.env
               echo LEGAL_WORKER_SETTINGS_APPLIED
             else
               echo LEGAL_WORKER_KEY_NOT_IN_WORKER_ENV
@@ -135,6 +135,11 @@ jobs:
             grep -E 'GABIA_(CUSTOMER|COMPAT)_API_FAILURE' | tail -15 | \
             sed -E 's/"message":"[^"]*"/"message":"[REDACTED]"/g' || true
           echo RECENT_CUSTOMER_API_ERROR_DIAGNOSIS_END
+          echo BOUNDARY_PROVIDER_DIAGNOSIS_BEGIN
+          journalctl -u squidlaw-worker.service --since '90 minutes ago' --no-pager -o cat | \
+            grep 'BOUNDARY_PROVIDER_REJECTION' | tail -12 | \
+            sed -E 's/([A-Za-z_]*(KEY|TOKEN|SECRET|PASSWORD|DATABASE_URL)[A-Za-z_]*=)[^ ]+/\\1[REDACTED]/g' | cut -c1-800 || true
+          echo BOUNDARY_PROVIDER_DIAGNOSIS_END
           echo INTEGRATION_AUDIT_BEGIN
           (
             set -a
@@ -150,7 +155,7 @@ jobs:
           REMOTE
           deploy_rc=$?
           set -e
-          grep -E '^(INTEGRATION_AUDIT_|AUDIT |RECENT_(CUSTOMER_API_ERROR_DIAGNOSIS|COMPAT_API_ERRORS)_|REPORT_(MODULE_SYNTAX_CHECK_(BEGIN|END)|IMPORT_OK)|^(SyntaxError|Error \[|file:|[[:space:]]*at )|GABIA_(CUSTOMER|COMPAT)_API_FAILURE)' /tmp/deploy.log || true
+          grep -E '^(BOUNDARY_PROVIDER_DIAGNOSIS_|BOUNDARY_PROVIDER_REJECTION|INTEGRATION_AUDIT_|AUDIT |RECENT_(CUSTOMER_API_ERROR_DIAGNOSIS|COMPAT_API_ERRORS)_|REPORT_(MODULE_SYNTAX_CHECK_(BEGIN|END)|IMPORT_OK)|^(SyntaxError|Error \[|file:|[[:space:]]*at )|GABIA_(CUSTOMER|COMPAT)_API_FAILURE)' /tmp/deploy.log || true
           if [ "$deploy_rc" -ne 0 ]; then
             echo DEPLOY_SSH_EXIT_$deploy_rc
             grep -E '^(DEPLOY_|OBJECT_ROOT|INTEGRATION_AUDIT_|AUDIT |npm error|npm ERR|Error:)' /tmp/deploy.log | tail -35 || true
