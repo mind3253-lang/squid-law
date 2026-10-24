@@ -12,8 +12,8 @@ test('cutover helper never enables or starts production worker',()=>{
  assert.doesNotMatch(script,/systemctl\s+(start|enable|restart)\b/);
  assert.doesNotMatch(script,/SQUIDLAW_WORKER_RUN_APPROVED=YES/);
 });
-test('rollback disables Gabia and does not pretend to modify Vercel',()=>{
+test('rollback disables Gabia and requires independent job-owner verification',()=>{
  assert.match(script,/systemctl stop/);
  assert.match(script,/systemctl disable/);
- assert.match(script,/restore\/verify Vercel owner routing separately/);
+ assert.match(script,/verify the active job owner and scheduler routing separately/);
 });
