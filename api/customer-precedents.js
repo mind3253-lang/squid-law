@@ -36,9 +36,11 @@ async function verifyPrecedent(row){
   const headingPattern=new RegExp('(?:대법원|[가-힣]+법원)\\s+[^\\n]{0,100}?선고\\s+'+escaped+'\\s*(?:전원합의체\\s*)?판결');
   const headerMatch=heading.match(headingPattern);
   if(!headerMatch||!datePattern.test(headerMatch[0]))return null;
-  const excerpt=normalized(row.originalExcerpt);
-  if(excerpt.length<12||!normalized(text).includes(excerpt))return null;
-  return {...row,url,verification:'국가법령정보센터 원문 대조 완료'};
+  const section=text.match(/(?:〖|【)?판결요지(?:〗|】)?([\\s\\S]{40,2500}?)(?:참조조문|참조판례|전문)/);
+  if(!section)return null;
+  const officialSummary=clean(section[1]).slice(0,600);
+  if(officialSummary.length<40)return null;
+  return {...row,summary:officialSummary,url,verification:'국가법령정보센터 사건번호·선고일·판결요지 확인'};
  }catch{return null}finally{clearTimeout(timer)}
 }
 function parsePrecedents(raw){
@@ -109,7 +111,7 @@ export default async function handler(req,res){
   const candidates=parsePrecedents(report);
   const checked=await Promise.all(candidates.map(verifyPrecedent));
   const results=checked.filter(Boolean).slice(0,6);
-  if(!results.length)return respond(res,200,{caseId:id,source:'공식 판결 원문 대조',query:record.title||'선택한 사건',count:0,results:[],report:'',citations:[],notice:'국가법령정보센터에서 사건번호·선고일·판시 인용문을 대조한 판례가 없습니다. 외부 웹사이트 판례는 표시하지 않습니다.'});
-  return respond(res,200,{caseId:id,source:'국가법령정보센터 원문 검증',query:record.title||'선택한 사건',count:results.length,results,report:'',citations:[],notice:'공식 판결 원문에서 사건번호·선고일·인용문을 확인한 판례만 표시합니다. 실제 사건에 대한 적용은 별도 법률 검토가 필요합니다.'});
+  if(!results.length)return respond(res,200,{caseId:id,source:'공식 판결 원문 대조',query:record.title||'선택한 사건',count:0,results:[],report:'',citations:[],notice:'공식 판결문에서 사건번호·선고일·판결요지를 확인한 판례가 없습니다. 검증 대상 '+candidates.length+'건, 통과 0건입니다.'});
+  return respond(res,200,{caseId:id,source:'국가법령정보센터 원문 검증',query:record.title||'선택한 사건',count:results.length,results,report:'',citations:[],notice:'공식 판결 원문에서 사건번호·선고일·판결요지를 확인한 판례만 표시합니다. 법리의 사건 적용은 별도 검토가 필요합니다.'});
  }catch(e){return respond(res,502,{code:'PRECEDENT_SEARCH_ERROR',error:'GPT 판례 검색 실패: '+clean(e.message).slice(0,180)})}
 }
