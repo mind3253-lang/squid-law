@@ -26,7 +26,7 @@ test('schema has durable request uniqueness and fencing',()=>{
 
 test('customer status API requires the configured Gabia database',()=>{
  const src=readFileSync(new URL('../api/customer-analysis-status.js',import.meta.url),'utf8');
- assert.match(src,/process\\.env\\.SQUID_CUSTOMER_DATABASE_URL/);
+ assert.match(src,/process\.env\.SQUID_CUSTOMER_DATABASE_URL/);
  assert.doesNotMatch(src,/SQUID_CUSTOMER_DATABASE_DATABASE_URL/);
  assert.match(src,/customerLeaseStatus\\(auth\\.user,caseId,requestId\\)/);
 });
