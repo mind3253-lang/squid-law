@@ -568,7 +568,7 @@ export default async function handler(req,res){
       if(!window)throw Error('VISUAL_WINDOW_SPLIT_MISSING');
       output=await timedAnalysisStep('vision_primary',()=>analyzePdfVisualEvidence({documentId:doc.id,pdfBytes:window.bytes,
        apiKey:process.env.OPENAI_API_KEY,
-       model:process.env.SQUIDLAW_VISION_MODEL||'gpt-4.1-mini',
+       model:'gpt-6',
        pageOffset:page-1,windowPageCount:window.endPage-window.startPage+1,originalPdfSha256:doc.sha256}));
       if(output.sourcePdfSha256!==doc.sha256||output.documentId!==doc.id)
        throw Error('VISUAL_WINDOW_SOURCE_MISMATCH');
@@ -792,7 +792,7 @@ export default async function handler(req,res){
    if(!primary){
     primary=await timedAnalysisStep('vision_primary',()=>analyzePdfVisualEvidence({documentId:d.id,pdfBytes:pdfWindow.bytes,
      apiKey:process.env.OPENAI_API_KEY,
-     model:process.env.SQUIDLAW_VISION_MODEL||'gpt-4.1-mini',
+     model:'gpt-6',
      pageOffset:page.page-1,windowPageCount:1,originalPdfSha256:d.sha256}));
     await put(primaryPath,JSON.stringify(primary),{access:'private',
      allowOverwrite:false,addRandomSuffix:false,contentType:'application/json'});
@@ -803,7 +803,7 @@ export default async function handler(req,res){
    if(!secondary){
     secondary=await timedAnalysisStep('vision_primary',()=>analyzePdfVisualEvidence({documentId:d.id,pdfBytes:pdfWindow.bytes,
      apiKey:process.env.OPENAI_API_KEY,
-     model:process.env.SQUIDLAW_VISION_MODEL||'gpt-4.1-mini',
+     model:'gpt-6',
      auditOf:primary,pageOffset:page.page-1,windowPageCount:1,originalPdfSha256:d.sha256}));
     await put(secondPath,JSON.stringify(secondary),{access:'private',
      allowOverwrite:false,addRandomSuffix:false,contentType:'application/json'});
