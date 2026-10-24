@@ -335,8 +335,11 @@ async function startPrecedentSearch(){
    const block=document.createElement('div');block.style.cssText='padding:12px 0;border-top:1px solid #dce4ed;overflow-wrap:anywhere';
    const heading=document.createElement('strong');heading.textContent=[item.caseNumber,item.name].filter(Boolean).join(' · ')||'판례';block.append(heading);
    const meta=document.createElement('div');meta.textContent=[item.court,item.date].filter(Boolean).join(' · ');block.append(meta);
-   if(item.summary){const summary=document.createElement('p');summary.textContent=item.summary.slice(0,1100);block.append(summary)}
-   if(item.url&&/^https:\/\//.test(item.url)){const link=document.createElement('a');link.href=item.url;link.target='_blank';link.rel='noopener noreferrer';link.textContent='공식 판례 원문 열기';block.append(link)}
+   if(item.summary){const summary=document.createElement('p');summary.textContent='핵심 법리: '+item.summary.slice(0,600);block.append(summary)}
+   if(item.relevance){const relevance=document.createElement('p');relevance.textContent='이 사건과의 관련성: '+item.relevance.slice(0,600);block.append(relevance)}
+   if(item.caution){const details=document.createElement('details');const toggle=document.createElement('summary');toggle.textContent='적용 시 주의점';const caution=document.createElement('p');caution.textContent=item.caution;details.append(toggle,caution);block.append(details)}
+   const verification=document.createElement('small');verification.style.cssText='display:block;margin:6px 0';verification.textContent=item.verification||'원문 대조 필요';block.append(verification)
+   if(item.url&&/^https:\/\//.test(item.url)){const link=document.createElement('a');link.href=item.url;link.target='_blank';link.rel='noopener noreferrer';link.textContent='검색 출처 열기 (원문 내용 대조 필요)';block.append(link)}
    else if(item.id){const link=document.createElement('a');link.href='https://www.law.go.kr/precInfoP.do?precSeq='+encodeURIComponent(item.id);link.target='_blank';link.rel='noopener noreferrer';link.textContent='국가법령정보센터 원문 확인';block.append(link)}
    progress.append(block);
   }
