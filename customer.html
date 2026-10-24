@@ -321,7 +321,7 @@ async function startPrecedentSearch(){
  const progress=document.createElement('div');progress.className='case-chat-message system';progress.setAttribute('role','status');
  const title=document.createElement('strong');title.textContent='판례 검색 진행 중';
  const bar=document.createElement('progress');bar.max=100;bar.value=12;bar.style.cssText='display:block;width:100%;height:18px;margin:15px 0';
- const label=document.createElement('div');label.textContent='공식 판례 검색 서버에 연결하고 있습니다.';
+ const label=document.createElement('div');label.textContent='기존 사건 맥락으로 GPT 판례 검색을 진행하고 있습니다.';
  progress.append(title,bar,label);log.querySelector('.case-chat-empty')?.remove();log.append(progress);log.scrollTop=log.scrollHeight;
  const stages=[28,49,68,83];let stage=0;const ticker=setInterval(()=>{if(stage<stages.length){bar.value=stages[stage++];label.textContent='판례 목록과 사건번호를 확인하고 있습니다.'}},900);
  try{
@@ -329,7 +329,8 @@ async function startPrecedentSearch(){
   const data=await response.json();if(!response.ok)throw Error(data.error||'판례 검색 실패');
   bar.value=100;label.textContent='검색 완료 · '+data.count+'건';title.textContent='판례 검색 결과';
   const intro=document.createElement('div');intro.textContent='검색어: '+data.query+' / 출처: '+data.source;progress.append(intro);
-  if(!data.results.length){const none=document.createElement('p');none.textContent='공식 검색에서 일치하는 판례를 찾지 못했습니다. 검색어를 조정해야 합니다.';progress.append(none)}
+  if(data.report){const report=document.createElement('div');report.style.cssText='white-space:pre-wrap;line-height:1.75;margin:16px 0';report.textContent=data.report;progress.append(report);for(const url of data.citations||[]){const a=document.createElement('a');a.href=url;a.target='_blank';a.rel='noopener noreferrer';a.style.cssText='display:block;margin:8px 0;overflow-wrap:anywhere';a.textContent='검색 출처 확인: '+url;progress.append(a)}}
+  if(!data.report&&!data.results.length){const none=document.createElement('p');none.textContent='공식 검색에서 일치하는 판례를 찾지 못했습니다. 검색어를 조정해야 합니다.';progress.append(none)}
   for(const item of data.results){
    const block=document.createElement('div');block.style.cssText='padding:12px 0;border-top:1px solid #dce4ed;overflow-wrap:anywhere';
    const heading=document.createElement('strong');heading.textContent=[item.caseNumber,item.name].filter(Boolean).join(' · ')||'판례';block.append(heading);
