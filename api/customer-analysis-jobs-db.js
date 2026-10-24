@@ -1,8 +1,6 @@
 import {createHash,randomUUID} from 'node:crypto';
 import {withLeaseDb} from './customer-analysis-lease-db.js';
 import {assertCompletionTransition} from '../lib/analysis-stage-gates.mjs';
-import {scheduleCustomerWorker} from '../lib/customer-worker-dispatch.mjs';
-import {shouldDispatchCustomerWorker} from '../lib/customer-worker-owner.mjs';
 import {CUSTOMER_PRODUCT_CONTRACT} from '../lib/customer-product-contract.mjs';
 const key=user=>createHash('sha256').update(user).digest('hex');
 const publicJob=r=>r&&({jobId:r.job_id,caseId:r.case_id,documentVersion:r.document_version,status:r.status,stage:r.stage,checkpoint:r.checkpoint,attempts:r.attempts,maxAttempts:r.max_attempts,errorCode:r.error_code,updatedAt:r.updated_at,createdAt:r.created_at});
@@ -86,10 +84,8 @@ export async function advanceJob(job,stage,checkpoint,status='running',errorCode
   if(!r.rows[0])throw Error('JOB_LEASE_LOST');
   return publicJob(r.rows[0]);
  });
- // Trigger the next checkpoint without waiting for the customer's browser
- // or the periodic cron. Claiming remains serialized by PG SKIP LOCKED/fence.
- if(shouldDispatchCustomerWorker()&&status==='retry'&&stage!=='error')scheduleCustomerWorker({delayMs:350});
- if(shouldDispatchCustomerWorker()&&status==='completed')scheduleCustomerWorker({delayMs:350});
+ // The approved Gabia continuous worker polls the durable PostgreSQL queue.
+ // No per-checkpoint remote dispatch is needed.
  return result;
 }
 export async function renewJobLease(job){
