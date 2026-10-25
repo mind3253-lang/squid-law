@@ -33,7 +33,7 @@ export default async function handler(req,res){
  if(!ok)return reply(res,400,{error:'IMAGE_SIGNATURE_INVALID'});
  const ext=kind==='image/png'?'png':kind==='image/jpeg'?'jpg':'webp';
  const filename=Date.now()+'-'+randomUUID()+'.'+ext;
- await put(prefix+filename,bytes,{access:'public',addRandomSuffix:false,allowOverwrite:false,contentType:kind});
+ await put(prefix+filename,bytes,{access:'private',addRandomSuffix:false,allowOverwrite:false,contentType:kind});
  return reply(res,201,{ok:true,url:'/api/public-media?name='+encodeURIComponent(filename),name:filename});
  }
  const name=String(req.body?.name||'');
