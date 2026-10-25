@@ -67,3 +67,6 @@ html,body,body.home{background-color:#fbfbfb}
 .home .sidebar-guide-open:hover,.home .sidebar-guide-open:focus-visible{color:#2058a5;text-decoration:underline;text-underline-offset:4px}
 .home .sidebar-guide-open span{font-size:.75em;vertical-align:middle}
 @media(max-width:760px){.home .sidebar-guide{padding:10px 14px 14px}.home .sidebar-guide-copy{padding:12px 14px}}
+
+.home .sidebar-guide-open{display:inline-flex;align-items:center;gap:7px;cursor:pointer}
+.home .sidebar-guide-pointer{font-size:23px;line-height:1;flex:none}
