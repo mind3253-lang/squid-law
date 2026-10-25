@@ -89,3 +89,13 @@ html,body,body.home{background-color:#fbfbfb}
 .home .sidebar-guide-open{display:inline-flex;align-items:center;gap:12px;font-weight:850;text-align:left;color:#172033}
 .home .sidebar-guide-pointer{width:25px;height:25px;color:#1f5db0}
 @media(max-width:760px){.home .sidebar-guide{width:calc(100% - 28px);margin:14px auto 0;padding:0}.home .sidebar-guide-copy{border-radius:20px;padding:20px 24px}.home .sidebar-guide h2{font-size:21px}.home .sidebar-guide-copy>p:last-child{font-size:14px}}
+
+/* Homepage sidebar callout: visually aligned with hero text, slim and distinct */
+.home .sidebar-guide{width:100%;max-width:1120px;margin:0 auto;padding:14px 20px 0}
+.home .sidebar-guide-copy{width:100%;min-height:0;padding:14px 20px;background:#fff;border:1px solid #dfe5ee;border-radius:12px;box-shadow:none}
+.home .sidebar-guide-label{font-size:13px;line-height:1.35;letter-spacing:.04em;margin:0 0 3px;color:#64748b}
+.home .sidebar-guide h2{font-size:clamp(19px,2.1vw,25px);line-height:1.35;margin:0;letter-spacing:-.025em}
+.home .sidebar-guide-copy>p:last-child{font-size:14px;line-height:1.35;margin:3px 0 0;color:#64748b}
+.home .sidebar-guide-open{gap:8px}
+.home .sidebar-guide-pointer{width:21px;height:21px}
+@media(max-width:760px){.home .sidebar-guide{padding:12px 18px 0}.home .sidebar-guide-copy{padding:12px 15px}.home .sidebar-guide h2{font-size:19px}}
