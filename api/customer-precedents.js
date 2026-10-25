@@ -44,7 +44,12 @@ async function verifyPrecedent(row){
  }catch(e){return {ok:false,reason:e?.name==='AbortError'?'timeout':'fetch_or_parse_error'}}finally{clearTimeout(timer)}
 }
 function parsePrecedents(raw){
- let parsed;try{parsed=JSON.parse(raw.replace(/^\s*```(?:json)?\s*/i,'').replace(/\s*```\s*$/,''))}catch{return []}
+ let parsed;
+ try{
+  const text=String(raw||'').trim().replace(/^\```(?:json)?\s*/i,'').replace(/\s*\```\s*$/,'');
+  const begin=text.indexOf('{'),end=text.lastIndexOf('}');
+  parsed=JSON.parse(begin>=0&&end>begin?text.slice(begin,end+1):text);
+ }catch{return []}
  const rows=Array.isArray(parsed?.precedents)?parsed.precedents:[],seen=new Set(),out=[];
  for(const row of rows){
   const caseNumber=clean(row?.caseNumber).replace(/\s/g,'');
@@ -121,6 +126,7 @@ export default async function handler(req,res){
   const citations=unique(content.flatMap(x=>(x.annotations||[]).filter(a=>a.type==='url_citation').map(a=>a.url))).filter(u=>/^https:\/\//.test(u)).slice(0,25);
   if(!report)return respond(res,502,{code:'PRECEDENT_EMPTY',error:'GPT 판례 검색 응답에 확인 가능한 내용이 없습니다.'});
   const candidates=parsePrecedents(report);
+  console.info('precedent_search_output',{caseId:id,outputChars:report.length,candidates:candidates.length});
   // Never display model-supplied ruling metadata when the official source differs.
 
   const checked=await Promise.all(candidates.map(verifyPrecedent));
