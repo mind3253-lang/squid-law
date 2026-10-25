@@ -487,7 +487,7 @@ export default async function handler(req,res){
   const completion=reconcileAnalysisCompletion({sourceVersion:job.documentVersion,documents:docs,sourceIndex:indexData,aggregate,report,visualReview:previous.visualReview,semanticAuditPassed:true,visualAudits,ocrVerified:textAudit.verified,boundariesVerified:boundaryAudit.verified});
   completion.failures.push(...textAudit.failures.slice(0,50),...boundaryAudit.failures.slice(0,50));
   // Stable, content-free gate diagnostics for SKYNET and the customer job status view.
-  const gateDiagnostics={missingGates:completion.missing,ocrVerified:textAudit.verified,boundariesVerified:boundaryAudit.verified,visualVerified:previous.visualReview?.verified===true,sourceVersionMatched:true,textFailureCount:textAudit.failures.length,boundaryFailureCount:boundaryAudit.failures.length};
+  const gateDiagnostics={missingGates:completion.missing,ocrVerified:textAudit.verified,boundariesVerified:boundaryAudit.verified,visualVerified:previous.visualReview?.verified===true,sourceVersionMatched:!completion.missing.includes('SOURCE_VERSION_MISMATCH'),textFailureCount:textAudit.failures.length,boundaryFailureCount:boundaryAudit.failures.length,gateFailureKinds:[...new Set(completion.failures.map(f=>String(f?.code||f?.reason||f?.type||'UNSPECIFIED').slice(0,70)))].slice(0,20)};
   const finalPath=root+'completion-reconciliation.json';
   await put(finalPath,JSON.stringify(completion),{access:'private',allowOverwrite:true,addRandomSuffix:false,contentType:'application/json'});
   if(!completion.complete){
