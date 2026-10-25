@@ -118,6 +118,6 @@ export default async function handler(req,res){
   const mismatchSamples=checked.filter(x=>!x.ok).slice(0,6).map(x=>({reason:x.reason,expected:x.expected,actual:x.actual,url:x.url,textLength:x.textLength,headings:x.headings}));
   console.info('precedent_validation',{caseId:id,candidates:candidates.length,verified:officialResults.length,relevant:results.length,corrected,diagnostics,mismatchSamples});
   if(!results.length)return respond(res,200,{caseId:id,source:'공식 판결 원문 대조',query:keywords.join(', '),count:0,results:[],report:'',citations:[],notice:'공식 판례 중 이 사건에 직접 적용할 만한 판례를 확정하지 못했습니다. 원문 확인 '+officialResults.length+'건, 검색 후보 '+candidates.length+'건, 통과 0건입니다. 실패 유형: '+diagnostics.map(x=>x.reason+' '+x.count+'건').join(', ')+'.'});
-  return respond(res,200,{caseId:id,source:'국가법령정보센터 원문 검증',query:record.title||'선택한 사건',count:results.length,results,report:'',citations:[],notice:'공식 판결 원문에서 사건번호·선고일·판결요지를 확인한 판례만 표시합니다. 법리의 사건 적용은 별도 검토가 필요합니다.'});
+  return respond(res,200,{caseId:id,source:'국가법령정보센터 원문 검증',query:keywords.join(', '),count:results.length,results,report:'',citations:[],notice:'공식 판결 원문에서 사건번호·선고일·판결요지를 확인한 판례만 표시합니다. 법리의 사건 적용은 별도 검토가 필요합니다.'});
  }catch(e){console.error('PRECEDENT_SEARCH_STAGE_FAILURE',JSON.stringify({code:String(e?.code||'UNKNOWN').slice(0,40),type:String(e?.name||'Error').slice(0,40)}));return respond(res,502,{code:'PRECEDENT_SEARCH_ERROR',error:'판례 검색 처리 실패 ('+String(e?.code||e?.name||'UNKNOWN').slice(0,40)+')'})}
 }
