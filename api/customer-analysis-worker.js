@@ -484,7 +484,7 @@ export default async function handler(req,res){
    verifiedBoundaries.push(...await Promise.all(group.map(doc=>load(root+'boundary-audit/'+doc.id+'-verified.json'))));
   }
   const boundaryAudit=auditDocumentBoundaryEvidence({documents:docs,aggregate:{documentBoundaryCandidates:verifiedBoundaries}});
-  const completion=reconcileAnalysisCompletion({sourceVersion:job.documentVersion,documents:docs,sourceIndex:indexData,aggregate,report,visualReview:previous.visualReview,semanticAuditPassed:true,visualAudits,ocrVerified:textAudit.verified,boundariesVerified:boundaryAudit.verified});
+  const completion=reconcileAnalysisCompletion({sourceVersion:job.documentVersion,documents:docs,sourceIndex:indexData,aggregate,report,visualReview:previous.visualReview,semanticAuditPassed:true,visualAudits,ocrVerified:textAudit.verified,boundariesVerified:boundaryAudit.verified,verifiedBoundaries});
   completion.failures.push(...textAudit.failures.slice(0,50),...boundaryAudit.failures.slice(0,50));
   // Stable, content-free gate diagnostics for SKYNET and the customer job status view.
   const gateDiagnostics={missingGates:completion.missing,gateReasons:completion.gateReasons,ocrVerified:textAudit.verified,boundariesVerified:boundaryAudit.verified,visualVerified:previous.visualReview?.verified===true,sourceVersionMatched:!completion.missing.includes('SOURCE_VERSION_MISMATCH'),textFailureCount:textAudit.failures.length,boundaryFailureCount:boundaryAudit.failures.length,gateFailureKinds:[...new Set(completion.failures.map(f=>String(f?.code||f?.reason||f?.type||'UNSPECIFIED').slice(0,70)))].slice(0,20)};
