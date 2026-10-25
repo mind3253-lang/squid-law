@@ -1,4 +1,4 @@
-import {guard,respond,readJson,casePrefix} from './customer-case.js';
+import {guard,respond,casePrefix} from './customer-case.js';
 import {getJob} from './customer-analysis-jobs-db.js';
 import {get} from '../lib/customer-object-storage.mjs';
 const validId=s=>/^SL-[A-Za-z0-9-]{5,40}$/.test(s);
@@ -56,23 +56,6 @@ function parsePrecedents(raw){
  }
  return out;
 }
-async function filterByCaseRelevance(context,items){
- if(!items.length)return [];
- const ctrl=new AbortController(),timer=setTimeout(()=>ctrl.abort(),45000);
- try{
-  const response=await fetch('https://api.openai.com/v1/responses',{method:'POST',signal:ctrl.signal,headers:{authorization:'Bearer '+process.env.OPENAI_API_KEY,'content-type':'application/json'},body:JSON.stringify({
-   model:'gpt-6',max_output_tokens:2200,
-   instructions:'당신은 판례 관련성 심사자입니다. 입력된 판례의 실제 공식 판결요지와 사건 쟁점을 비교하십시오. 같은 죄명이나 추상적인 사기 법리만 같으면 제외하십시오. 구체적 법률 쟁점과 판단구조가 실질적으로 맞는 판례만 채택하십시오. 관련성이 약한 의료법, 도박, 민사 구상금, 기업대출 등은 구체적인 공통 법리와 적용 이유가 없으면 제외하십시오. 추측하거나 없는 사실을 만들지 마십시오. JSON 객체만 반환: {"reviews":[{"caseNumber":"사건번호","keep":true,"relevance":"판례의 실제 판단과 본건의 사실관계 공통점·차이 및 입증할 사실을 쉬운 한국어 2~3문장으로","caution":"적용의 한계 1문장"}]}. 확실하지 않으면 keep:false.',
-   input:JSON.stringify({caseContext:context,officialPrecedents:items.map(x=>({caseNumber:x.caseNumber,date:x.date,summary:x.summary,url:x.url}))}).slice(0,29000)
-  })})});
-  if(!response.ok)throw Error('relevance_http_'+response.status);
-  const data=await response.json();
-  const raw=(data.output||[]).filter(x=>x.type==='message').flatMap(x=>x.content||[]).filter(x=>x.type==='output_text').map(x=>x.text||'').join('');
-  const parsed=JSON.parse(raw.replace(/^\s*```(?:json)?\s*/i,'').replace(/\s*```\s*$/,''));
-  const reviews=new Map((parsed.reviews||[]).filter(x=>x&&typeof x.caseNumber==='string').map(x=>[x.caseNumber,x]));
-  return items.filter(x=>reviews.get(x.caseNumber)?.keep===true&&clean(reviews.get(x.caseNumber).relevance).length>=35).map(x=>({...x,relevance:clean(reviews.get(x.caseNumber).relevance).slice(0,650),caution:clean(reviews.get(x.caseNumber).caution)||x.caution}));
- }catch(e){console.error('precedent_relevance_review_failed',String(e.message));return []}finally{clearTimeout(timer)}
-}
 async function savedLegalContext(user,id,jobId){
  const job=await getJob(user,id,jobId);
  if(!job)return {error:'REPORT_JOB_NOT_FOUND',status:404};
@@ -96,8 +79,6 @@ export default async function handler(req,res){
   const user=auth.user;
   const jobId=String(req.query?.jobId||'');
   if(!/^[0-9a-f-]{36}$/.test(jobId))return respond(res,400,{code:'REPORT_JOB_ID_REQUIRED',error:'완료보고서 작업 ID가 필요합니다.'});
-  const record=await readJson(casePrefix(user,'_index').replace(/_index\/$/,'')+'registry/'+id+'.json');
-  if(!record||record.id!==id)return respond(res,404,{error:'사건을 찾을 수 없습니다.'});
   if(!process.env.OPENAI_API_KEY)return respond(res,503,{code:'OPENAI_NOT_CONFIGURED',error:'기존 OpenAI API 설정이 없습니다.'});
   // 판례 검색은 완료보고서의 확정 키워드만 사용한다. 문서·사실관계 재분석 금지.
   const legalReport=await savedLegalContext(user,id,jobId);
@@ -106,7 +87,7 @@ export default async function handler(req,res){
    unique(legalReport.legalSearchKeywords.map(clean).filter(Boolean)):[];
   if(!keywords.length)return respond(res,409,{code:'LEGAL_KEYWORDS_REQUIRED',
    error:'완료된 재분석 보고서의 판례 검색 키워드를 확인할 수 없습니다. 보고서 저장 연결을 확인해 주세요.'});
-  const context={legalSearchKeywords:keywords};
+
   const ctrl=new AbortController();const timer=setTimeout(()=>ctrl.abort(),85000);
   let response;
   try{response=await fetch('https://api.openai.com/v1/responses',{method:'POST',signal:ctrl.signal,headers:{authorization:'Bearer '+process.env.OPENAI_API_KEY,'content-type':'application/json'},body:JSON.stringify({
@@ -129,12 +110,14 @@ export default async function handler(req,res){
 
   const checked=await Promise.all(candidates.map(verifyPrecedent));
   const officialResults=[...new Map(checked.filter(x=>x.ok).map(x=>[x.item.caseNumber,x.item])).values()].slice(0,6);
-  const results=await filterByCaseRelevance(context,officialResults);
+  // Defer the old second GPT relevance pass: it reinterprets the case without source facts.
+  // Only officially verified rulings are returned; substantive application belongs to final drafting.
+  const results=officialResults;
   const diagnostics=Object.entries(checked.filter(x=>!x.ok).reduce((a,x)=>(a[x.reason]=(a[x.reason]||0)+1,a),{})).map(([reason,count])=>({reason,count}));
   const corrected=checked.filter(x=>x.ok&&x.corrected).length;
   const mismatchSamples=checked.filter(x=>!x.ok).slice(0,6).map(x=>({reason:x.reason,expected:x.expected,actual:x.actual,url:x.url,textLength:x.textLength,headings:x.headings}));
   console.info('precedent_validation',{caseId:id,candidates:candidates.length,verified:officialResults.length,relevant:results.length,corrected,diagnostics,mismatchSamples});
-  if(!results.length)return respond(res,200,{caseId:id,source:'공식 판결 원문 대조',query:record.title||'선택한 사건',count:0,results:[],report:'',citations:[],notice:'공식 판례 중 이 사건에 직접 적용할 만한 판례를 확정하지 못했습니다. 원문 확인 '+officialResults.length+'건, 검색 후보 '+candidates.length+'건, 통과 0건입니다. 실패 유형: '+diagnostics.map(x=>x.reason+' '+x.count+'건').join(', ')+'.'});
+  if(!results.length)return respond(res,200,{caseId:id,source:'공식 판결 원문 대조',query:keywords.join(', '),count:0,results:[],report:'',citations:[],notice:'공식 판례 중 이 사건에 직접 적용할 만한 판례를 확정하지 못했습니다. 원문 확인 '+officialResults.length+'건, 검색 후보 '+candidates.length+'건, 통과 0건입니다. 실패 유형: '+diagnostics.map(x=>x.reason+' '+x.count+'건').join(', ')+'.'});
   return respond(res,200,{caseId:id,source:'국가법령정보센터 원문 검증',query:record.title||'선택한 사건',count:results.length,results,report:'',citations:[],notice:'공식 판결 원문에서 사건번호·선고일·판결요지를 확인한 판례만 표시합니다. 법리의 사건 적용은 별도 검토가 필요합니다.'});
- }catch(e){return respond(res,502,{code:'PRECEDENT_SEARCH_ERROR',error:'GPT 판례 검색 실패: '+clean(e.message).slice(0,180)})}
+ }catch(e){console.error('PRECEDENT_SEARCH_STAGE_FAILURE',JSON.stringify({code:String(e?.code||'UNKNOWN').slice(0,40),type:String(e?.name||'Error').slice(0,40)}));return respond(res,502,{code:'PRECEDENT_SEARCH_ERROR',error:'판례 검색 처리 실패 ('+String(e?.code||e?.name||'UNKNOWN').slice(0,40)+')'})}
 }
