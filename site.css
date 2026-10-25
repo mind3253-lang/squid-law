@@ -193,3 +193,53 @@ html,body,body.home{background-color:#fbfbfb}
   .home .sidebar-guide-open{font-size:14px}
 }
 
+
+/* Bright, restrained home design. Existing copy and lower guide retained. */
+.home .home-hero{background:linear-gradient(115deg,#f9fbfe 0%,#fffaf1 100%);color:#14233b}
+.home .home-hero-inner{min-height:min(620px,64vh);grid-template-columns:minmax(0,1fr) minmax(0,1.05fr);gap:42px;padding:36px 20px 40px}
+.home .home-hero h1{color:#132e58;font-size:clamp(43px,5vw,64px)}
+.home .hero-intro{color:#243c59}
+.home .hero-record{color:#52677f}
+.home .hero-record strong{color:#152f53}
+.home .hero-right{display:flex;flex-direction:column;gap:25px;min-width:0}
+.home .hero-support{border-left:2px solid #cad7e5;padding-left:22px;gap:18px}
+.home .hero-support-item + .hero-support-item{border-top-color:#dbe4ed;padding-top:18px}
+.home .hero-support h2{color:#182f50;font-size:clamp(20px,2vw,24px)}
+.home .hero-support p{color:#566a80;font-size:clamp(15px,1.4vw,17px);line-height:1.55}
+.home .hero-device{width:min(100%,490px);margin:auto;padding:0 8px 8px;filter:drop-shadow(0 13px 16px #18395a28);transform:perspective(1000px) rotateY(-4deg);pointer-events:none}
+.home .hero-device-screen{height:215px;border:8px solid #293648;border-bottom-width:11px;border-radius:12px 12px 4px 4px;background:#fff;overflow:hidden}
+.home .hero-device-toolbar{height:29px;background:#f1f5fa;border-bottom:1px solid #e0e8f0;display:flex;justify-content:space-between;align-items:center;padding:0 12px}
+.home .hero-device-mark{font-size:10px;font-weight:900;color:#19385f}
+.home .hero-device-dots{font-size:7px;letter-spacing:3px;color:#a9bacd}
+.home .hero-device-body{height:calc(100% - 29px);display:grid;grid-template-columns:95px 1fr}
+.home .hero-device-menu{background:#f3f7fc;border-right:1px solid #e2e9f1;padding:12px 6px;display:flex;flex-direction:column;gap:5px}
+.home .hero-device-menu span{font-size:10px;color:#687b90;padding:6px;white-space:nowrap}
+.home .hero-device-menu .selected{color:#215ca4;background:#e3eefb;border-radius:5px;font-weight:800}
+.home .hero-device-document{padding:12px 17px}
+.home .hero-device-document>strong{font-size:13px;color:#203a5a}
+.home .hero-device-rule{height:1px;background:#e1e9f2;margin:9px 0}
+.home .hero-device-entry{display:flex;gap:9px;margin-bottom:10px}
+.home .hero-device-entry>b{font-size:10px;color:#3275c4}
+.home .hero-device-entry>span{flex:1}
+.home .hero-device-entry em{display:block;font-size:10px;font-style:normal;font-weight:700;color:#4c617a;margin-bottom:5px}
+.home .hero-device-entry i{display:block;width:90%;height:4px;background:#d9e4ef;border-radius:3px;margin-bottom:4px}
+.home .hero-device-entry i.short{width:63%;background:#e8eff6}
+.home .hero-device-base{height:12px;margin:0 -12px;background:linear-gradient(#d7dce3,#919eae);border-radius:0 0 50% 50%}
+.home .sidebar-guide-copy{background:linear-gradient(105deg,#edf4ff,#f8fafc,#eef4fc);border-color:#dce6f2}
+@media(min-width:761px) and (max-height:740px){
+.home .home-hero-inner{min-height:0;padding:22px 20px}
+.home .hero-right{gap:12px}
+.home .hero-device-screen{height:160px}
+.home .hero-support{gap:9px}
+.home .hero-support-item + .hero-support-item{padding-top:9px}
+.home .hero-device-entry{margin-bottom:4px}
+}
+@media(max-width:760px){
+.home .home-hero-inner{grid-template-columns:1fr;gap:26px;padding:42px 20px}
+.home .hero-device{width:min(100%,460px)}
+.home .hero-device-screen{height:200px}
+}
+@media(prefers-reduced-motion:no-preference){
+.home .sidebar-guide-copy{background-size:180% 180%;animation:squidGuideBreathe 16s ease-in-out infinite alternate}
+@keyframes squidGuideBreathe{from{background-position:0% 50%}to{background-position:100% 50%}}
+}
