@@ -1,7 +1,7 @@
 import {get,list,put,del} from '../lib/customer-object-storage.mjs';
 import {createHmac,timingSafeEqual,randomUUID} from 'node:crypto';
 const prefix='squidlaw/public-media/';
-const MAX=1200000;
+const MAX=100*1024*1024;
 function authorized(req){
  try{const cookie=String(req.headers.cookie||'').split(';').map(x=>x.trim()).find(x=>x.startsWith('squid_admin_session='));if(!cookie||!process.env.ADMIN_PASSWORD)return false;
  const [time,sig]=cookie.slice('squid_admin_session='.length).split('.');
@@ -24,11 +24,11 @@ export default async function handler(req,res){
  }
  if(req.method==='POST'){
  const {data,name}=req.body||{};
- if(typeof data!=='string'||data.length>MAX*1.4+100||typeof name!=='string'||name.length>180)return reply(res,400,{error:'INVALID_IMAGE'});
+ if(typeof data!=='string'||data.length>Math.ceil(MAX*4/3)+200||typeof name!=='string'||name.length>180)return reply(res,400,{error:'INVALID_IMAGE'});
  const match=data.match(/^data:(image\/(?:png|jpeg|webp));base64,([A-Za-z0-9+/=]+)$/);
  if(!match)return reply(res,400,{error:'지원 형식: JPG, PNG, WEBP'});
  const bytes=Buffer.from(match[2],'base64');
- if(!bytes.length||bytes.length>MAX)return reply(res,413,{error:'이미지는 1.2MB 이하로 업로드해 주세요.'});
+ if(!bytes.length||bytes.length>MAX)return reply(res,413,{error:'이미지가 서버 처리 가능 용량을 초과했습니다.'});
  const kind=match[1],ok=kind==='image/png'?bytes.subarray(0,8).equals(Buffer.from('89504e470d0a1a0a','hex')):kind==='image/jpeg'?bytes[0]===255&&bytes[1]===216&&bytes[2]===255:bytes.toString('ascii',0,4)==='RIFF'&&bytes.toString('ascii',8,12)==='WEBP';
  if(!ok)return reply(res,400,{error:'IMAGE_SIGNATURE_INVALID'});
  const ext=kind==='image/png'?'png':kind==='image/jpeg'?'jpg':'webp';
