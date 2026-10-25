@@ -70,3 +70,12 @@ html,body,body.home{background-color:#fbfbfb}
 
 .home .sidebar-guide-open{display:inline-flex;align-items:center;gap:7px;cursor:pointer}
 .home .sidebar-guide-pointer{font-size:23px;line-height:1;flex:none}
+
+/* Homepage guide: readable single compact card and obvious click target */
+.home .sidebar-guide-copy{padding:15px 22px;border:1px solid #cbd6e5;background:#fff;border-radius:12px}
+.home .sidebar-guide-label{font-size:13px;letter-spacing:.03em;color:#526783}
+.home .sidebar-guide h2{font-size:clamp(21px,2.25vw,29px)}
+.home .sidebar-guide-copy>p:last-child{font-size:16px;color:#52627b;margin-top:5px}
+.home .sidebar-guide-open{gap:10px}
+.home .sidebar-guide-pointer{width:24px;height:24px;color:#1763bc;flex:none}
+@media(max-width:760px){.home .sidebar-guide-copy{padding:13px 15px}.home .sidebar-guide h2{font-size:19px}}
