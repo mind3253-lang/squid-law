@@ -167,7 +167,9 @@ export async function runDeltaReviewStep({job,previous,documents,prefix,load,put
   // Revision receipts are immutable. A legacy or malformed receipt must not
   // poison every retry: allocate a new versioned path, never overwrite it.
   const validReceipt=x=>x?.index===decision.index&&x.independentVerified===true&&
-   x.sourceAuditPassed===true&&(x.skipped===true||!!x.finding);
+   x.sourceAuditPassed===true&&
+   (x.skipped===true&&typeof x.reason==='string'||!!x.finding&&
+    Array.isArray(x.finding.sources)&&x.finding.sources.length>0);
   let path=legacyPath,validated=null;
   for(let version=1;version<=20;version++){
    const existing=await load(path);
@@ -178,7 +180,8 @@ export async function runDeltaReviewStep({job,previous,documents,prefix,load,put
   }
   if(!validated){
    let candidate=await load(candidatePath);
-   if(!candidate){
+   if(!candidate||!candidate.response||typeof candidate.response!=='object'){
+    if(candidate)throw Error('DELTA_CANDIDATE_RECEIPT_CORRUPT');
     if(!apiKey)throw Error('OPENAI_API_KEY_MISSING');
     let response;
     try{response=await invokeDeltaModel({request:payload,apiKey})}
@@ -277,8 +280,7 @@ export async function runDeltaReviewStep({job,previous,documents,prefix,load,put
      reviewFailure,independentVerified:true,sourceAuditPassed:true};
    await write(put,path,validated);
   }
-  if(validated.index!==decision.index||validated.independentVerified!==true||
-   validated.sourceAuditPassed!==true)throw Error('DELTA_REVISION_CACHE_INVALID');
+  if(!validReceipt(validated))throw Error('DELTA_REVISION_CACHE_INVALID');
   await advanceJob(job,'delta_revision_checkpoint',{...previous,delta:{...delta,
    revisionCursor:cursor+1,revisionPaths:[...(delta.revisionPaths||[]),path]}},'retry');
   return {status:'retry',stage:'delta_revision_checkpoint',revised:cursor+1,total:affected.length};
