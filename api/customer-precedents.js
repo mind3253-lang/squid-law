@@ -75,7 +75,11 @@ async function filterByCaseRelevance(context,items){
  }catch(e){console.error('precedent_relevance_review_failed',String(e.message));return []}finally{clearTimeout(timer)}
 }
 async function savedLegalContext(user,id){
- const jobs=await completedCustomerReports(user,id,5);
+ let jobs=[];
+ try{jobs=await completedCustomerReports(user,id,5)}catch(e){
+  console.error('precedent_report_lookup_unavailable',String(e?.code||e?.message||'unknown'));
+  return null;
+ }
  for(const job of jobs){
   const path=job.checkpoint?.legalCustomerReport;
   if(!path||!path.startsWith('squidlaw/analysis-jobs/'))continue;
@@ -103,13 +107,13 @@ export default async function handler(req,res){
   const [docs,snapshot,legalReport]=await Promise.all([documents(user,id),latestSnapshot(user,id,'knowledge').catch(()=>null),savedLegalContext(user,id)]);
   const context={
    title:record.title,type:record.type,
-   legalSearchKeywords:(legalReport?.legalSearchKeywords||[]).slice(0,3),
+   legalSearchKeywords:(legalReport?.legalSearchKeywords||snapshot?.legalSearchKeywords||[]).slice(0,3),
    completedLegalReport:legalReport,
    intake:record.intake?{claimSummary:record.intake.claimSummary,caseSummary:record.intake.caseSummary,clientRole:record.intake.clientRole}:null,
    priorAnalysis:snapshot?{summary:snapshot.summary,createdAt:snapshot.createdAt,facts:(snapshot.facts||[]).slice(0,24).map(f=>({statement:f.statement,status:f.status}))}:null,
    filenames:docs.slice(-35).map(d=>d.name)
   };
-  if(context.legalSearchKeywords.length!==3)return respond(res,409,{code:'LEGAL_KEYWORDS_REQUIRED',error:'새 분석보고서에서 법률요건 키워드 3개가 확정된 후 판례 검색이 가능합니다. 기존 분석을 다시 실행해 주세요.'});
+  if(context.legalSearchKeywords.length!==3)return respond(res,409,{code:'LEGAL_KEYWORDS_REQUIRED',error:'저장된 법률요건 키워드 3개를 찾지 못했습니다. 분석 보고서 연결 상태를 확인해 주세요. 재분석을 바로 실행할 필요는 없습니다.'});
   const ctrl=new AbortController();const timer=setTimeout(()=>ctrl.abort(),85000);
   let response;
   try{response=await fetch('https://api.openai.com/v1/responses',{method:'POST',signal:ctrl.signal,headers:{authorization:'Bearer '+process.env.OPENAI_API_KEY,'content-type':'application/json'},body:JSON.stringify({
