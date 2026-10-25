@@ -445,3 +445,10 @@ body.home .sq-tech-principles p{font-size:16px;line-height:1.8;color:#e1ebf5;mar
 /* Align dark section content with blue technology section columns */
 body.home .sq-risk-wrap{max-width:1050px;margin-left:auto;margin-right:auto}
 @media(max-width:1100px){body.home .sq-risk-wrap{max-width:calc(100% - 0px)}}
+
+
+/* Match dark section introduction typography and alignment to blue section */
+body.home .sq-risk-wrap>.sq-eyebrow{text-align:center;font-size:clamp(17px,1.7vw,23px);letter-spacing:.045em;line-height:1.4;margin-bottom:27px}
+body.home .sq-risk-wrap>h2{text-align:center;font-size:clamp(23px,2.15vw,31px);line-height:1.55;letter-spacing:-.035em;margin:0 0 26px}
+body.home .sq-risk-lead{text-align:center;max-width:none;font-size:18px;line-height:1.9;margin:0 auto 66px;color:#d5e5f5}
+@media(max-width:600px){body.home .sq-risk-wrap>h2{font-size:clamp(22px,5.4vw,27px)}body.home .sq-risk-lead{font-size:16px;line-height:1.75}}
