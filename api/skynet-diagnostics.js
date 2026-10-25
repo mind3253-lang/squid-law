@@ -42,6 +42,8 @@ export default async function handler(req,res){
    errorClass:safe(r.error_class,60),stackFrame:safe(r.stack_frame,180),
    summary:safe(r.provider_summary||r.detail,180),sourceDiagnostic:r.source_diagnostic||null,gateDiagnostics:r.gate_diagnostics||null,updatedAt:r.updated_at
   }))};
+  // Distinguish an empty, healthy inbox from missing diagnostics infrastructure.
+  response.health={jobs:jobsStatus,central:centralStatus,checkedAt:new Date().toISOString()};
   if(String(req.query?.report||'')==='1'){
    const base=unifiedMaintenanceReport(response,{limit});
    let repairs=[],repairStorage='available';
