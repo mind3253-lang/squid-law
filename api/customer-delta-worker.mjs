@@ -241,7 +241,11 @@ export async function runDeltaReviewStep({job,previous,documents,prefix,load,put
    for(let attempt=0;attempt<2;attempt++){
     const review=buildSemanticReviewRequest({caseId:job.caseId,
      sourceVersion:job.documentVersion,findings:[reviewedFinding],sourceUnits:sources,model});
-    const reviewPath=path.replace(/\.json$/,'-semantic-'+attempt+'.json');
+    // B3: a review belongs to the exact draft and evidence, not merely attempt N.
+    const reviewFingerprint=createHash('sha256').update(JSON.stringify({
+     request:review,sourceVersion:job.documentVersion
+    })).digest('hex');
+    const reviewPath=path.replace(/\.json$/,'-semantic-'+attempt+'-'+reviewFingerprint+'.json');
     let independent=await load(reviewPath);
     if(!independent){
      try{independent=await invokeSemanticReview({request:review,apiKey});}
