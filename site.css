@@ -330,3 +330,26 @@ body.home .analysis-band,body.home .home-section:not(.home-hero),body.home .prin
  body.home .home-hero{background:transparent}
  body.home .home-feature-card{height:340px;min-height:340px}
 }
+
+/* Restore original headline at top; cards belong at bottom of photo, not center. */
+body.home .home-hero{min-height:780px}
+body.home .home-hero-inner{
+ min-height:780px;max-width:1220px;padding:60px 24px 32px;
+ display:flex;flex-direction:column;align-items:stretch;justify-content:space-between;gap:34px;
+}
+body.home .home-hero-inner>.hero-primary{display:block;width:min(760px,100%);align-self:flex-start}
+body.home .home-hero-inner>.hero-primary h1{font-size:clamp(43px,5vw,64px);margin:0 0 20px;color:#132e58}
+body.home .home-hero-inner>.hero-primary .hero-intro{color:#243c59}
+body.home .home-hero-inner>.hero-primary .hero-record{color:#52677f}
+body.home .home-feature-grid{flex:none;align-self:stretch}
+body.home .home-feature-card{height:260px;min-height:260px;padding:24px 25px}
+body.home .home-feature-card h2{font-size:clamp(21px,2vw,27px);margin:0 0 13px}
+body.home .home-feature-main h2{font-size:clamp(31px,3vw,42px)}
+body.home .home-feature-label{margin-bottom:12px}
+body.home .home-feature-card p{font-size:15px;line-height:1.55;margin-bottom:8px}
+@media(max-width:760px){
+ body.home .home-hero{min-height:0}
+ body.home .home-hero-inner{min-height:0;padding:40px 16px 26px;gap:35px}
+ body.home .home-feature-card{height:230px;min-height:230px}
+ body.home .home-hero-inner>.hero-primary h1{font-size:42px}
+}
