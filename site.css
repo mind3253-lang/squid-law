@@ -425,3 +425,7 @@ body.home .sq-risk-end p{font-size:18px;line-height:1.7;color:#cbd4df}
 body.home .sq-risk-end a{display:inline-block;margin-top:20px;color:#b2dcff;font-weight:800;text-decoration:underline;text-underline-offset:5px}
 @media(max-width:900px){body.home .sq-tech-grid{grid-template-columns:repeat(2,minmax(0,1fr))}body.home .sq-tech-grid article{min-height:0}}
 @media(max-width:600px){body.home .sq-tech-section,body.home .sq-risk-section{padding:65px 20px 72px}body.home .sq-tech-grid{grid-template-columns:1fr;gap:13px}body.home .sq-tech-grid article{padding:25px 22px}body.home .sq-tech-intro{margin-bottom:34px}body.home .sq-tech-intro>p:last-child,body.home .sq-risk-lead{font-size:16px;line-height:1.75}body.home .sq-risk-lead{margin-bottom:38px}body.home .sq-risk-list article{grid-template-columns:1fr;gap:9px;padding:26px 0}body.home .sq-risk-list p,body.home .sq-risk-list strong{font-size:15px}body.home .sq-risk-end{padding-top:46px}body.home .sq-risk-end p{font-size:16px}}
+
+/* Analysis engine section headline refinement */
+body.home .sq-tech-intro .sq-eyebrow{font-size:clamp(17px,1.7vw,23px);letter-spacing:.045em;line-height:1.4;margin-bottom:27px}
+body.home .sq-tech-intro h2{font-size:clamp(33px,3.9vw,54px);line-height:1.38}
