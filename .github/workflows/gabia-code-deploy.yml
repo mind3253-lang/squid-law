@@ -80,6 +80,14 @@ jobs:
           fi
           echo PRECEDENT_API_ENV_KEY_PRESENT
           echo PRECEDENT_SERVER_PREFLIGHT_END
+          # Presence-only diagnostics; never output credentials.
+          for envfile in /etc/squidlaw/api.env /etc/squidlaw/worker.env; do
+            if test -f "$envfile" && grep -Eq '^(LAW_GO_KR_OC|LAW_API_OC)=[^[:space:]]+' "$envfile"; then
+              echo "PRECEDENT_OC_PRESENT_IN_$(basename "$envfile")"
+            else
+              echo "PRECEDENT_OC_ABSENT_IN_$(basename "$envfile")"
+            fi
+          done
           # Keep service-specific credentials intact; share only the canonical
           # object-store root between API and worker.
           if test -f /etc/squidlaw/api.env && test -f /etc/squidlaw/worker.env; then
