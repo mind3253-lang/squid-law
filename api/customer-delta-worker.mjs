@@ -275,11 +275,13 @@ export async function runDeltaReviewStep({job,previous,documents,prefix,load,put
      break;
     }
    }
-   // Rejected findings are not independently verified; preserve the rejection.
-   validated=approved?{index:decision.index,finding:reviewedFinding,reason:decision.reason,
-    independentVerified:true,sourceAuditPassed:true}:
-    {index:decision.index,skipped:true,reason:'Independent semantic review rejected the supplement',
-     reviewFailure,independentVerified:false,sourceAuditPassed:true};
+   if(!approved){
+    const error=new Error('DELTA_REVISION_INDEPENDENT_REVIEW_FAILED');
+    error.deltaStage='revision';error.deltaCursor=cursor;
+    error.reviewFailure=reviewFailure;throw error;
+   }
+   validated={index:decision.index,finding:reviewedFinding,reason:decision.reason,
+    independentVerified:true,sourceAuditPassed:true};
    await write(put,path,validated);
   }
   if(!validReceipt(validated))throw Error('DELTA_REVISION_CACHE_INVALID');
