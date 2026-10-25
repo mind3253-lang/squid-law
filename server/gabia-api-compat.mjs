@@ -142,7 +142,8 @@ const server=createServer(async(req,res)=>{
   const errorType=String(err?.name||'Error').slice(0,40);
   reported=true; // The exception is recorded here; do not record the resulting 503 twice.
   const diagnostic=captureServerError(err,{system:path.startsWith('/api/skynet-')?'SKYNET':'SQUIDLAW',operation:path,stage:'api-handler'});
-  console.error('GABIA_COMPAT_API_FAILURE',JSON.stringify({route:path,errorCode,errorType,traceId:diagnostic.traceId}));
+  const frame=String(err?.stack||'').split('\n').slice(1).map(x=>x.trim()).find(x=>x.includes('/opt/squidlaw/app/')||x.includes('/api/')||x.includes('/lib/'))||'';
+  console.error('GABIA_COMPAT_API_FAILURE',JSON.stringify({route:path,errorCode,errorType,traceId:diagnostic.traceId,frame:frame.replace(/\/opt\/squidlaw\/app\//g,'').slice(0,200)}));
   if(!res.headersSent){res.writeHead(503,{'content-type':'application/json','cache-control':'no-store','x-error-trace-id':diagnostic.traceId});}
   if(!res.writableEnded)res.end(JSON.stringify({error:'SERVICE_UNAVAILABLE',traceId:diagnostic.traceId}));
  }
