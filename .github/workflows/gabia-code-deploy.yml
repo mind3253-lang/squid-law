@@ -37,6 +37,7 @@ jobs:
           set -euo pipefail
           cd /opt/squidlaw/app
           test -f package.json
+          echo DEPLOY_TARGET_SHA=${{ github.sha }}
           mkdir -p /opt/squidlaw/deploy-backups
           backup="/opt/squidlaw/deploy-backups/pre-$(date +%Y%m%d%H%M%S).tar.gz"
           tar -czf "$backup" --exclude=node_modules --exclude=.git --exclude=.env --exclude=uploads --exclude=storage -C /opt/squidlaw/app .
@@ -46,6 +47,8 @@ jobs:
           # A failed syntax check restores the pre-deploy code snapshot.
           if ! (node --check api/customer-analysis-worker.js &&
                 node --check api/customer-delta-worker.mjs &&
+                node --check api/customer-precedents.js &&
+                node --check lib/legal-customer-report.mjs &&
                 node --check lib/diagnostic-context.mjs &&
                 node --check lib/skynet-worker-completion.mjs &&
                 node --check lib/skynet-maintenance-rollback.mjs); then
@@ -249,6 +252,19 @@ jobs:
           test -f /opt/squidlaw/app/admin/skynet-icon.svg
           grep -q 'skynet-icon.svg' /opt/squidlaw/app/admin/skynet.html
           echo DEPLOY_SKYNET_ICON_VERIFIED
+          # Store a minimal, non-secret deployment receipt on the actual Gabia host.
+          # Atomic replacement prevents admin1974 from reading a partial record.
+          export DEPLOY_COMMIT='${{ github.sha }}'
+          node --input-type=module <<'NODE'
+          import {writeFile,rename} from 'node:fs/promises';
+          import {execFileSync} from 'node:child_process';
+          const service=name=>{try{return execFileSync('systemctl',['is-active',name],{encoding:'utf8'}).trim()}catch{return 'inactive'}};
+          const api=service('squidlaw-api.service'),worker=service('squidlaw-worker.service');
+          const record={timestamp:new Date().toISOString(),commit:process.env.DEPLOY_COMMIT,status:api==='active'&&worker==='active'?'deployed':'service_failure',api,worker,source:'gabia-server'};
+          const path='/opt/squidlaw/app/admin1974/deployment-status.json';
+          await writeFile(path+'.tmp',JSON.stringify(record)+'\n',{mode:0o644});await rename(path+'.tmp',path);
+          console.log('DEPLOY_RECEIPT_WRITTEN',record.status,record.commit.slice(0,12));
+          NODE
           echo MAINTENANCE_PAGE_SMOKE_BEGIN
           test -f /opt/squidlaw/app/admin1974/index.html
           grep -q 'SKYNET 유지보수 기록' /opt/squidlaw/app/admin1974/index.html
