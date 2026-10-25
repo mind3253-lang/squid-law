@@ -176,6 +176,16 @@ export async function runDeltaReviewStep({job,previous,documents,prefix,load,put
   const validateRevisionCandidate=response=>auditRevisionFinding(validateDeltaRevision({
    response,caseId:job.caseId,sourceVersion:job.documentVersion,
    newDocIds:delta.addedDocuments.map(d=>d.id),sourceUnits:sources}));
+  // B1: identical draft/repair transport and checkpoint semantics.
+  const generateRevisionDraft=async({request,receiptPath,repairOf})=>{
+   const cached=await load(receiptPath);
+   if(cached?.response&&typeof cached.response==='object'&&!Array.isArray(cached.response))return cached;
+   if(!apiKey)throw Error('OPENAI_API_KEY_MISSING');
+   const generated=await invokeDeltaModel({request,apiKey});
+   const receipt={response:generated.result,model,usage:generated.usage,...(repairOf?{repairOf}:{})};
+   await write(put,receiptPath,receipt);
+   return receipt;
+  };
   const payload=buildDeltaRevisionRequest({caseId:job.caseId,
    sourceVersion:job.documentVersion,baselineVersion:delta.baselineVersion,
    oldFinding:old,newFindings:related,sourceUnits:sources,reason:decision.reason,model});
@@ -195,19 +205,9 @@ export async function runDeltaReviewStep({job,previous,documents,prefix,load,put
    path=legacyPath.replace(/\.json$/,'-v'+(version+1)+'.json');
   }
   if(!validated){
-   let candidate=await load(candidatePath);
-   if(candidate&&(!candidate.response||typeof candidate.response!=='object'||Array.isArray(candidate.response))){
-    // Persisted malformed draft is not a verified analysis result.
-    candidate=null;
-   }
-   if(!candidate){
-    if(!apiKey)throw Error('OPENAI_API_KEY_MISSING');
-    let response;
-    try{response=await invokeDeltaModel({request:payload,apiKey})}
-    catch(e){e.deltaStage='revision';e.deltaCursor=cursor;throw e}
-    candidate={response:response.result,model,usage:response.usage};
-    await write(put,candidatePath,candidate);
-   }
+   let candidate;
+   try{candidate=await generateRevisionDraft({request:payload,receiptPath:candidatePath});}
+   catch(error){error.deltaStage='revision';error.deltaCursor=cursor;throw error;}
    let finding;
    try{
     finding=validateRevisionCandidate(candidate.response);
@@ -217,15 +217,9 @@ export async function runDeltaReviewStep({job,previous,documents,prefix,load,put
     if(!recoverableRevisionError(firstError))throw firstError;
     if(!apiKey)throw Error('OPENAI_API_KEY_MISSING');
     const retryPath=path.slice(0,-5)+'-repaired.json';
-    let repaired=await load(retryPath);
-    if(!repaired){
-     const corrected={...payload,instructions:payload.instructions+
-      ' CORRECTION: Return exactly the required JSON object. The finding must have type from claim,rebuttal,admission,counterclaim,legal_element,legal_conclusion; a nonempty claim; status exactly draft; and sources copied exactly from supplied sourceUnits including a NEW document. Do not invent references.',
-      input:payload.input};
-     const response=await invokeDeltaModel({request:corrected,apiKey});
-     repaired={response:response.result,model,usage:response.usage,repairOf:firstError.message};
-     await write(put,retryPath,repaired);
-    }
+    const corrected={...payload,instructions:payload.instructions+
+     ' CORRECTION: Return the required finding JSON with exact verified source references and status draft. Never invent sources.'};
+    const repaired=await generateRevisionDraft({request:corrected,receiptPath:retryPath,repairOf:firstError.message});
     try{
      finding=validateRevisionCandidate(repaired.response);
     }catch(repairError){
@@ -261,15 +255,10 @@ export async function runDeltaReviewStep({job,previous,documents,prefix,load,put
      index:v.index,supported:v.supported,reason:String(v.reason||'').slice(0,500)}))};
     if(attempt===1)break;
     const repairPath=path.replace(/\.json$/,'-semantic-repaired.json');
-    let repaired=await load(repairPath);
-    if(!repaired){
-     const corrected={...payload,instructions:payload.instructions+
-      ' INDEPENDENT REVIEW REJECTED THE DRAFT. Correct only evidence-supported claims. Distinguish firsthand observations, hearsay, payment attempts, confirmed payment, and unknown intent. Do not invent facts. Reviewer feedback: '+
-      JSON.stringify(reviewFailure).slice(0,2000)};
-     const response=await invokeDeltaModel({request:corrected,apiKey});
-     repaired={response:response.result,usage:response.usage};
-     await write(put,repairPath,repaired);
-    }
+    const corrected={...payload,instructions:payload.instructions+
+     ' INDEPENDENT REVIEW REJECTED THE DRAFT. Correct only evidence-supported claims. Distinguish firsthand observations, hearsay, payment attempts, confirmed payment, and unknown intent. Reviewer feedback: '+
+     JSON.stringify(reviewFailure).slice(0,2000)};
+    const repaired=await generateRevisionDraft({request:corrected,receiptPath:repairPath,repairOf:'semantic_review'});
     try{
      reviewedFinding=validateRevisionCandidate(repaired.response);
     }catch(repairError){
