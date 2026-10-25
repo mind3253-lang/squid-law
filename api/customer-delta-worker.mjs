@@ -169,24 +169,26 @@ export async function runDeltaReviewStep({job,previous,documents,prefix,load,put
    oldFinding:old,newFindings:related,sourceUnits:sources,reason:decision.reason,model});
   const legacyPath=root+'delta-revisions/'+String(decision.index).padStart(8,'0')+'.json';
   const candidatePath=legacyPath.replace(/\.json$/,'-candidate.json');
-  // Revision receipts are immutable. A legacy or malformed receipt must not
-  // poison every retry: allocate a new versioned path, never overwrite it.
   const validReceipt=x=>x?.index===decision.index&&x.independentVerified===true&&
    x.sourceAuditPassed===true&&
    (x.skipped===true&&typeof x.reason==='string'||!!x.finding&&
     Array.isArray(x.finding.sources)&&x.finding.sources.length>0);
+  // Read the newest valid immutable receipt; never reuse malformed legacy state.
   let path=legacyPath,validated=null;
   for(let version=1;version<=20;version++){
    const existing=await load(path);
-   if(!existing){validated=null;break;}
+   if(!existing)break;
    if(validReceipt(existing)){validated=existing;break;}
    if(version===20)throw Error('DELTA_REVISION_RECEIPT_VERSIONS_EXHAUSTED');
    path=legacyPath.replace(/\.json$/,'-v'+(version+1)+'.json');
   }
   if(!validated){
    let candidate=await load(candidatePath);
-   if(!candidate||!candidate.response||typeof candidate.response!=='object'){
-    if(candidate)throw Error('DELTA_CANDIDATE_RECEIPT_CORRUPT');
+   if(candidate&&(!candidate.response||typeof candidate.response!=='object'||Array.isArray(candidate.response))){
+    // Persisted malformed draft is not a verified analysis result.
+    candidate=null;
+   }
+   if(!candidate){
     if(!apiKey)throw Error('OPENAI_API_KEY_MISSING');
     let response;
     try{response=await invokeDeltaModel({request:payload,apiKey})}
