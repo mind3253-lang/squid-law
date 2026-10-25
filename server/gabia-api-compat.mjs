@@ -27,6 +27,8 @@ const routeModules={
  '/api/customer-precedents':'../api/customer-precedents.js',
  '/api/customer-cases':'../api/customer-cases.js',
  '/api/customer-members':'../api/customer-members.js',
+ '/api/admin-media':'../api/admin-media.js',
+ '/api/public-media':'../api/public-media.js',
  '/api/customer-case-delete':'../api/customer-case-delete.js',
  '/api/customer-case-knowledge':'../api/customer-case-knowledge.js',
  '/api/customer-large-upload':'../api/customer-large-upload.js',
