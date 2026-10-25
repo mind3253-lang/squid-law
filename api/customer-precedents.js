@@ -91,7 +91,7 @@ export default async function handler(req,res){
   const ctrl=new AbortController();const timer=setTimeout(()=>ctrl.abort(),85000);
   let response;
   try{response=await fetch('https://api.openai.com/v1/responses',{method:'POST',signal:ctrl.signal,headers:{authorization:'Bearer '+process.env.OPENAI_API_KEY,'content-type':'application/json'},body:JSON.stringify({
-   model:'gpt-6',
+   model:process.env.SQUIDLAW_PRECEDENT_MODEL||process.env.SQUIDLAW_LEGAL_MODEL||'gpt-6-astra',
    tools:[{type:'web_search',filters:{allowed_domains:['law.go.kr']}}],
    tool_choice:'required',
    max_output_tokens:4500,
