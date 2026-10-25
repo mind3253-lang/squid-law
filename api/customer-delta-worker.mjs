@@ -290,8 +290,11 @@ export async function runDeltaReviewStep({job,previous,documents,prefix,load,put
   return {status:'retry',stage:'delta_revision_checkpoint',revised:cursor+1,total:affected.length};
  }
  const revisions=await Promise.all((delta.revisionPaths||[]).map(p=>load(p)));
- if(revisions.length!==affected.length||revisions.some(x=>!x?.independentVerified||
-  !x.sourceAuditPassed))throw Error('DELTA_REVISIONS_NOT_VERIFIED');
+ if(revisions.length!==affected.length||revisions.some((x,i)=>
+  !x||x.index!==affected[i]?.index||x.skipped===true||
+  x.independentVerified!==true||x.sourceAuditPassed!==true||
+  !x.finding||!Array.isArray(x.finding.sources)||!x.finding.sources.length))
+  throw Error('DELTA_REVISIONS_NOT_VERIFIED');
  const report=buildMergedDeltaReport({baseline:base,deltaReport:fresh,decisions,revisions,
   sourceVersion:job.documentVersion,baselineVersion:delta.baselineVersion,
   addedDocs:delta.addedDocuments,documentSnapshot:documents.map(d=>({
