@@ -1,6 +1,5 @@
-import {guard,respond,readJson,casePrefix,documents} from './customer-case.js';
-import {latestSnapshot} from './customer-case-knowledge.js';
-import {completedCustomerReports} from './customer-analysis-jobs-db.js';
+import {guard,respond,readJson,casePrefix} from './customer-case.js';
+import {getJob} from './customer-analysis-jobs-db.js';
 import {get} from '../lib/customer-object-storage.mjs';
 const validId=s=>/^SL-[A-Za-z0-9-]{5,40}$/.test(s);
 const clean=s=>String(s||'').replace(/\s+/g,' ').trim();
@@ -74,26 +73,20 @@ async function filterByCaseRelevance(context,items){
   return items.filter(x=>reviews.get(x.caseNumber)?.keep===true&&clean(reviews.get(x.caseNumber).relevance).length>=35).map(x=>({...x,relevance:clean(reviews.get(x.caseNumber).relevance).slice(0,650),caution:clean(reviews.get(x.caseNumber).caution)||x.caution}));
  }catch(e){console.error('precedent_relevance_review_failed',String(e.message));return []}finally{clearTimeout(timer)}
 }
-async function savedLegalContext(user,id){
- let jobs=[];
- try{jobs=await completedCustomerReports(user,id,5)}catch(e){
-  console.error('precedent_report_lookup_unavailable',String(e?.code||e?.message||'unknown'));
-  return null;
- }
- for(const job of jobs){
-  const path=job.checkpoint?.legalCustomerReport;
-  if(!path||!path.startsWith('squidlaw/analysis-jobs/'))continue;
-  try{
-   const r=await get(path,{access:'private'});
-   if(!r||r.statusCode!==200)continue;
-   const chunks=[];let size=0;
-   for await(const part of r.stream){size+=part.length;if(size>4*1024*1024)throw Error('REPORT_TOO_LARGE');chunks.push(Buffer.from(part))}
-   const report=JSON.parse(Buffer.concat(chunks).toString('utf8'));
-   if(report?.caseId!==id||report?.reportType!=='gpt_legal_analysis'||report?.sourceVersion!==job.documentVersion||report?.analysisEngineVersion!=='gpt-6-claims-v1')continue;
-   return {reportJobId:job.jobId,reportTitle:report.title,issues:report.issues,findings:report.findings,conclusion:report.conclusion,summary:report.summary,analysis:report.analysis,legalSearchKeywords:report.legalSearchKeywords||[]};
-  }catch{}
- }
- return null;
+async function savedLegalContext(user,id,jobId){
+ const job=await getJob(user,id,jobId);
+ if(!job)return {error:'REPORT_JOB_NOT_FOUND',status:404};
+ if(job.status!=='completed')return {error:'REPORT_NOT_COMPLETE',status:409};
+ const path=job.checkpoint?.legalCustomerReport;
+ const root='squidlaw/analysis-jobs/'+casePrefix(user,id).split('/')[2]+'/'+id+'/'+jobId+'/';
+ if(path!==root+'legal-customer-report.json'&&path!==root+'legal-customer-report-final.json')return {error:'REPORT_PATH_MISMATCH',status:409};
+ const r=await get(path,{access:'private'});
+ if(!r||r.statusCode!==200)return {error:'REPORT_STORAGE_UNAVAILABLE',status:503};
+ const chunks=[];let size=0;
+ for await(const part of r.stream){size+=part.length;if(size>4*1024*1024)throw Error('REPORT_TOO_LARGE');chunks.push(Buffer.from(part))}
+ const report=JSON.parse(Buffer.concat(chunks).toString('utf8'));
+ if(report?.caseId!==id||report?.reportType!=='gpt_legal_analysis'||report?.sourceVersion!==job.documentVersion)return {error:'REPORT_SOURCE_MISMATCH',status:409};
+ return {legalSearchKeywords:report.legalSearchKeywords||[],reportJobId:jobId};
 }
 export default async function handler(req,res){
  const auth=guard(req);if(auth.error)return respond(res,auth.status,{error:auth.error});
@@ -101,15 +94,18 @@ export default async function handler(req,res){
  const id=String(req.query?.caseId||'');if(!validId(id))return respond(res,400,{error:'사건 ID 오류'});
  try{
   const user=auth.user;
+  const jobId=String(req.query?.jobId||'');
+  if(!/^[0-9a-f-]{36}$/.test(jobId))return respond(res,400,{code:'REPORT_JOB_ID_REQUIRED',error:'완료보고서 작업 ID가 필요합니다.'});
   const record=await readJson(casePrefix(user,'_index').replace(/_index\/$/,'')+'registry/'+id+'.json');
   if(!record||record.id!==id)return respond(res,404,{error:'사건을 찾을 수 없습니다.'});
   if(!process.env.OPENAI_API_KEY)return respond(res,503,{code:'OPENAI_NOT_CONFIGURED',error:'기존 OpenAI API 설정이 없습니다.'});
   // 판례 검색은 완료보고서의 확정 키워드만 사용한다. 문서·사실관계 재분석 금지.
-  const legalReport=await savedLegalContext(user,id);
+  const legalReport=await savedLegalContext(user,id,jobId);
+  if(legalReport?.error)return respond(res,legalReport.status,{code:legalReport.error,error:'선택한 완료보고서의 키워드를 조회하지 못했습니다.'});
   const keywords=Array.isArray(legalReport?.legalSearchKeywords)?
-   legalReport.legalSearchKeywords.map(clean).filter(Boolean).slice(0,3):[];
-  if(keywords.length!==3)return respond(res,409,{code:'LEGAL_KEYWORDS_REQUIRED',
-   error:'완료된 재분석 보고서의 판례 검색 키워드 3개를 확인할 수 없습니다. 보고서 저장 연결을 확인해 주세요.'});
+   unique(legalReport.legalSearchKeywords.map(clean).filter(Boolean)):[];
+  if(!keywords.length)return respond(res,409,{code:'LEGAL_KEYWORDS_REQUIRED',
+   error:'완료된 재분석 보고서의 판례 검색 키워드를 확인할 수 없습니다. 보고서 저장 연결을 확인해 주세요.'});
   const context={legalSearchKeywords:keywords};
   const ctrl=new AbortController();const timer=setTimeout(()=>ctrl.abort(),85000);
   let response;
@@ -119,7 +115,7 @@ export default async function handler(req,res){
    tool_choice:'required',
    max_output_tokens:4500,
    instructions:'반드시 JSON 객체 하나만 출력하십시오. 형식: {"precedents":[{"caseNumber":"2012도14516","court":"대법원","date":"2016. 4. 28.","name":"","summary":"핵심 법리","relevance":"이 사건과의 직접 관련성","caution":"적용상 주의점","url":"공식 판결 원문 URL","originalExcerpt":"원문에서 그대로 복사한 판시 문장 24자 이상"}]}. 관련 판례는 최대 6개이며 적합한 판례가 없으면 0개도 허용합니다. 같은 사건번호는 중복하지 마십시오. 판례의 관련성은 단순히 같은 죄명이나 추상적 법리라는 이유로 인정하지 마십시오. 각 판례의 구체적 사실관계, 법원이 실제 판단한 쟁점, 이 사건에서 입증된 사실을 각각 대조하십시오. 직접 관련성이 약한 판례는 검색 결과에서 제외하고 개수를 억지로 채우지 마십시오. relevance는 반드시 (1) 이 사건의 특정 쟁점 (2) 판례가 판단한 정확한 법리 (3) 양 사건의 공통점과 차이 (4) 적용에 필요한 입증 사실을 쉬운 한국어 2~3문장으로 작성하십시오. 대출·회계·보조금 사건을 입장권 결제 사건에 연결할 때는 동일한 법적 판단구조를 구체적으로 설명할 수 없으면 제외하십시오. 사건번호·선고일·판시내용이 불확실하면 제외하십시오. URL은 실제 검색 결과에서 확인한 경우에만 쓰십시오. originalExcerpt는 국가법령정보센터 판결요지 또는 전문에 실제 존재하는 12자 이상의 문장을 그대로 옮기십시오. 국가법령정보센터(law.go.kr)만 검색하십시오. 블로그, 법률사무소, 포털 검색 결과는 사용하지 마십시오. 원문 URL과 실제 판시사항·판결요지에서 인용문을 가져오십시오. 당신은 한국 판례 검색 보조 도구입니다. 제공된 기존 사건 요약을 다시 분석하지 말고 법률 쟁점에 맞는 실제 공개 판례만 웹에서 검색하십시오. 판례번호를 추측하거나 만들어내지 마십시오. 판결 법원, 선고일, 사건번호를 확인할 수 없으면 결과로 제시하지 마십시오. 원문 확인 가능한 법원 또는 국가법령정보센터 URL을 우선하십시오. 반드시 한국어로 각 판례의 관련성 및 사건에 적용할 때 주의할 점을 간결히 설명하십시오. 검색으로 확인되지 않은 사실은 확인 불가라고 하십시오.',
-   input:'다음 법률요건 키워드 3개만으로 국가법령정보센터 판례를 검색하십시오. 사건 문서, 사실관계, 업종, 당사자 정보를 추측하거나 재분석하지 마십시오. 검색 결과는 키워드에 직접 부합하는 실제 판례만 최대 6건 반환하십시오.\\n'+JSON.stringify(keywords)
+   input:'다음 완료보고서의 법률요건 키워드만으로 국가법령정보센터 판례를 검색하십시오. 사건 문서, 사실관계, 업종, 당사자 정보를 추측하거나 재분석하지 마십시오. 검색 결과는 키워드에 직접 부합하는 실제 판례만 최대 6건 반환하십시오.\\n'+JSON.stringify(keywords)
   })})}finally{clearTimeout(timer)}
   const data=await response.json().catch(()=>null);
   if(!response.ok)return respond(res,502,{code:'OPENAI_PRECEDENT_ERROR',error:'GPT 판례 검색 호출 실패 ('+response.status+'): '+clean(data?.error?.message||'API 오류').slice(0,200)});
