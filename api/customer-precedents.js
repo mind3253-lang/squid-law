@@ -79,45 +79,49 @@ export default async function handler(req,res){
   const user=auth.user;
   const jobId=String(req.query?.jobId||'');
   if(!/^[0-9a-f-]{36}$/.test(jobId))return respond(res,400,{code:'REPORT_JOB_ID_REQUIRED',error:'완료보고서 작업 ID가 필요합니다.'});
-  if(!process.env.OPENAI_API_KEY)return respond(res,503,{code:'OPENAI_NOT_CONFIGURED',error:'기존 OpenAI API 설정이 없습니다.'});
-  // 판례 검색은 완료보고서의 확정 키워드만 사용한다. 문서·사실관계 재분석 금지.
+  // Use the original National Law Information Center DRF API, not GPT web_search.
   const legalReport=await savedLegalContext(user,id,jobId);
-  if(legalReport?.error)return respond(res,legalReport.status,{code:legalReport.error,error:'선택한 완료보고서의 키워드를 조회하지 못했습니다.'});
-  const keywords=Array.isArray(legalReport?.legalSearchKeywords)?
-   unique(legalReport.legalSearchKeywords.map(clean).filter(Boolean)):[];
-  if(!keywords.length)return respond(res,409,{code:'LEGAL_KEYWORDS_REQUIRED',
-   error:'완료된 재분석 보고서의 판례 검색 키워드를 확인할 수 없습니다. 보고서 저장 연결을 확인해 주세요.'});
-
-  const ctrl=new AbortController();const timer=setTimeout(()=>ctrl.abort(),85000);
-  let response;
-  try{response=await fetch('https://api.openai.com/v1/responses',{method:'POST',signal:ctrl.signal,headers:{authorization:'Bearer '+process.env.OPENAI_API_KEY,'content-type':'application/json'},body:JSON.stringify({
-   model:process.env.SQUIDLAW_PRECEDENT_MODEL||process.env.SQUIDLAW_LEGAL_MODEL||'gpt-6-astra',
-   tools:[{type:'web_search',filters:{allowed_domains:['law.go.kr']}}],
-   tool_choice:'required',
-   max_output_tokens:4500,
-   instructions:'반드시 JSON 객체 하나만 출력하십시오. 형식: {"precedents":[{"caseNumber":"2012도14516","court":"대법원","date":"2016. 4. 28.","name":"","summary":"핵심 법리","relevance":"이 사건과의 직접 관련성","caution":"적용상 주의점","url":"공식 판결 원문 URL","originalExcerpt":"원문에서 그대로 복사한 판시 문장 24자 이상"}]}. 관련 판례는 최대 6개이며 적합한 판례가 없으면 0개도 허용합니다. 같은 사건번호는 중복하지 마십시오. 판례의 관련성은 단순히 같은 죄명이나 추상적 법리라는 이유로 인정하지 마십시오. 각 판례의 구체적 사실관계, 법원이 실제 판단한 쟁점, 이 사건에서 입증된 사실을 각각 대조하십시오. 직접 관련성이 약한 판례는 검색 결과에서 제외하고 개수를 억지로 채우지 마십시오. relevance는 반드시 (1) 이 사건의 특정 쟁점 (2) 판례가 판단한 정확한 법리 (3) 양 사건의 공통점과 차이 (4) 적용에 필요한 입증 사실을 쉬운 한국어 2~3문장으로 작성하십시오. 대출·회계·보조금 사건을 입장권 결제 사건에 연결할 때는 동일한 법적 판단구조를 구체적으로 설명할 수 없으면 제외하십시오. 사건번호·선고일·판시내용이 불확실하면 제외하십시오. URL은 실제 검색 결과에서 확인한 경우에만 쓰십시오. originalExcerpt는 국가법령정보센터 판결요지 또는 전문에 실제 존재하는 12자 이상의 문장을 그대로 옮기십시오. 국가법령정보센터(law.go.kr)만 검색하십시오. 블로그, 법률사무소, 포털 검색 결과는 사용하지 마십시오. 원문 URL과 실제 판시사항·판결요지에서 인용문을 가져오십시오. 당신은 한국 판례 검색 보조 도구입니다. 제공된 기존 사건 요약을 다시 분석하지 말고 법률 쟁점에 맞는 실제 공개 판례만 웹에서 검색하십시오. 판례번호를 추측하거나 만들어내지 마십시오. 판결 법원, 선고일, 사건번호를 확인할 수 없으면 결과로 제시하지 마십시오. 원문 확인 가능한 법원 또는 국가법령정보센터 URL을 우선하십시오. 반드시 한국어로 각 판례의 관련성 및 사건에 적용할 때 주의할 점을 간결히 설명하십시오. 검색으로 확인되지 않은 사실은 확인 불가라고 하십시오.',
-   input:'다음 완료보고서의 법률요건 키워드만으로 국가법령정보센터 판례를 검색하십시오. 사건 문서, 사실관계, 업종, 당사자 정보를 추측하거나 재분석하지 마십시오. 검색 결과는 키워드에 직접 부합하는 실제 판례만 최대 6건 반환하십시오.\\n'+JSON.stringify(keywords)
-  })})}finally{clearTimeout(timer)}
-  const data=await response.json().catch(()=>null);
-  if(!response.ok)return respond(res,502,{code:'OPENAI_PRECEDENT_ERROR',error:'GPT 판례 검색 호출 실패 ('+response.status+'): '+clean(data?.error?.message||'API 오류').slice(0,200)});
-  const outputs=(data?.output||[]).filter(x=>x.type==='message');
-  const content=outputs.flatMap(x=>x.content||[]);
-  const report=content.filter(x=>x.type==='output_text').map(x=>x.text||'').join('\n').trim();
-  const citations=unique(content.flatMap(x=>(x.annotations||[]).filter(a=>a.type==='url_citation').map(a=>a.url))).filter(u=>/^https:\/\//.test(u)).slice(0,25);
-  if(!report)return respond(res,502,{code:'PRECEDENT_EMPTY',error:'GPT 판례 검색 응답에 확인 가능한 내용이 없습니다.'});
-  const candidates=parsePrecedents(report);
-  // Never display model-supplied ruling metadata when the official source differs.
-
-  const checked=await Promise.all(candidates.map(verifyPrecedent));
-  const officialResults=[...new Map(checked.filter(x=>x.ok).map(x=>[x.item.caseNumber,x.item])).values()].slice(0,6);
-  // Defer the old second GPT relevance pass: it reinterprets the case without source facts.
-  // Only officially verified rulings are returned; substantive application belongs to final drafting.
-  const results=officialResults;
-  const diagnostics=Object.entries(checked.filter(x=>!x.ok).reduce((a,x)=>(a[x.reason]=(a[x.reason]||0)+1,a),{})).map(([reason,count])=>({reason,count}));
-  const corrected=checked.filter(x=>x.ok&&x.corrected).length;
-  const mismatchSamples=checked.filter(x=>!x.ok).slice(0,6).map(x=>({reason:x.reason,expected:x.expected,actual:x.actual,url:x.url,textLength:x.textLength,headings:x.headings}));
-  console.info('precedent_validation',{caseId:id,candidates:candidates.length,verified:officialResults.length,relevant:results.length,corrected,diagnostics,mismatchSamples});
-  if(!results.length)return respond(res,200,{caseId:id,source:'공식 판결 원문 대조',query:keywords.join(', '),count:0,results:[],report:'',citations:[],notice:'공식 판례 중 이 사건에 직접 적용할 만한 판례를 확정하지 못했습니다. 원문 확인 '+officialResults.length+'건, 검색 후보 '+candidates.length+'건, 통과 0건입니다. 실패 유형: '+diagnostics.map(x=>x.reason+' '+x.count+'건').join(', ')+'.'});
-  return respond(res,200,{caseId:id,source:'국가법령정보센터 원문 검증',query:keywords.join(', '),count:results.length,results,report:'',citations:[],notice:'공식 판결 원문에서 사건번호·선고일·판결요지를 확인한 판례만 표시합니다. 법리의 사건 적용은 별도 검토가 필요합니다.'});
+  if(legalReport?.error)return respond(res,legalReport.status,{code:legalReport.error,error:'완료보고서의 판례 검색 키워드를 조회하지 못했습니다.'});
+  const keywords=Array.isArray(legalReport.legalSearchKeywords)?unique(legalReport.legalSearchKeywords.map(clean).filter(Boolean)).slice(0,3):[];
+  if(!keywords.length)return respond(res,409,{code:'LEGAL_KEYWORDS_REQUIRED',error:'완료보고서에 판례 검색 키워드가 없습니다.'});
+  const oc=process.env.LAW_GO_KR_OC||process.env.LAW_API_OC;
+  if(!oc)return respond(res,503,{code:'PRECEDENT_SOURCE_NOT_CONFIGURED',error:'국가법령정보센터 판례 검색 API 인증값이 없습니다.'});
+  const strip=s=>String(s||'').replace(/<[^>]*>/g,'').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&amp;/g,'&').trim();
+  const tag=(s,n)=>strip(s.match(new RegExp('<'+n+'(?:\\\\s[^>]*)?>([\\\\s\\\\S]*?)<\\\\/'+n+'>','i'))?.[1]||'');
+  const rows=[],failures=[];
+  for(const keyword of keywords){
+   const url=new URL('https://www.law.go.kr/DRF/lawSearch.do');
+   url.searchParams.set('OC',oc);url.searchParams.set('target','prec');url.searchParams.set('type','XML');url.searchParams.set('query',keyword);url.searchParams.set('display','20');
+   const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),25000);
+   try{
+    const response=await fetch(url,{signal:controller.signal,headers:{accept:'application/xml,text/xml'}});
+    if(!response.ok)throw Error('HTTP_'+response.status);
+    const xml=await response.text();
+    if(!xml.includes('<')||/인증 실패|인증오류/.test(xml.slice(0,450)))throw Error('INVALID_XML_RESPONSE');
+    const blocks=[...xml.matchAll(/<prec(?:\\s[^>]*)?>([\\s\\S]*?)<\\/prec>/gi)].map(m=>m[1]);
+    for(const block of blocks){
+     const caseNumber=clean(tag(block,'사건번호'));
+     const id=clean(tag(block,'판례일련번호'));
+     if(!caseNumber&&!id)continue;
+     const summary=clean(tag(block,'판시사항'));
+     const name=clean(tag(block,'사건명'));
+     const officialLink=clean(tag(block,'판례상세링크'));
+     const url=officialLink.startsWith('https://www.law.go.kr/')?officialLink:
+       id?'https://www.law.go.kr/LSW/precInfoP.do?precSeq='+encodeURIComponent(id):'';
+     rows.push({caseNumber,name,court:clean(tag(block,'법원명')),date:clean(tag(block,'선고일자')),summary,id,url,relevance:'검색 키워드: '+keyword,caution:'원문을 확인하여 사건의 사실관계 및 적용 법리를 검토해야 합니다.',verification:'국가법령정보센터 판례 검색 API',keyword});
+    }
+   }catch(e){failures.push({keyword,code:String(e?.name==='AbortError'?'TIMEOUT':e?.message||'API_ERROR').slice(0,60)})}
+   finally{clearTimeout(timer)}
+  }
+  if(failures.length===keywords.length)return respond(res,502,{code:'OFFICIAL_PRECEDENT_API_FAILED',error:'국가법령정보센터 판례 검색 API 호출에 실패했습니다.',failures});
+  const dedup=[...new Map(rows.map(x=>[x.caseNumber||x.id,x])).values()];
+  const words=s=>clean(s).split(/[^가-힣A-Za-z0-9]+/).filter(x=>x.length>=2);
+  const scored=dedup.map(x=>{
+   const hay=(x.name+' '+x.summary).toLowerCase();
+   const score=keywords.reduce((n,k)=>n+words(k).filter(w=>hay.includes(w.toLowerCase())).length,0);
+   return {...x,score};
+  }).filter(x=>x.score>0).sort((a,b)=>b.score-a.score).slice(0,6);
+  console.info('precedent_official_api',{keywords:keywords.length,raw:rows.length,unique:dedup.length,relevant:scored.length,failed:failures.length});
+  return respond(res,200,{caseId:id,source:'국가법령정보센터 판례 검색 API',query:keywords.join(', '),count:scored.length,results:scored,report:'',citations:[],notice:scored.length?'국가법령정보센터 검색 결과 중 키워드가 판시사항 또는 사건명에 포함된 판례입니다. 사건 적용은 원문 확인이 필요합니다.':'공식 API 검색 결과에서 키워드가 판시사항 또는 사건명에 일치하는 판례를 찾지 못했습니다.',diagnostics:{raw:rows.length,unique:dedup.length,failed:failures}});
  }catch(e){console.error('PRECEDENT_SEARCH_STAGE_FAILURE',JSON.stringify({code:String(e?.code||'UNKNOWN').slice(0,40),type:String(e?.name||'Error').slice(0,40)}));return respond(res,502,{code:'PRECEDENT_SEARCH_ERROR',error:'판례 검색 처리 실패 ('+String(e?.code||e?.name||'UNKNOWN').slice(0,40)+')'})}
 }
