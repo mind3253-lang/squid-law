@@ -11,9 +11,17 @@ document.addEventListener('DOMContentLoaded',()=>{
  toggle.setAttribute('aria-label','사이드바 펼치기');toggle.title='사이드바 펼치기';
  toggle.setAttribute('aria-expanded','false');
  toggle.innerHTML='<svg viewBox="0 0 24 24" width="23" height="23" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M9 4v16"/></svg>';
- sidebar.append(toggle);
+ const header=document.createElement('div');header.className='squidSidebarHeader';
+ const brand=document.createElement('strong');brand.className='squidSidebarBrand';brand.textContent='SKIDLAW';
+ header.append(brand,toggle);sidebar.append(header);
+ const rule=document.createElement('div');rule.className='squidSidebarRule';sidebar.append(rule);
  const nav=document.createElement('nav');nav.className='squidSidebarNav';
- const title=document.createElement('strong');title.className='squidSidebarHeading';title.textContent='내 사건 분석';nav.append(title);
+ const my=document.createElement('a');my.href='mypage.html';my.className='squidSidebarLink';my.title='마이페이지';my.setAttribute('aria-label','마이페이지');
+ if(location.pathname.endsWith('/mypage.html')){my.classList.add('active');my.setAttribute('aria-current','page')}
+ const myIcon=document.createElement('span');myIcon.className='squidSidebarIcon';myIcon.textContent='♙';
+ const myLabel=document.createElement('span');myLabel.className='squidSidebarLabel';myLabel.textContent='마이페이지';
+ my.append(myIcon,myLabel);nav.append(my);
+ const sectionRule=document.createElement('div');sectionRule.className='squidSidebarSectionRule';nav.append(sectionRule);
  const selected=new URLSearchParams(location.search).get('category')||new URLSearchParams(location.search).get('case');
  categories.forEach(([name,icon],index)=>{
   const link=document.createElement('a');link.href='customer.html?category='+String(index+1);
@@ -25,12 +33,6 @@ document.addEventListener('DOMContentLoaded',()=>{
  });
  const payLink=document.createElement('a');payLink.href='/payment.html';payLink.title='결제하기';payLink.setAttribute('aria-label','결제하기');payLink.className='squidSidebarLink';if(location.pathname.endsWith('/payment.html'))payLink.classList.add('active');const payIcon=document.createElement('span');payIcon.className='squidSidebarIcon';payIcon.textContent='▣';const payText=document.createElement('span');payText.className='squidSidebarLabel';payText.textContent='결제하기';payLink.append(payIcon,payText);nav.append(payLink);
  sidebar.append(nav);
- const bottom=document.createElement('div');bottom.className='squidSidebarBottom';
- const my=document.createElement('a');my.href='mypage.html';my.className='squidSidebarLink';my.title='마이페이지';my.setAttribute('aria-label','마이페이지');
- if(location.pathname.endsWith('/mypage.html')){my.classList.add('active');my.setAttribute('aria-current','page')}
- const icon=document.createElement('span');icon.className='squidSidebarIcon';icon.textContent='♙';
- const label=document.createElement('span');label.className='squidSidebarLabel';label.textContent='마이페이지';
- my.append(icon,label);bottom.append(my);sidebar.append(bottom);
  document.body.append(sidebar);document.body.classList.add('squid-has-sidebar');
  const saved=localStorage.getItem('squid-sidebar-open')==='1';
  function setOpen(open){sidebar.classList.toggle('open',open);document.body.classList.toggle('squid-sidebar-open',open);toggle.setAttribute('aria-expanded',String(open));toggle.title=open?'사이드바 접기':'사이드바 펼치기';toggle.setAttribute('aria-label',toggle.title);localStorage.setItem('squid-sidebar-open',open?'1':'0')}
