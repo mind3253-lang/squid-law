@@ -310,3 +310,23 @@ body.home .analysis-band{margin-top:20px}
  body.home .home-feature-card p{font-size:15px}
  body.home .home-feature-action{margin-top:18px}
 }
+
+/* Continuous page background; keep feature card height fixed. */
+html body.home{background:transparent}
+body.home::before{
+ position:fixed;inset:0;width:100%;height:100vh;
+ background-image:url("/api/public-media?name=1792953742873-b358e12f-d600-4785-a671-9352ad37d3c4.png");
+ background-size:cover;background-position:center center;background-repeat:no-repeat;
+ z-index:-1;
+}
+body.home .home-hero{background:transparent}
+body.home .home-feature-card{height:340px;min-height:340px}
+body.home .home-feature-card .home-feature-action{display:none}
+body.home .analysis-band,body.home .home-section:not(.home-hero),body.home .principle{
+ position:relative;
+}
+@media(max-width:760px){
+ body.home::before{height:100vh;background-position:62% center}
+ body.home .home-hero{background:transparent}
+ body.home .home-feature-card{height:340px;min-height:340px}
+}
