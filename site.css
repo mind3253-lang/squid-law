@@ -429,3 +429,15 @@ body.home .sq-risk-end a{display:inline-block;margin-top:20px;color:#b2dcff;font
 /* Analysis engine section headline refinement */
 body.home .sq-tech-intro .sq-eyebrow{font-size:clamp(17px,1.7vw,23px);letter-spacing:.045em;line-height:1.4;margin-bottom:27px}
 body.home .sq-tech-intro h2{font-size:clamp(33px,3.9vw,54px);line-height:1.38}
+
+/* Compact technology headline and three analysis principles */
+body.home .sq-tech-intro{max-width:1160px}
+body.home .sq-tech-intro h2{font-size:clamp(23px,2.15vw,31px);line-height:1.55;letter-spacing:-.035em}
+body.home .sq-tech-intro h2 span{white-space:nowrap}
+body.home .sq-tech-closing{max-width:1050px}
+body.home .sq-tech-principles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:28px;margin-top:32px;text-align:left}
+body.home .sq-tech-principles article{border-top:1px solid #ffffff55;padding-top:20px}
+body.home .sq-tech-principles h3{font-size:19px;color:#b0dbff;margin:0 0 12px;line-height:1.5;word-break:keep-all}
+body.home .sq-tech-principles p{font-size:16px;line-height:1.8;color:#e1ebf5;margin:0;word-break:keep-all}
+@media(max-width:900px){body.home .sq-tech-intro h2 span{white-space:normal}body.home .sq-tech-principles{grid-template-columns:1fr;gap:16px}}
+@media(max-width:600px){body.home .sq-tech-intro h2{font-size:clamp(22px,5.4vw,27px)}}
