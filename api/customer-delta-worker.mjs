@@ -289,6 +289,11 @@ export async function runDeltaReviewStep({job,previous,documents,prefix,load,put
    revisionCursor:cursor+1,revisionPaths:[...(delta.revisionPaths||[]),path]}},'retry');
   return {status:'retry',stage:'delta_revision_checkpoint',revised:cursor+1,total:affected.length};
  }
+ // C4: resume only from a complete, ordered set of persisted receipts.
+ if((delta.revisionCursor||0)!==affected.length||
+  (delta.revisionPaths||[]).length!==affected.length||
+  new Set(delta.revisionPaths||[]).size!==affected.length)
+  throw Error('DELTA_FINALIZE_CHECKPOINT_INCOMPLETE');
  const revisions=await Promise.all((delta.revisionPaths||[]).map(p=>load(p)));
  if(revisions.length!==affected.length||revisions.some((x,i)=>
   !x||x.index!==affected[i]?.index||x.skipped===true||
