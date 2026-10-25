@@ -162,9 +162,15 @@ export async function runDeltaReviewStep({job,previous,documents,prefix,load,put
   const payload=buildDeltaRevisionRequest({caseId:job.caseId,
    sourceVersion:job.documentVersion,baselineVersion:delta.baselineVersion,
    oldFinding:old,newFindings:related,sourceUnits:sources,reason:decision.reason,model});
-  const path=root+'delta-revisions/'+String(decision.index).padStart(8,'0')+'.json';
-  const candidatePath=path.replace(/\.json$/,'-candidate.json');
-  let validated=await load(path);
+  const legacyPath=root+'delta-revisions/'+String(decision.index).padStart(8,'0')+'.json';
+  // Never reuse a legacy checkpoint that lacks independently verified provenance.
+  // Use a versioned immutable path instead of overwriting a corrupt receipt.
+  const legacy=await load(legacyPath);
+  const validReceipt=x=>x?.index===decision.index&&x.independentVerified===true&&
+   x.sourceAuditPassed===true&&(x.skipped===true||!!x.finding);
+  const path=legacy&&!validReceipt(legacy)?legacyPath.replace(/\.json$/,'-v2.json'):legacyPath;
+  const candidatePath=legacyPath.replace(/\.json$/,'-candidate.json');
+  let validated=path===legacyPath?legacy:await load(path);
   if(!validated){
    let candidate=await load(candidatePath);
    if(!candidate){
