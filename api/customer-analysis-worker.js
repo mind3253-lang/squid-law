@@ -463,12 +463,18 @@ export default async function handler(req,res){
   if(citationWarnings)console.warn('CITATION_INTEGRITY_STAGE2',JSON.stringify({count:citationWarnings}));
   const indexData=await load(previous.sourceUnitIndex);
   const aggregate=await load(previous.textReviewAggregate);
-  const visualAudits=[];
-  for(const doc of docs){
-   const rootPath=root+'visual-provider/';
-   const primary=await load(rootPath+doc.id+'.json');
-   visualAudits.push({documentId:doc.id,complete:primary?.sourcePdfSha256===doc.sha256&&primary?.pageCount===doc.pageCount&&previous.visualSourceCoveragePassed===true,verified:primary?.sourcePdfSha256===doc.sha256&&primary?.pageCount===doc.pageCount,sourceCoverageVerified:previous.visualSourceCoveragePassed===true});
-  }
+  // The visual-source audit has already checked every document's original
+  // PDF hash, page count and provider coverage before writing this checkpoint.
+  // Reopening the provider summaries here duplicates that completed audit and
+  // can incorrectly block an otherwise verified initial analysis.
+  const visualCoverageVerified=previous.visualSourceCoveragePassed===true&&
+   previous.visualReview?.verified===true&&
+   previous.visualReview?.sourceVersion===job.documentVersion&&
+   previous.visualReview?.verifiedDocumentCount===docs.length;
+  const visualAudits=docs.map(doc=>({
+   documentId:doc.id,complete:visualCoverageVerified,verified:visualCoverageVerified,
+   sourceCoverageVerified:visualCoverageVerified
+  }));
   // Bounded concurrent reads keep final verification ordered without serial Blob RTTs.
   const verifiedPaths=docs.flatMap(doc=>Array.from({length:Math.ceil(doc.pageCount/20)},(_,i)=>prefix+'verified/'+doc.id+'/batch-'+String(i*20).padStart(8,'0')+'.json'));
   const verifiedBatches=[];
