@@ -594,6 +594,24 @@ export default async function handler(req,res){
     const failed=settled.find(item=>item.status==='rejected');
     if(failed)throw failed.reason;
     const nextPage=starts.at(-1)+10;
+    // Merge the final verified window without an extra worker retry.
+    if(nextPage>doc.pageCount){
+     const windowStarts=Array.from({length:Math.ceil(doc.pageCount/10)},(_,i)=>i*10+1);
+     const completeWindows=await Promise.all(windowStarts.map(page=>
+      load(root+doc.id+'-window-'+String(page).padStart(8,'0')+'.json')));
+     if(completeWindows.some(x=>!x))throw Error('VISUAL_WINDOW_MISSING');
+     const merged=mergeVisualWindows({documentId:doc.id,sourcePdfSha256:doc.sha256,
+      pageCount:doc.pageCount,windows:completeWindows});
+     const path=root+doc.id+'.json';
+     const old=await load(path);
+     if(old&&JSON.stringify(old)!==JSON.stringify(merged))throw Error('VISUAL_MERGE_CONFLICT');
+     if(!old)await put(path,JSON.stringify(merged),{access:'private',
+      allowOverwrite:false,addRandomSuffix:false,contentType:'application/json'});
+     await advanceJob(job,'visual_provider_checkpoint',
+      {...previous,visualDocIndex:next+1,visualWindowStartPage:1},'retry');
+     return res.status(200).json({status:'retry',stage:'visual_provider_checkpoint',
+      processedDocuments:next+1,totalDocuments:docs.length});
+    }
     await advanceJob(job,'visual_provider_window_checkpoint',
      {...previous,visualDocIndex:next,visualWindowStartPage:nextPage},'retry');
     return res.status(200).json({status:'retry',stage:'visual_provider_window_checkpoint',
