@@ -80,6 +80,17 @@ jobs:
           fi
           echo PRECEDENT_API_ENV_KEY_PRESENT
           echo PRECEDENT_SERVER_PREFLIGHT_END
+          # Search existing local configuration without revealing credential values.
+          echo PRECEDENT_EXISTING_CONFIG_SCAN_BEGIN
+          find /etc/squidlaw /opt/squidlaw -maxdepth 4 -type f \
+            \( -name '*.env' -o -name '*.env.*' -o -name '*config*.json' \) \
+            ! -path '*/node_modules/*' -size -1M 2>/dev/null |
+          while IFS= read -r candidate; do
+            if grep -Eq '^(LAW_GO_KR_OC|LAW_API_OC)=[^[:space:]]+' "$candidate" 2>/dev/null; then
+              echo "PRECEDENT_OC_FOUND_CONFIG_PATH=$candidate"
+            fi
+          done
+          echo PRECEDENT_EXISTING_CONFIG_SCAN_END
           # Presence-only diagnostics; never output credentials.
           for envfile in /etc/squidlaw/api.env /etc/squidlaw/worker.env; do
             if test -f "$envfile" && grep -Eq '^(LAW_GO_KR_OC|LAW_API_OC)=[^[:space:]]+' "$envfile"; then
