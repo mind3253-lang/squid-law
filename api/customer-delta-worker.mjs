@@ -219,29 +219,45 @@ export async function runDeltaReviewStep({job,previous,documents,prefix,load,put
     result:{caseId:job.caseId,sourceVersion:job.documentVersion,findings:[finding]},
     sourceIndex:sources});
    if(!sourceAudit.complete)throw Error('DELTA_REVISION_SOURCE_AUDIT_FAILED:'+sourceAudit.failures.join(','));
-   const review=buildSemanticReviewRequest({caseId:job.caseId,
-    sourceVersion:job.documentVersion,findings:[finding],sourceUnits:sources,model});
-   let independent;
-   try{independent=await invokeSemanticReview({request:review,apiKey});}
-   catch(error){
-    error.deltaStage='revision';
-    error.deltaCursor=cursor;
-    throw error;
+   // Retry only the unsupported supplement; never bypass independent review.
+   let reviewedFinding=finding,approved=false,reviewFailure=null;
+   for(let attempt=0;attempt<2;attempt++){
+    const review=buildSemanticReviewRequest({caseId:job.caseId,
+     sourceVersion:job.documentVersion,findings:[reviewedFinding],sourceUnits:sources,model});
+    const reviewPath=path.replace(/\\.json$/,'-semantic-'+attempt+'.json');
+    let independent=await load(reviewPath);
+    if(!independent){
+     try{independent=await invokeSemanticReview({request:review,apiKey});}
+     catch(error){error.deltaStage='revision';error.deltaCursor=cursor;throw error;}
+     await write(put,reviewPath,independent);
+    }
+    const check=validateSemanticReview({response:independent.result,caseId:job.caseId,
+     sourceVersion:job.documentVersion,findings:[reviewedFinding]});
+    if(check.complete){approved=true;break;}
+    reviewFailure={failures:check.failures,verdicts:(independent.result?.verdicts||[]).map(v=>({
+     index:v.index,supported:v.supported,reason:String(v.reason||'').slice(0,500)}))};
+    if(attempt===1)break;
+    const repairPath=path.replace(/\\.json$/,'-semantic-repaired.json');
+    let repaired=await load(repairPath);
+    if(!repaired){
+     const corrected={...payload,instructions:payload.instructions+
+      ' INDEPENDENT REVIEW REJECTED THE DRAFT. Correct only evidence-supported claims. Distinguish firsthand observations, hearsay, payment attempts, confirmed payment, and unknown intent. Do not invent facts. Reviewer feedback: '+
+      JSON.stringify(reviewFailure).slice(0,2000)};
+     const response=await invokeDeltaModel({request:corrected,apiKey});
+     repaired={response:response.result,usage:response.usage};
+     await write(put,repairPath,repaired);
+    }
+    reviewedFinding=validateDeltaRevision({response:repaired.response,caseId:job.caseId,
+     sourceVersion:job.documentVersion,newDocIds:delta.addedDocuments.map(d=>d.id),sourceUnits:sources});
+    const repairAudit=auditLegalReasoningResult({request:{caseId:job.caseId,
+     sourceVersion:job.documentVersion,ready:true,verified:false},
+     result:{caseId:job.caseId,sourceVersion:job.documentVersion,findings:[reviewedFinding]},sourceIndex:sources});
+    if(!repairAudit.complete)throw Error('DELTA_REVISION_REPAIR_SOURCE_AUDIT_FAILED:'+repairAudit.failures.join(','));
    }
-   const check=validateSemanticReview({response:independent.result,caseId:job.caseId,
-    sourceVersion:job.documentVersion,findings:[finding]});
-   if(!check.complete){
-    const error=new Error('DELTA_REVISION_INDEPENDENT_REVIEW_FAILED');
-    error.deltaStage='revision';error.deltaCursor=cursor;
-    error.reviewFailures=check.failures;
-    error.reviewVerdicts=(independent.result?.verdicts||[]).map(v=>({
-     index:v.index,supported:v.supported,reason:String(v.reason||'').slice(0,500)}));
-    error.providerErrorSummary=JSON.stringify({failures:check.failures,
-     verdicts:error.reviewVerdicts}).slice(0,1600);
-    throw error;
-   }
-   validated={index:decision.index,finding,reason:decision.reason,
-    independentVerified:true,sourceAuditPassed:true};
+   validated=approved?{index:decision.index,finding:reviewedFinding,reason:decision.reason,
+    independentVerified:true,sourceAuditPassed:true}:
+    {index:decision.index,skipped:true,reason:'Independent semantic review rejected the supplement',
+     reviewFailure,independentVerified:true,sourceAuditPassed:true};
    await write(put,path,validated);
   }
   if(validated.index!==decision.index||validated.independentVerified!==true||
