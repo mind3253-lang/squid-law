@@ -449,3 +449,10 @@ body.home .sq-risk-wrap{max-width:1050px;margin-left:auto;margin-right:auto}
 
 /* Keep enlarged English eyebrow only; original dark-section layout restored. */
 body.home .sq-risk-wrap>.sq-eyebrow{font-size:clamp(17px,1.7vw,23px);letter-spacing:.045em;line-height:1.4;margin-bottom:27px}
+
+
+/* Scale numbered risk entries together; leave the introductory warning untouched. */
+body.home .sq-risk-list article>b{font-size:16px}
+body.home .sq-risk-list h3{font-size:clamp(19px,1.96vw,25px)}
+body.home .sq-risk-list p{font-size:15px}
+body.home .sq-risk-list strong{font-size:15px}
