@@ -87,7 +87,7 @@ export default async function handler(req,res){
   const oc=process.env.LAW_GO_KR_OC||process.env.LAW_API_OC;
   if(!oc)return respond(res,503,{code:'PRECEDENT_SOURCE_NOT_CONFIGURED',error:'국가법령정보센터 판례 검색 API 인증값이 없습니다.'});
   const strip=s=>String(s||'').replace(/<[^>]*>/g,'').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&amp;/g,'&').trim();
-  const tag=(s,n)=>strip(s.match(new RegExp('<'+n+'(?:\\\\s[^>]*)?>([\\\\s\\\\S]*?)<\\\\/'+n+'>','i'))?.[1]||'');
+  const tag=(s,n)=>strip(s.match(new RegExp('<'+n+'(?:\\s[^>]*)?>([\\s\\S]*?)<\\/'+n+'>','i'))?.[1]||'');
   const rows=[],failures=[];
   for(const keyword of keywords){
    const url=new URL('https://www.law.go.kr/DRF/lawSearch.do');
@@ -98,7 +98,7 @@ export default async function handler(req,res){
     if(!response.ok)throw Error('HTTP_'+response.status);
     const xml=await response.text();
     if(!xml.includes('<')||/인증 실패|인증오류/.test(xml.slice(0,450)))throw Error('INVALID_XML_RESPONSE');
-    const blocks=[...xml.matchAll(/<prec(?:\\s[^>]*)?>([\\s\\S]*?)<\\/prec>/gi)].map(m=>m[1]);
+    const blocks=[...xml.matchAll(/<prec(?:\s[^>]*)?>([\s\S]*?)<\/prec>/gi)].map(m=>m[1]);
     for(const block of blocks){
      const caseNumber=clean(tag(block,'사건번호'));
      const id=clean(tag(block,'판례일련번호'));
