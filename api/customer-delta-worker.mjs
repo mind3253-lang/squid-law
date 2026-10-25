@@ -164,6 +164,18 @@ export async function runDeltaReviewStep({job,previous,documents,prefix,load,put
   const sourceLength=sources.reduce((n,u)=>n+u.text.length,0);
   if(sourceLength>120000||sources.length>40)
    throw Error('DELTA_PRIMARY_CONTEXT_TOO_LARGE');
+  // One source-audit gate for original and repaired findings (B2).
+  const auditRevisionFinding=finding=>{
+   const audit=auditLegalReasoningResult({request:{caseId:job.caseId,
+    sourceVersion:job.documentVersion,ready:true,verified:false},
+    result:{caseId:job.caseId,sourceVersion:job.documentVersion,findings:[finding]},
+    sourceIndex:sources});
+   if(!audit.complete)throw Error('DELTA_REVISION_SOURCE_AUDIT_FAILED:'+audit.failures.join(','));
+   return finding;
+  };
+  const validateRevisionCandidate=response=>auditRevisionFinding(validateDeltaRevision({
+   response,caseId:job.caseId,sourceVersion:job.documentVersion,
+   newDocIds:delta.addedDocuments.map(d=>d.id),sourceUnits:sources}));
   const payload=buildDeltaRevisionRequest({caseId:job.caseId,
    sourceVersion:job.documentVersion,baselineVersion:delta.baselineVersion,
    oldFinding:old,newFindings:related,sourceUnits:sources,reason:decision.reason,model});
@@ -198,9 +210,7 @@ export async function runDeltaReviewStep({job,previous,documents,prefix,load,put
    }
    let finding;
    try{
-    finding=validateDeltaRevision({response:candidate.response,
-     caseId:job.caseId,sourceVersion:job.documentVersion,
-     newDocIds:delta.addedDocuments.map(d=>d.id),sourceUnits:sources});
+    finding=validateRevisionCandidate(candidate.response);
    }catch(firstError){
     // A malformed persisted candidate must not permanently poison retries.
     // Regenerate once with the validator error and the exact verified references.
@@ -217,9 +227,7 @@ export async function runDeltaReviewStep({job,previous,documents,prefix,load,put
      await write(put,retryPath,repaired);
     }
     try{
-     finding=validateDeltaRevision({response:repaired.response,
-      caseId:job.caseId,sourceVersion:job.documentVersion,
-      newDocIds:delta.addedDocuments.map(d=>d.id),sourceUnits:sources});
+     finding=validateRevisionCandidate(repaired.response);
     }catch(repairError){
      if(!recoverableRevisionError(repairError))throw repairError;
      // No verified new source supports a supplement: keep the old finding
@@ -234,11 +242,6 @@ export async function runDeltaReviewStep({job,previous,documents,prefix,load,put
       revised:cursor+1,total:affected.length};
     }
    }
-   const sourceAudit=auditLegalReasoningResult({request:{caseId:job.caseId,
-    sourceVersion:job.documentVersion,ready:true,verified:false},
-    result:{caseId:job.caseId,sourceVersion:job.documentVersion,findings:[finding]},
-    sourceIndex:sources});
-   if(!sourceAudit.complete)throw Error('DELTA_REVISION_SOURCE_AUDIT_FAILED:'+sourceAudit.failures.join(','));
    // Retry only the unsupported supplement; never bypass independent review.
    let reviewedFinding=finding,approved=false,reviewFailure=null;
    for(let attempt=0;attempt<2;attempt++){
@@ -268,17 +271,12 @@ export async function runDeltaReviewStep({job,previous,documents,prefix,load,put
      await write(put,repairPath,repaired);
     }
     try{
-     reviewedFinding=validateDeltaRevision({response:repaired.response,caseId:job.caseId,
-     sourceVersion:job.documentVersion,newDocIds:delta.addedDocuments.map(d=>d.id),sourceUnits:sources});
+     reviewedFinding=validateRevisionCandidate(repaired.response);
     }catch(repairError){
      if(!recoverableRevisionError(repairError))throw repairError;
      reviewFailure={...reviewFailure,repairValidationFailure:repairError.message};
      break;
     }
-    const repairAudit=auditLegalReasoningResult({request:{caseId:job.caseId,
-     sourceVersion:job.documentVersion,ready:true,verified:false},
-     result:{caseId:job.caseId,sourceVersion:job.documentVersion,findings:[reviewedFinding]},sourceIndex:sources});
-    if(!repairAudit.complete)throw Error('DELTA_REVISION_REPAIR_SOURCE_AUDIT_FAILED:'+repairAudit.failures.join(','));
    }
    validated=approved?{index:decision.index,finding:reviewedFinding,reason:decision.reason,
     independentVerified:true,sourceAuditPassed:true}:
