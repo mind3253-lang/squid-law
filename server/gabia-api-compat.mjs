@@ -12,6 +12,7 @@ if(process.env.SQUIDLAW_OBJECT_BACKEND!=='gabia')throw Error('GABIA_STORAGE_REQU
 // Only explicitly selected routes are exposed on loopback; individual handlers enforce authorization.
 const routeModules={
  '/api/skynet-diagnostics':'../api/skynet-diagnostics.js',
+ '/api/skynet-maintenance-repair':'../api/skynet-maintenance-repair.js',
  '/api/skynet-profile':'../api/skynet-profile.js',
  '/api/skynet-memory':'../api/skynet-memory.js',
  '/api/skynet-chat':'../api/skynet-chat.js',
