@@ -138,9 +138,13 @@ export async function runDeltaReviewStep({job,previous,documents,prefix,load,put
    delta:{...delta,impactCursor:cursor+count,impactPaths:[...(delta.impactPaths||[]),path]}},'retry');
   return {status:'retry',stage:'delta_impact_checkpoint',reviewed:cursor+count,total:base.findings.length};
  }
- const decisions=(await Promise.all((delta.impactPaths||[]).map(path=>load(path))))
-  .flatMap(x=>x?.decisions||[]);
- if(decisions.length!==base.findings.length||decisions.some((d,i)=>d.index!==i))
+ const impactReceipts=await Promise.all((delta.impactPaths||[]).map(path=>load(path)));
+ const decisions=impactReceipts.flatMap(x=>x?.decisions||[]);
+ if(impactReceipts.some(x=>!x||!Array.isArray(x.decisions))||
+  decisions.length!==base.findings.length||
+  decisions.some((d,i)=>d.index!==i||typeof d.affected!=='boolean'||
+   !Array.isArray(d.newFindingIndices)||d.newFindingIndices.some(n=>
+    !Number.isSafeInteger(n)||n<0||n>=fresh.findings.length)))
   throw Error('DELTA_IMPACT_UNVERIFIED_OR_MISSING');
  const affected=decisions.filter(d=>d.affected);
  if(delta.stage==='revision'){
