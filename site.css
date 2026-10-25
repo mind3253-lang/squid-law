@@ -243,3 +243,24 @@ html,body,body.home{background-color:#fbfbfb}
 .home .sidebar-guide-copy{background-size:180% 180%;animation:squidGuideBreathe 16s ease-in-out infinite alternate}
 @keyframes squidGuideBreathe{from{background-position:0% 50%}to{background-position:100% 50%}}
 }
+
+/* Homepage photograph: one continuous background behind navigation and hero. */
+body.home{position:relative;isolation:isolate}
+body.home::before{
+ content:"";position:absolute;z-index:-1;top:0;left:0;right:0;
+ height:calc(68px + min(620px,64vh));
+ background:#faf7f0 url("/api/public-media?name=1792953742873-b358e12f-d600-4785-a671-9352ad37d3c4.png") center top / cover no-repeat;
+ pointer-events:none;
+}
+body.home .site-header{background:transparent;color:#1c304b;position:relative;z-index:1}
+body.home .site-nav a{color:#1c304b}
+body.home .site-nav .nav-analysis{border-color:#50647d}
+body.home .home-hero{background:transparent;color:#182c45;position:relative;z-index:1}
+body.home .home-hero-inner{min-height:min(620px,64vh)}
+body.home .hero-device{display:none}
+body.home .sidebar-guide{position:relative;z-index:1}
+@media(max-width:760px){
+ body.home::before{height:620px;background-position:63% top}
+ body.home .home-hero{background:linear-gradient(90deg,#fff9f0db,#fff9f0b0)}
+ body.home .site-nav a{color:#172f4e}
+}
