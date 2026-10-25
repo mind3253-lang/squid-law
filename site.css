@@ -383,3 +383,11 @@ body.home .home-feature-card p{width:100%;text-align:right}
  body.home .home-feature-card h2{order:2;margin:8px 0 0;font-size:clamp(21px,1.65vw,27px)}
  body.home .home-feature-card + .home-feature-card::before{top:16px;bottom:16px}
 }
+
+/* Balanced centered copy and short dividers for homepage three-column hero. */
+@media(min-width:761px){
+ body.home .home-feature-card{align-items:center;text-align:center;justify-content:flex-end;padding:18px 20px}
+ body.home .home-feature-card p{font-size:clamp(16px,1.08vw,17px);line-height:1.48;text-align:center;width:100%;margin:0 0 3px}
+ body.home .home-feature-card h2{font-size:clamp(23px,1.55vw,25px);line-height:1.25;text-align:center;width:100%;margin:10px 0 0}
+ body.home .home-feature-card + .home-feature-card::before{top:auto;bottom:34px;height:90px;width:1px}
+}
