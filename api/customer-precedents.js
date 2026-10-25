@@ -1,6 +1,6 @@
 import {guard,respond,readJson,casePrefix,documents} from './customer-case.js';
 import {latestSnapshot} from './customer-case-knowledge.js';
-import {completedCustomerReports} from './customer-analysis-jobs-db.js';
+import {getJob} from './customer-analysis-jobs-db.js';
 import {get} from '../lib/customer-object-storage.mjs';
 const validId=s=>/^SL-[A-Za-z0-9-]{5,40}$/.test(s);
 const clean=s=>String(s||'').replace(/\s+/g,' ').trim();
