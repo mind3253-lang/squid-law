@@ -61,6 +61,25 @@ jobs:
             exit 1
           fi
           echo DEPLOY_SYNTAX_GATE_PASSED
+          # Precedent API is served by squidlaw-api.service, independently of the analysis worker.
+          # Validate the actual Node import graph and the API service credential on Gabia.
+          echo PRECEDENT_SERVER_PREFLIGHT_BEGIN
+          if ! node --input-type=module -e "await import('./api/customer-precedents.js'); console.log('PRECEDENT_MODULE_IMPORT_OK')"; then
+            echo PRECEDENT_MODULE_IMPORT_FAILED
+            tar -xzf "$backup" -C /opt/squidlaw/app
+            npm ci --omit=dev --no-audit --no-fund
+            echo DEPLOY_PRESTART_RESTORED
+            exit 1
+          fi
+          if test ! -f /etc/squidlaw/api.env || ! grep -q '^OPENAI_API_KEY=.' /etc/squidlaw/api.env; then
+            echo PRECEDENT_API_ENV_KEY_MISSING
+            tar -xzf "$backup" -C /opt/squidlaw/app
+            npm ci --omit=dev --no-audit --no-fund
+            echo DEPLOY_PRESTART_RESTORED
+            exit 1
+          fi
+          echo PRECEDENT_API_ENV_KEY_PRESENT
+          echo PRECEDENT_SERVER_PREFLIGHT_END
           # Keep service-specific credentials intact; share only the canonical
           # object-store root between API and worker.
           if test -f /etc/squidlaw/api.env && test -f /etc/squidlaw/worker.env; then
