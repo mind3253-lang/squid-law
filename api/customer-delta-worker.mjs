@@ -201,7 +201,7 @@ export async function runDeltaReviewStep({job,previous,documents,prefix,load,put
       caseId:job.caseId,sourceVersion:job.documentVersion,
       newDocIds:delta.addedDocuments.map(d=>d.id),sourceUnits:sources});
     }catch(repairError){
-     if(repairError.message!=='DELTA_REVISION_NO_NEW_EVIDENCE')throw repairError;
+     if(!['DELTA_REVISION_NO_NEW_EVIDENCE','INVALID_DELTA_REVISED_FINDING','DELTA_REVISED_SOURCE_NOT_VERIFIED'].includes(repairError.message))throw repairError;
      // No verified new source supports a supplement: keep the old finding
      // untouched. Do not manufacture a contradiction or evidence citation.
      const skipped={index:decision.index,skipped:true,
@@ -224,7 +224,7 @@ export async function runDeltaReviewStep({job,previous,documents,prefix,load,put
    for(let attempt=0;attempt<2;attempt++){
     const review=buildSemanticReviewRequest({caseId:job.caseId,
      sourceVersion:job.documentVersion,findings:[reviewedFinding],sourceUnits:sources,model});
-    const reviewPath=path.replace(/\\.json$/,'-semantic-'+attempt+'.json');
+    const reviewPath=path.replace(/\.json$/,'-semantic-'+attempt+'.json');
     let independent=await load(reviewPath);
     if(!independent){
      try{independent=await invokeSemanticReview({request:review,apiKey});}
@@ -237,7 +237,7 @@ export async function runDeltaReviewStep({job,previous,documents,prefix,load,put
     reviewFailure={failures:check.failures,verdicts:(independent.result?.verdicts||[]).map(v=>({
      index:v.index,supported:v.supported,reason:String(v.reason||'').slice(0,500)}))};
     if(attempt===1)break;
-    const repairPath=path.replace(/\\.json$/,'-semantic-repaired.json');
+    const repairPath=path.replace(/\.json$/,'-semantic-repaired.json');
     let repaired=await load(repairPath);
     if(!repaired){
      const corrected={...payload,instructions:payload.instructions+
@@ -247,8 +247,14 @@ export async function runDeltaReviewStep({job,previous,documents,prefix,load,put
      repaired={response:response.result,usage:response.usage};
      await write(put,repairPath,repaired);
     }
-    reviewedFinding=validateDeltaRevision({response:repaired.response,caseId:job.caseId,
+    try{
+     reviewedFinding=validateDeltaRevision({response:repaired.response,caseId:job.caseId,
      sourceVersion:job.documentVersion,newDocIds:delta.addedDocuments.map(d=>d.id),sourceUnits:sources});
+    }catch(repairError){
+     if(!['INVALID_DELTA_REVISED_FINDING','DELTA_REVISED_SOURCE_NOT_VERIFIED','DELTA_REVISION_NO_NEW_EVIDENCE'].includes(repairError.message))throw repairError;
+     reviewFailure={...reviewFailure,repairValidationFailure:repairError.message};
+     break;
+    }
     const repairAudit=auditLegalReasoningResult({request:{caseId:job.caseId,
      sourceVersion:job.documentVersion,ready:true,verified:false},
      result:{caseId:job.caseId,sourceVersion:job.documentVersion,findings:[reviewedFinding]},sourceIndex:sources});
