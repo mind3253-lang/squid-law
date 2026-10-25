@@ -7,6 +7,11 @@ import {createHash} from 'node:crypto';
 import {diagnoseDeltaSources,attachDiagnosticContext,traceEvidenceLineage,planDiagnosticRecovery} from '../lib/diagnostic-context.mjs';
 
 const sha=s=>createHash('sha256').update(s).digest('hex');
+const recoverableRevisionErrors=new Set([
+ 'INVALID_DELTA_REVISED_FINDING','DELTA_REVISED_SOURCE_NOT_VERIFIED','DELTA_REVISION_NO_NEW_EVIDENCE'
+]);
+const recoverableRevisionError=e=>recoverableRevisionErrors.has(e?.message);
+
 const json=(o)=>JSON.stringify(o);
 const uniqueRefs=findings=>{
  const result=new Map();
@@ -197,8 +202,7 @@ export async function runDeltaReviewStep({job,previous,documents,prefix,load,put
    }catch(firstError){
     // A malformed persisted candidate must not permanently poison retries.
     // Regenerate once with the validator error and the exact verified references.
-    if(!['INVALID_DELTA_REVISED_FINDING','DELTA_REVISED_SOURCE_NOT_VERIFIED',
-     'DELTA_REVISION_NO_NEW_EVIDENCE'].includes(firstError.message))throw firstError;
+    if(!recoverableRevisionError(firstError))throw firstError;
     if(!apiKey)throw Error('OPENAI_API_KEY_MISSING');
     const retryPath=path.slice(0,-5)+'-repaired.json';
     let repaired=await load(retryPath);
@@ -215,7 +219,7 @@ export async function runDeltaReviewStep({job,previous,documents,prefix,load,put
       caseId:job.caseId,sourceVersion:job.documentVersion,
       newDocIds:delta.addedDocuments.map(d=>d.id),sourceUnits:sources});
     }catch(repairError){
-     if(!['DELTA_REVISION_NO_NEW_EVIDENCE','INVALID_DELTA_REVISED_FINDING','DELTA_REVISED_SOURCE_NOT_VERIFIED'].includes(repairError.message))throw repairError;
+     if(!recoverableRevisionError(repairError))throw repairError;
      // No verified new source supports a supplement: keep the old finding
      // untouched. Do not manufacture a contradiction or evidence citation.
      const skipped={index:decision.index,skipped:true,
@@ -265,7 +269,7 @@ export async function runDeltaReviewStep({job,previous,documents,prefix,load,put
      reviewedFinding=validateDeltaRevision({response:repaired.response,caseId:job.caseId,
      sourceVersion:job.documentVersion,newDocIds:delta.addedDocuments.map(d=>d.id),sourceUnits:sources});
     }catch(repairError){
-     if(!['INVALID_DELTA_REVISED_FINDING','DELTA_REVISED_SOURCE_NOT_VERIFIED','DELTA_REVISION_NO_NEW_EVIDENCE'].includes(repairError.message))throw repairError;
+     if(!recoverableRevisionError(repairError))throw repairError;
      reviewFailure={...reviewFailure,repairValidationFailure:repairError.message};
      break;
     }
