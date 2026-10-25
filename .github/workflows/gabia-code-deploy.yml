@@ -152,6 +152,33 @@ jobs:
           done
           echo ANALYSIS_DIAGNOSTICS_END
 
+          echo VERIFIED_VISUAL_GATE_RESUME_BEGIN
+          (
+            set -a
+            . /etc/squidlaw/api.env
+            set +a
+            node --input-type=module <<'NODE'
+          import pg from 'pg';
+          if(!process.env.SQUID_CUSTOMER_DATABASE_URL){console.log('GATE_RESUME_DB_UNAVAILABLE');process.exit(0)}
+          const db=new pg.Client({connectionString:process.env.SQUID_CUSTOMER_DATABASE_URL});
+          try{
+            await db.connect();
+            const r=await db.query(`UPDATE customer_analysis_jobs SET status='queued',
+              stage='resume_requested',error_code=NULL,attempts=0,
+              next_run_at=now(),updated_at=now()
+              WHERE checkpoint->>'errorTraceId'=$1 AND status='blocked'
+              AND stage='completion_gates_pending'
+              AND checkpoint->'gateDiagnostics'->'missingGates' = '["visualInventory","visualVerification"]'::jsonb
+              AND checkpoint->'gateDiagnostics'->>'ocrVerified'='true'
+              AND checkpoint->'gateDiagnostics'->>'boundariesVerified'='true'
+              AND checkpoint->'gateDiagnostics'->>'visualVerified'='true'
+              RETURNING job_id`,['ERR-e265394e-a3d2-4747-88bf-9c90340630ca']);
+            console.log('GATE_RESUME_QUEUED='+r.rowCount);
+          }catch(e){console.log('GATE_RESUME_FAILED',String(e.code||e.name||'UNKNOWN'))}
+          finally{await db.end().catch(()=>{})}
+          NODE
+          ) 2>/dev/null || true
+          echo VERIFIED_VISUAL_GATE_RESUME_END
           echo ANALYSIS_GATE_DB_INSPECTION_BEGIN
           # Read only the stored gate names and verification flags. Never emit customer content.
           (
@@ -240,7 +267,7 @@ jobs:
           REMOTE
           deploy_rc=$?
           set -e
-          grep -E '^(MAINTENANCE_(PAGE|DIAGNOSTICS)_|BOUNDARY_PROVIDER_DIAGNOSIS_|BOUNDARY_PROVIDER_REJECTION|ANALYSIS_DIAGNOSTICS_|ANALYSIS_GATE_DB_INSPECTION_|GATE_DB_|VISUAL_GATE_RECEIPT_|DIAG_SERVICE|COMPLETION_GATES_PENDING|INTEGRATION_AUDIT_|AUDIT |RECENT_(CUSTOMER_API_ERROR_DIAGNOSIS|COMPAT_API_ERRORS)_|REPORT_(MODULE_SYNTAX_CHECK_(BEGIN|END)|IMPORT_OK)|^(SyntaxError|Error \[|file:|[[:space:]]*at )|GABIA_(CUSTOMER|COMPAT)_API_FAILURE)' /tmp/deploy.log || true
+          grep -E '^(MAINTENANCE_(PAGE|DIAGNOSTICS)_|BOUNDARY_PROVIDER_DIAGNOSIS_|BOUNDARY_PROVIDER_REJECTION|ANALYSIS_DIAGNOSTICS_|ANALYSIS_GATE_DB_INSPECTION_|GATE_DB_|GATE_RESUME_|VERIFIED_VISUAL_GATE_RESUME_|VISUAL_GATE_RECEIPT_|DIAG_SERVICE|COMPLETION_GATES_PENDING|INTEGRATION_AUDIT_|AUDIT |RECENT_(CUSTOMER_API_ERROR_DIAGNOSIS|COMPAT_API_ERRORS)_|REPORT_(MODULE_SYNTAX_CHECK_(BEGIN|END)|IMPORT_OK)|^(SyntaxError|Error \[|file:|[[:space:]]*at )|GABIA_(CUSTOMER|COMPAT)_API_FAILURE)' /tmp/deploy.log || true
           if [ "$deploy_rc" -ne 0 ]; then
             echo DEPLOY_SSH_EXIT_$deploy_rc
             grep -E '^(DEPLOY_|OBJECT_ROOT|INTEGRATION_AUDIT_|AUDIT |npm error|npm ERR|Error:)' /tmp/deploy.log | tail -35 || true
