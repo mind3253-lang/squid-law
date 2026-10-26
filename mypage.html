@@ -23,7 +23,7 @@
 <section class="listing" id="caseList"><h2>접수 사건 목록</h2><div class="case-search"><label for="caseSearch">사건 검색</label><input id="caseSearch" type="search" placeholder="사건명 · 의뢰인명 검색" autocomplete="off"><button type="button" id="caseSearchClear">초기화</button></div><div id="caseRows"></div><div class="pager"><button type="button" id="prevPage">이전</button><span id="pageLabel"></span><button type="button" id="nextPage">다음</button></div></section>
 <section class="listing" id="reportList" hidden><h2>완료 보고서 목록</h2><div class="case-search"><label for="reportSearch">보고서 검색</label><input id="reportSearch" type="search" placeholder="파일명 · 사건명 검색" autocomplete="off"><button type="button" id="reportSearchClear">초기화</button></div><div id="reportRows"></div><div class="pager"><button type="button" id="reportPrev">이전</button><span id="reportPageLabel"></span><button type="button" id="reportNext">다음</button></div></section>
 <section class="listing" id="reportView" hidden><h2 id="reportTitle">보고서</h2><div class="report-actions"><button id="reportBack" type="button">목록으로</button><button id="reportSave" type="button">텍스트 저장</button></div><p class="hint">한글·워드 출력은 별도 과금 기능이며 결제 및 출력 연결 전에는 제공되지 않습니다.</p><div class="report-body" id="reportText"></div></section>
-<section class="listing" id="caseDetail" hidden><div class="warehouse-heading"><h2 id="warehouseTitle">사건 자료</h2><button type="button" id="caseBack">사건 목록</button></div><div class="warehouse-layout"><div class="warehouse-report-panel"><div class="warehouse-panel-head"><h3>분석 보고서</h3><span id="caseWorkActions" hidden><a class="warehouse-reanalyze" id="caseWorkLink" href="customer.html">재분석·자료 추가</a></span></div><div id="warehouseReports"></div></div><section class="warehouse-precedent-panel"><div class="warehouse-panel-head"><h3>판례 검색</h3><button class="warehouse-feature-button" type="button" id="casePrecedentButton">판례 검색 신청</button></div><p class="warehouse-feature-note">새로운 분석보고서가 제출되지 않았다면 기존과 동일한 판례가 검색됩니다.</p><div id="warehousePrecedents"></div></section><aside class="warehouse-doc-panel"><div class="warehouse-panel-head"><h3>등록한 원본 자료</h3></div><div id="warehouseDocs"></div></aside><section class="warehouse-drafting-panel" id="caseDraftingPanel" hidden><h3>서면 작성</h3><p class="warehouse-feature-note">변호사회원 전용 · 소장 및 준비서면 작성</p><button class="warehouse-feature-button" type="button" id="caseDraftingButton">서면 작성</button></section></div></section><dialog id="casePrecedentDialog" class="warehouse-dialog" aria-labelledby="casePrecedentTitle"><h3 id="casePrecedentTitle">판례 검색 신청</h3><p id="casePrecedentDescription">해당 사건의 자료를 기준으로 검색합니다.</p><p class="warehouse-feature-note">현재 기능 검증 기간으로 결제 없이 검색을 진행합니다.</p><div class="warehouse-dialog-actions"><button type="button" id="casePrecedentClose">취소</button><button type="button" id="casePrecedentStart" class="warehouse-feature-button">동의하고 검색</button></div></dialog></section></main>
+<section class="listing" id="caseDetail" hidden><div class="warehouse-heading"><h2 id="warehouseTitle">사건 자료</h2><button type="button" id="caseBack">사건 목록</button></div><div class="warehouse-layout"><div class="warehouse-report-panel"><div class="warehouse-panel-head"><h3>분석 보고서</h3><span id="caseWorkActions" hidden><a class="warehouse-reanalyze" id="caseWorkLink" href="customer.html">재분석·자료 추가</a></span></div><div id="warehouseReports"></div></div><section class="warehouse-precedent-panel"><div class="warehouse-panel-head"><h3>판례</h3><button class="warehouse-feature-button" type="button" id="casePrecedentButton">판례 검색 신청</button></div><p class="warehouse-feature-note">새로운 분석보고서가 제출되지 않았다면 기존과 동일한 판례가 검색됩니다.</p><div id="warehousePrecedents"></div></section><aside class="warehouse-doc-panel"><div class="warehouse-panel-head"><h3>등록한 원본 자료</h3></div><div id="warehouseDocs"></div></aside><section class="warehouse-drafting-panel" id="caseDraftingPanel" hidden><h3>서면 작성</h3><p class="warehouse-feature-note">변호사회원 전용 · 소장 및 준비서면 작성</p><button class="warehouse-feature-button" type="button" id="caseDraftingButton">서면 작성</button></section></div></section><dialog id="casePrecedentDialog" class="warehouse-dialog" aria-labelledby="casePrecedentTitle"><h3 id="casePrecedentTitle">판례 검색 신청</h3><p id="casePrecedentDescription">해당 사건의 자료를 기준으로 검색합니다.</p><p class="warehouse-feature-note">현재 기능 검증 기간으로 결제 없이 검색을 진행합니다.</p><div class="warehouse-dialog-actions"><button type="button" id="casePrecedentClose">취소</button><button type="button" id="casePrecedentStart" class="warehouse-feature-button">동의하고 검색</button></div></dialog></section></main>
 <dialog id="filenameDialog" class="filename-dialog" aria-labelledby="filenameDialogTitle"><form id="filenameForm"><h3 id="filenameDialogTitle">파일명 변경</h3><label for="filenameInput">새 파일명</label><input id="filenameInput" type="text" maxlength="80" required autocomplete="off"><p class="filename-message" id="filenameMessage" role="alert"></p><div class="filename-actions"><button type="button" id="filenameCancel">취소</button><button type="submit" id="filenameSubmit">저장</button></div></form></dialog>
 <script>
 (async()=>{
@@ -104,8 +104,40 @@
   $('reportPageLabel').textContent=(matches.length?reportPage+1:0)+' / '+Math.ceil(matches.length/PAGE_SIZE);$('reportPrev').disabled=reportPage===0;$('reportNext').disabled=(reportPage+1)*PAGE_SIZE>=matches.length;
  }
  $('reportSearch').addEventListener('input',e=>{reportQuery=e.target.value.trim().toLocaleLowerCase('ko-KR');reportPage=0;renderReports()});$('reportSearchClear').onclick=()=>{$('reportSearch').value='';reportQuery='';reportPage=0;renderReports()};$('reportPrev').onclick=()=>{if(reportPage>0){reportPage--;renderReports()}};$('reportNext').onclick=()=>{reportPage++;renderReports()};
+ function showSavedPrecedent(record,index){
+  const root=$('warehousePrecedents');
+  const existing=root.querySelector('.precedent-history-detail');if(existing)existing.remove();
+  const panel=document.createElement('div');panel.className='precedent-history-detail';
+  panel.style.cssText='padding:12px;white-space:normal;line-height:1.6;background:#f8fafc;border:1px solid #dbe4ee;border-radius:10px;margin-top:10px;max-height:270px;overflow:auto';
+  const close=document.createElement('button');close.type='button';close.textContent='닫기';close.onclick=()=>panel.remove();panel.append(close);
+  for(const item of record.results||[]){
+   const section=document.createElement('div');section.style.cssText='padding:12px 0;border-bottom:1px solid #dbe4ee';
+   const title=document.createElement('strong');title.textContent=[item.caseNumber,item.name].filter(Boolean).join(' · ');section.append(title);
+   for(const line of [[item.court,item.date].filter(Boolean).join(' · '),item.summary,item.relevance]){
+    if(!line)continue;const p=document.createElement('p');p.textContent=line;section.append(p);
+   }
+   if(item.url&&/^https:\/\/www\.law\.go\.kr\/|^https:\/\/law\.go\.kr\//.test(item.url)){const a=document.createElement('a');a.href=item.url;a.target='_blank';a.rel='noopener noreferrer';a.textContent='판례 원문 열기';section.append(a)}
+   panel.append(section);
+  }
+  root.append(panel);
+ }
+ async function loadSavedPrecedents(caseId){
+  const root=$('warehousePrecedents');root.textContent='기존 판례를 불러오는 중입니다.';
+  try{
+   const data=await json('/api/customer-precedents?caseId='+encodeURIComponent(caseId)+'&history=1');
+   if(selectedCase!==caseId)return;
+   root.replaceChildren();
+   for(const [i,r] of (data.records||[]).entries()){
+    const a=document.createElement('a');a.href='#';a.textContent=(i+1)+'. '+(r.query||'판례 검색')+' ('+(r.results||[]).length+'건)';
+    const date=document.createElement('time');date.textContent=r.createdAt?new Date(r.createdAt).toLocaleDateString('ko-KR'):'';a.append(date);
+    a.onclick=e=>{e.preventDefault();showSavedPrecedent(r,i)};root.append(a);
+   }
+   if(!data.records?.length)root.textContent='저장된 판례가 없습니다.';
+  }catch(e){root.textContent='판례 목록 조회 실패: '+e.message}
+ }
  async function showWarehouse(c){
   selectedCase=c.id;switchPanel('caseDetail');$('caseWorkActions').hidden=false;
+  void loadSavedPrecedents(c.id);
   $('warehouseTitle').textContent=c.title+' · 사건 자료창고';
   $('caseWorkLink').href='customer.html?category='+('bcdefgh'.indexOf(c.type)+1)+'&case='+encodeURIComponent(c.id);
   const docs=$('warehouseDocs'),out=$('warehouseReports');
