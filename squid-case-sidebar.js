@@ -47,6 +47,28 @@ document.addEventListener('DOMContentLoaded',()=>{
  toggle.addEventListener('mouseenter',showToggleHint);toggle.addEventListener('mouseleave',hideToggleHint);
  toggle.addEventListener('focus',showToggleHint);toggle.addEventListener('blur',hideToggleHint);
  toggle.addEventListener('click',()=>{setOpen(!sidebar.classList.contains('open'));if(!toggleHint.hidden)showToggleHint();});
- const guide=location.pathname.match(/\/([b-h])([123])_(process|terms|efiling)\.html$/);if(guide){const key=guide[1],active=Number(guide[2]),index='bcdefgh'.indexOf(key)+1;const hero=document.querySelector('main .hero');if(hero){const style=document.createElement('style');style.textContent='.squid-guide-cards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin:24px 0 30px}.squid-guide-cards a{display:flex;align-items:center;justify-content:center;min-height:92px;padding:15px;border:1px solid #dce4ed;border-radius:16px;background:white;color:#17233b;text-decoration:none;font-size:18px;font-weight:750;text-align:center}.squid-guide-cards a[aria-current=page]{background:#edf5ff;border-color:#1762b4;color:#1762b4}@media(max-width:760px){.squid-guide-cards{grid-template-columns:repeat(2,minmax(0,1fr))}}';document.head.append(style);const cards=document.createElement('nav');cards.className='squid-guide-cards';cards.setAttribute('aria-label','분야별 기능');[['소송절차',key+'1_process.html'],['관련용어',key+'2_terms.html'],['전자소송',key+'3_efiling.html'],['내 사건 분석','customer.html?category='+index]].forEach(([name,url],i)=>{const a=document.createElement('a');a.href=url;a.textContent=name;if(i===active-1)a.setAttribute('aria-current','page');cards.append(a)});hero.after(cards);const duplicates=document.querySelectorAll('.category-route');duplicates.forEach(el=>el.remove())}}
+ const guide=location.pathname.match(/\\/([b-h])([123])_(process|terms|efiling)\\.html$/);
+ if(guide){
+  const key=guide[1],active=Number(guide[2]),index='bcdefgh'.indexOf(key)+1;
+  const hero=document.querySelector('main .hero');
+  if(hero){
+   const categoryName=categories[index-1][0];
+   const section=document.createElement('section');section.className='squid-guide-header';
+   const heading=document.createElement('h1');heading.className='squid-guide-heading';heading.textContent='SQUID LAW';
+   const category=document.createElement('span');category.className='squid-guide-category';category.textContent=categoryName;
+   heading.append(category);section.append(heading);
+   const cards=document.createElement('nav');cards.className='squid-guide-cards';cards.setAttribute('aria-label','분야별 기능');
+   const items=[['소송절차',key+'1_process.html','/images/howto-mission.svg'],['관련용어',key+'2_terms.html','/images/howto-ai.svg'],['전자소송',key+'3_efiling.html','/images/howto-usage.svg'],['내 사건 분석','customer.html?category='+index,'/images/howto-report.svg']];
+   items.forEach(([name,url,src],i)=>{
+    const a=document.createElement('a');a.href=url;a.className='squid-guide-tile';
+    if(i===active-1)a.setAttribute('aria-current','page');
+    const img=document.createElement('img');img.src=src;img.alt='';img.loading='lazy';
+    const label=document.createElement('strong');label.textContent=name;a.append(img,label);cards.append(a);
+   });
+   section.append(cards);hero.replaceWith(section);
+   document.querySelectorAll('.category-route').forEach(el=>el.remove());
+  }
+ }
+
  // Existing top nav, home case cards and analysis links remain unchanged.
 });
