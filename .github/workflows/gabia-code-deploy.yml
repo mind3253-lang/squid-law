@@ -492,30 +492,39 @@ jobs:
           set -euo pipefail
           test -n "$KEY"
           node --check lib/gpt-legal-expert.mjs
+          node --check lib/legal-customer-report.mjs
           grep -q 'max_output_tokens:50000' lib/gpt-legal-expert.mjs
           install -d -m 700 ~/.ssh
           printf '%s\n' "$KEY" > ~/.ssh/gabia.pem
           chmod 600 ~/.ssh/gabia.pem
           ssh-keyscan -H -T 10 1.201.111.35 >> ~/.ssh/known_hosts
           scp -i ~/.ssh/gabia.pem -o BatchMode=yes lib/gpt-legal-expert.mjs ubuntu@1.201.111.35:/tmp/squidlaw-legal-token-patch.mjs
+          scp -i ~/.ssh/gabia.pem -o BatchMode=yes lib/legal-customer-report.mjs ubuntu@1.201.111.35:/tmp/squidlaw-legal-report-patch.mjs
           ssh -T -i ~/.ssh/gabia.pem -o BatchMode=yes ubuntu@1.201.111.35 'sudo -n bash -s' <<'REMOTE'
           set -euo pipefail
           target=/opt/squidlaw/app/lib/gpt-legal-expert.mjs
           backup="$target.before-token-patch"
+          report_target=/opt/squidlaw/app/lib/legal-customer-report.mjs
+          report_backup="$report_target.before-dedupe-patch"
+          cp -p "$report_target" "$report_backup"
           test -s /tmp/squidlaw-legal-token-patch.mjs
           cp -p "$target" "$backup"
           install -m 644 /tmp/squidlaw-legal-token-patch.mjs "$target"
-          if ! node --check "$target" || ! cmp -s /tmp/squidlaw-legal-token-patch.mjs "$target"; then
+          install -m 644 /tmp/squidlaw-legal-report-patch.mjs "$report_target"
+          if ! node --check "$target" || ! cmp -s /tmp/squidlaw-legal-token-patch.mjs "$target" || ! node --check "$report_target" || ! cmp -s /tmp/squidlaw-legal-report-patch.mjs "$report_target"; then
             cp -p "$backup" "$target"
+            cp -p "$report_backup" "$report_target"
             exit 1
           fi
           if ! systemctl restart squidlaw-worker.service || ! systemctl is-active --quiet squidlaw-worker.service; then
             cp -p "$backup" "$target"
+            cp -p "$report_backup" "$report_target"
             systemctl restart squidlaw-worker.service || true
             exit 1
           fi
           cmp /tmp/squidlaw-legal-token-patch.mjs "$target"
           grep -q 'max_output_tokens:50000' "$target"
+          cmp /tmp/squidlaw-legal-report-patch.mjs "$report_target"
           echo GABIA_LEGAL_TOKEN_PATCH_VERIFIED
           REMOTE
       - name: Record independent token patch outcome
