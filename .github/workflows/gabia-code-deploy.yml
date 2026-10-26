@@ -372,6 +372,22 @@ jobs:
           done
           echo DEPLOY_RESULT_RECORD_BEST_EFFORT
 
+  compare-analysis-timing:
+    runs-on: ubuntu-latest
+    if: ${{ github.ref == 'refs/heads/main' }}
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Inspect worker stage timing
+        env:
+          KEY: ${{ secrets.GABIA_SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$KEY" > ~/.ssh/gabia.pem
+          chmod 600 ~/.ssh/gabia.pem
+          ssh-keyscan -H -T 10 1.201.111.35 >> ~/.ssh/known_hosts
+          ssh -T -i ~/.ssh/gabia.pem -o BatchMode=yes ubuntu@1.201.111.35 'systemctl is-active squidlaw-worker.service; systemctl show squidlaw-worker.service -p NRestarts -p ActiveEnterTimestamp; journalctl -u squidlaw-worker.service --since "12 hours ago" --no-pager -o cat | grep -E "ANALYSIS_TIMING|SQUIDLAW_MODEL_USAGE" | tail -n 120'
   deploy-customer-progress-patch:
     name: Deploy customer progress clock directly to Gabia
     runs-on: ubuntu-latest
