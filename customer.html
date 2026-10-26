@@ -142,6 +142,11 @@
 .analysis-clean #categoryAnalysisBox .case-report-attachment{display:flex;align-items:center;gap:12px;width:min(100%,435px);min-height:58px;text-align:left;padding:14px 18px;border:1px solid #e1e5e9;border-radius:16px;background:#fff;color:#273240;font-size:14px;font-weight:500;box-shadow:none;cursor:pointer}
 .analysis-clean #categoryAnalysisBox .case-report-attachment::before{content:'▤';display:grid;place-items:center;width:26px;height:28px;color:#2580c2;font-size:23px;flex:none}
 .analysis-clean #categoryAnalysisBox .case-report-attachment:hover{background:#f7f9fb;border-color:#cbd5e1}
+</style><style>
+/* Report export actions match the GPT-style document attachment card */
+.analysis-clean .case-report-export{display:inline-flex;align-items:center;justify-content:center;min-height:48px;padding:11px 18px;margin:8px 7px 8px 0;border:1px solid #e1e5e9;border-radius:15px;background:#fff;color:#273240;font-size:14px;font-weight:500;box-shadow:none;cursor:pointer;transition:background .15s,border-color .15s}
+.analysis-clean .case-report-export:hover{background:#f7f9fb;border-color:#cbd5e1}
+.analysis-clean .case-report-export:focus-visible{outline:2px solid #2580c2;outline-offset:2px}
 </style></head>
 <body>
 <header class="site-header"><nav class="site-nav"><a class="brand" href="index.html">SQUID LAW</a><a href="howto.html">이용방법</a><a href="stories.html">실전 사용법</a><a href="community.html">커뮤니티</a><a class="nav-analysis" href="/api/auth/naver/start">로그인</a><a id="login-user" href="/account.html" hidden></a><button id="logout-button" hidden>로그아웃</button></nav></header>
@@ -760,8 +765,8 @@ textReportButton.onclick=async()=>{
 };
 const legalReportDownloadButton=document.createElement('button');
 legalReportDownloadButton.type='button';
-legalReportDownloadButton.textContent='⬇ 법률 분석 보고서 TXT 다운로드';
-legalReportDownloadButton.style.cssText='margin:8px;padding:10px 16px;border-radius:8px;cursor:pointer';
+legalReportDownloadButton.textContent='TXT 다운로드';
+legalReportDownloadButton.className='case-report-export';
 legalReportDownloadButton.hidden=true;
 legalReportButton.parentElement.appendChild(legalReportDownloadButton);
 legalReportDownloadButton.onclick=async()=>{
@@ -778,7 +783,7 @@ legalReportDownloadButton.onclick=async()=>{
 const reportExportButtons=[];
 for(const [format,label] of [['pdf','PDF 출력'],['docx','워드 DOCX 다운로드']]){
  const button=document.createElement('button');button.type='button';button.textContent=label;
- button.style.cssText='margin:8px;padding:10px 16px;border-radius:8px;cursor:pointer';
+ button.className='case-report-export';
  button.hidden=true;legalReportButton.parentElement.appendChild(button);reportExportButtons.push(button);
  button.onclick=async()=>{
   const caseId=select.value,jobId=sessionStorage.getItem('squidlaw-full-review:'+caseId);
