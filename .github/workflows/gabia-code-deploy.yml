@@ -477,3 +477,66 @@ jobs:
             fi
             sleep 2
           done
+
+  deploy-legal-token-patch:
+    name: Apply legal GPT token budget directly on Gabia
+    runs-on: ubuntu-latest
+    if: ${{ github.ref == 'refs/heads/main' }}
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply and verify legal expert token budget via SSH
+        env:
+          KEY: ${{ secrets.GABIA_SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "$KEY"
+          node --check lib/gpt-legal-expert.mjs
+          grep -q 'max_output_tokens:50000' lib/gpt-legal-expert.mjs
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$KEY" > ~/.ssh/gabia.pem
+          chmod 600 ~/.ssh/gabia.pem
+          ssh-keyscan -H -T 10 1.201.111.35 >> ~/.ssh/known_hosts
+          scp -i ~/.ssh/gabia.pem -o BatchMode=yes lib/gpt-legal-expert.mjs ubuntu@1.201.111.35:/tmp/squidlaw-legal-token-patch.mjs
+          ssh -T -i ~/.ssh/gabia.pem -o BatchMode=yes ubuntu@1.201.111.35 'sudo -n bash -s' <<'REMOTE'
+          set -euo pipefail
+          target=/opt/squidlaw/app/lib/gpt-legal-expert.mjs
+          backup="$target.before-token-patch"
+          test -s /tmp/squidlaw-legal-token-patch.mjs
+          cp -p "$target" "$backup"
+          install -m 644 /tmp/squidlaw-legal-token-patch.mjs "$target"
+          if ! node --check "$target" || ! cmp -s /tmp/squidlaw-legal-token-patch.mjs "$target"; then
+            cp -p "$backup" "$target"
+            exit 1
+          fi
+          if ! systemctl restart squidlaw-worker.service || ! systemctl is-active --quiet squidlaw-worker.service; then
+            cp -p "$backup" "$target"
+            systemctl restart squidlaw-worker.service || true
+            exit 1
+          fi
+          cmp /tmp/squidlaw-legal-token-patch.mjs "$target"
+          grep -q 'max_output_tokens:50000' "$target"
+          echo GABIA_LEGAL_TOKEN_PATCH_VERIFIED
+          REMOTE
+      - name: Record independent token patch outcome
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PATCH_STATUS: ${{ job.status }}
+        run: |
+          python3 - <<'PY'
+          import os,json
+          with open('/tmp/legal-token-patch-result.json','w') as f:
+            json.dump({'status':os.environ['PATCH_STATUS'],'commit':os.environ['GITHUB_SHA'],'job':'deploy-legal-token-patch'},f)
+          PY
+          encoded=$(base64 -w0 /tmp/legal-token-patch-result.json)
+          path=docs/GABIA_LEGAL_TOKEN_PATCH_RESULT.json
+          for attempt in 1 2 3 4; do
+            old=$(gh api "repos/${GITHUB_REPOSITORY}/contents/$path" --jq .sha 2>/dev/null || true)
+            if [ -n "$old" ]; then
+              gh api -X PUT "repos/${GITHUB_REPOSITORY}/contents/$path" -f message='Record Gabia legal token patch outcome' -f content="$encoded" -f sha="$old" >/dev/null && break
+            else
+              gh api -X PUT "repos/${GITHUB_REPOSITORY}/contents/$path" -f message='Record Gabia legal token patch outcome' -f content="$encoded" >/dev/null && break
+            fi
+            sleep 2
+          done
