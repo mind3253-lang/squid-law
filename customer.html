@@ -138,6 +138,10 @@
 .analysis-clean #categoryAnalysisBox .case-guide-choices button:last-child:hover{background:#dbe8f5;border-color:#d3deea;color:#263748}
 .analysis-clean #categoryAnalysisBox .case-guide-choices button:focus-visible{outline:2px solid #587b9f;outline-offset:2px}
 @media(max-width:700px){.analysis-clean #categoryAnalysisBox .case-chat-message.system,.analysis-clean #categoryAnalysisBox .case-chat-message.user{font-size:16px}}
+</style><style>
+.analysis-clean #categoryAnalysisBox .case-report-attachment{display:flex;align-items:center;gap:12px;width:min(100%,435px);min-height:58px;text-align:left;padding:14px 18px;border:1px solid #e1e5e9;border-radius:16px;background:#fff;color:#273240;font-size:14px;font-weight:500;box-shadow:none;cursor:pointer}
+.analysis-clean #categoryAnalysisBox .case-report-attachment::before{content:'▤';display:grid;place-items:center;width:26px;height:28px;color:#2580c2;font-size:23px;flex:none}
+.analysis-clean #categoryAnalysisBox .case-report-attachment:hover{background:#f7f9fb;border-color:#cbd5e1}
 </style></head>
 <body>
 <header class="site-header"><nav class="site-nav"><a class="brand" href="index.html">SQUID LAW</a><a href="howto.html">이용방법</a><a href="stories.html">실전 사용법</a><a href="community.html">커뮤니티</a><a class="nav-analysis" href="/api/auth/naver/start">로그인</a><a id="login-user" href="/account.html" hidden></a><button id="logout-button" hidden>로그아웃</button></nav></header>
@@ -287,7 +291,7 @@ function renderCaseMarkdown(target,source){
  flush();
 }
 
-function bubble(text,role,doc){log.querySelector('.case-chat-empty')?.remove();const e=document.createElement('div');e.className='case-chat-message '+(role==='user'?'user':'system');if(role==='user')e.textContent=text;else renderCaseMarkdown(e,text);if(doc){const a=document.createElement('a');a.href=url()+'&view='+encodeURIComponent(doc.id);a.target='_blank';a.rel='noopener';a.textContent=' · PDF 바로 열기';e.append(a)}log.append(e);log.scrollTop=log.scrollHeight}
+function bubble(text,role,doc){log.querySelector('.case-chat-empty')?.remove();const e=document.createElement('div');e.className='case-chat-message '+(role==='user'?'user':'system');if(role==='user')e.textContent=doc?String(doc.name||doc.title||text).replace(/\s*·\s*(?:extraction_[a-z_]+|PDF 바로 열기).*$/i,''):text;else renderCaseMarkdown(e,text);log.append(e);log.scrollTop=log.scrollHeight}
 const flowPrompts={
  sue:'어떤 문제로 소송을 준비하고 계신가요? 사건 내용을 말씀해 주세요. 계약서·대화·입금내역 등 관련 자료가 있다면 채팅창에 끌어놓아 주세요.',
  served:'상대방이 어떤 내용으로 소송을 제기했나요? 받은 소장을 채팅창에 끌어놓아 주시면 청구내용부터 확인하겠습니다.',
@@ -712,7 +716,7 @@ async function startDeltaReanalysis(){
   }else bubble('추가 자료 분석 접수 실패: '+message,'system');
  }
 }
-function caseChatAction(label,action){const line=document.createElement('div');line.className='case-onboard-actions';line.style.cssText='align-self:flex-start;margin:8px 0 12px';const button=document.createElement('button');button.type='button';button.textContent=label;button.onclick=action;line.append(button);log.append(line);log.scrollTop=log.scrollHeight;return line}
+function caseChatAction(label,action){const line=document.createElement('div');line.className='case-onboard-actions';line.style.cssText='align-self:center;width:min(100%,820px);margin:12px auto 18px';const button=document.createElement('button');button.type='button';button.className='case-report-attachment';button.textContent=label;button.onclick=action;line.append(button);log.append(line);log.scrollTop=log.scrollHeight;return line}
 const textReportButton=document.createElement('button');textReportButton.type='button';
 textReportButton.textContent='📑 원문 검증 중간보고서';
 textReportButton.style.cssText='margin:8px;padding:10px 16px;border-radius:8px;cursor:pointer';
@@ -836,7 +840,7 @@ async function fullReviewStatus(jobId,caseId){
   const uncertain=(cp.relevanceDecisions||[]).filter(x=>x.status==='clarify');
   bubble('추가 자료를 분석하기 전에 사건과의 관계를 확인하겠습니다.'+(uncertain.length?'\\n확인 대상: '+uncertain.map(x=>x.reason||x.id).join(' / '):'')+'\\n이 자료는 어떤 목적으로 제출하셨나요?','system');
   showRelevanceChoices(jobId,caseId,cp);
- }else bubble('기존 완료 보고서 연결을 확인하고 있습니다. 잘못 첨부한 파일이라면 “잘못 첨부”라고 입력해 주세요.','system')}if(job.status==='completed'&&log.dataset.reportJob!==jobId){log.dataset.reportJob=jobId;bubble('전체 분석이 완료되었습니다. 보고서를 확인할 수 있습니다.','system');caseChatAction('법률 분석 보고서 여닫기',()=>legalReportButton.click());showReanalysisGuide(jobId);/* 원문 검증 중간보고서는 내부 검산 기능으로만 유지 */}}
+ }else bubble('기존 완료 보고서 연결을 확인하고 있습니다. 잘못 첨부한 파일이라면 “잘못 첨부”라고 입력해 주세요.','system')}if(job.status==='completed'&&log.dataset.reportJob!==jobId){log.dataset.reportJob=jobId;bubble('전체 분석이 완료되었습니다. 보고서를 확인할 수 있습니다.','system');caseChatAction('법률 분석 보고서',()=>legalReportButton.click());showReanalysisGuide(jobId);/* 원문 검증 중간보고서는 내부 검산 기능으로만 유지 */}}
  return job.status;
 }
 async function restoreFullReview(){if(!select.value)return;let id=sessionStorage.getItem('squidlaw-full-review:'+select.value);if(!id){try{const j=await fullReviewRequest('/api/customer-analysis-job?caseId='+encodeURIComponent(select.value)+'&jobId=latest');id=j.job?.jobId;if(!id)return;sessionStorage.setItem('squidlaw-full-review:'+select.value,id)}catch{return}}try{const latest=await fullReviewRequest('/api/customer-analysis-job?caseId='+encodeURIComponent(select.value)+'&jobId=latest');if(latest.job?.jobId&&latest.job.jobId!==id){id=latest.job.jobId;sessionStorage.setItem('squidlaw-full-review:'+select.value,id)}const state=await fullReviewStatus(id,select.value);if(fullReviewTimer)clearInterval(fullReviewTimer);if(['blocked','failed','completed'].includes(state))return;fullReviewTimer=setInterval(()=>fullReviewStatus(id,select.value).catch(e=>notice(e.message,'error')),15000)}catch(e){if(String(e.message||'').includes('ANALYSIS_JOB_NOT_FOUND')){sessionStorage.removeItem('squidlaw-full-review:'+select.value);notice('서버에 해당 분석 작업 기록이 없습니다. 기존 문서와 사건은 유지됩니다. 전체 분석을 다시 신청할 수 있습니다.','info');return}notice('기존 분석 작업을 보존했습니다. 상태 확인 실패: '+e.message,'error')}}
