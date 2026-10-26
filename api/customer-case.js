@@ -5,7 +5,7 @@ import {createHash,randomUUID} from 'node:crypto';
 import {authenticatedUser} from './customer-auth.js';
 const hash=s=>createHash('sha256').update(s).digest('hex');
 const caseOk=s=>/^SL-[A-Za-z0-9-]{5,40}$/.test(s);
-export const casePrefix=(user,id)=>'squidlaw/cases/'+hash(user)+'/'+id+'/';
+export export const casePrefix=(user,id)=>'squidlaw/cases/'+hash(user)+'/'+id+'/';
 export const respond=(res,n,obj)=>res.status(n).setHeader('Cache-Control','no-store').setHeader('X-Content-Type-Options','nosniff').json(obj);
 export const guard=req=>{const user=authenticatedUser(req);if(!user)return {error:'로그인이 필요합니다.',status:401};const origin=req.headers.origin;if(origin){try{if(new URL(origin).host!==req.headers.host||new URL(origin).protocol!=='https:')return {error:'요청 출처 오류',status:403}}catch{return {error:'요청 출처 오류',status:403}}}return {user}};
 export async function readJson(path){const r=await get(path,{access:'private'});if(!r||r.statusCode!==200)return null;let chunks=[],n=0;for await(const c of r.stream){n+=c.length;if(n>32*1024*1024)throw Error('저장된 JSON 크기 제한 초과');chunks.push(Buffer.from(c))}return JSON.parse(Buffer.concat(chunks).toString('utf8'))}
