@@ -1,1 +1,1 @@
-{"status": "failure", "commit": "09c01aa9b711d0ce9f473fe5130ecde03ab078a5", "job": "deploy-legal-token-patch"}
+{"status": "failure", "commit": "21a29fdd86a88962f88ea42b0c748f3a4ae0d405", "job": "deploy-legal-token-patch", "diagnostic": "failed_at_line=4"}
