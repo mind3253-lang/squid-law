@@ -389,7 +389,7 @@ jobs:
           printf '%s\n' "$KEY" > ~/.ssh/gabia.pem
           chmod 600 ~/.ssh/gabia.pem
           ssh-keyscan -H -T 10 1.201.111.35 >> ~/.ssh/known_hosts
-          for file in squid-case-sidebar.js squid-case-sidebar.css; do
+          for file in squid-case-sidebar.js squid-case-sidebar.css customer.html; do
             scp -i ~/.ssh/gabia.pem -o BatchMode=yes "$file" ubuntu@1.201.111.35:"/tmp/$file"
           done
           ssh -T -i ~/.ssh/gabia.pem -o BatchMode=yes ubuntu@1.201.111.35 'sudo -n bash -s' <<'REMOTE'
