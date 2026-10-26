@@ -411,3 +411,45 @@ jobs:
           echo LEGAL_TERMS_ICON_DEPLOYED
           REMOTE
           echo STATIC_PATCH_DEPLOYED
+
+  deploy-precedent-history-patch:
+    name: Apply precedent history API patch directly on Gabia
+    runs-on: ubuntu-latest
+    if: ${{ github.ref == 'refs/heads/main' }}
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch precedent history endpoint over SSH and verify live file
+        env:
+          KEY: ${{ secrets.GABIA_SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "$KEY"
+          node --check api/customer-precedents.js
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$KEY" > ~/.ssh/gabia.pem
+          chmod 600 ~/.ssh/gabia.pem
+          ssh-keyscan -H -T 10 1.201.111.35 >> ~/.ssh/known_hosts
+          scp -i ~/.ssh/gabia.pem -o BatchMode=yes api/customer-precedents.js ubuntu@1.201.111.35:/tmp/squidlaw-precedents-patch.js
+          ssh -T -i ~/.ssh/gabia.pem -o BatchMode=yes ubuntu@1.201.111.35 'sudo -n bash -s' <<'REMOTE'
+          set -euo pipefail
+          target=/opt/squidlaw/app/api/customer-precedents.js
+          test -s /tmp/squidlaw-precedents-patch.js
+          test -f "$target"
+          backup="$target.before-history-patch"
+          cp -p "$target" "$backup"
+          install -m 644 /tmp/squidlaw-precedents-patch.js "$target"
+          if ! node --check "$target" || ! cmp -s /tmp/squidlaw-precedents-patch.js "$target"; then
+            cp -p "$backup" "$target"
+            echo PRECEDENT_PATCH_VERIFICATION_FAILED
+            exit 1
+          fi
+          if ! systemctl restart squidlaw-api.service || ! systemctl is-active --quiet squidlaw-api.service; then
+            cp -p "$backup" "$target"
+            systemctl restart squidlaw-api.service || true
+            echo PRECEDENT_PATCH_RESTORED
+            exit 1
+          fi
+          cmp /tmp/squidlaw-precedents-patch.js "$target"
+          echo PRECEDENT_PATCH_LIVE_VERIFIED
+          REMOTE
