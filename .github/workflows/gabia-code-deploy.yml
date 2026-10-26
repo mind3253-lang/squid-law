@@ -352,7 +352,7 @@ jobs:
           python3 - <<'PY'
           import os,json,re,datetime
           lines=open('/tmp/deploy.log').read().splitlines() if os.path.isfile('/tmp/deploy.log') else []
-          safe=[x for x in lines if re.fullmatch(r'DEPLOY_(SERVICES_ACTIVE|HEALTH_FAILED|ROLLED_BACK|PROBE_VERIFIED)',x)]
+          safe=[x[:240] for x in lines if re.fullmatch(r'(DEPLOY_|PRECEDENT_|OBJECT_ROOT|REPORT_MODULE_|REPORT_IMPORT_|LEGAL_WORKER_|GABIA_)[A-Z0-9_= .:-]{0,180}',x) or re.fullmatch(r'(SyntaxError|Error|TypeError|ReferenceError): [A-Za-z0-9_ .:/-]{1,150}',x)][-40:]
           with open('/tmp/deploy-result.json','w') as f:
             json.dump({'status':os.environ['JOB_STATUS'],'commit':os.environ['GITHUB_SHA'],'timestamp':datetime.datetime.now(datetime.timezone.utc).isoformat(),'checks':safe},f)
           PY
