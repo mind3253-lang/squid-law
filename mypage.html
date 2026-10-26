@@ -48,7 +48,7 @@
  function line(title,sub){const a=document.createElement('a');a.className='list-item';a.textContent=title;const small=document.createElement('small');small.textContent=sub;a.append(small);return a}
  $('casePrecedentButton').onclick=()=>{const c=cases.find(x=>x.id===selectedCase);if(!c)return;$('casePrecedentDescription').textContent='선택된 사건: '+c.title+' — 현재 테스트 기간으로 무료 검색을 실행할 수 있습니다.';$('casePrecedentDialog').showModal()};
  $('casePrecedentClose').onclick=()=>$('casePrecedentDialog').close();
- $('casePrecedentStart').onclick=()=>{const c=cases.find(x=>x.id===selectedCase);if(!c)return;$('casePrecedentDialog').close();location.href='customer.html?case='+encodeURIComponent(c.id)+'&precedents=1'};
+ $('casePrecedentStart').onclick=()=>{const c=cases.find(x=>x.id===selectedCase);if(!c)return;$('casePrecedentDialog').close();{const report=reports.filter(r=>r.caseId===c.id&&r.source==='legal-job').sort((a,b)=>String(b.createdAt).localeCompare(String(a.createdAt)))[0];location.href='customer.html?case='+encodeURIComponent(c.id)+'&precedents=1'+(report?'&jobId='+encodeURIComponent(report.id):'')}};
  $('caseDraftingButton').onclick=()=>alert('변호사 전용 서면 작성 기능은 준비 중입니다.');
  $('caseButton').onclick=()=>switchPanel($('caseList').hidden?'caseList':null);
  $('reportButton').onclick=()=>switchPanel($('reportList').hidden?'reportList':null);
