@@ -59,7 +59,8 @@ export async function claimJob(){
  OR (status='running' AND lease_expires_at<now())
  ORDER BY created_at,job_id FOR UPDATE SKIP LOCKED LIMIT 1
 ) UPDATE customer_analysis_jobs j SET status='running',owner_token=$1,fence=fence+1,
- lease_expires_at=now()+interval '90 seconds',updated_at=now()
+ lease_expires_at=now()+interval '90 seconds',updated_at=now(),
+ checkpoint=jsonb_set(COALESCE(j.checkpoint,'{}'::jsonb),'{analysisStartedAt}',COALESCE(j.checkpoint->'analysisStartedAt',to_jsonb(now()::text)),true)
  FROM candidate c WHERE j.customer_key=c.customer_key AND j.case_id=c.case_id AND j.job_id=c.job_id
  RETURNING j.*`,[token]);
    await client.query('COMMIT');
