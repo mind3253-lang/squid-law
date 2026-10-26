@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths-ignore:
       - 'docs/GABIA_CODE_DEPLOY_RESULT.json'
+      - 'docs/GABIA_PRECEDENT_PATCH_RESULT.json'
 permissions:
   contents: write
 concurrency:
@@ -453,3 +454,26 @@ jobs:
           cmp /tmp/squidlaw-precedents-patch.js "$target"
           echo PRECEDENT_PATCH_LIVE_VERIFIED
           REMOTE
+      - name: Record independent Gabia precedent patch result
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PATCH_JOB_STATUS: ${{ job.status }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json,os,datetime
+          result={'status':os.environ['PATCH_JOB_STATUS'],'commit':os.environ['GITHUB_SHA'],'timestamp':datetime.datetime.now(datetime.timezone.utc).isoformat(),'job':'deploy-precedent-history-patch'}
+          with open('/tmp/precedent-patch-result.json','w') as f: json.dump(result,f)
+          PY
+          encoded=$(base64 -w0 /tmp/precedent-patch-result.json)
+          path=docs/GABIA_PRECEDENT_PATCH_RESULT.json
+          for attempt in 1 2 3; do
+            old=$(gh api "repos/${GITHUB_REPOSITORY}/contents/$path" --jq .sha 2>/dev/null || true)
+            if [ -n "$old" ]; then
+              gh api -X PUT "repos/${GITHUB_REPOSITORY}/contents/$path" -f message='Record independent Gabia precedent patch result' -f content="$encoded" -f sha="$old" >/dev/null && break
+            else
+              gh api -X PUT "repos/${GITHUB_REPOSITORY}/contents/$path" -f message='Record independent Gabia precedent patch result' -f content="$encoded" >/dev/null && break
+            fi
+            sleep 2
+          done
