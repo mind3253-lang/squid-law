@@ -374,7 +374,8 @@ jobs:
   deploy-static-sidebar-patch:
     name: Apply sidebar and guide UI patch to Gabia
     runs-on: ubuntu-latest
-    if: ${{ github.ref == 'refs/heads/main' }}
+    needs: [deploy]
+    if: ${{ always() && github.ref == 'refs/heads/main' }}
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
