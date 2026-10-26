@@ -550,24 +550,21 @@ function renderFullReview(job,queue,progress,billing){
  const pct=state==='completed'?100:textPercent;
 
  const labels={queued:'분석 대기',running:'분석 진행',retry:'분석 처리 중',blocked:'검증 중단',failed:'분석 실패',completed:'분석 완료'};
- const title=document.createElement('strong');title.textContent=labels[state]||state;
- const detail=document.createElement('p');detail.style.cssText='margin:8px 0;font-size:14px';
- if(waiting){const ahead=queue?.ahead;const eta=queue?.estimatedStartSeconds;detail.textContent='대기 순번: '+(Number.isInteger(queue?.position)?queue.position+'번째':'확인 중')+' · 예상 시작: '+(eta!==null&&Number.isFinite(eta)?'약 '+Math.max(1,Math.ceil(eta/60))+'분 후 (최근 완료 작업 기준)':'처리 기록 부족으로 산정 중');}
- else{
-  const created=new Date(job.createdAt||0).getTime();
-  const updated=new Date(job.updatedAt||0).getTime();
-  const clock=state==='completed'&&Number.isFinite(updated)?updated:Date.now();
-  const elapsed=created>0&&Number.isFinite(created)?
-   ' · 총 경과 '+Math.max(0,Math.floor((clock-created)/60_000))+'분':'';
-  const currentWindow=Number(cp.visualWindowStartPage||cp.visualAuditWindowStartPage||0);
-  const windowLabel=currentWindow>0&&(stage.startsWith('visual_')||
-   stage.startsWith('ocr_'))?' · 검증 중인 구간 시작 '+currentWindow+'쪽':'';
-  const semanticLabel=stage.startsWith('semantic_')?
-   ' · 증거 대조 '+Math.max(0,Number(cp.semanticAuditCursor)||0)+'/'+
-    (Number(cp.semanticAuditTotal)||'?')+'개 주장':'';
-  detail.textContent='현재 단계: '+stage+' · 확인된 문서 '+done+'/'+(total||'?')+
-   windowLabel+semanticLabel+elapsed+(job.errorCode?' · '+job.errorCode:'');
+ const title=document.createElement('strong');title.textContent=labels[state]||'분석 진행';
+ const detail=document.createElement('p');detail.style.cssText='margin:8px 0;font-size:14px;font-variant-numeric:tabular-nums';
+ const ahead=Number.isInteger(queue?.ahead)?Math.max(0,queue.ahead):Math.max(0,(Number.isInteger(queue?.position)?queue.position-1:0));
+ const startKey='squidlaw-analysis-start:'+String(job.jobId||job.id||select.value||'');
+ const explicitStart=job.startedAt||job.processingStartedAt||job.analysisStartedAt||cp.analysisStartedAt||cp.startedAt;
+ let startMs=explicitStart?new Date(explicitStart).getTime():Number(sessionStorage.getItem(startKey)||0);
+ if(!Number.isFinite(startMs)||startMs<=0)startMs=0;
+ if(!waiting&&!startMs&&['running','retry','completed'].includes(state)){
+  startMs=Date.now();
+  sessionStorage.setItem(startKey,String(startMs));
  }
+ const finishedMs=state==='completed'||state==='failed'?new Date(job.completedAt||job.finishedAt||job.updatedAt||Date.now()).getTime():Date.now();
+ const seconds=startMs?Math.max(0,Math.floor((Math.max(startMs,finishedMs)-startMs)/1000)):null;
+ const clockText=seconds===null?'대기 중':String(Math.floor(seconds/60)).padStart(2,'0')+':'+String(seconds%60).padStart(2,'0');
+ detail.textContent='대기 : '+ahead+'건 · 분석시간 : '+clockText;
  const track=document.createElement('div');track.style.cssText='height:12px;background:#e2e8f0;border-radius:20px;overflow:hidden';
  const fill=document.createElement('div');fill.style.cssText='height:100%;background:#2563eb;width:'+(pct??0)+'%;transition:width .3s';track.appendChild(fill);
  const metric=document.createElement('p');metric.style.cssText='margin:7px 0;font-weight:600';metric.textContent=waiting?'대기 중':pct===null?'진행률 산정 중':state==='completed'?'전체 분석 100%':'원문 검증 '+pct+'% ('+processed+'/'+totalPages+'페이지)';
@@ -588,20 +585,6 @@ function renderFullReview(job,queue,progress,billing){
  const caption=document.createElement('div');caption.style.cssText='display:flex;justify-content:space-between;gap:10px;font-size:13px;color:#475569';
  const phase=document.createElement('span');phase.textContent=state==='completed'?'전체 분석 완료':state==='blocked'?'검증 또는 분석 보류':!collectionDone?'자료 수집·추출 중':!analysisDone?'통합 법률 분석 중':'결과 검증 중';
  const percent=document.createElement('strong');percent.textContent=overall;caption.append(phase,percent);
- const legend=document.createElement('small');legend.style.cssText='display:block;color:#64748b;margin-top:5px';legend.textContent='단계별 예상 진행률 · 실제 완료 판정은 모든 검증 및 최종 보고서 생성 후 확정됩니다.';
- const nextStep=document.createElement('p');
- nextStep.style.cssText='margin:10px 0 4px;font-size:14px;font-weight:600;color:#0f172a';
- const nextByStatus={
-  queued:'다음 단계: 대기 순서에 따라 자동으로 분석을 시작합니다. 이 화면을 닫아도 접수된 작업은 유지됩니다.',
-  running:'다음 단계: 자동 분석이 진행 중입니다. 현재 단계와 원문 검증 상태를 확인해 주세요.',
-  retry:'다음 단계: 서버가 기존 체크포인트에서 자동 재시도합니다. 자료를 다시 올리지 마세요.',
-  blocked:'다음 단계: 오류 내용을 확인한 뒤 분석 재개를 선택해 주세요. 기존 자료와 체크포인트는 유지됩니다.',
-  failed:'다음 단계: 오류 코드를 확인해 관리자에게 문의해 주세요. 기존 자료는 유지됩니다.',
-  completed:'다음 단계: 법률 분석 보고서 열기에서 결과와 근거를 확인해 주세요.'
- };
- nextStep.textContent=nextByStatus[state]||'다음 단계: 분석 상태를 다시 확인해 주세요.';
- if(job.errorCode==='DELTA_BASELINE_UNAVAILABLE')nextStep.textContent='기존 완료 보고서의 검증 기록을 연결하지 못했습니다. 기존 보고서는 유지됩니다.';
- if(job.errorCode==='DOCUMENT_RELEVANCE_REVIEW_REQUIRED')nextStep.textContent='추가 문서의 사건 관련성을 확인해야 합니다. 아래 채팅에서 잘못 첨부한 자료인지, 어떤 관련이 있는지 알려주세요.'
  const errorLine=document.createElement('small');
  errorLine.style.cssText='display:block;color:#b91c1c;overflow-wrap:anywhere';
  const safeError=/^[A-Z][A-Z0-9_]{1,80}$/.test(String(job.errorCode||''))?job.errorCode:null;
@@ -644,11 +627,16 @@ function renderFullReview(job,queue,progress,billing){
   if(v.providerPage!==null&&v.providerPage!==undefined)parts.push('AI 반환 페이지: '+String(v.providerPage));
   errorLine.textContent+=' · '+parts.join(' · ');
  }
- const billingLine=document.createElement('small');billingLine.style.cssText='display:block;margin-top:8px;color:#475569';billingLine.textContent=billing?.pageCountVerified&&Number.isSafeInteger(billing.verifiedPages)?'검증된 원본 '+billing.verifiedPages+'페이지 · 페이지 기준 과금 대상 · 결제 미승인 (청구 없음)':'원본 페이지 수 검증 대기 · 요금 미확정 · 청구 없음';fullReviewPanel.replaceChildren(title,detail,single,caption,legend,billingLine,nextStep,errorLine,fullReviewButton);fullReviewPanel.hidden=false;
+ fullReviewPanel.replaceChildren(title,detail,single,caption);
+ if(safeError&&['failed','blocked'].includes(state)){
+  fullReviewPanel.append(errorLine);
+  fullReviewButton.textContent='분석 재개';
+  fullReviewButton.style.marginTop='12px';
+  fullReviewPanel.append(fullReviewButton);
+ }
+ fullReviewPanel.hidden=false;
  log.appendChild(fullReviewPanel);
  requestAnimationFrame(()=>{log.scrollTop=log.scrollHeight;fullReviewPanel.scrollIntoView({block:'nearest'});});
- fullReviewButton.textContent=state==='blocked'||state==='failed'?'분석 재개':state==='completed'?'분석 완료 · 상태 확인':'분석 진행 상태 확인';
- fullReviewButton.style.marginTop='12px';
 }
 
 const legalReportPanel=document.createElement('section');
