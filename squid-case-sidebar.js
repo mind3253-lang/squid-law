@@ -12,7 +12,7 @@ document.addEventListener('DOMContentLoaded',()=>{
  toggle.setAttribute('aria-expanded','false');
  toggle.innerHTML='<svg viewBox="0 0 24 24" width="23" height="23" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M9 4v16"/></svg>';
  const header=document.createElement('div');header.className='squidSidebarHeader';
- const brand=document.createElement('strong');brand.className='squidSidebarBrand';brand.textContent='SKIDLAW';
+ const brand=document.createElement('a');brand.className='squidSidebarBrand';brand.href='/index.html';brand.textContent='SQUIDLAW';brand.title='메인으로 이동';brand.setAttribute('aria-label','SQUIDLAW 메인으로 이동');
  header.append(brand,toggle);sidebar.append(header);
  const rule=document.createElement('div');rule.className='squidSidebarRule';sidebar.append(rule);
  const nav=document.createElement('nav');nav.className='squidSidebarNav';
