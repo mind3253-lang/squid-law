@@ -553,14 +553,8 @@ function renderFullReview(job,queue,progress,billing){
  const title=document.createElement('strong');title.textContent=labels[state]||'분석 진행';
  const detail=document.createElement('p');detail.style.cssText='margin:8px 0;font-size:14px;font-variant-numeric:tabular-nums';
  const ahead=Number.isInteger(queue?.ahead)?Math.max(0,queue.ahead):Math.max(0,(Number.isInteger(queue?.position)?queue.position-1:0));
- const startKey='squidlaw-analysis-start:'+String(job.jobId||job.id||select.value||'');
- const explicitStart=job.startedAt||job.processingStartedAt||job.analysisStartedAt||cp.analysisStartedAt||cp.startedAt;
- let startMs=explicitStart?new Date(explicitStart).getTime():Number(sessionStorage.getItem(startKey)||0);
- if(!Number.isFinite(startMs)||startMs<=0)startMs=0;
- if(!waiting&&!startMs&&['running','retry','completed'].includes(state)){
-  startMs=Date.now();
-  sessionStorage.setItem(startKey,String(startMs));
- }
+ const explicitStart=cp.analysisStartedAt||job.analysisStartedAt;
+ const startMs=explicitStart?new Date(explicitStart).getTime():0;
  const finishedMs=state==='completed'||state==='failed'?new Date(job.completedAt||job.finishedAt||job.updatedAt||Date.now()).getTime():Date.now();
  const seconds=startMs?Math.max(0,Math.floor((Math.max(startMs,finishedMs)-startMs)/1000)):null;
  const clockText=seconds===null?'대기 중':String(Math.floor(seconds/60)).padStart(2,'0')+':'+String(seconds%60).padStart(2,'0');
