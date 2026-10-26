@@ -394,7 +394,7 @@ jobs:
           done
           ssh -T -i ~/.ssh/gabia.pem -o BatchMode=yes ubuntu@1.201.111.35 'sudo -n bash -s' <<'REMOTE'
           set -euo pipefail
-          for file in squid-case-sidebar.js squid-case-sidebar.css; do
+          for file in squid-case-sidebar.js squid-case-sidebar.css customer.html; do
             test -s "/tmp/$file"
             install -m 644 "/tmp/$file" "/opt/squidlaw/app/$file"
             cmp "/tmp/$file" "/opt/squidlaw/app/$file"
