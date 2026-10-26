@@ -10,7 +10,7 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: gabia-production-code-deploy
+  group: gabia-mypage-direct-patch
   cancel-in-progress: false
 jobs:
   patch:
@@ -52,3 +52,4 @@ jobs:
           sha256sum mypage.html | awk '{print $1}' > /tmp/github.sha
           diff -u /tmp/github.sha /tmp/server.sha
           echo GABIA_GITHUB_MYPAGE_MATCH_PASS
+          ssh -i ~/.ssh/gabia.pem -o BatchMode=yes ubuntu@1.201.111.35 'grep -q "height:390px" /opt/squidlaw/app/mypage.html && grep -q "분석 보고서" /opt/squidlaw/app/mypage.html && echo GABIA_COMPACT_LIST_VERIFIED'
