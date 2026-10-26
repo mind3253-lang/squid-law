@@ -553,7 +553,7 @@ jobs:
           printf '%s\n' "$KEY" > ~/.ssh/gabia.pem
           chmod 600 ~/.ssh/gabia.pem
           ssh-keyscan -H -T 10 1.201.111.35 >> ~/.ssh/known_hosts
-          scp -i ~/.ssh/gabia.pem -o BatchMode=yes lib/gpt-legal-expert.mjs ubuntu@1.201.111.35:/tmp/squidlaw-legal-token-patch.mjs
+          scp -v -i ~/.ssh/gabia.pem -o BatchMode=yes -o ConnectTimeout=15 lib/gpt-legal-expert.mjs ubuntu@1.201.111.35:/tmp/squidlaw-legal-token-patch.mjs
           scp -i ~/.ssh/gabia.pem -o BatchMode=yes lib/legal-customer-report.mjs ubuntu@1.201.111.35:/tmp/squidlaw-legal-report-patch.mjs
           scp -i ~/.ssh/gabia.pem -o BatchMode=yes lib/customer-analysis-brief.mjs ubuntu@1.201.111.35:/tmp/squidlaw-customer-brief-patch.mjs
           ssh -T -i ~/.ssh/gabia.pem -o BatchMode=yes ubuntu@1.201.111.35 'sudo -n bash -s' <<'REMOTE'
