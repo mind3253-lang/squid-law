@@ -216,7 +216,7 @@ function renderCaseMarkdown(target,source){
   }
   reports.sort((a,b)=>String(a.createdAt).localeCompare(String(b.createdAt)));
   $('reportTotal').textContent=reports.length;
-  for(const c of cases){try{const n=await json('/api/customer-report-filenames?caseId='+encodeURIComponent(c.id));Object.assign(reportNames,Object.fromEntries(Object.entries(n.names||{}).map(([id,title])=>[c.id+':'+id,title])))}catch{}}
+  for(const c of cases){try{const n=await json('/api/customer-report-filenames?caseId='+encodeURIComponent(c.id));Object.assign(reportNames,Object.fromEntries(Object.entries(n.names||{}).map(([id,title])=>[c.id+':'+id,title])))}catch(e){console.warn('보고서 파일명 조회 실패:',c.id,e.message);}}
   renderReports();
  }catch(e){
   $('caseRows').textContent='사건 목록 조회 실패: '+e.message;
