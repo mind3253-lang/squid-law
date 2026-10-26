@@ -94,7 +94,7 @@ async function savedLegalContext(user,id,jobId){
  if(report?.caseId!==id||report?.reportType!=='gpt_legal_analysis'||report?.sourceVersion!==job.documentVersion)return {error:'REPORT_SOURCE_MISMATCH',status:409};
  return {legalSearchKeywords:report.legalSearchKeywords||[],reportJobId:jobId};
 }
-const precedentHistoryKey=(user,id)=>casePrefix(user,id)+'/precedent-search-history.json';
+const precedentHistoryKey=(user,id)=>casePrefix(user,id)+'precedent-search-history.json';
 async function readHistory(user,id){
  const file=await get(precedentHistoryKey(user,id),{access:'private'});
  if(!file)return [];
