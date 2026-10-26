@@ -31,8 +31,8 @@
 (async()=>{
  const $=id=>document.getElementById(id);
  async function json(url){const r=await fetch(url,{credentials:'same-origin',cache:'no-store'});const d=await r.json();if(!r.ok)throw Error(d.error||'조회 실패');return d}
- const cases=[],reports=[];let currentReport=null,page=0,selectedCase=null;const PAGE_SIZE=20;let reportPage=0,reportQuery='';const reportNames={};let caseQuery='';const filteredCases=()=>cases.filter(c=>!caseQuery||[c.title,c.clientName,c.client,c.plaintiff,c.defendant,c.caseNumber].some(v=>String(v||'').toLocaleLowerCase('ko-KR').includes(caseQuery)));
- function switchPanel(panel){for(const id of ['caseList','reportList','reportView','caseDetail'])$(id).hidden=id!==panel;$('warehouseHome').hidden=!!panel;$('caseButton').setAttribute('aria-expanded',String(panel==='caseList'));$('reportButton').setAttribute('aria-expanded',String(panel==='reportList'||panel==='reportView'))}
+ const cases=[],reports=[];let currentReport=null,page=0,selectedCase=null;const PAGE_SIZE=20;let reportPage=0,reportQuery='';const reportNames={};let caseQuery='';if(!history.state?.mypagePanel)history.replaceState({...history.state,mypagePanel:'home'},'',location.href);const filteredCases=()=>cases.filter(c=>!caseQuery||[c.title,c.clientName,c.client,c.plaintiff,c.defendant,c.caseNumber].some(v=>String(v||'').toLocaleLowerCase('ko-KR').includes(caseQuery)));
+ let restoringNavigation=false,activePanel=null,activeReport=null;function switchPanel(panel){const previous=activePanel;activePanel=panel;for(const id of ['caseList','reportList','reportView','caseDetail'])$(id).hidden=id!==panel;$('warehouseHome').hidden=!!panel;$('caseButton').setAttribute('aria-expanded',String(panel==='caseList'));$('reportButton').setAttribute('aria-expanded',String(panel==='reportList'||panel==='reportView'));if(!restoringNavigation&&previous!==panel){const state={...(history.state||{}),mypagePanel:panel||'home',mypageCase:panel==='caseDetail'?selectedCase:null,mypageReport:panel==='reportView'&&activeReport?activeReport.caseId+':'+activeReport.id:null};history.pushState(state,'',location.pathname+location.search)}}
  function line(title,sub){const a=document.createElement('a');a.className='list-item';a.textContent=title;const small=document.createElement('small');small.textContent=sub;a.append(small);return a}
  $('casePrecedentButton').onclick=()=>{const c=cases.find(x=>x.id===selectedCase);if(!c)return;$('casePrecedentDescription').textContent='선택된 사건: '+c.title+' — 현재 테스트 기간으로 무료 검색을 실행할 수 있습니다.';$('casePrecedentDialog').showModal()};
  $('casePrecedentClose').onclick=()=>$('casePrecedentDialog').close();
@@ -183,7 +183,7 @@ function renderCaseMarkdown(target,source){
 }
 
  async function openReport(r){
-  switchPanel('reportView');$('reportTitle').textContent=r.caseTitle+' · 보고서';$('reportText').textContent='보고서를 불러오는 중입니다.';currentReport=null;
+  activeReport=r;switchPanel('reportView');$('reportTitle').textContent=r.caseTitle+' · 보고서';$('reportText').textContent='보고서를 불러오는 중입니다.';currentReport=null;
   try{if(r.source==='legal-job'){
    const detail=await json('/api/customer-legal-report?caseId='+encodeURIComponent(r.caseId)+'&jobId='+encodeURIComponent(r.id));
    const report=detail.report,body=String(report?.briefText||'');
@@ -196,6 +196,7 @@ function renderCaseMarkdown(target,source){
   }}
   catch(e){$('reportText').textContent='보고서를 열지 못했습니다: '+e.message}
  }
+ window.addEventListener('popstate',e=>{const state=e.state||{},panel=state.mypagePanel||null;restoringNavigation=true;try{if(panel==='caseDetail'){const c=cases.find(x=>x.id===state.mypageCase);if(c){void showWarehouse(c);return}}if(panel==='reportView'){const r=reports.find(x=>x.caseId+':'+x.id===state.mypageReport);if(r){void openReport(r);return}}switchPanel(['caseList','reportList'].includes(panel)?panel:null)}finally{restoringNavigation=false}});
  try{
   const data=await json('/api/customer-mypage-summary');cases.push(...data.cases);
   $('caseTotal').textContent=cases.length;$('casePending').textContent=data.counts.pending;$('storageTotal').textContent=Number.isFinite(data.storage?.mb)?data.storage.mb.toLocaleString('ko-KR',{minimumFractionDigits:2,maximumFractionDigits:2}):'—';
