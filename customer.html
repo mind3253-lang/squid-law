@@ -125,6 +125,19 @@
 .analysis-clean #categoryAnalysisBox .case-chat-bar{max-width:820px;margin-inline:auto}
 .analysis-clean #categoryAnalysisBox .case-chat-message.system .case-table-wrap{width:100%;max-width:100%}
 @media(max-width:700px){.analysis-clean #categoryAnalysisBox .case-chat-message.system{width:100%;padding:8px 2px}.analysis-clean #categoryAnalysisBox .case-chat-message.user{max-width:88%;padding:11px 14px}.analysis-clean #categoryAnalysisBox .case-guide-choices{width:100%}}
+</style><style>
+/* Neutral GPT-style conversation controls; no affirmative answer bias */
+.analysis-clean #categoryAnalysisBox .case-chat-message.system{font-size:16px;line-height:1.7;font-weight:400}
+.analysis-clean #categoryAnalysisBox .case-chat-message.user{background:#e7f1fc;font-size:16px;line-height:1.7}
+.analysis-clean #categoryAnalysisBox .case-guide-choices{justify-content:flex-end;gap:9px}
+.analysis-clean #categoryAnalysisBox .case-guide-choices button,
+.analysis-clean #categoryAnalysisBox .case-guide-choices button:first-child,
+.analysis-clean #categoryAnalysisBox .case-guide-choices button:last-child{min-width:74px;width:auto;height:40px;padding:0 17px;border:1px solid #e1e5eb;border-radius:14px;background:#e7f1fc;color:#263748;font-size:14px;font-weight:600;box-shadow:none;transform:none}
+.analysis-clean #categoryAnalysisBox .case-guide-choices button:hover,
+.analysis-clean #categoryAnalysisBox .case-guide-choices button:first-child:hover,
+.analysis-clean #categoryAnalysisBox .case-guide-choices button:last-child:hover{background:#dbe8f5;border-color:#d3deea;color:#263748}
+.analysis-clean #categoryAnalysisBox .case-guide-choices button:focus-visible{outline:2px solid #587b9f;outline-offset:2px}
+@media(max-width:700px){.analysis-clean #categoryAnalysisBox .case-chat-message.system,.analysis-clean #categoryAnalysisBox .case-chat-message.user{font-size:16px}}
 </style></head>
 <body>
 <header class="site-header"><nav class="site-nav"><a class="brand" href="index.html">SQUID LAW</a><a href="howto.html">이용방법</a><a href="stories.html">실전 사용법</a><a href="community.html">커뮤니티</a><a class="nav-analysis" href="/api/auth/naver/start">로그인</a><a id="login-user" href="/account.html" hidden></a><button id="logout-button" hidden>로그아웃</button></nav></header>
