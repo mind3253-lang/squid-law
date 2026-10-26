@@ -374,8 +374,7 @@ jobs:
   deploy-static-sidebar-patch:
     name: Apply sidebar and guide UI patch to Gabia
     runs-on: ubuntu-latest
-    needs: [deploy]
-    if: ${{ always() && github.ref == 'refs/heads/main' }}
+    if: ${{ github.ref == 'refs/heads/main' }}
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
@@ -385,6 +384,7 @@ jobs:
         run: |
           set -euo pipefail
           test -n "$KEY"
+          node --check squid-case-sidebar.js
           install -d -m 700 ~/.ssh
           printf '%s\n' "$KEY" > ~/.ssh/gabia.pem
           chmod 600 ~/.ssh/gabia.pem
