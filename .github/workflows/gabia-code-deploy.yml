@@ -537,7 +537,8 @@ jobs:
         env:
           KEY: ${{ secrets.GABIA_SSH_PRIVATE_KEY }}
         run: |
-          set -euo pipefail
+          set -Eeuo pipefail
+          trap 'printf "failed_at_line=%s\n" "$LINENO" > /tmp/legal-patch-error.txt' ERR
           test -n "$KEY"
           node --check lib/gpt-legal-expert.mjs
           node --check lib/legal-customer-report.mjs
@@ -595,7 +596,7 @@ jobs:
           python3 - <<'PY'
           import os,json
           with open('/tmp/legal-token-patch-result.json','w') as f:
-            json.dump({'status':os.environ['PATCH_STATUS'],'commit':os.environ['GITHUB_SHA'],'job':'deploy-legal-token-patch'},f)
+            json.dump({'status':os.environ['PATCH_STATUS'],'commit':os.environ['GITHUB_SHA'],'job':'deploy-legal-token-patch','diagnostic':open('/tmp/legal-patch-error.txt').read().strip() if os.path.exists('/tmp/legal-patch-error.txt') else 'no_local_error_marker'},f)
           PY
           encoded=$(base64 -w0 /tmp/legal-token-patch-result.json)
           path=docs/GABIA_LEGAL_TOKEN_PATCH_RESULT.json
