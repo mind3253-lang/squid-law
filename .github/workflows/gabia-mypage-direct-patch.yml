@@ -5,10 +5,12 @@ on:
     branches: [main]
     paths:
       - '.github/workflows/gabia-mypage-direct-patch.yml'
+      - 'mypage.html'
+      - 'docs/GABIA_CODE_DEPLOY_RESULT.json'
 permissions:
   contents: read
 concurrency:
-  group: gabia-mypage-direct-patch
+  group: gabia-production-code-deploy
   cancel-in-progress: false
 jobs:
   patch:
