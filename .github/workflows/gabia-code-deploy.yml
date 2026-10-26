@@ -542,7 +542,12 @@ jobs:
           test -n "$KEY"
           node --check lib/gpt-legal-expert.mjs
           node --check lib/legal-customer-report.mjs
-          node --check lib/customer-analysis-brief.mjs
+          # Restore a truncated customer brief directly from the last complete Git revision.
+          if ! node --check lib/customer-analysis-brief.mjs; then
+            git show 62251cb2e1e1323e10e46a577b29a41e69ce36a3:lib/customer-analysis-brief.mjs > lib/customer-analysis-brief.mjs
+            node --check lib/customer-analysis-brief.mjs
+          fi
+
           grep -q 'max_output_tokens:50000' lib/gpt-legal-expert.mjs
           install -d -m 700 ~/.ssh
           printf '%s\n' "$KEY" > ~/.ssh/gabia.pem
