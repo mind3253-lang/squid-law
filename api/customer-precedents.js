@@ -105,7 +105,7 @@ async function readHistory(user,id){
 }
 async function saveHistory(user,id,record){
  const previous=await readHistory(user,id);
- const records=[record,...previous.filter(x=>x.jobId!==record.jobId)].slice(0,30);
+ const records=[{...record,searchId:record.searchId||new Date().toISOString()+'-'+Math.random().toString(36).slice(2,9)},...previous].slice(0,30);
  await put(precedentHistoryKey(user,id),JSON.stringify(records),{access:'private',allowOverwrite:true});
 }
 export default async function handler(req,res){
