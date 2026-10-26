@@ -370,3 +370,35 @@ jobs:
             sleep 2
           done
           echo DEPLOY_RESULT_RECORD_BEST_EFFORT
+
+  deploy-static-sidebar-patch:
+    name: Apply sidebar and guide UI patch to Gabia
+    runs-on: ubuntu-latest
+    needs: [deploy]
+    if: ${{ always() && github.ref == 'refs/heads/main' }}
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch static UI files over SSH
+        env:
+          KEY: ${{ secrets.GABIA_SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "$KEY"
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$KEY" > ~/.ssh/gabia.pem
+          chmod 600 ~/.ssh/gabia.pem
+          ssh-keyscan -H -T 10 1.201.111.35 >> ~/.ssh/known_hosts
+          for file in squid-case-sidebar.js squid-case-sidebar.css; do
+            scp -i ~/.ssh/gabia.pem -o BatchMode=yes "$file" ubuntu@1.201.111.35:"/tmp/$file"
+          done
+          ssh -T -i ~/.ssh/gabia.pem -o BatchMode=yes ubuntu@1.201.111.35 'sudo -n bash -s' <<'REMOTE'
+          set -euo pipefail
+          for file in squid-case-sidebar.js squid-case-sidebar.css; do
+            test -s "/tmp/$file"
+            install -m 644 "/tmp/$file" "/opt/squidlaw/app/$file"
+            cmp "/tmp/$file" "/opt/squidlaw/app/$file"
+            echo "STATIC_PATCH_OK=$file"
+          done
+          REMOTE
+          echo STATIC_PATCH_DEPLOYED
