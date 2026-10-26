@@ -35,7 +35,8 @@ document.addEventListener('DOMContentLoaded',()=>{
  const payLink=document.createElement('a');payLink.href='/payment.html';payLink.title='결제하기';payLink.setAttribute('aria-label','결제하기');payLink.className='squidSidebarLink';if(location.pathname.endsWith('/payment.html'))payLink.classList.add('active');const payIcon=document.createElement('span');payIcon.className='squidSidebarIcon';payIcon.textContent='▣';const payText=document.createElement('span');payText.className='squidSidebarLabel';payText.textContent='결제하기';payLink.append(payIcon,payText);nav.append(payLink);
  sidebar.append(nav);
  document.body.append(sidebar);document.body.classList.add('squid-has-sidebar');
- const saved=localStorage.getItem('squid-sidebar-open')==='1';
+ const stored=localStorage.getItem('squid-sidebar-open');
+ const saved=stored===null?window.matchMedia('(min-width: 701px)').matches:stored==='1';
  function setOpen(open){sidebar.classList.toggle('open',open);document.body.classList.toggle('squid-sidebar-open',open);toggle.setAttribute('aria-expanded',String(open));toggle.title=open?'사이드바 접기':'사이드바 펼치기';toggle.setAttribute('aria-label',toggle.title);localStorage.setItem('squid-sidebar-open',open?'1':'0')}
  setOpen(saved);
  // Custom visible tooltip: native title alone is delayed and inconsistent across browsers.
