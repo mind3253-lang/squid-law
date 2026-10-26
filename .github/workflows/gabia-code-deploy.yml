@@ -386,7 +386,7 @@ jobs:
           set -euo pipefail
           test -n "$KEY"
           install -d -m 700 ~/.ssh
-          printf '%s\\n' "$KEY" > ~/.ssh/gabia.pem
+          printf '%s\n' "$KEY" > ~/.ssh/gabia.pem
           chmod 600 ~/.ssh/gabia.pem
           ssh-keyscan -H -T 10 1.201.111.35 >> ~/.ssh/known_hosts
           scp -i ~/.ssh/gabia.pem -o BatchMode=yes customer.html ubuntu@1.201.111.35:/tmp/squidlaw-progress-customer.html
