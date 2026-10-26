@@ -46,7 +46,7 @@ async function verifyPrecedent(row){
 function parsePrecedents(raw){
  let parsed;
  try{
-  const text=String(raw||'').trim().replace(/^\```(?:json)?\s*/i,'').replace(/\s*\```\s*$/,'');
+  const text=String(raw||'').trim();
   const begin=text.indexOf('{'),end=text.lastIndexOf('}');
   parsed=JSON.parse(begin>=0&&end>begin?text.slice(begin,end+1):text);
  }catch{return []}
