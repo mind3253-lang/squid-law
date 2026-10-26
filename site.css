@@ -542,3 +542,17 @@ body:has(.howto-layout){background:#fff}body:has(.howto-layout) .site-header{bac
 #guide-text .guide-chapter::before{color:#49a2d0!important}
 #guide-text .guide-intro h2,#guide-ai .guide-intro h2{color:#176a9e}
 #guide-ai .guide-notice h2{color:#176a9e}
+
+/* Practical videos: same brand position as how-to, description in place of tiles */
+body:has(.video-guide) .site-header{background:#fff!important;color:#152b45!important;border-bottom:1px solid #e4eaf0}
+body:has(.video-guide) .site-header a,body:has(.video-guide) .site-header button{color:#152b45!important}
+.video-guide{background:#fff!important;padding:0 24px 100px}
+.video-guide .video-hero{max-width:1050px;padding:48px 0 50px;margin:0 auto;text-align:center}
+.video-brand{font-size:clamp(34px,4.5vw,57px);font-weight:900;letter-spacing:-.04em;color:#123c68;margin:0 0 45px;line-height:1.3}
+.video-intro{padding:34px 20px 37px;border-top:1px solid #dce5ed;border-bottom:1px solid #dce5ed}
+.video-intro-kicker{color:#2784b8;font-size:13px;font-weight:800;letter-spacing:.12em}
+.video-guide .video-intro h1{font-size:clamp(24px,2.7vw,34px);color:#183f64;margin:13px 0 15px}
+.video-guide .video-intro p{font-size:16px;line-height:1.9;color:#52677c;margin:0}
+.video-guide .video-grid{max-width:1050px;column-gap:20px;row-gap:46px;align-items:start}
+.video-guide .video-card{border:1px solid #e5ebf1;box-shadow:0 3px 13px #1234540d}
+@media(max-width:550px){.video-guide .video-hero{padding:32px 0 32px}.video-brand{margin-bottom:30px}.video-intro{padding:25px 10px}.video-guide .video-grid{row-gap:28px}}
