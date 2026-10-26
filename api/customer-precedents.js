@@ -107,6 +107,9 @@ async function saveHistory(user,id,record){
  const previous=await readHistory(user,id);
  const records=[{...record,searchId:record.searchId||new Date().toISOString()+'-'+Math.random().toString(36).slice(2,9)},...previous].slice(0,30);
  await put(precedentHistoryKey(user,id),JSON.stringify(records),{access:'private',allowOverwrite:true});
+ // Confirm the persisted record is readable before reporting search success.
+ const persisted=await readHistory(user,id);
+ if(!persisted.some(item=>item.searchId===records[0].searchId))throw Error('PRECEDENT_HISTORY_SAVE_NOT_VERIFIED');
 }
 export default async function handler(req,res){
  const auth=guard(req);if(auth.error)return respond(res,auth.status,{error:auth.error});
