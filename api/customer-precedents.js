@@ -1,7 +1,7 @@
 import {guard,respond,readJson,casePrefix,documents} from './customer-case.js';
 import {latestSnapshot} from './customer-case-knowledge.js';
 import {getJob} from './customer-analysis-jobs-db.js';
-import {get} from '../lib/customer-object-storage.mjs';
+import {get,put} from '../lib/customer-object-storage.mjs';
 const validId=s=>/^SL-[A-Za-z0-9-]{5,40}$/.test(s);
 const clean=s=>String(s||'').replace(/\s+/g,' ').trim();
 const unique=a=>[...new Set(a.filter(Boolean))];
@@ -94,12 +94,27 @@ async function savedLegalContext(user,id,jobId){
  if(report?.caseId!==id||report?.reportType!=='gpt_legal_analysis'||report?.sourceVersion!==job.documentVersion)return {error:'REPORT_SOURCE_MISMATCH',status:409};
  return {legalSearchKeywords:report.legalSearchKeywords||[],reportJobId:jobId};
 }
+const precedentHistoryKey=(user,id)=>casePrefix(user,id)+'/precedent-search-history.json';
+async function readHistory(user,id){
+ const file=await get(precedentHistoryKey(user,id),{access:'private'});
+ if(!file)return [];
+ const parts=[];let bytes=0;
+ for await(const part of file.stream){bytes+=part.length;if(bytes>1024*1024)throw Error('PRECEDENT_HISTORY_TOO_LARGE');parts.push(Buffer.from(part))}
+ const parsed=JSON.parse(Buffer.concat(parts).toString('utf8'));
+ return Array.isArray(parsed)?parsed.slice(0,30):[];
+}
+async function saveHistory(user,id,record){
+ const previous=await readHistory(user,id);
+ const records=[record,...previous.filter(x=>x.jobId!==record.jobId)].slice(0,30);
+ await put(precedentHistoryKey(user,id),JSON.stringify(records),{access:'private',allowOverwrite:true});
+}
 export default async function handler(req,res){
  const auth=guard(req);if(auth.error)return respond(res,auth.status,{error:auth.error});
  if(req.method!=='GET')return respond(res,405,{error:'GET만 지원'});
  const id=String(req.query?.caseId||'');if(!validId(id))return respond(res,400,{error:'사건 ID 오류'});
  try{
   const user=auth.user;
+  if(String(req.query?.history||'')==='1')return respond(res,200,{records:await readHistory(user,id)});
   if(!process.env.OPENAI_API_KEY)return respond(res,503,{code:'OPENAI_NOT_CONFIGURED',error:'기존 OpenAI API 설정이 없습니다.'});
   const jobId=String(req.query?.jobId||'');
   if(!/^[0-9a-f-]{36}$/.test(jobId))return respond(res,400,{code:'REPORT_JOB_ID_REQUIRED',error:'완료보고서 작업 ID가 필요합니다.'});
@@ -138,6 +153,7 @@ export default async function handler(req,res){
   const mismatchSamples=checked.filter(x=>!x.ok).slice(0,6).map(x=>({reason:x.reason,expected:x.expected,actual:x.actual,url:x.url,textLength:x.textLength,headings:x.headings}));
   console.info('precedent_validation',{caseId:id,candidates:candidates.length,verified:officialResults.length,relevant:results.length,corrected,diagnostics,mismatchSamples});
   if(!results.length)return respond(res,200,{caseId:id,source:'공식 판결 원문 대조',query:keywords.join(', '),count:0,results:[],report:'',citations:[],notice:'공식 판례 중 이 사건에 직접 적용할 만한 판례를 확정하지 못했습니다. 원문 확인 '+officialResults.length+'건, 검색 후보 '+candidates.length+'건, 통과 0건입니다. 실패 유형: '+diagnostics.map(x=>x.reason+' '+x.count+'건').join(', ')+'.'});
+  await saveHistory(user,id,{jobId,createdAt:new Date().toISOString(),query:keywords.join(', '),results});
   return respond(res,200,{caseId:id,source:'국가법령정보센터 원문 검증',query:keywords.join(', '),count:results.length,results,report:'',citations:[],notice:'공식 판결 원문에서 사건번호·선고일·판결요지를 확인한 판례만 표시합니다. 법리의 사건 적용은 별도 검토가 필요합니다.'});
  }catch(e){return respond(res,502,{code:'PRECEDENT_SEARCH_ERROR',error:'GPT 판례 검색 실패: '+clean(e.message).slice(0,180)})}
 }
