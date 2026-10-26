@@ -401,4 +401,12 @@ jobs:
             echo "STATIC_PATCH_OK=$file"
           done
           REMOTE
+          scp -i ~/.ssh/gabia.pem -o BatchMode=yes images/legal-terms.svg ubuntu@1.201.111.35:/tmp/legal-terms.svg
+          ssh -T -i ~/.ssh/gabia.pem -o BatchMode=yes ubuntu@1.201.111.35 'sudo -n bash -s' <<'REMOTE'
+          set -euo pipefail
+          install -d -m 755 /opt/squidlaw/app/images
+          install -m 644 /tmp/legal-terms.svg /opt/squidlaw/app/images/legal-terms.svg
+          cmp /tmp/legal-terms.svg /opt/squidlaw/app/images/legal-terms.svg
+          echo LEGAL_TERMS_ICON_DEPLOYED
+          REMOTE
           echo STATIC_PATCH_DEPLOYED
