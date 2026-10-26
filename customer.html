@@ -396,20 +396,21 @@ async function startPrecedentSearch(){
  const jobId=params.get('jobId')||sessionStorage.getItem('squidlaw-full-review:'+id);
  const host=document.querySelector('.case-chat');
  if(!host)return;
- for(const child of [...host.children])child.hidden=true;
+ for(const child of [...host.children]){child.hidden=true;child.style.display='none'}
  const view=document.createElement('section');view.id='casePrecedentResults';view.style.cssText='box-sizing:border-box;width:100%;min-height:440px;padding:28px 30px;background:#fff;color:#1e293b;line-height:1.75';
  host.append(view);
  const title=document.createElement('h2');title.textContent='판례 검색 결과';title.style.cssText='font-size:21px;margin:0 0 16px';
  const state=document.createElement('p');state.textContent='완료보고서의 키워드로 판례를 검색하고 있습니다.';
  const results=document.createElement('div');results.style.cssText='margin-top:20px';
  const actions=document.createElement('div');actions.style.cssText='display:flex;gap:10px;flex-wrap:wrap;margin:24px 0';
- const back=document.createElement('a');back.href='mypage.html';back.textContent='사건 자료창고로 돌아가기';back.style.cssText='display:inline-block;margin:0 0 18px;color:#315c88';
- view.append(title,back,state,results,actions);
- if(!jobId){state.textContent='완료보고서 작업 ID가 없습니다. 마이페이지의 사건 자료창고에서 판례 검색을 다시 시작해 주세요.';return}
+ const bar=document.createElement('progress');bar.max=100;bar.value=8;bar.style.cssText='display:block;width:100%;height:18px;margin:18px 0 10px';
+ view.append(title,state,bar,results,actions);
+ let progressValue=8;const ticker=setInterval(()=>{progressValue=Math.min(92,progressValue+3);bar.value=progressValue},1200);
+ if(!jobId){clearInterval(ticker);bar.value=0;state.textContent='완료보고서 작업 ID가 없습니다. 마이페이지의 사건 자료창고에서 판례 검색을 다시 시작해 주세요.';return}
  try{
   const response=await fetch('/api/customer-precedents?caseId='+encodeURIComponent(id)+'&jobId='+encodeURIComponent(jobId),{credentials:'same-origin',cache:'no-store'});
   const data=await response.json();if(!response.ok)throw Error(data.error||'판례 검색 실패');
-  state.textContent='검색 완료 · '+(data.count||0)+'건 · '+(data.query||'');
+  clearInterval(ticker);bar.value=100;state.textContent='검색 완료 · '+(data.count||0)+'건 · '+(data.query||'');
   const lines=['판례 검색 결과','검색어: '+(data.query||''),'출처: '+(data.source||''),''];
   if(!data.results?.length){const p=document.createElement('p');p.textContent=data.notice||'검증된 판례가 없습니다.';results.append(p);lines.push(p.textContent)}
   for(const [i,item] of (data.results||[]).entries()){
@@ -429,7 +430,7 @@ async function startPrecedentSearch(){
   exportButton('TXT 다운로드',()=>download('판례-검색-결과.txt','text/plain;charset=utf-8'));
   exportButton('PDF 출력',()=>{const w=window.open('','_blank');if(!w){alert('팝업 허용 후 다시 시도해 주세요.');return}const pre=w.document.createElement('pre');pre.style.cssText='white-space:pre-wrap;font:14px/1.65 sans-serif;padding:24px';pre.textContent=report;w.document.body.append(pre);w.print()});
   exportButton('워드 다운로드',()=>download('판례-검색-결과.doc','application/msword;charset=utf-8'));
- }catch(e){state.textContent='판례 검색 실패: '+String(e.message||e)}
+ }catch(e){clearInterval(ticker);bar.value=0;state.textContent='판례 검색 실패: '+String(e.message||e)}
 }
 async function loadCases(){const r=await fetch('/api/customer-cases',{credentials:'same-origin',cache:'no-store'});const j=await r.json();if(!r.ok)throw Error(j.error||'사건 목록 조회 실패');caseRecords=j.cases;select.replaceChildren();for(const c of j.cases){const o=document.createElement('option');o.value=c.id;o.textContent=c.id+' · '+c.title;select.append(o)}const preferred=new URLSearchParams(location.search).get('case'),cat=categoryCode(),item=j.cases.find(c=>c.id===preferred);if(item&&(!cat||item.type===cat))select.value=preferred;else select.value='';syncIntake();await refresh();await inspectRequest();await restoreFullReview();if(new URLSearchParams(location.search).get('precedents')==='1'&&select.value){await startPrecedentSearch()}if(!currentCase()?.intake?.clientRole&&select.value)showOnboarding()}
 $('createCase').onclick=()=>{select.value='';newCaseMode=false;history.pushState({caseSelection:true},'','?category='+encodeURIComponent(new URLSearchParams(location.search).get('category')||''));showOnboarding();status.textContent='어떤 상황인지 선택해 주세요.'};
