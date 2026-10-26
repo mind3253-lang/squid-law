@@ -65,7 +65,7 @@ jobs:
           # Precedent API is served by squidlaw-api.service, independently of the analysis worker.
           # Validate the actual Node import graph and the API service credential on Gabia.
           echo PRECEDENT_SERVER_PREFLIGHT_BEGIN
-          if ! node --input-type=module -e "try { await import('./api/customer-precedents.js'); console.log('PRECEDENT_MODULE_IMPORT_OK') } catch(e) { console.log('PRECEDENT_IMPORT_ERROR_CODE='+String(e.code||e.name||'unknown').replace(/[^A-Za-z0-9_]/g,'_')); console.log('PRECEDENT_IMPORT_ERROR_FILE='+String(e.url||'').replace(/[^A-Za-z0-9_./:-]/g,'').slice(0,160)); process.exitCode=1 }"; then
+          if ! node --input-type=module -e "try { await import('./api/customer-precedents.js'); console.log('PRECEDENT_MODULE_IMPORT_OK') } catch(e) { console.log('PRECEDENT_IMPORT_ERROR_CODE='+String(e.code||e.name||'unknown').replace(/[^A-Za-z0-9_]/g,'_')); console.log('PRECEDENT_IMPORT_ERROR_FILE='+String(e.url||'').replace(/[^A-Za-z0-9_./:-]/g,'').slice(0,160)); console.log('PRECEDENT_IMPORT_ERROR_MESSAGE='+String(e.message||'').replace(/[^A-Za-z0-9_ .:/-]/g,'_').slice(0,150)); process.exitCode=1 }"; then
             echo PRECEDENT_MODULE_IMPORT_FAILED
             tar -xzf "$backup" -C /opt/squidlaw/app
             npm ci --omit=dev --no-audit --no-fund
