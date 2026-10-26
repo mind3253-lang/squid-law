@@ -91,6 +91,26 @@
 .analysis-clean .case-onboard{max-width:840px}
 .analysis-clean .case-chat-message.system{max-width:95%}
 @media(max-width:700px){.analysis-clean .case-chat-log{min-height:65vh;max-height:76vh;padding:14px}.analysis-clean .case-chat-compose{padding:12px}.analysis-clean .case-chat-compose textarea{min-height:95px}.analysis-clean .case-chat{margin-top:10px}}
+</style><style>
+/* Spacious category navigation and dark tablet-style analysis workspace */
+.analysis-clean:has(#categoryResources[style*="grid"]) .analysis-heading{padding-top:48px;padding-bottom:36px}
+.analysis-clean:has(#categoryResources[style*="grid"]) .category-resources{gap:22px;margin:16px 0 68px}
+.analysis-clean .category-resources a{min-height:172px;padding:20px 14px;border-radius:18px}
+.analysis-clean .category-analysis-label{margin:0 0 24px;font-size:24px}
+.analysis-clean #categoryAnalysisBox{background:linear-gradient(145deg,#171c25,#090c12);border:1px solid #313945;border-radius:32px;padding:clamp(16px,2.7vw,38px);box-shadow:0 18px 45px #0e17242b, inset 0 0 0 2px #ffffff0a;position:relative}
+.analysis-clean #categoryAnalysisBox::before{content:'';display:block;width:54px;height:5px;border-radius:99px;background:#47505d;margin:-10px auto 24px}
+.analysis-clean #categoryAnalysisBox .case-chat{margin:0 auto;background:#fff;border:1px solid #e2e7ee;border-radius:17px;box-shadow:0 6px 18px #0002}
+.analysis-clean #categoryAnalysisBox .case-chat-log{min-height:clamp(600px,73vh,1200px);background:#fff}
+.analysis-clean #categoryAnalysisBox .case-chat-compose{background:#fff}
+@media(max-width:700px){
+.analysis-clean:has(#categoryResources[style*="grid"]) .category-resources{gap:12px;margin-bottom:36px}
+.analysis-clean .category-resources a{min-height:142px;padding:12px 8px}
+.analysis-clean .category-analysis-label{margin-bottom:15px}
+.analysis-clean #categoryAnalysisBox{border-radius:19px;padding:9px}
+.analysis-clean #categoryAnalysisBox::before{width:35px;height:3px;margin:0 auto 10px}
+.analysis-clean #categoryAnalysisBox .case-chat{border-radius:12px}
+.analysis-clean #categoryAnalysisBox .case-chat-log{min-height:68vh}
+}
 </style></head>
 <body>
 <header class="site-header"><nav class="site-nav"><a class="brand" href="index.html">SQUID LAW</a><a href="howto.html">이용방법</a><a href="stories.html">실전 사용법</a><a href="community.html">커뮤니티</a><a class="nav-analysis" href="/api/auth/naver/start">로그인</a><a id="login-user" href="/account.html" hidden></a><button id="logout-button" hidden>로그아웃</button></nav></header>
