@@ -45,7 +45,7 @@
   const matches=filteredCases();page=Math.min(page,Math.max(0,Math.ceil(matches.length/PAGE_SIZE)-1));const visible=matches.slice(page*PAGE_SIZE,page*PAGE_SIZE+PAGE_SIZE);
   visible.forEach((c,i)=>{
    const row=document.createElement('div');row.className='case-row';
-   const open=line((page*PAGE_SIZE+i+1)+'. '+c.title,new Date(c.createdAt).toLocaleDateString('ko-KR'));
+   const open=line((page*PAGE_SIZE+i+1)+'. '+c.title,'');const date=document.createElement('time');date.className='case-row-date';date.textContent=new Date(c.createdAt).toLocaleDateString('ko-KR');open.append(date);
    open.href='#caseDetail';open.onclick=e=>{e.preventDefault();void showWarehouse(c)};
    const rename=document.createElement('button');rename.type='button';rename.className='rename-case';rename.textContent='파일명 변경';
    rename.onclick=async()=>{
@@ -82,7 +82,7 @@
      page=Math.min(page,Math.max(0,Math.ceil(cases.length/PAGE_SIZE)-1));renderCases();
     }catch(e){alert('사건삭제 실패: '+e.message)}finally{remove.disabled=false}
    };
-   row.append(open,rename,remove);root.append(row);
+   const actions=document.createElement('div');actions.className='case-row-actions';actions.append(rename,remove);row.append(open,actions);root.append(row);
   });
   if(!matches.length)root.textContent=caseQuery?'검색 결과가 없습니다.':'접수된 사건이 없습니다.';
   $('pageLabel').textContent=(matches.length?page+1:0)+' / '+Math.ceil(matches.length/PAGE_SIZE);
