@@ -559,11 +559,7 @@ function renderFullReview(job,queue,progress,billing){
 
  const cp=job.checkpoint||{},state=job.status;
  const relevanceWait=state==='blocked'&&job.errorCode==='DOCUMENT_RELEVANCE_REVIEW_REQUIRED';
- if(relevanceWait){
-  fullReviewPanel.replaceChildren();
-  fullReviewPanel.hidden=true;
-  return;
- }
+ // Never hide the only progress/status panel when the server blocks for clarification.
  fullReviewPanel.hidden=false;
  // Suppress stale upload notices while the dedicated analysis progress panel is visible.
  feedback.textContent='';feedback.style.display='none';
@@ -607,7 +603,7 @@ function renderFullReview(job,queue,progress,billing){
  const single=document.createElement('div');single.style.cssText='height:16px;background:#e2e8f0;border-radius:20px;overflow:hidden;display:flex;margin:12px 0 6px';
  for(const section of sections){const piece=document.createElement('div');piece.style.cssText='height:100%;width:'+(section.weight*100)+'%;background:#e2e8f0;position:relative';const filled=document.createElement('div');filled.style.cssText='height:100%;width:'+(section.ratio*100)+'%;background:'+section.color+';transition:width .4s';piece.append(filled);single.append(piece)}
  const caption=document.createElement('div');caption.style.cssText='display:flex;justify-content:space-between;gap:10px;font-size:13px;color:#475569';
- const phase=document.createElement('span');phase.textContent=state==='completed'?'전체 분석 완료':state==='blocked'?'검증 또는 분석 보류':!collectionDone?'자료 수집·추출 중':!analysisDone?'통합 법률 분석 중 · 처리 시간이 걸릴 수 있습니다':'결과 검증 중';
+ const phase=document.createElement('span');phase.textContent=state==='completed'?'전체 분석 완료':state==='blocked'?(relevanceWait?'첨부 자료의 사건 관련성 확인 필요':'검증 또는 분석 보류'):!collectionDone?'자료 수집·추출 중':!analysisDone?'통합 법률 분석 중 · 처리 시간이 걸릴 수 있습니다':'결과 검증 중';
  const percent=document.createElement('strong');percent.textContent=overall;caption.append(phase,percent);
  const errorLine=document.createElement('small');
  errorLine.style.cssText='display:block;color:#b91c1c;overflow-wrap:anywhere';
