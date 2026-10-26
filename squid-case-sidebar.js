@@ -47,7 +47,7 @@ document.addEventListener('DOMContentLoaded',()=>{
  toggle.addEventListener('mouseenter',showToggleHint);toggle.addEventListener('mouseleave',hideToggleHint);
  toggle.addEventListener('focus',showToggleHint);toggle.addEventListener('blur',hideToggleHint);
  toggle.addEventListener('click',()=>{setOpen(!sidebar.classList.contains('open'));if(!toggleHint.hidden)showToggleHint();});
- const guide=location.pathname.match(/\\/([b-h])([123])_(process|terms|efiling)\\.html$/);
+ const guide=location.pathname.match(/\/([b-h])([123])_(process|terms|efiling)\.html$/);
  if(guide){
   const key=guide[1],active=Number(guide[2]),index='bcdefgh'.indexOf(key)+1;
   const hero=document.querySelector('main .hero');
