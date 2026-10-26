@@ -30,7 +30,7 @@
  const $=id=>document.getElementById(id);
  async function json(url){const r=await fetch(url,{credentials:'same-origin',cache:'no-store'});const d=await r.json();if(!r.ok)throw Error(d.error||'조회 실패');return d}
  const filenameDialog=$('filenameDialog'),filenameInput=$('filenameInput'),filenameMessage=$('filenameMessage'),filenameSubmit=$('filenameSubmit');let filenameResolve=null;function askFilename(current){return new Promise(resolve=>{filenameResolve=resolve;filenameInput.value=current;filenameMessage.textContent='';filenameSubmit.disabled=false;filenameDialog.showModal();filenameInput.focus();filenameInput.select()})}function finishFilename(value){filenameDialog.close();const done=filenameResolve;filenameResolve=null;if(done)done(value)}$('filenameCancel').onclick=()=>finishFilename(null);filenameDialog.addEventListener('cancel',e=>{e.preventDefault();finishFilename(null)});$('filenameForm').onsubmit=e=>{e.preventDefault();const value=filenameInput.value.trim();if(!value||value.length>80){filenameMessage.textContent='파일명은 1~80자로 입력해 주세요.';return}finishFilename(value)};
- const cases=[],reports=[];let currentReport=null,page=0,selectedCase=null;const PAGE_SIZE=20;let reportPage=0,reportQuery='';const reportNames={};let caseQuery='';if(!history.state?.mypagePanel)history.replaceState({...history.state,mypagePanel:'caseList'},'',location.href);const filteredCases=()=>cases.filter(c=>!caseQuery||[c.title,c.clientName,c.client,c.plaintiff,c.defendant,c.caseNumber].some(v=>String(v||'').toLocaleLowerCase('ko-KR').includes(caseQuery)));
+ const cases=[],reports=[];let currentReport=null,page=0,selectedCase=null;const PAGE_SIZE=20;let reportPage=0,reportQuery='';let caseQuery='';if(!history.state?.mypagePanel)history.replaceState({...history.state,mypagePanel:'caseList'},'',location.href);const filteredCases=()=>cases.filter(c=>!caseQuery||[c.title,c.clientName,c.client,c.plaintiff,c.defendant,c.caseNumber].some(v=>String(v||'').toLocaleLowerCase('ko-KR').includes(caseQuery)));
  let restoringNavigation=false,activePanel=null,activeReport=null;function switchPanel(panel){const previous=activePanel;activePanel=panel;for(const id of ['caseList','reportList','reportView','caseDetail'])$(id).hidden=id!==panel;$('warehouseHome').hidden=!!panel;$('caseButton').setAttribute('aria-expanded',String(panel==='caseList'));$('reportButton').setAttribute('aria-expanded',String(panel==='reportList'||panel==='reportView'));if(!restoringNavigation&&(previous!==panel||(panel==='caseDetail'&&history.state?.mypageCase!==selectedCase)||(panel==='reportView'&&history.state?.mypageReport!==(activeReport?activeReport.caseId+':'+activeReport.id:null)))){const state={...(history.state||{}),mypagePanel:panel||'home',mypageCase:panel==='caseDetail'?selectedCase:null,mypageReport:panel==='reportView'&&activeReport?activeReport.caseId+':'+activeReport.id:null};history.pushState(state,'',location.pathname+location.search)}}
  function line(title,sub){const a=document.createElement('a');a.className='list-item';a.textContent=title;const small=document.createElement('small');small.textContent=sub;a.append(small);return a}
  $('casePrecedentButton').onclick=()=>{const c=cases.find(x=>x.id===selectedCase);if(!c)return;$('casePrecedentDescription').textContent='선택된 사건: '+c.title+' — 현재 테스트 기간으로 무료 검색을 실행할 수 있습니다.';$('casePrecedentDialog').showModal()};
@@ -92,14 +92,13 @@
  $('caseSearch').addEventListener('input',e=>{caseQuery=e.target.value.trim().toLocaleLowerCase('ko-KR');page=0;renderCases()});$('caseSearchClear').onclick=()=>{$('caseSearch').value='';caseQuery='';page=0;renderCases();$('caseSearch').focus()};
  $('prevPage').onclick=()=>{if(page>0){page--;renderCases()}};
  $('nextPage').onclick=()=>{if((page+1)*PAGE_SIZE<filteredCases().length){page++;renderCases()}};
- function reportTitle(r){return reportNames[r.caseId+':'+r.id]||r.caseTitle+' · '+(r.question||'분석 보고서')}
+ function reportTitle(r){return r.caseTitle+' · '+(r.question||'분석 보고서')}
  function renderReports(){
   const root=$('reportRows');root.replaceChildren();const matches=reports.filter(r=>!reportQuery||[reportTitle(r),r.caseTitle].some(v=>String(v||'').toLocaleLowerCase('ko-KR').includes(reportQuery)));reportPage=Math.min(reportPage,Math.max(0,Math.ceil(matches.length/PAGE_SIZE)-1));
   matches.slice(reportPage*PAGE_SIZE,(reportPage+1)*PAGE_SIZE).forEach((r,i)=>{
    const row=document.createElement('div');row.className='case-row';row.dataset.caseId=r.caseId;
    const open=line((reportPage*PAGE_SIZE+i+1)+'. '+reportTitle(r),'');const date=document.createElement('time');date.className='case-row-date';date.textContent=new Date(r.createdAt).toLocaleDateString('ko-KR');open.append(date);open.href='#report';open.onclick=e=>{e.preventDefault();void openReport(r)};
-   const rename=document.createElement('button');rename.type='button';rename.className='rename-case';rename.textContent='파일명 변경';rename.onclick=async()=>{const title=await askFilename(reportTitle(r));if(title===null)return;const name=title.trim();if(!name||name.length>80){alert('파일명은 1~80자로 입력해 주세요.');return}rename.disabled=true;try{const response=await fetch('/api/customer-report-filenames',{method:'PATCH',credentials:'same-origin',headers:{'content-type':'application/json'},body:JSON.stringify({caseId:r.caseId,reportId:r.id,title:name})});const data=await response.json();if(!response.ok)throw Error(data.error||'변경 실패');reportNames[r.caseId+':'+r.id]=name;renderReports()}catch(e){alert('파일명 변경 실패: '+e.message)}finally{rename.disabled=false}};
-   const actions=document.createElement('div');actions.className='case-row-actions';actions.append(rename);row.append(open,actions);root.append(row);
+   const actions=document.createElement('div');actions.className='case-row-actions';row.append(open);root.append(row);
   });
   if(!matches.length)root.textContent=reportQuery?'검색 결과가 없습니다.':'완료된 보고서가 없습니다.';
   $('reportPageLabel').textContent=(matches.length?reportPage+1:0)+' / '+Math.ceil(matches.length/PAGE_SIZE);$('reportPrev').disabled=reportPage===0;$('reportNext').disabled=(reportPage+1)*PAGE_SIZE>=matches.length;
@@ -212,7 +211,6 @@ function renderCaseMarkdown(target,source){
   }
   reports.sort((a,b)=>String(a.createdAt).localeCompare(String(b.createdAt)));
   $('reportTotal').textContent=reports.length;
-  for(const c of cases){try{const n=await json('/api/customer-report-filenames?caseId='+encodeURIComponent(c.id));Object.assign(reportNames,Object.fromEntries(Object.entries(n.names||{}).map(([id,title])=>[c.id+':'+id,title])))}catch(e){console.warn('보고서 파일명 조회 실패:',c.id,e.message);}}
   renderReports();
  }catch(e){
   $('caseRows').textContent='사건 목록 조회 실패: '+e.message;
