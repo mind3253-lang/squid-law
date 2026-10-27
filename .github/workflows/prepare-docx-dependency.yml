@@ -5,6 +5,7 @@ on:
     paths:
       - '.github/workflows/prepare-docx-dependency.yml'
   workflow_dispatch:
+  # Lockfile regeneration is also started by manifest edits.
 permissions:
   contents: write
 jobs:
