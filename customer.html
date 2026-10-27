@@ -780,7 +780,7 @@ legalReportDownloadButton.onclick=async()=>{
  }catch(e){notice(e.message,'error')}
 };
 const reportExportButtons=[];
-for(const [format,label] of [['pdf','PDF 출력']]){
+for(const [format,label] of [['pdf','PDF 출력'],['docx','워드 DOCX 다운로드']]){
  const button=document.createElement('button');button.type='button';button.textContent=label;
  button.className='case-report-export';
  button.hidden=true;legalReportButton.parentElement.appendChild(button);reportExportButtons.push(button);
