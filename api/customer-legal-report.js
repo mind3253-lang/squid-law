@@ -53,7 +53,8 @@ export default async function handler(req,res){
   // Reject an empty source rather than delivering a blank file.
   if(typeof brief.text!=='string'||!brief.text.trim())return respond(res,409,{error:'보고서 본문이 비어 있어 출력할 수 없습니다.'});
   const exportFormat=String(req.query?.download||'');
-  if(['docx','pdf'].includes(exportFormat)){
+  if(exportFormat==='docx')return respond(res,503,{code:'DOCX_EXPORT_TEMPORARILY_DISABLED',error:'한글 프로그램 강제 종료 위험이 확인되어 워드 다운로드를 임시 중단했습니다. TXT 또는 PDF 출력을 이용해 주세요.'});
+  if(exportFormat==='pdf'){
    const doc=normalizeDocument({title:report.title||'법률 분석 보고서',text:brief.text});
    const buffer=exportFormat==='docx'?renderDocx(doc):Buffer.from(renderPrintHtml(doc),'utf8');
    const type=exportFormat==='docx'?'application/vnd.openxmlformats-officedocument.wordprocessingml.document':'text/html; charset=utf-8';
