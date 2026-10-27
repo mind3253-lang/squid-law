@@ -372,54 +372,6 @@ jobs:
           done
           echo DEPLOY_RESULT_RECORD_BEST_EFFORT
 
-  deploy-customer-progress-patch:
-    name: Deploy customer progress clock directly to Gabia
-    runs-on: ubuntu-latest
-    if: ${{ github.ref == 'refs/heads/main' }}
-    timeout-minutes: 6
-    steps:
-      - uses: actions/checkout@v4
-      - name: Apply customer UI directly over SSH
-        env:
-          KEY: ${{ secrets.GABIA_SSH_PRIVATE_KEY }}
-        run: |
-          set -euo pipefail
-          test -n "$KEY"
-          install -d -m 700 ~/.ssh
-          printf '%s\n' "$KEY" > ~/.ssh/gabia.pem
-          chmod 600 ~/.ssh/gabia.pem
-          ssh-keyscan -H -T 10 1.201.111.35 >> ~/.ssh/known_hosts
-          scp -i ~/.ssh/gabia.pem -o BatchMode=yes customer.html ubuntu@1.201.111.35:/tmp/squidlaw-progress-customer.html
-          ssh -T -i ~/.ssh/gabia.pem -o BatchMode=yes ubuntu@1.201.111.35 'sudo -n bash -s' <<'REMOTE'
-          set -euo pipefail
-          target=/opt/squidlaw/app/customer.html
-          test -s /tmp/squidlaw-progress-customer.html
-          cp -p "$target" "$target.before-progress-patch"
-          install -m 644 /tmp/squidlaw-progress-customer.html "$target"
-          cmp /tmp/squidlaw-progress-customer.html "$target"
-          grep -q 'refreshFullReviewClock' "$target"
-          echo CUSTOMER_PROGRESS_PATCH_LIVE
-          REMOTE
-      - name: Record customer UI deployment
-        if: always()
-        env:
-          GH_TOKEN: ${{ github.token }}
-          PATCH_JOB_STATUS: ${{ job.status }}
-        run: |
-          python3 - <<'PY'
-          import json,os
-          with open('/tmp/customer-progress-result.json','w') as f:
-           json.dump({'status':os.environ['PATCH_JOB_STATUS'],'commit':os.environ['GITHUB_SHA'],'job':'deploy-customer-progress-patch'},f)
-          PY
-          encoded=$(base64 -w0 /tmp/customer-progress-result.json)
-          path=docs/GABIA_CUSTOMER_PROGRESS_PATCH_RESULT.json
-          old=$(gh api "repos/${GITHUB_REPOSITORY}/contents/$path" --jq .sha 2>/dev/null || true)
-          if [ -n "$old" ]; then
-            gh api -X PUT "repos/${GITHUB_REPOSITORY}/contents/$path" -f message='Record customer progress deployment' -f content="$encoded" -f sha="$old" >/dev/null
-          else
-            gh api -X PUT "repos/${GITHUB_REPOSITORY}/contents/$path" -f message='Record customer progress deployment' -f content="$encoded" >/dev/null
-          fi
-
   deploy-static-sidebar-patch:
     name: Apply sidebar and guide UI patch to Gabia
     runs-on: ubuntu-latest
