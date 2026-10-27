@@ -585,15 +585,27 @@ function renderFullReview(job,queue,progress,billing){
  const clock=document.createElement('span');clock.textContent=clockText;detail.append(clock);
  fullReviewClockNode=clock;fullReviewClockStart=startMs;fullReviewClockEnd=state==='completed'||state==='failed'?finishedMs:0;
  if(!fullReviewClockTicker)fullReviewClockTicker=setInterval(refreshFullReviewClock,1000);
- const collectionDone=cp.phase==='analyze'||cp.phase==='verify'||Boolean(cp.textReviewManifest)||stage.startsWith('text_review')||stage.startsWith('legal_')||state==='completed';
- const textDone=Boolean(cp.textReviewManifest)||stage==='text_review_completed_visual_pending'||stage.startsWith('visual_')||stage.startsWith('legal_')||state==='completed';
- const visualDone=cp.visualReview?.verified===true||state==='completed';
- const legalDone=Boolean(cp.legalCustomerReport)||state==='completed';
- const stages=[['자료 추출',collectionDone],['원문 텍스트 검토',textDone],['이미지·도표 증거 검증',visualDone],['법률 쟁점 분석',legalDone],['최종 보고서 검증',state==='completed']];
- const current=state==='completed'?stages.length:stages.findIndex(x=>!x[1]);
- const steps=document.createElement('div');steps.style.cssText='display:grid;gap:8px;margin:12px 0';
- stages.forEach(([name,done],i)=>{const line=document.createElement('div');line.style.cssText='display:flex;align-items:center;gap:10px;font-size:14px';const mark=document.createElement('span');mark.textContent=done?'✓':i===current&&['running','retry'].includes(state)?'◌':'○';mark.style.cssText='width:20px;text-align:center;font-weight:700;color:'+(done?'#16a34a':i===current?'#2563eb':'#94a3b8');line.append(mark,document.createTextNode(name+(done?' · 완료':i===current&&['running','retry'].includes(state)?' · 처리 중':'')));steps.append(line)});
- const caption=document.createElement('p');caption.style.cssText='font-size:13px;color:#64748b;margin:8px 0';caption.textContent=state==='completed'?'모든 분석과 검증이 완료되었습니다.':state==='blocked'||state==='failed'?'중단된 작업의 결과는 보존됩니다. 원인 확인 후 재개할 수 있습니다.':waiting?'작업 대기 중입니다. 순서가 되면 자동으로 시작됩니다.':'서버에서 작업 중입니다. 완료 예상시간은 표시하지 않습니다.';
+ const track=document.createElement('div');track.style.cssText='height:12px;background:#e2e8f0;border-radius:20px;overflow:hidden';
+ const fill=document.createElement('div');fill.style.cssText='height:100%;background:#2563eb;width:'+(pct??0)+'%;transition:width .3s';track.appendChild(fill);
+ const metric=document.createElement('p');metric.style.cssText='margin:7px 0;font-weight:600';metric.textContent=waiting?'대기 중':pct===null?'진행률 산정 중':state==='completed'?'전체 분석 100%':'원문 검증 '+pct+'% ('+processed+'/'+totalPages+'페이지)';
+ const disclaimer=document.createElement('small');disclaimer.textContent=state==='completed'?'전체 분석 완료':'표시된 %는 원문 페이지 검증률이며, 전체 법률 분석 완료율이 아닙니다.';
+ const collectionDone=cp.phase==='analyze'||cp.phase==='verify'||Boolean(cp.textReviewManifest)||stage==='source_collection_completed'||stage.startsWith('text_review')||stage.startsWith('legal_')||state==='completed';
+ const analysisDone=Boolean(cp.legalCustomerReport)||state==='completed';
+ const extractedBefore=Number(progress?.extractedPages)||0;
+ const collectionRatio=collectionDone?1:totalPages?Math.min(1,Math.max(0,extractedBefore/totalPages)):0;
+ const reviewedRatio=totalPages?Math.min(1,Math.max(0,processed/totalPages)):0;
+ const taskIndex=Math.max(0,Number(cp.legalTaskIndex)||0);
+ const legalTaskTotal=Math.max(1,Number(cp.legalTaskTotal)||1);
+  const legalTaskRatio=Math.min(1,taskIndex/legalTaskTotal);
+ const analysisRatio=analysisDone?1:Math.min(0.85,(collectionDone?0.15:0)+reviewedRatio*0.35+legalTaskRatio*0.35);
+ const verificationRatio=state==='completed'?1:analysisDone?Math.min(0.99,(Number(cp.semanticAuditCursor)||0)/Math.max(1,Number(cp.semanticAuditTotal)||1)):0;
+ const sections=[{color:'#eab308',ratio:collectionRatio,weight:0.2},{color:'#2563eb',ratio:analysisRatio,weight:0.65},{color:'#16a34a',ratio:verificationRatio,weight:0.15}];
+ const overall=state==='completed'?'100%':Math.min(99,Math.max(0,Math.floor(sections.reduce((sum,section)=>sum+section.weight*section.ratio,0)*100)))+'%';
+ const single=document.createElement('div');single.style.cssText='height:16px;background:#e2e8f0;border-radius:20px;overflow:hidden;display:flex;margin:12px 0 6px';
+ for(const section of sections){const piece=document.createElement('div');piece.style.cssText='height:100%;width:'+(section.weight*100)+'%;background:#e2e8f0;position:relative';const filled=document.createElement('div');filled.style.cssText='height:100%;width:'+(section.ratio*100)+'%;background:'+section.color+';transition:width .4s';piece.append(filled);single.append(piece)}
+ const caption=document.createElement('div');caption.style.cssText='display:flex;justify-content:space-between;gap:10px;font-size:13px;color:#475569';
+ const phase=document.createElement('span');phase.textContent=state==='completed'?'전체 분석 완료':state==='blocked'?(relevanceWait?'첨부 자료의 사건 관련성 확인 필요':'검증 또는 분석 보류'):!collectionDone?'자료 수집·추출 중':!analysisDone?'통합 법률 분석 중 · GPT 응답 대기(완료율 추정 불가)':'결과 검증 중';
+ const percent=document.createElement('strong');percent.textContent=overall;caption.append(phase,percent);
  const errorLine=document.createElement('small');
  errorLine.style.cssText='display:block;color:#b91c1c;overflow-wrap:anywhere';
  const safeError=/^[A-Z][A-Z0-9_]{1,80}$/.test(String(job.errorCode||''))?job.errorCode:null;
@@ -636,7 +648,7 @@ function renderFullReview(job,queue,progress,billing){
   if(v.providerPage!==null&&v.providerPage!==undefined)parts.push('AI 반환 페이지: '+String(v.providerPage));
   errorLine.textContent+=' · '+parts.join(' · ');
  }
- fullReviewPanel.replaceChildren(title,detail,steps,caption);
+ fullReviewPanel.replaceChildren(title,detail,single,caption);
  if(safeError&&['failed','blocked'].includes(state)){
   fullReviewPanel.append(errorLine);
   fullReviewButton.textContent='분석 재개';
