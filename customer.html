@@ -772,7 +772,7 @@ legalReportDownloadButton.onclick=async()=>{
  const caseId=select.value,jobId=sessionStorage.getItem('squidlaw-full-review:'+caseId);
  if(!caseId||!jobId)return notice('분석 작업이 없습니다.','error');
  try{
-  const r=await fetch('/api/customer-legal-report?caseId=+encodeURIComponent(caseId)+'&jobId='+encodeURIComponent(jobId)+'&download=txt',{credentials:'same-origin',cache:'no-store'});
+  const r=await fetch('/api/customer-legal-report?caseId='+encodeURIComponent(caseId)+'&jobId='+encodeURIComponent(jobId)+'&download=txt',{credentials:'same-origin',cache:'no-store'});
   if(!r.ok){const j=await r.json().catch(()=>({}));throw Error(j.error||'보고서 다운로드 실패')}
   const blob=await r.blob(),url=URL.createObjectURL(new Blob([blob],{type:'text/plain;charset=utf-8'}));
   const a=document.createElement('a');a.href=url;a.download='squidlaw-legal-report.txt';document.body.appendChild(a);a.click();
