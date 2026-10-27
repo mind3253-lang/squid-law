@@ -1,0 +1,11 @@
+import {normalizeDocument} from '../lib/document-export.mjs';
+import {renderDocxStandard} from '../lib/document-export-standard.mjs';
+import {unzipSync} from 'fflate';
+const doc=normalizeDocument({title:'법률 분석 보고서',text:'제1장. 핵심 쟁점\n| 핵심 쟁점 | 원고 | 핵심 입증 |\n| --- | --- | --- |\n| 계약기간 | 5년 | 계약서 |\n| | 변경합의 없음 | 처분문서 |\n\n① 법률 검토'});
+const buf=await renderDocxStandard(doc);
+const zip=unzipSync(new Uint8Array(buf));
+for(const name of ['word/document.xml','word/styles.xml','word/_rels/document.xml.rels','[Content_Types].xml'])if(!zip[name])throw Error('DOCX_PART_MISSING:'+name);
+const xml=new TextDecoder().decode(zip['word/document.xml']);
+for(const word of ['계약기간','변경합의 없음','법률 검토'])if(!xml.includes(word))throw Error('DOCX_TEXT_MISSING:'+word);
+if(!xml.includes('w:tbl'))throw Error('DOCX_TABLE_MISSING');
+console.log('DOCX_STANDARD_SMOKE_OK bytes='+buf.length);
