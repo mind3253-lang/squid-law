@@ -61,6 +61,14 @@ jobs:
             echo DEPLOY_PRESTART_RESTORED
             exit 1
           fi
+          # Validate the replacement Word generator before restarting services.
+          if ! node scripts/check-docx-export.mjs; then
+            echo DOCX_STANDARD_SMOKE_FAILED
+            tar -xzf "$backup" -C /opt/squidlaw/app
+            npm ci --omit=dev --no-audit --no-fund
+            echo DEPLOY_PRESTART_RESTORED
+            exit 1
+          fi
           echo DEPLOY_SYNTAX_GATE_PASSED
           # Precedent API is served by squidlaw-api.service, independently of the analysis worker.
           # Validate the actual Node import graph and the API service credential on Gabia.
