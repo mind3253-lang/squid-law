@@ -1,4 +1,5 @@
-import {normalizeDocument,renderDocx,renderPrintHtml} from '../lib/document-export.mjs';
+import {normalizeDocument,renderPrintHtml} from '../lib/document-export.mjs';
+import {renderDocxStandard} from '../lib/document-export-standard.mjs';
 import {buildCustomerAnalysisBrief} from '../lib/customer-analysis-brief.mjs';
 import {courtSubmissionGate} from '../lib/court-submission-gate.mjs';
 import {findReportEvidence} from '../lib/customer-report-evidence-search.mjs';
@@ -55,7 +56,7 @@ export default async function handler(req,res){
   const exportFormat=String(req.query?.download||'');
   if(['docx','pdf'].includes(exportFormat)){
    const doc=normalizeDocument({title:report.title||'법률 분석 보고서',text:brief.text});
-   const buffer=exportFormat==='docx'?renderDocx(doc):Buffer.from(renderPrintHtml(doc),'utf8');
+   const buffer=exportFormat==='docx'?await renderDocxStandard(doc):Buffer.from(renderPrintHtml(doc),'utf8');
    const type=exportFormat==='docx'?'application/vnd.openxmlformats-officedocument.wordprocessingml.document':'text/html; charset=utf-8';
    res.setHeader('Content-Type',type);
    res.setHeader('Content-Disposition',exportFormat==='pdf'?'inline; filename="squidlaw-report-print.html"':'attachment; filename="squidlaw-legal-report.'+exportFormat+'"');
