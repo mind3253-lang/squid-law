@@ -585,7 +585,6 @@ function renderFullReview(job,queue,progress,billing){
  const clock=document.createElement('span');clock.textContent=clockText;detail.append(clock);
  fullReviewClockNode=clock;fullReviewClockStart=startMs;fullReviewClockEnd=state==='completed'||state==='failed'?finishedMs:0;
  if(!fullReviewClockTicker)fullReviewClockTicker=setInterval(refreshFullReviewClock,1000);
- const stage=job.stage||'queued';
  const collectionDone=cp.phase==='analyze'||cp.phase==='verify'||Boolean(cp.textReviewManifest)||stage.startsWith('text_review')||stage.startsWith('legal_')||state==='completed';
  const textDone=Boolean(cp.textReviewManifest)||stage==='text_review_completed_visual_pending'||stage.startsWith('visual_')||stage.startsWith('legal_')||state==='completed';
  const visualDone=cp.visualReview?.verified===true||state==='completed';
