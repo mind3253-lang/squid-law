@@ -1,0 +1,27 @@
+name: Prepare DOCX generator dependency
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/prepare-docx-dependency.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  lock:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install DOCX dependency and update lockfile
+        run: npm install --package-lock-only --save-exact docx@9.5.1 --no-audit --no-fund
+      - name: Commit synchronized dependency manifest
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json package-lock.json
+          git diff --cached --quiet || (git commit -m "Lock docx library dependency for standard Word export" && git push)
