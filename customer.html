@@ -581,12 +581,12 @@ function renderFullReview(job,queue,progress,billing){
  const ahead=Number.isInteger(queue?.ahead)?Math.max(0,queue.ahead):Math.max(0,(Number.isInteger(queue?.position)?queue.position-1:0));
  const explicitStart=cp.analysisStartedAt||job.analysisStartedAt||job.startedAt||job.createdAt;
  const startMs=explicitStart?new Date(explicitStart).getTime():0;
- const finishedMs=state==='completed'||state==='failed'?new Date(job.completedAt||job.finishedAt||job.updatedAt||Date.now()).getTime():Date.now();
+ const clockRunning=state==='running'; const finishedMs=clockRunning?Date.now():new Date(job.completedAt||job.finishedAt||job.updatedAt||job.createdAt||Date.now()).getTime();
  const seconds=startMs?Math.max(0,Math.floor((Math.max(startMs,finishedMs)-startMs)/1000)):null;
  const clockText=seconds===null?'대기 중':String(Math.floor(seconds/60)).padStart(2,'0')+':'+String(seconds%60).padStart(2,'0');
  detail.textContent='대기 : '+ahead+'건 · 분석시간 : ';
  const clock=document.createElement('span');clock.textContent=clockText;detail.append(clock);
- fullReviewClockNode=clock;fullReviewClockStart=startMs;fullReviewClockEnd=state==='completed'||state==='failed'?finishedMs:0;
+ fullReviewClockNode=clock;fullReviewClockStart=startMs;fullReviewClockEnd=clockRunning?0:Math.max(startMs||0,finishedMs);
  if(!fullReviewClockTicker)fullReviewClockTicker=setInterval(refreshFullReviewClock,1000);
  const collectionDone=cp.phase==='analyze'||cp.phase==='verify'||Boolean(cp.textReviewManifest)||stage.startsWith('text_review')||stage.startsWith('legal_')||state==='completed';
  const textDone=Boolean(cp.textReviewManifest)||stage.startsWith('visual_')||stage.startsWith('legal_')||state==='completed';
