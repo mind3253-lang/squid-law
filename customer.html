@@ -318,7 +318,7 @@ function guideQuestion(message,choices){
  const wrap=document.createElement('div');wrap.className='case-guide-choices';
  for(const [label,action] of choices){
   const button=document.createElement('button');button.type='button';button.textContent=label;
-  button.onclick=()=>{for(const child of wrap.querySelectorAll('button'))child.disabled=true;wrap.remove();bubble(label,'user');action()};
+  button.onclick=()=>{for(const child of wrap.querySelectorAll('button'))child.disabled=true;const answer=document.createElement('div');answer.className='case-chat-message user';answer.textContent=label;wrap.replaceWith(answer);log.scrollTop=log.scrollHeight;action()};
   wrap.append(button);
  }
  if(choices.some(x=>x[0]==='이전 단계'))wrap.classList.add('relevance-choice-buttons');
