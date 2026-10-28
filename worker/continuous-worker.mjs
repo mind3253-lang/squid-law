@@ -7,6 +7,9 @@ if(!preflight.ok){
  process.exit(78);
 }
 process.env.SQUIDLAW_CONTINUOUS_WORKER='1';
+// Fixed-vocabulary timing logs contain no user IDs, filenames or document text.
+// Explicit SQUIDLAW_ANALYSIS_TIMING=0 remains an opt-out.
+if(process.env.SQUIDLAW_ANALYSIS_TIMING===undefined)process.env.SQUIDLAW_ANALYSIS_TIMING='1';
 const {default:handler}=await import('../api/customer-analysis-worker.js');
 const {performance}=await import('node:perf_hooks');
 const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));

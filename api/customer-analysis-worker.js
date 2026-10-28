@@ -4,6 +4,7 @@ import {claimJob,recoverMissingRegistryJobs,advanceJob as advanceJobRaw,renewJob
 import {mayClaimCustomerJob} from '../lib/customer-worker-owner.mjs';
 import {visionFailureDisposition,visionFailureDiagnostic} from '../lib/vision-failure-policy.mjs';
 import {timedAnalysisStep} from '../lib/analysis-timing.mjs';
+import {sourceVisionWindowCachePath,sourceBoundaryCachePath,visionSourceReceipt,reuseVisionReceipt,boundarySourceReceipt,reuseBoundaryReceipt} from '../lib/customer-source-reuse.mjs';
 // Observe persistence latency across all existing checkpoint paths without changing write semantics.
 const advanceJob=(...args)=>timedAnalysisStep('checkpoint_write',()=>advanceJobRaw(...args));
 const put=(...args)=>timedAnalysisStep('blob_write',()=>putRaw(...args));
@@ -15,6 +16,7 @@ export const maxDuration=300;
 // A lower concurrency setting is safe; each window remains an immutable replay receipt.
 const VISUAL_WINDOW_CONCURRENCY=Math.min(5,Math.max(1,Number.parseInt(process.env.SQUIDLAW_VISUAL_WINDOW_CONCURRENCY||'5',10)||5));
 const RECOVERY_PAGE_INTERVAL=50;
+const SOURCE_REUSE_MODEL='gpt-6-astra';
 export function completedRecoveryPages(processedPages,totalPages){
  if(!Number.isSafeInteger(processedPages)||processedPages<0||!Number.isSafeInteger(totalPages)||totalPages<0)throw Error('INVALID_RECOVERY_PROGRESS');
  return processedPages>=totalPages?totalPages:Math.floor(processedPages/RECOVERY_PAGE_INTERVAL)*RECOVERY_PAGE_INTERVAL;
@@ -318,6 +320,22 @@ export default async function handler(req,res){
   if(boundaryIndex<docs.length){
    const d=docs[boundaryIndex],base=root+'boundary-audit/'+d.id;
    const primaryPath=base+'-primary.json';
+   // Only source-verified receipts of this immutable PDF may skip a paid model call.
+   const existingPrimary=await load(primaryPath);
+   if(!existingPrimary){
+    const sourceCached=await load(sourceBoundaryCachePath({prefix,doc:d,model:SOURCE_REUSE_MODEL})).catch(()=>null);
+    const reused=reuseBoundaryReceipt({cache:sourceCached,doc:d,model:SOURCE_REUSE_MODEL});
+    if(reused){
+     const checked=auditBoundaryReview({result:reused,documentId:d.id,sourcePdfSha256:d.sha256,pageCount:d.pageCount});
+     if(!checked.complete)throw Error('BOUNDARY_REUSED_SOURCE_INVALID');
+     await put(primaryPath,JSON.stringify(reused),{access:'private',allowOverwrite:false,addRandomSuffix:false,contentType:'application/json'});
+     await put(base+'-verified.json',JSON.stringify({...checked,verified:true,documentId:d.id,
+      sourcePdfSha256:d.sha256,sections:reused.sections,coveredPages:d.pageCount}),
+      {access:'private',allowOverwrite:true,addRandomSuffix:false,contentType:'application/json'});
+     await advanceJob(job,'boundary_verified_checkpoint',{...previous,boundaryDocIndex:boundaryIndex+1},'retry');
+     return res.status(200).json({status:'retry',stage:'boundary_verified_checkpoint'});
+    }
+   }
    const candidateAggregate=await load(previous.textReviewAggregate);
    const candidate=candidateAggregate?.documentBoundaryCandidates?.find(x=>x.documentId===d.id);
    const visual=await load(root+'visual-provider/'+d.id+'.json');
@@ -331,10 +349,10 @@ export default async function handler(req,res){
      for(const p of batch.pages)pageEvidence.push({page:p.page,text:String(p.text||'').slice(0,450),visualFacts:(visualByPage.get(p.page)||[]).slice(0,5)});
     }
    }
-   const input={documentId:d.id,sourcePdfSha256:d.sha256,pageCount:d.pageCount,candidates:candidate?.sections||[],pageEvidence,model:'gpt-6-astra'};
-   let primary=await load(primaryPath);
+   const input={documentId:d.id,sourcePdfSha256:d.sha256,pageCount:d.pageCount,candidates:candidate?.sections||[],pageEvidence,model:SOURCE_REUSE_MODEL};
+   let primary=existingPrimary;
    if(!primary){
-    primary=await invokeBoundaryReview({request:boundaryReviewRequest(input),apiKey:process.env.OPENAI_API_KEY});
+    primary=await timedAnalysisStep('boundary_review',()=>invokeBoundaryReview({request:boundaryReviewRequest(input),apiKey:process.env.OPENAI_API_KEY}));
     const audit=auditBoundaryReview({result:primary,documentId:d.id,sourcePdfSha256:d.sha256,pageCount:d.pageCount});
     if(!audit.complete)throw Error('BOUNDARY_PRIMARY_INVALID:'+audit.failures.join(','));
     await put(primaryPath,JSON.stringify(primary),{access:'private',allowOverwrite:false,addRandomSuffix:false,contentType:'application/json'});
@@ -346,6 +364,12 @@ export default async function handler(req,res){
    if(!checked.complete)throw Error('BOUNDARY_PRIMARY_INVALID:'+checked.failures.join(','));
    const audit={...checked,verified:true,documentId:d.id,sourcePdfSha256:d.sha256,sections:primary.sections,coveredPages:d.pageCount};
    await put(base+'-verified.json',JSON.stringify(audit),{access:'private',allowOverwrite:true,addRandomSuffix:false,contentType:'application/json'});
+   const boundaryReceipt=boundarySourceReceipt({doc:d,model:SOURCE_REUSE_MODEL,result:primary});
+   if(boundaryReceipt){
+    const cachePath=sourceBoundaryCachePath({prefix,doc:d,model:SOURCE_REUSE_MODEL});
+    await put(cachePath,JSON.stringify(boundaryReceipt),{access:'private',allowOverwrite:false,
+     addRandomSuffix:false,contentType:'application/json'}).catch(()=>{console.warn('SOURCE_BOUNDARY_CACHE_OPTIONAL_WRITE_FAILED')});
+   }
    await advanceJob(job,'boundary_verified_checkpoint',{...previous,boundaryDocIndex:boundaryIndex+1},'retry');
    return res.status(200).json({status:'retry',stage:'boundary_verified_checkpoint'});
   }
@@ -567,7 +591,11 @@ export default async function handler(req,res){
      .filter(page=>page<=doc.pageCount);
     const cached=await Promise.all(starts.map(page=>
      load(root+doc.id+'-window-'+String(page).padStart(8,'0')+'.json')));
-    const missing=starts.filter((_,i)=>!cached[i]);
+    const sourceReceipts=await Promise.all(starts.map((page,i)=>cached[i]?null:
+     load(sourceVisionWindowCachePath({prefix,doc,startPage:page,model:SOURCE_REUSE_MODEL})).catch(()=>null)));
+    const reusable=cached.map((output,i)=>output||reuseVisionReceipt({
+     cache:sourceReceipts[i],doc,startPage:starts[i],model:SOURCE_REUSE_MODEL}));
+    const missing=starts.filter((_,i)=>!reusable[i]);
     let windows=new Map();
     if(missing.length){
      const pieces=doc.sourceKind==='private_chunked_pdf_v1'?
@@ -586,16 +614,22 @@ export default async function handler(req,res){
     // successful result is written independently so partial retries reuse it.
     const settled=await Promise.allSettled(starts.map(async(page,i)=>{
      const path=root+doc.id+'-window-'+String(page).padStart(8,'0')+'.json';
-     let output=cached[i];
+     let output=reusable[i];
      if(!output){
       const window=windows.get(page);
       if(!window)throw Error('VISUAL_WINDOW_SPLIT_MISSING');
-      output=await timedAnalysisStep('vision_primary',()=>analyzePdfVisualEvidence({documentId:doc.id,pdfBytes:window.bytes,
+      output={...await timedAnalysisStep('vision_primary',()=>analyzePdfVisualEvidence({documentId:doc.id,pdfBytes:window.bytes,
        apiKey:process.env.OPENAI_API_KEY,
-       model:'gpt-6-astra',
-       pageOffset:page-1,windowPageCount:window.endPage-window.startPage+1,originalPdfSha256:doc.sha256}));
+       model:SOURCE_REUSE_MODEL,
+       pageOffset:page-1,windowPageCount:window.endPage-window.startPage+1,originalPdfSha256:doc.sha256})),
+       startPage:page,endPage:window.endPage};
       if(output.sourcePdfSha256!==doc.sha256||output.documentId!==doc.id)
        throw Error('VISUAL_WINDOW_SOURCE_MISMATCH');
+      await put(path,JSON.stringify(output),{access:'private',
+       allowOverwrite:false,addRandomSuffix:false,contentType:'application/json'});
+     }else if(!cached[i]){
+      // This source window has already passed the complete PDF/source audit.
+      // Persist a job-specific zero-usage receipt; never bill its prior model call twice.
       await put(path,JSON.stringify(output),{access:'private',
        allowOverwrite:false,addRandomSuffix:false,contentType:'application/json'});
      }
@@ -613,7 +647,8 @@ export default async function handler(req,res){
       load(root+doc.id+'-window-'+String(page).padStart(8,'0')+'.json')));
      if(completeWindows.some(x=>!x))throw Error('VISUAL_WINDOW_MISSING');
      const merged=mergeVisualWindows({documentId:doc.id,sourcePdfSha256:doc.sha256,
-      pageCount:doc.pageCount,windows:completeWindows});
+      pageCount:doc.pageCount,windows:completeWindows.map((w,i)=>({
+       ...w,startPage:windowStarts[i],endPage:Math.min(doc.pageCount,windowStarts[i]+9)}))});
      const path=root+doc.id+'.json';
      const old=await load(path);
      if(old&&JSON.stringify(old)!==JSON.stringify(merged))throw Error('VISUAL_MERGE_CONFLICT');
@@ -635,7 +670,8 @@ export default async function handler(req,res){
     if(!output)throw Error('VISUAL_WINDOW_MISSING');
     windows.push(output);
    }
-   const merged=mergeVisualWindows({documentId:doc.id,sourcePdfSha256:doc.sha256,pageCount:doc.pageCount,windows});
+   const merged=mergeVisualWindows({documentId:doc.id,sourcePdfSha256:doc.sha256,pageCount:doc.pageCount,
+    windows:windows.map((w,i)=>({...w,startPage:i*10+1,endPage:Math.min(doc.pageCount,i*10+10)}))});
    const path=root+doc.id+'.json';
    const old=await load(path);
    if(old&&JSON.stringify(old)!==JSON.stringify(merged))throw Error('VISUAL_MERGE_CONFLICT');
@@ -660,6 +696,26 @@ export default async function handler(req,res){
    }
    const audit=auditVisualProviderCoverage({documentId:doc.id,sourcePdfSha256:doc.sha256,pageCount:doc.pageCount,providerResult,extractedPages});
    if(!audit.complete)auditFailures.push({documentId:doc.id,failures:audit.failures.slice(0,25)});
+   else{
+    // Reuse is allowed only after the full original PDF and page coverage audit.
+    // Optional cache writes must never block a completed customer analysis.
+    const starts=Array.from({length:Math.ceil(doc.pageCount/10)},(_,i)=>i*10+1);
+    for(let j=0;j<starts.length;j+=12){
+     const group=starts.slice(j,j+12);
+     const windows=await Promise.all(group.map(page=>load(
+      'squidlaw/analysis-jobs/'+job.customerKey+'/'+job.caseId+'/'+job.jobId+
+      '/visual-provider/'+doc.id+'-window-'+String(page).padStart(8,'0')+'.json')));
+     await Promise.all(group.map(async(page,i)=>{
+      if(windows[i]?.reusedFromVerifiedSource)return;
+      const receipt=visionSourceReceipt({doc,startPage:page,model:SOURCE_REUSE_MODEL,
+       output:windows[i]?{...windows[i],startPage:page,endPage:Math.min(doc.pageCount,page+9)}:null});
+      if(!receipt)return;
+      const cachePath=sourceVisionWindowCachePath({prefix,doc,startPage:page,model:SOURCE_REUSE_MODEL});
+      await put(cachePath,JSON.stringify(receipt),{access:'private',allowOverwrite:false,
+       addRandomSuffix:false,contentType:'application/json'}).catch(()=>{console.warn('SOURCE_VISION_CACHE_OPTIONAL_WRITE_FAILED')});
+     }));
+    }
+   }
   }
   if(auditFailures.length){
    await advanceJob(job,'visual_source_audit_failed',{...previous,visualAuditFailures:auditFailures},'blocked','VISUAL_SOURCE_AUDIT_FAILED');
