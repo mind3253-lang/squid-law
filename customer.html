@@ -58,7 +58,7 @@
 .reanalysis-upload-item{display:flex;align-items:center;gap:12px;padding:10px 12px;border:1px solid #dbe7f6;border-radius:10px;background:#fff}
 .reanalysis-upload-name{flex:1;min-width:0;overflow-wrap:anywhere;font-size:14px;color:#1e3a5f}
 .reanalysis-upload-delete{flex:none;border:1px solid #f2b8b5;border-radius:8px;padding:7px 11px;background:#fff5f5;color:#a61b1b;font:inherit;font-size:13px;font-weight:700;cursor:pointer}
-.reanalysis-upload-delete:hover{background:#fee2e2}
+.reanalysis-upload-delete:hover{background:#fee2e2}.reanalysis-upload-delete:disabled{opacity:.5;cursor:wait}
 .reanalysis-upload-count{margin-top:11px;color:#475569;font-size:13px}
 .reanalysis-upload-empty{margin:4px 0;color:#64748b;font-size:14px}
 .reanalysis-upload-complete{display:block;margin:12px 0 0 auto;border:0;border-radius:10px;padding:11px 20px;background:#2466bd;color:#fff;font:inherit;font-weight:700;cursor:pointer}
@@ -337,8 +337,8 @@ function guideQuestion(message,choices){
 }
 function relevanceAnswerPrompt(question){bubble(question,'system');guideQuestion('이전 질문으로 돌아갈 수 있습니다.',[['이전 단계',()=>{reanalysisStep=5;const caseId=select.value,jobId=sessionStorage.getItem('squidlaw-full-review:'+caseId);showRelevanceChoices(jobId,caseId,{})}]])}
 function showNewEvidenceUpload(){
- reanalysisStep=2;document.body.classList.remove('relevance-chat-active');
- bubble('새로운 자료를 첨부해 주세요.','system');
+ document.body.classList.remove('relevance-chat-active');
+ reanalysisAdvance(2);
 }
 function showRelevanceChoices(jobId,caseId,cp){
  guideQuestion('자료의 관계를 선택해 주세요.',[
@@ -404,7 +404,7 @@ async function routeCaseMessage(message){
 }
 async function refresh(){const token=++epoch,caseId=select.value;
  if(reanalysisStep===2&&reanalysisCaseId!==caseId){
-  reanalysisFiles=[];reanalysisStep=0;reanalysisAttachmentPanel?.remove();reanalysisAttachmentPanel=null;
+  reanalysisFiles=[];reanalysisRegisteredFiles=[];reanalysisStep=0;reanalysisAttachmentPanel?.remove();reanalysisAttachmentPanel=null;
  }if(!select.value){status.textContent='';if(!selectedFlow&&!awaitingResume)showOnboarding();return}try{const data=await api('GET');if(token!==epoch||caseId!==select.value)return;if(!currentCase()?.intake?.clientRole){showOnboarding();return}const entries=[...data.documents.map(d=>({at:d.createdAt,role:'user',text:'📎 '+d.name+' · '+d.pageCount+'쪽 · '+d.status,doc:d})),...data.messages.map(m=>({at:m.createdAt,role:m.role,text:m.content}))].sort((a,b)=>a.at.localeCompare(b.at));const signature=JSON.stringify(entries.map(x=>[x.at,x.role,x.text,x.doc?.id]));if(log.dataset.renderSignature!==signature||log.dataset.renderCase!==caseId){log.replaceChildren();log.dataset.deltaBlockedJob='';for(const x of entries)bubble(x.text,x.role,x.doc);if(entries.at(-1)?.role==='system'&&/잘못 첨부한 문서.*폐기했습니다/.test(entries.at(-1).text)){reanalysisAdvance(2);const last=log.lastElementChild;if(last&&last.classList.contains('case-chat-message')){last.textContent=String(entries.at(-1).text).replace(/\.\s*새로운 자료를 첨부해 주세요\.?$/,'')+'. 새로운 자료를 첨부해 주세요.'}}if(!fullReviewPanel.hidden)log.appendChild(fullReviewPanel);log.dataset.renderSignature=signature;log.dataset.renderCase=caseId}if(!entries.length){const p=document.createElement('p');p.className='case-chat-empty';p.textContent='분석할 사건 자료와 증거를 첨부해 주세요.';log.append(p)}status.textContent='';
  if(reanalysisStep===2&&!reanalysisAttachmentPanel?.isConnected)showReanalysisUpload();
  }catch(e){if(token===epoch)status.textContent='자료 조회 실패: '+e.message}}
@@ -716,12 +716,31 @@ function showLegalReport(report){
  if(report.uncertainties?.length)add('p','확인 필요: '+report.uncertainties.join(' / '));
  if(report.issues?.length)add('p','남은 검증: '+report.issues.join(' / '));
 }
-let reanalysisStep=0,reanalysisFiles=[],reanalysisJob='',reanalysisCaseId='',reanalysisAttachmentPanel=null;
+let reanalysisStep=0,reanalysisFiles=[],reanalysisRegisteredFiles=[],reanalysisJob='',reanalysisCaseId='',reanalysisAttachmentPanel=null,reanalysisLoading=false,reanalysisListError='',reanalysisBaselineVersion='';
+function reanalysisSelectedCount(){return reanalysisFiles.length+reanalysisRegisteredFiles.length}
 function renderReanalysisAttachments(){
  const panel=reanalysisAttachmentPanel;
  if(!panel||!panel.isConnected||reanalysisStep!==2)return;
  panel.replaceChildren();
  const list=document.createElement('div');list.className='reanalysis-upload-list';
+ for(const file of reanalysisRegisteredFiles){
+  const row=document.createElement('div');row.className='reanalysis-upload-item';
+  const name=document.createElement('span');name.className='reanalysis-upload-name';
+  name.textContent='📄 '+file.name+' · 서버 등록 완료';
+  const remove=document.createElement('button');remove.type='button';remove.className='reanalysis-upload-delete';
+  remove.textContent='삭제';remove.setAttribute('aria-label',file.name+' 삭제');
+  remove.onclick=async()=>{
+   if(reanalysisStep!==2||select.value!==reanalysisCaseId)return;
+   remove.disabled=true;
+   try{
+    const result=await api('POST',{action:'discard-mistaken-document',documentId:file.id,confirmName:file.name});
+    if(!result.discarded||result.documentId!==file.id)throw Error('서버 삭제 확인 실패');
+    reanalysisRegisteredFiles=reanalysisRegisteredFiles.filter(d=>d.id!==file.id);
+    renderReanalysisAttachments();
+   }catch(e){notice('서버 등록 파일 삭제 실패: '+String(e.message||e),'error');remove.disabled=false}
+  };
+  row.append(name,remove);list.append(row);
+ }
  reanalysisFiles.forEach((file,index)=>{
   const row=document.createElement('div');row.className='reanalysis-upload-item';
   const name=document.createElement('span');name.className='reanalysis-upload-name';
@@ -734,23 +753,44 @@ function renderReanalysisAttachments(){
   };
   row.append(name,remove);list.append(row);
  });
- if(!reanalysisFiles.length){
+ if(!reanalysisSelectedCount()){
   const empty=document.createElement('p');empty.className='reanalysis-upload-empty';
-  empty.textContent='선택한 추가 PDF가 없습니다.';list.append(empty);
+  empty.textContent=reanalysisLoading?'서버에 등록된 추가 PDF를 확인 중입니다.':'선택한 추가 PDF가 없습니다.';
+  list.append(empty);
  }
  const count=document.createElement('div');count.className='reanalysis-upload-count';
- count.textContent='선택한 추가 PDF · 누적 '+reanalysisFiles.length+'개 (서버 등록 전)';
+ count.textContent='추가 PDF · 누적 '+reanalysisSelectedCount()+'개 (서버 등록 '+reanalysisRegisteredFiles.length+'개 · 등록 전 '+reanalysisFiles.length+'개)';
  const complete=document.createElement('button');complete.type='button';complete.className='reanalysis-upload-complete';
  complete.textContent='첨부 완료';
- complete.disabled=!reanalysisFiles.length||select.value!==reanalysisCaseId;
+ complete.disabled=reanalysisLoading||!reanalysisSelectedCount()||select.value!==reanalysisCaseId;
  complete.onclick=()=>{
-  if(reanalysisStep!==2||!reanalysisFiles.length||select.value!==reanalysisCaseId)return;
-  const total=reanalysisFiles.length;
+  if(reanalysisStep!==2||reanalysisLoading||!reanalysisSelectedCount()||select.value!==reanalysisCaseId)return;
+  const total=reanalysisSelectedCount();
   panel.remove();reanalysisAttachmentPanel=null;
   bubble('추가 PDF '+total+'개 첨부 완료','user');
   reanalysisAdvance(3);
  };
- panel.append(list,count,complete);log.scrollTop=log.scrollHeight;
+ panel.append(list,count);
+ if(reanalysisListError){
+  const error=document.createElement('p');error.className='reanalysis-upload-empty';
+  error.textContent=reanalysisListError;panel.append(error);
+ }
+ panel.append(complete);log.scrollTop=log.scrollHeight;
+}
+async function loadReanalysisRegisteredFiles(caseId){
+ reanalysisLoading=true;reanalysisListError='';renderReanalysisAttachments();
+ try{
+  const result=await fullReviewRequest('/api/customer-analysis-job?caseId='+encodeURIComponent(caseId)+'&view=supplemental');
+  if(select.value!==caseId||reanalysisStep!==2)return;
+  reanalysisRegisteredFiles=Array.isArray(result.registered)?result.registered:[];
+  reanalysisBaselineVersion=result.baselineVersion||'';
+  if(!result.baselineAvailable)reanalysisListError='이전 완료 보고서의 원본 목록을 확인할 수 없어 서버 등록 추가자료를 구분하지 못했습니다.';
+ }catch(e){
+  if(select.value!==caseId||reanalysisStep!==2)return;
+  reanalysisListError='서버 등록 자료 조회 실패: '+String(e.message||e);
+ }finally{
+  if(select.value===caseId&&reanalysisStep===2){reanalysisLoading=false;renderReanalysisAttachments()}
+ }
 }
 function showReanalysisUpload(){
  if(reanalysisAttachmentPanel?.isConnected)reanalysisAttachmentPanel.remove();
@@ -759,11 +799,13 @@ function showReanalysisUpload(){
  reanalysisAttachmentPanel=document.createElement('section');
  reanalysisAttachmentPanel.className='reanalysis-upload-panel';
  reanalysisAttachmentPanel.setAttribute('aria-label','추가 PDF 첨부 목록');
- log.append(reanalysisAttachmentPanel);renderReanalysisAttachments();
+ log.append(reanalysisAttachmentPanel);
+ renderReanalysisAttachments();
+ loadReanalysisRegisteredFiles(reanalysisCaseId);
 }
 function showReanalysisGuide(jobId){
  if(log.dataset.reanalysisGuide===jobId)return;
- log.dataset.reanalysisGuide=jobId;reanalysisJob=jobId;reanalysisFiles=[];
+ log.dataset.reanalysisGuide=jobId;reanalysisJob=jobId;reanalysisFiles=[];reanalysisRegisteredFiles=[];reanalysisBaselineVersion='';
  const line=document.createElement('hr');line.className='reanalysis-divider';log.append(line);
  reanalysisAdvance(1);
 }
@@ -771,19 +813,40 @@ function reanalysisAdvance(step){
  reanalysisStep=step;
  if(step===1){guideQuestion('1. 추가 자료를 첨부하시겠습니까? 핵심자료가 아니거나, 내용이 미비할 시 분석결과가 크게 바뀌지 않을 수 있습니다.',[['예',()=>reanalysisAdvance(2)],['아니오',()=>bubble('자료 준비 후 다시 방문 바랍니다.','system')]]);return}
  if(step===2){showReanalysisUpload();return}
- if(step===3){const bytes=reanalysisFiles.reduce((n,f)=>n+f.size,0);guideQuestion('3. PDF '+reanalysisFiles.length+'개 ('+(bytes/1048576).toFixed(2)+'MB). 현재 파일에 대한 예상 분석비용은 비용 산정 후 표시됩니다. 진행하시겠습니까?',[['예',()=>reanalysisAdvance(4)],['아니오',()=>bubble('진행을 중단했습니다.','system')]]);return}
+ if(step===3){
+  const all=[...reanalysisRegisteredFiles,...reanalysisFiles],bytes=all.reduce((n,f)=>n+(Number(f.size)||0),0);
+  guideQuestion('3. PDF '+all.length+'개 ('+(bytes/1048576).toFixed(2)+'MB). 현재 파일에 대한 예상 분석비용은 비용 산정 후 표시됩니다. 진행하시겠습니까?',[['예',()=>reanalysisAdvance(4)],['아니오',()=>bubble('진행을 중단했습니다.','system')]]);return
+ }
  if(step===4){guideQuestion('4. 추가 자료를 기존 분석에 반영하시겠습니까?',[['예',()=>startDeltaReanalysis()],['아니오',()=>bubble('진행을 중단했습니다.','system')]]);}
 }
 async function startDeltaReanalysis(){
- if(!select.value||!reanalysisFiles.length){bubble('추가 PDF가 없습니다.','system');return}
- const caseId=select.value,files=[...reanalysisFiles];
+ if(!select.value||!reanalysisSelectedCount()){bubble('추가 PDF가 없습니다.','system');return}
+ const caseId=select.value,files=[...reanalysisFiles],registered=[...reanalysisRegisteredFiles];
+ const verifyRegistered=async expected=>{
+  const result=await fullReviewRequest('/api/customer-analysis-job?caseId='+encodeURIComponent(caseId)+'&view=supplemental');
+  if(!result.baselineAvailable||result.baselineVersion!==reanalysisBaselineVersion)throw Error('기존 완료 보고서의 원본 버전이 변경되어 추가자료 목록을 다시 확인해야 합니다.');
+  const actual=(result.registered||[]).map(d=>d.id).sort();
+  const selected=expected.map(d=>d.id).sort();
+  if(JSON.stringify(actual)!==JSON.stringify(selected))throw Error('서버 등록 추가자료 목록이 변경됐습니다. 첨부 목록을 다시 확인해 주세요.');
+ };
  try{
-  bubble('추가 자료 '+files.length+'개를 서버에 등록합니다. 사건 관련성이 불명확하면 분석 전에 확인 질문이 표시됩니다.','system');
-  const uploaded=[];for(const f of files){const result=await uploadLarge(f);if(result.duplicate||result.reused)throw Error('이미 서버에 등록된 동일 PDF입니다. 중복 분석을 시작하지 않습니다: '+f.name);if(!result.document?.id)throw Error('PDF 서버 등록 확인 실패: '+f.name);uploaded.push({id:result.document.id,name:result.document.name||f.name});bubble('서버 등록 확인: '+(result.document.name||f.name),'system')}if(uploaded.length!==files.length)throw Error('추가 PDF 등록 수량 불일치');sessionStorage.setItem('squidlaw-delta-uploaded:'+caseId,JSON.stringify(uploaded));
+  await verifyRegistered(registered);
+  bubble('추가 자료 '+(registered.length+files.length)+'개를 확인합니다. 서버 등록 전 파일은 등록한 뒤 사건 관련성을 검토합니다.','system');
+  const uploaded=[...registered.map(d=>({id:d.id,name:d.name}))];
+  for(const f of files){
+   const result=await uploadLarge(f);
+   if(result.duplicate||result.reused)throw Error('이미 서버에 등록된 동일 PDF입니다. 중복 분석을 시작하지 않습니다: '+f.name);
+   if(!result.document?.id)throw Error('PDF 서버 등록 확인 실패: '+f.name);
+   uploaded.push({id:result.document.id,name:result.document.name||f.name});
+   bubble('서버 등록 확인: '+(result.document.name||f.name),'system');
+  }
+  if(uploaded.length!==files.length+registered.length)throw Error('추가 PDF 등록 수량 불일치');
+  await verifyRegistered(uploaded);
+  sessionStorage.setItem('squidlaw-delta-uploaded:'+caseId,JSON.stringify(uploaded));
   const j=await fullReviewRequest('/api/customer-analysis-job?caseId='+encodeURIComponent(caseId),{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({action:'approve-analysis',approved:true})});
   const id=j.job?.jobId;if(!id)throw Error('분석 작업 등록 응답 오류');
   sessionStorage.setItem('squidlaw-full-review:'+caseId,id);
-  reanalysisFiles=[];reanalysisStep=0;
+  reanalysisFiles=[];reanalysisRegisteredFiles=[];reanalysisStep=0;
   bubble('서버 등록 자료: '+uploaded.map(d=>d.name).join(', ')+' · 사건 관련성 확인 후 기존 분석에 미치는 영향을 검토합니다.','system');
   fullReviewStatus(id,caseId).catch(()=>{});
   if(fullReviewTimer)clearInterval(fullReviewTimer);
