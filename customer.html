@@ -503,8 +503,14 @@ async function send(){if(busy){notice('이전 업로드 요청이 진행 중입�
   const caseId=select.value,storageKey='squidlaw-delta-uploaded:'+caseId;
   let uploaded=[];try{uploaded=JSON.parse(sessionStorage.getItem(storageKey)||'[]')}catch{}
   try{
-   const selected=uploaded.length===1?{documentId:uploaded[0].id,confirmName:uploaded[0].name}:{discardLatest:true};
-   const result=await api('POST',{action:'discard-mistaken-document',...selected});
+   const jobId=sessionStorage.getItem('squidlaw-full-review:'+caseId);
+   const state=jobId?await fullReviewRequest('/api/customer-analysis-job?caseId='+encodeURIComponent(caseId)+'&jobId='+encodeURIComponent(jobId)):null;
+   const uncertain=(state?.job?.checkpoint?.relevanceDecisions||[]).filter(d=>d.status==='clarify');
+   if(uncertain.length!==1)throw Error('폐기 대상 문서를 하나로 특정할 수 없습니다.');
+   const caseState=await api('GET');
+   const target=(caseState.documents||[]).find(d=>d.id===uncertain[0].id);
+   if(!target)throw Error('폐기 대상 문서가 서버 목록에 없습니다.');
+   const result=await api('POST',{action:'discard-mistaken-document',documentId:target.id,confirmName:target.name});
    if(result.discarded){
     sessionStorage.removeItem(storageKey);log.dataset.deltaBlockedJob='';log.dataset.reanalysisGuide='';
     bubble('첨부한 PDF를 폐기했습니다. 새로운 자료를 첨부해 주세요.','system');
