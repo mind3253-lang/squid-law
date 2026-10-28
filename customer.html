@@ -765,9 +765,11 @@ function renderReanalysisAttachments(){
  complete.disabled=reanalysisLoading||!reanalysisSelectedCount()||select.value!==reanalysisCaseId;
  complete.onclick=()=>{
   if(reanalysisStep!==2||reanalysisLoading||!reanalysisSelectedCount()||select.value!==reanalysisCaseId)return;
-  const total=reanalysisSelectedCount();
+  const selected=[...reanalysisRegisteredFiles,...reanalysisFiles];
+  const total=selected.length;
+  const filenames=selected.map((file,index)=>(index+1)+'. '+String(file.name||'이름 없는 PDF')).join('\n');
   panel.remove();reanalysisAttachmentPanel=null;
-  bubble('추가 PDF '+total+'개 첨부 완료','user');
+  bubble('추가 PDF '+total+'개 첨부 완료\n'+filenames,'user');
   reanalysisAdvance(3);
  };
  panel.append(list,count);
