@@ -75,10 +75,11 @@ test('legal model window reuses only immutable SHA-verified original source bund
  assert.match(worker,/!extracted\?\.pages\|\|extracted\.documentId!==d\.id/);
  assert.match(worker,/LEGAL_SOURCE_REHYDRATION_MISMATCH/);
 });
-test('transient job failures restart after bounded SQL backoff, not on a five-minute stall',()=>{
+test('transient failures back off while ordinary checkpoint retries remain prompt',()=>{
  const jobs=source('api/customer-analysis-jobs-db.js');
  const worker=source('worker/continuous-worker.mjs');
  assert.match(worker,/workerFailureDelayMs\(consecutiveFailures\)/);
- assert.match(jobs,/next_run_at=CASE WHEN \$8='retry' THEN now\(\)\+interval '250 milliseconds'/);
+ assert.match(jobs,/next_run_at=CASE WHEN \$8='retry' AND \$6='error' THEN now\(\)\+make_interval/);
+ assert.match(jobs,/WHEN \$8='retry' THEN now\(\)\+interval '250 milliseconds'/);
  assert.match(jobs,/interval '250 milliseconds'/);
 });

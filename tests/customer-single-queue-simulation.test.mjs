@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {CUSTOMER_PRODUCT_CONTRACT} from '../lib/customer-product-contract.mjs';
 
-// Simulates the DB transaction/lock protocol without production credentials.
+// Simulates atomic PostgreSQL row claims without production credentials.
 // Full PostgreSQL multi-instance acceptance remains a separate E2E requirement.
 const source=readFileSync(new URL('../api/customer-analysis-jobs-db.js',import.meta.url),'utf8');
 const start=source.indexOf('export async function claimJob(){');
@@ -12,9 +12,9 @@ if(start<0||end<=start)throw Error('CUSTOMER_CLAIM_ENTRY_NOT_FOUND');
 const definition=source.slice(start,end)
  .replace('export async function claimJob()','async function claimJob()');
 
-test('simultaneous customer workers cannot claim two different active customers',async()=>{
+test('simultaneous workers claim different customers, never the same job',async()=>{
  const state={
-  active:null,held:false,waiters:[],released:0,
+  released:0,commits:0,
   pending:[
    {job_id:'a',customer_key:'c1',case_id:'case1',fence:1},
    {job_id:'b',customer_key:'c2',case_id:'case2',fence:1}
@@ -25,21 +25,16 @@ test('simultaneous customer workers cannot claim two different active customers'
    return {
     async query(sql){
      if(sql==='BEGIN')return {rows:[]};
-     if(sql.includes('pg_advisory_xact_lock')){
-      if(state.held)await new Promise(done=>state.waiters.push(done));
-      else state.held=true;
-      return {rows:[]};
-     }
-     if(sql.includes('SELECT 1 FROM customer_analysis_jobs')){
-      return {rows:state.active?[{job_id:state.active.job_id}]:[]};
-     }
      if(sql.includes('WITH candidate AS')){
-      state.active=state.pending.shift()||null;
-      return {rows:state.active?[state.active]:[]};
+      assert.match(sql,/FOR UPDATE SKIP LOCKED LIMIT 1/);
+      assert.match(sql,/fence=fence\+1/);
+      // A claim removes one row atomically, as SKIP LOCKED does in PostgreSQL.
+      await Promise.resolve();
+      const claimed=state.pending.shift()||null;
+      return {rows:claimed?[claimed]:[]};
      }
      if(sql==='COMMIT'||sql==='ROLLBACK'){
-      const next=state.waiters.shift();
-      if(next)next();else state.held=false;
+      if(sql==='COMMIT')state.commits++;
       return {rows:[]};
      }
      throw Error('UNEXPECTED_SQL '+sql.slice(0,100));
@@ -48,19 +43,16 @@ test('simultaneous customer workers cannot claim two different active customers'
    };
   }
  };
- const claim=new Function('withLeaseDb','CUSTOMER_PRODUCT_CONTRACT',
+ const claim=new Function('withLeaseDb',
   'randomUUID','publicJob',definition+'\nreturn claimJob;')(
    async callback=>callback(pool),
-   CUSTOMER_PRODUCT_CONTRACT,()=>'test-owner',
+   ()=>'test-owner',
    row=>({jobId:row.job_id,caseId:row.case_id})
   );
- const [first,second]=await Promise.all([claim(),claim()]);
- assert.equal([first,second].filter(Boolean).length,1);
- assert.equal(state.pending.length,1);
- assert.equal(state.released,2);
- // A completed job releases the global lane for the next waiting customer.
- state.active=null;
- const next=await claim();
- assert.equal(next.jobId,'b');
+ const claimed=await Promise.all([claim(),claim(),claim()]);
+ assert.deepEqual(claimed.filter(Boolean).map(x=>x.jobId).sort(),['a','b']);
+ assert.equal(claimed.filter(x=>x===null).length,1);
  assert.equal(state.pending.length,0);
+ assert.equal(state.released,3);
+ assert.equal(state.commits,3);
 });

@@ -7,6 +7,10 @@ test('invalid provider page blocks without automatic re-billing',()=>{
 test('transient provider errors retry within bounded attempts',()=>{
  assert.deepEqual(visionFailureDisposition('VISION_PDF_API_503',{attempts:0,maxAttempts:3}),{status:'retry',retryable:true});
  assert.deepEqual(visionFailureDisposition('VISION_PDF_API_503',{attempts:2,maxAttempts:3}),{status:'failed',retryable:false});
+ for(const code of ['VISION_PDF_API_429','VISION_PDF_UPLOAD_429','GPT_LEGAL_HTTP_429','GPT_LEGAL_HTTP_503','DELTA_GPT_HTTP_429'])
+  assert.deepEqual(visionFailureDisposition(code,{attempts:0,maxAttempts:3}),{status:'retry',retryable:true});
+ for(const code of ['GPT_LEGAL_HTTP_400','GPT_LEGAL_SOURCE_AUDIT_FAILED','VISION_PDF_INVALID_JSON'])
+  assert.deepEqual(visionFailureDisposition(code,{attempts:0,maxAttempts:3}),{status:'failed',retryable:false});
 });
 test('diagnostics capture exact provider page and response id',()=>{
  const d=visionFailureDiagnostic({reason:'page_number_out_of_window',index:2,pageOffset:12,windowPageCount:8,providerPage:19,providerResponseId:'resp_test'});

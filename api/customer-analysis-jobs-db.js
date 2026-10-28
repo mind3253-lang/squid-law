@@ -1,7 +1,6 @@
 import {createHash,randomUUID} from 'node:crypto';
 import {withLeaseDb} from './customer-analysis-lease-db.js';
 import {assertCompletionTransition} from '../lib/analysis-stage-gates.mjs';
-import {CUSTOMER_PRODUCT_CONTRACT} from '../lib/customer-product-contract.mjs';
 const key=user=>createHash('sha256').update(user).digest('hex');
 const publicJob=r=>r&&({jobId:r.job_id,caseId:r.case_id,documentVersion:r.document_version,status:r.status,stage:r.stage,checkpoint:r.checkpoint,attempts:r.attempts,maxAttempts:r.max_attempts,errorCode:r.error_code,updatedAt:r.updated_at,createdAt:r.created_at});
 export const documentVersion=docs=>createHash('sha256').update(JSON.stringify([...docs].map(d=>[d.id,d.sha256,d.pageCount]).sort((a,b)=>a[0].localeCompare(b[0])))).digest('hex');
@@ -27,31 +26,17 @@ export async function completedCaseBaselines(job,limit=30){
 }
 export async function getJob(user,caseId,id){return withLeaseDb(async db=>{const r=await db.query('SELECT * FROM customer_analysis_jobs WHERE customer_key=$1 AND case_id=$2 AND job_id=$3',[key(user),caseId,id]);return publicJob(r.rows[0])})}
 /**
- * A single GLOBAL customer-analysis lane. SKIP LOCKED on a job row is NOT a
- * global concurrency guard: simultaneous requests can lock distinct rows.
- *
- * The transaction-scoped advisory lock serializes the active-job check and
- * candidate claim across all worker processes. The durable running lease
- * blocks later workers until checkpoint/retry/completion (or lease expiry).
- * No customer data is dropped and leases remain fenced by owner token.
+ * Claim one independent customer job. PostgreSQL's row lock and SKIP LOCKED
+ * permit workers to claim different jobs concurrently, but never the same job
+ * twice. The owner token and monotonically increasing fence protect every
+ * checkpoint and lease renewal, including after a stale lease is reclaimed.
+ * Cross-customer global locking is intentionally prohibited.
  */
 export async function claimJob(){
  return withLeaseDb(async db=>{
-  if(CUSTOMER_PRODUCT_CONTRACT.analysisConcurrency!==1)
-   throw Error('CUSTOMER_SINGLE_ANALYSIS_POLICY_VIOLATION');
   const client=await db.connect();
   try{
    await client.query('BEGIN');
-   // Reserved fixed advisory-lock namespace for the customer analysis lane.
-   // Lock is held only during this transaction, not for the full AI call.
-   await client.query('SELECT pg_advisory_xact_lock(208387541, 1)');
-   const active=await client.query(
-    "SELECT 1 FROM customer_analysis_jobs WHERE status='running' AND lease_expires_at>now() LIMIT 1"
-   );
-   if(active.rows.length){
-    await client.query('COMMIT');
-    return null;
-   }
    const token=randomUUID();
    const r=await client.query(`WITH candidate AS (
  SELECT customer_key,case_id,job_id FROM customer_analysis_jobs
@@ -78,7 +63,7 @@ export async function advanceJob(job,stage,checkpoint,status='running',errorCode
  const result=await withLeaseDb(async db=>{
   const r=await db.query(`UPDATE customer_analysis_jobs SET stage=$6,checkpoint=$7::jsonb,status=$8,error_code=$9,attempts=CASE WHEN $6='error' THEN attempts+1 ELSE attempts END,
  lease_expires_at=CASE WHEN $8='running' THEN now()+interval '90 seconds' ELSE NULL END,
- next_run_at=CASE WHEN $8='retry' THEN now()+interval '250 milliseconds' ELSE next_run_at END,
+ next_run_at=CASE WHEN $8='retry' AND $6='error' THEN now()+make_interval(secs=>LEAST(3600,POWER(2,LEAST(attempts,10))::integer))+interval '1250 milliseconds' WHEN $8='retry' THEN now()+interval '250 milliseconds' ELSE next_run_at END,
  owner_token=CASE WHEN $8='running' THEN owner_token ELSE NULL END,updated_at=now()
  WHERE customer_key=$1 AND case_id=$2 AND job_id=$3 AND owner_token=$4 AND fence=$5 AND status='running' AND lease_expires_at>now()
  RETURNING *`,[job.customerKey,job.caseId,job.jobId,job.token,job.fence,stage,JSON.stringify(checkpoint),status,errorCode]);
@@ -130,20 +115,17 @@ export async function queueSnapshot(user,caseId,id){
   const target=await db.query('SELECT created_at,job_id,status,(next_run_at<=now()) AS ready_now FROM customer_analysis_jobs WHERE customer_key=$1 AND case_id=$2 AND job_id=$3',[key(user),caseId,id]);
   const t=target.rows[0];if(!t)return null;
   const r=await db.query(`WITH earlier AS (
-   SELECT count(*)::integer AS ahead, count(*) FILTER (WHERE status='running' AND lease_expires_at>now())::integer AS running_ahead FROM customer_analysis_jobs
-   WHERE ((status IN ('queued','retry') AND next_run_at<=now()) OR (status='running' AND lease_expires_at>now()))
+   SELECT count(*)::integer AS ahead FROM customer_analysis_jobs
+   WHERE status IN ('queued','retry') AND next_run_at<=now()
    AND (created_at,job_id)<($1::timestamptz,$2::uuid)
   ),running AS (
    SELECT count(*)::integer AS active FROM customer_analysis_jobs WHERE status='running' AND lease_expires_at>now()
-  ),history AS (
-   SELECT count(*)::integer AS completed,avg(extract(epoch FROM updated_at-created_at))::float AS avg_seconds
-   FROM (SELECT created_at,updated_at FROM customer_analysis_jobs WHERE status='completed' ORDER BY updated_at DESC LIMIT 30) x
-  ) SELECT earlier.ahead,earlier.running_ahead,running.active,history.completed,history.avg_seconds FROM earlier,running,history`,[t.created_at,t.job_id]);
+  ) SELECT earlier.ahead,running.active FROM earlier,running`,[t.created_at,t.job_id]);
   const v=r.rows[0];const waiting=['queued','retry'].includes(t.status);
   const eligible=waiting&&t.ready_now===true;
   return {ahead:eligible?v.ahead:0,position:eligible?v.ahead+1:null,active:v.active,
-   estimatedStartSeconds:eligible&&v.completed>=3&&v.avg_seconds>0?Math.ceil((v.ahead+Math.max(0,v.active-v.running_ahead))*v.avg_seconds):null,
-   estimateBasis:v.completed,estimateMethod:'historical_completed_jobs_30',retryBackoff:waiting&&!eligible};
+   // A global single-lane ETA is false under capacity-dependent parallelism.
+   estimatedStartSeconds:null,estimateBasis:0,estimateMethod:'dynamic_parallel_capacity_no_reliable_eta',retryBackoff:waiting&&!eligible};
  });
 }
 

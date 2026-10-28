@@ -980,13 +980,14 @@ export default async function handler(req,res){
  }catch(e){
   const diagnostic=String(e?.message||e||'UNKNOWN').slice(0,500);
   const providerHttp=/^GPT_LEGAL_HTTP_(\d{3})$/.exec(diagnostic);
+  const visionHttp=/^VISION_PDF_(API|UPLOAD)_(\d{3})(?::|$)/.exec(diagnostic);
   const deltaHttpDetail=diagnostic.startsWith('DELTA_GPT_HTTP_')?diagnostic.slice(0,160):null;
   const providerFailureDetail=typeof e?.providerErrorSummary==='string'?e.providerErrorSummary.slice(0,240):deltaHttpDetail;
   const providerCode=typeof e?.providerCode==='string'?e.providerCode.replace(/[^A-Za-z0-9_]/g,'_').slice(0,64):null;
   const errorName=String(e?.name||'');
   const systemCode=String(e?.code||'');
   const categorized=systemCode==='ETIMEDOUT'?'WORKER_NETWORK_TIMEOUT':systemCode==='ECONNRESET'?'WORKER_CONNECTION_RESET':systemCode==='ECONNREFUSED'?'WORKER_CONNECTION_REFUSED':systemCode==='ENOENT'?'WORKER_MISSING_FILE':errorName==='SyntaxError'?'WORKER_PARSE_ERROR':errorName==='TypeError'?'WORKER_TYPE_ERROR':errorName==='TimeoutError'?'WORKER_TIMEOUT':null;
-  const safeCode=diagnostic.startsWith('DELTA_GPT_HTTP_')?'DELTA_GPT_HTTP_'+(diagnostic.match(/^DELTA_GPT_HTTP_(\d{3})/)?.[1]||'UNKNOWN'):diagnostic.startsWith('GPT_LEGAL_SOURCE_REVIEW_FAILED:')?'SOURCE_READ_REVIEW_FAILED':diagnostic.startsWith('GPT_LEGAL_SOURCE_AUDIT_FAILED:')?'GPT_LEGAL_SOURCE_AUDIT_FAILED':providerHttp?'GPT_LEGAL_HTTP_'+providerHttp[1]:/^[A-Z][A-Z0-9_]{2,100}$/.test(diagnostic)?diagnostic:categorized||'WORKER_ERROR';
+  const safeCode=diagnostic.startsWith('DELTA_GPT_HTTP_')?'DELTA_GPT_HTTP_'+(diagnostic.match(/^DELTA_GPT_HTTP_(\d{3})/)?.[1]||'UNKNOWN'):diagnostic.startsWith('GPT_LEGAL_SOURCE_REVIEW_FAILED:')?'SOURCE_READ_REVIEW_FAILED':diagnostic.startsWith('GPT_LEGAL_SOURCE_AUDIT_FAILED:')?'GPT_LEGAL_SOURCE_AUDIT_FAILED':providerHttp?'GPT_LEGAL_HTTP_'+providerHttp[1]:visionHttp?'VISION_PDF_'+visionHttp[1]+'_'+visionHttp[2]:/^[A-Z][A-Z0-9_]{2,100}$/.test(diagnostic)?diagnostic:categorized||'WORKER_ERROR';
   // Diagnostic metadata only: no document text, customer IDs, URLs, credentials or raw exception messages.
   const errorClass=String(e?.name||'Error').replace(/[^A-Za-z]/g,'').slice(0,32);
   const errorStage=String(job?.stage||'unknown').replace(/[^a-zA-Z0-9_-]/g,'').slice(0,64);

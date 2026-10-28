@@ -15,7 +15,8 @@ test('LAW-033 Gabia continuous worker retains fenced SQL lease and bounded retri
  assert.match(worker,/await handler\(req,res\)/);
  assert.match(worker,/workerFailureDelayMs\(consecutiveFailures\)/);
  const db=readFileSync(new URL('../api/customer-analysis-jobs-db.js',import.meta.url),'utf8');
- assert.match(db,/pg_advisory_xact_lock/);
+ assert.match(db,/FOR UPDATE SKIP LOCKED LIMIT 1/);
+ assert.doesNotMatch(db,/pg_advisory_xact_lock\(208387541, 1\)/);
  assert.match(db,/lease_expires_at>now\(\)/);
  assert.match(db,/lease_expires_at>now\(\)/);
 });

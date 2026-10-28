@@ -10,12 +10,13 @@ test('latest job recovery is case and customer scoped',()=>{
  assert.match(api,/jobId==='latest'\?await latestCaseJob\(a\.user,caseId\)/);
  assert.match(api,/queueSnapshot\(a\.user,caseId,job\.jobId\)/);
 });
-test('global queue excludes stale running leases and counts the active job in ETA',()=>{
+test('capacity-aware queue tracks running jobs but does not invent serial ETA',()=>{
  const db=source('api/customer-analysis-jobs-db.js');
  const snapshot=db.slice(db.indexOf('export async function queueSnapshot('));
  assert.match(snapshot,/status='running' AND lease_expires_at>now\(\)/);
- assert.match(snapshot,/Math\.ceil\(\(v\.ahead\+Math\.max\(0,v\.active-v\.running_ahead\)\)\*v\.avg_seconds\)/);
- assert.match(snapshot,/v\.completed>=3/);
+ assert.match(snapshot,/estimatedStartSeconds:null/);
+ assert.match(snapshot,/dynamic_parallel_capacity_no_reliable_eta/);
+ assert.doesNotMatch(snapshot,/avg_seconds|running_ahead/);
 });
 test('client can recover latest job after browser session storage is cleared',()=>{
  const ui=source('customer.html');
