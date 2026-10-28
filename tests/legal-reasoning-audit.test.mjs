@@ -31,3 +31,13 @@ test('source-unit index covers 10001 pages and rejects duplicate or missing fina
  assert.throws(()=>auditSourceUnitIndex({documents:docs,sources:rows.slice(0,-1)}),/SOURCE_INDEX_PAGE_COVERAGE_INCOMPLETE/);
  assert.throws(()=>auditSourceUnitIndex({documents:docs,sources:[...rows,rows[0]]}),/DUPLICATE_SOURCE_INDEX_ENTRY/);
 });
+
+test('many valid legal search keywords do not fail the evidence source audit',()=>{
+ const expanded={...result,findings:[{...result.findings[0],
+  legalSearchKeywords:['계약 성립','손해배상 범위','증거능력','책임요건','상당인과관계','청구권 소멸시효']}]};
+ assert.equal(auditLegalReasoningResult({request,result:expanded,sourceIndex}).complete,true);
+ const longKeyword={...expanded,findings:[{...expanded.findings[0],legalSearchKeywords:['가'.repeat(66)]}]};
+ assert.equal(auditLegalReasoningResult({request,result:longKeyword,sourceIndex}).complete,false);
+ const badSource={...expanded,findings:[{...expanded.findings[0],sources:[{documentId:'d',page:12,part:2,hash:'c'.repeat(64)}]}]};
+ assert.equal(auditLegalReasoningResult({request,result:badSource,sourceIndex}).complete,false);
+});
