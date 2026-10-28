@@ -590,6 +590,7 @@ function renderFullReview(job,queue,progress,billing){
  const current=stages.findIndex(x=>!x[1]);
  const steps=document.createElement('div');steps.style.cssText='display:grid;gap:8px;margin:12px 0';
  stages.forEach(([name,done],i)=>{const line=document.createElement('div');line.style.cssText='display:flex;align-items:center;gap:10px;font-size:14px';const mark=document.createElement('span');mark.textContent=done?'✓':i===current&&['running','retry'].includes(state)?'◌':'○';mark.style.cssText='width:20px;text-align:center;font-weight:700;color:'+(done?'#16a34a':i===current?'#2563eb':'#94a3b8');line.append(mark,document.createTextNode(name+(done?' · 완료':i===current&&['running','retry'].includes(state)?' · 처리 중':'')));steps.append(line)});
+ const reviewDocumentNames=(cp.relevanceNotice?.documents||cp.relevanceDecisions||[]).map(d=>d.name||d.id).filter(Boolean);const uploadedDocumentNames=(()=>{try{return JSON.parse(sessionStorage.getItem('squidlaw-delta-uploaded:'+select.value)||'[]').map(d=>d.name).filter(Boolean)}catch{return []}})();const displayedDocumentNames=reviewDocumentNames.length?reviewDocumentNames:uploadedDocumentNames;const documentLine=document.createElement('p');documentLine.style.cssText='font-size:13px;color:#334155;margin:8px 0;overflow-wrap:anywhere';documentLine.textContent=displayedDocumentNames.length?'추가 분석 대상 파일: '+displayedDocumentNames.join(', '):'';
  const caption=document.createElement('p');caption.style.cssText='font-size:13px;color:#64748b;margin:8px 0';caption.textContent=state==='completed'?'모든 분석과 검증이 완료되었습니다.':state==='blocked'||state==='failed'?'작업이 중단되었습니다. 저장된 결과는 보존됩니다.':waiting?'대기 중입니다. 순서가 되면 자동으로 시작됩니다.':'서버에서 분석 중입니다. 완료 예상시간은 표시하지 않습니다.';
  const errorLine=document.createElement('small');
  errorLine.style.cssText='display:block;color:#b91c1c;overflow-wrap:anywhere';
@@ -633,7 +634,7 @@ function renderFullReview(job,queue,progress,billing){
   if(v.providerPage!==null&&v.providerPage!==undefined)parts.push('AI 반환 페이지: '+String(v.providerPage));
   errorLine.textContent+=' · '+parts.join(' · ');
  }
- fullReviewPanel.replaceChildren(title,detail,steps,caption);
+ fullReviewPanel.replaceChildren(title,detail,documentLine,steps,caption);
  if(safeError&&['failed','blocked'].includes(state)){
   fullReviewPanel.append(errorLine);
   fullReviewButton.textContent='분석 재개';
