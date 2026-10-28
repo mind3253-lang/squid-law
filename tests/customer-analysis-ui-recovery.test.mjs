@@ -15,3 +15,11 @@ test('transient status failures preserve persisted full-review job identifier',(
  assert.match(restore,/sessionStorage\.removeItem/);
  assert.match(restore,/기존 분석 작업을 보존했습니다/);
 });
+
+test('additional PDF completion bubble retains the selected filenames',()=>{
+ const flow=html.slice(html.indexOf('function renderReanalysisAttachments()'),html.indexOf('async function loadReanalysisRegisteredFiles('));
+ assert.ok(flow.includes('const selected=[...reanalysisRegisteredFiles,...reanalysisFiles];'));
+ assert.ok(flow.includes('const filenames=selected.map((file,index)'));
+ assert.ok(flow.includes("String(file.name||'이름 없는 PDF')"));
+ assert.ok(flow.includes("bubble('추가 PDF '+total+'개 첨부 완료\n'+filenames,'user')"));
+});
