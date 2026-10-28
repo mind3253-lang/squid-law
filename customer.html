@@ -441,7 +441,7 @@ function add(fs){if(select.value&&reanalysisStep===2){
  const invalid=incoming.filter(f=>!/\.pdf$/i.test(f.name)||f.size<100||f.size>100*1024*1024);
  if(invalid.length){showGuideModal('PDF 파일만 첨부할 수 있습니다. 100MB 이하의 PDF를 넣어 주세요.\\n첨부할 수 없는 파일: '+invalid.map(f=>f.name).join(', '));return}
  if(!incoming.length)return;
- reanalysisFiles.push(...incoming);bubble('추가 PDF '+incoming.length+'개 첨부 · 누적 '+reanalysisFiles.length+'개','user');bubble('자료를 다 첨부한 후 [첨부 완료] 버튼을 누르세요.','system');return
+ reanalysisFiles.push(...incoming);bubble('선택한 추가 PDF: '+incoming.map(f=>f.name).join(', ')+' · 누적 '+reanalysisFiles.length+'개 (서버 등록 전)','user');bubble('자료를 다 첨부한 후 [첨부 완료] 버튼을 누르세요.','system');return
  }
  if(!select.value){if(guideStep!==4){notice('4단계 자료 첨부 안내에서 PDF를 넣어 주세요.','info');return}const incoming=Array.from(fs);const invalid=incoming.filter(f=>!/\.pdf$/i.test(f.name)||f.size<100||f.size>100*1024*1024);if(invalid.length){showGuideModal('PDF 파일만 첨부할 수 있습니다. JPG·PNG 등 이미지 파일은 분석 대상이 아닙니다.\n100MB 이하의 정상 PDF 파일을 넣어 주세요.\n\n첨부할 수 없는 파일: '+invalid.map(f=>f.name).join(', '));return}const valid=incoming;if(!valid.length)return;guideFiles.push(...valid);bubble('PDF '+valid.length+'개 첨부','user');guideAdvance(5);return}let added=0,errors=[];for(const f of fs){if(pending.length>=30){errors.push('한 번에 최대 30개까지 선택할 수 있습니다.');break}if(/\.pdf$/i.test(f.name)&&(!Number.isSafeInteger(f.size)||f.size<100||f.size>100*1024*1024)){errors.push('PDF 파일 정보 또는 내부 전송 조각 인덱스 확인 필요: '+f.name);continue}if(pending.some(p=>p.name===f.name&&p.size===f.size&&p.lastModified===f.lastModified))continue;pending.push(f);added++}showPending();const pdf=pending.filter(f=>/\.pdf$/i.test(f.name)).length,other=pending.length-pdf;if(errors.length)notice(errors.join(' / '),'error');else if(added)notice('파일 '+pending.length+'개 선택됨 · PDF '+pdf+'개는 [보내기]로 저장 가능'+(other?' · 기타 '+other+'개는 변환 기능 준비 중으로 분석에서 제외됨':''));}
 
@@ -707,12 +707,12 @@ async function startDeltaReanalysis(){
  const caseId=select.value,files=[...reanalysisFiles];
  try{
   bubble('추가 자료 '+files.length+'개를 서버에 등록합니다. 사건 관련성이 불명확하면 분석 전에 확인 질문이 표시됩니다.','system');
-  const uploaded=[];for(const f of files){const result=await uploadLarge(f);if(result.document?.id)uploaded.push({id:result.document.id,name:result.document.name})}sessionStorage.setItem('squidlaw-delta-uploaded:'+caseId,JSON.stringify(uploaded));
+  const uploaded=[];for(const f of files){const result=await uploadLarge(f);if(!result.document?.id)throw Error('PDF 서버 등록 확인 실패: '+f.name);uploaded.push({id:result.document.id,name:result.document.name||f.name});bubble('서버 등록 확인: '+(result.document.name||f.name),'system')}if(uploaded.length!==files.length)throw Error('추가 PDF 등록 수량 불일치');sessionStorage.setItem('squidlaw-delta-uploaded:'+caseId,JSON.stringify(uploaded));
   const j=await fullReviewRequest('/api/customer-analysis-job?caseId='+encodeURIComponent(caseId),{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({action:'approve-analysis',approved:true})});
   const id=j.job?.jobId;if(!id)throw Error('분석 작업 등록 응답 오류');
   sessionStorage.setItem('squidlaw-full-review:'+caseId,id);
   reanalysisFiles=[];reanalysisStep=0;
-  bubble('추가 자료를 접수했습니다. 사건 관련성 확인 후 기존 분석에 미치는 영향을 검토합니다.','system');
+  bubble('서버 등록 자료: '+uploaded.map(d=>d.name).join(', ')+' · 사건 관련성 확인 후 기존 분석에 미치는 영향을 검토합니다.','system');
   fullReviewStatus(id,caseId).catch(()=>{});
   if(fullReviewTimer)clearInterval(fullReviewTimer);
   if(!['completed','blocked','failed'].includes(j.job.status))fullReviewTimer=setInterval(()=>fullReviewStatus(id,caseId).catch(e=>notice(e.message,'error')),15000);
