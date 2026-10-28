@@ -21,5 +21,5 @@ test('additional PDF completion bubble retains the selected filenames',()=>{
  assert.ok(flow.includes('const selected=[...reanalysisRegisteredFiles,...reanalysisFiles];'));
  assert.ok(flow.includes('const filenames=selected.map((file,index)'));
  assert.ok(flow.includes("String(file.name||'이름 없는 PDF')"));
- assert.ok(flow.includes("bubble('추가 PDF '+total+'개 첨부 완료\n'+filenames,'user')"));
+ assert.ok(flow.includes(String.raw`bubble('추가 PDF '+total+'개 첨부 완료\n'+filenames,'user')`));
 });
