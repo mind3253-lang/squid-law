@@ -586,7 +586,7 @@ function renderFullReview(job,queue,progress,billing){
  const clockText=seconds===null?'대기 중':String(Math.floor(seconds/60)).padStart(2,'0')+':'+String(seconds%60).padStart(2,'0');
  detail.textContent='대기 : '+ahead+'건 · 작업 경과시간(요금과 무관) : ';
  const clock=document.createElement('span');clock.textContent=clockText;detail.append(clock);
- fullReviewClockNode=clock;fullReviewClockStart=startMs;fullReviewClockEnd=clockRunning?0:Math.max(startMs||0,finishedMs);
+ fullReviewClockNode=clock;fullReviewClockStart=clockRunning?startMs:0;fullReviewClockEnd=clockRunning?0:Math.max(startMs||0,finishedMs);if(!clockRunning)clock.textContent=state==='blocked'?'일시중단 · 처리시간 집계 전':'처리시간 집계 전';
  if(!fullReviewClockTicker)fullReviewClockTicker=setInterval(refreshFullReviewClock,1000);
  const collectionDone=cp.phase==='analyze'||cp.phase==='verify'||Boolean(cp.textReviewManifest)||stage.startsWith('text_review')||stage.startsWith('legal_')||state==='completed';
  const textDone=Boolean(cp.textReviewManifest)||stage.startsWith('visual_')||stage.startsWith('legal_')||state==='completed';
