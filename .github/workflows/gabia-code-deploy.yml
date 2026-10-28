@@ -170,6 +170,17 @@ jobs:
           test -f /opt/squidlaw/app/docs/GABIA_MAINTENANCE_PROBE.txt
           grep -qx 'GABIA_DIRECT_MAINTENANCE_PROBE_V1' /opt/squidlaw/app/docs/GABIA_MAINTENANCE_PROBE.txt
           echo DEPLOY_PROBE_VERIFIED
+          # Normalize customer report layout on Gabia without re-running AI analysis.
+          python3 - <<'PY_REPORT_LAYOUT'
+          from pathlib import Path
+          p=Path('/opt/squidlaw/app/lib/customer-analysis-brief.mjs')
+          s=p.read_text()
+          s=s.replace("'휴대전화행동과입장허용 인과관계':'휴대전화 행동과 입장 허용 인과관계'","'휴대전화행동과입장허용 인과관계':'휴대전화 행동과 입장허용 인과관계'")
+          s=s.replace("lines.push('### '+(i+1)+'. '+issueTitle(group.title),'',","lines.push('### '+(i+1)+'. '+issueTitle(group.title),")
+          p.write_text(s)
+          print('REPORT_LAYOUT_PATCH_APPLIED')
+          PY_REPORT_LAYOUT
+          node --check /opt/squidlaw/app/lib/customer-analysis-brief.mjs
           echo REPORT_MODULE_SYNTAX_CHECK_BEGIN
           node --check api/customer-legal-report.js
           node --check lib/customer-analysis-brief.mjs
