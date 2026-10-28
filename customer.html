@@ -428,8 +428,26 @@ async function startPrecedentSearch(){
  try{
   const response=await fetch('/api/customer-precedents?caseId='+encodeURIComponent(id)+'&jobId='+encodeURIComponent(jobId),{credentials:'same-origin',cache:'no-store'});
   const data=await response.json();if(!response.ok)throw Error(data.error||'판례 검색 실패');
-  state.textContent='검색 완료 · '+(data.count||0)+'건 · '+(data.query||'');
+  const submittedChecks=Array.isArray(data.submittedCitationChecks)?data.submittedCitationChecks:[];
+  state.textContent='검색 완료 · 관련 판례 '+(data.count||0)+'건 · 제출자료 인용 검증 '+submittedChecks.length+'건 · '+(data.query||'');
   const lines=['판례 검색 결과','검색어: '+(data.query||''),'출처: '+(data.source||''),''];
+  if(data.submittedCitationStatus&&data.submittedCitationStatus!=='complete'){
+   const warning=document.createElement('p');warning.textContent='제출자료 인용 판례 목록의 원문 확인이 완료되지 않았습니다. 해당 자료의 판례가 없다는 뜻은 아닙니다.';results.append(warning);lines.push(warning.textContent,'');
+  }
+  if(submittedChecks.length){
+   const heading=document.createElement('h3');heading.textContent='제출자료에 인용된 판례 검증';results.append(heading);lines.push('제출자료에 인용된 판례 검증','');
+   const labels={matched:'인용 취지 일치 (공식 원문·AI 대조)',mismatch:'인용 취지 불일치 (공식 원문·AI 대조)',
+    purpose_unverified:'사건번호 확인 · 인용 취지 판정 보류',unverified:'공식 원문 확인 불가'};
+   for(const [i,item] of submittedChecks.entries()){
+    const section=document.createElement('section');section.style.cssText='padding:14px 0;border-top:1px solid #e2e8f0';
+    const title=document.createElement('h4');title.textContent=(i+1)+'. '+item.caseNumber+' · '+(labels[item.status]||'검증 보류');section.append(title);lines.push(title.textContent);
+    for(const [label,value] of [['인용 출처',[item.documentName,item.page?item.page+'쪽':''].filter(Boolean).join(' ')],['인용 내용',item.citationContext],['검증 이유',item.reason]]){
+     if(!value)continue;const p=document.createElement('p');p.textContent=label+': '+value;section.append(p);lines.push(p.textContent);
+    }
+    if(item.officialUrl){const a=document.createElement('a');a.href=item.officialUrl;a.target='_blank';a.rel='noopener noreferrer';a.textContent='공식 판결 원문';section.append(a);lines.push('공식 원문: '+item.officialUrl)}
+    results.append(section);lines.push('');
+   }
+  }
   if(!data.results?.length){const p=document.createElement('p');p.textContent=data.notice||'검증된 판례가 없습니다.';results.append(p);lines.push(p.textContent)}
   for(const [i,item] of (data.results||[]).entries()){
    const section=document.createElement('section');section.style.cssText='padding:20px 0;border-top:1px solid #e2e8f0';

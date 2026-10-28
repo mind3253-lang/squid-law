@@ -3,6 +3,7 @@ import {renderDocxStandard} from '../lib/document-export-standard.mjs';
 import {buildCustomerAnalysisBrief} from '../lib/customer-analysis-brief.mjs';
 import {courtSubmissionGate} from '../lib/court-submission-gate.mjs';
 import {findReportEvidence} from '../lib/customer-report-evidence-search.mjs';
+import {loadSubmittedCaseCitations} from './customer-cited-precedents.js';
 import {get} from '../lib/customer-object-storage.mjs';
 import {guard,respond,readJson,casePrefix,documents} from './customer-case.js';
 import {getJob} from './customer-analysis-jobs-db.js';
@@ -43,8 +44,11 @@ export default async function handler(req,res){
     ...findReportEvidence(report,question),mode:'saved_report_search_only'});
   }
   if(String(req.query?.summary||'')==='1')return respond(res,200,{summary:{title:report.title,status:report.status,notForCourtSubmission:report.notForCourtSubmission,findings:report.findings?.length||0,issues:report.issues||[],sourceCoverage:report.sourceCoverage,modelUsage:report.modelUsage||null}});
+  const reportDocuments=await documents(auth.user,caseId);
+  const submitted=await loadSubmittedCaseCitations({user:auth.user,caseId,job,report,documents:reportDocuments});
+  const displayReport={...report,submittedCitedPrecedents:submitted.citations,submittedCitedPrecedentsStatus:submitted.status};
   let brief;
-  try{brief=buildCustomerAnalysisBrief({caseRecord:registry,report,documents:await documents(auth.user,caseId)})}
+  try{brief=buildCustomerAnalysisBrief({caseRecord:registry,report:displayReport,documents:reportDocuments})}
   catch(e){
    if(e?.message==='CLIENT_ROLE_REQUIRED')return respond(res,409,{code:'CLIENT_ROLE_REQUIRED',error:'원고인가요, 피고인가요? 의뢰인 지위를 먼저 등록해 주세요.'});
    if(e?.message==='ANALYSIS_ROLE_CHANGED')return respond(res,409,{code:'ANALYSIS_ROLE_CHANGED',error:'분석 당시 의뢰인 지위와 현재 지위가 다릅니다. 다시 분석해 주세요.'});
@@ -69,7 +73,7 @@ export default async function handler(req,res){
    res.setHeader('X-Content-Type-Options','nosniff');
    return res.status(200).send(brief.text);
   }
-  return respond(res,200,{report:{...report,briefText:brief.text,briefMeta:{
+  return respond(res,200,{report:{...displayReport,briefText:brief.text,briefMeta:{
    clientRole:brief.clientRole,chapters:brief.chapterCount,
    displayedIssues:brief.displayedIssues,undisplayedIssues:brief.undisplayedIssues,
    sourceReferenceCount:brief.sourceReferenceCount,requiresSourceReview:brief.requiresSourceReview
