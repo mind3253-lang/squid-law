@@ -172,6 +172,18 @@ export default async function handler(req,res){
      return res.status(200).json({status:'blocked',reason:'DOCUMENT_RELEVANCE_REVIEW_REQUIRED'});
     }
     const uncertain=decisions.filter(x=>x.status==='clarify');
+    if(uncertain.length&&Number(job.checkpoint?.relevanceAttempts||0)>0){
+     // A completed model review after the customer's explanation still
+     // cannot establish relevance. Do not repeat the same clarification UI.
+     // API/model failures above remain review-required, never 'unrelated'.
+     await advanceJob(job,'delta_relevance_not_established',{
+      ...job.checkpoint,relevanceDecisions:decisions,
+      relevanceNotice:{status:'not_established',documents:uncertain.map(x=>({
+       id:x.id,name:samples.find(s=>s.id===x.id)?.name||'추가 자료',
+       reason:String(x.reason||'고객 설명과 문서 본문을 대조했으나 사건 관련성을 확인하지 못했습니다.').slice(0,900)
+      }))}},'blocked','DOCUMENT_RELEVANCE_NOT_ESTABLISHED');
+     return res.status(200).json({status:'blocked',reason:'DOCUMENT_RELEVANCE_NOT_ESTABLISHED'});
+    }
     if(uncertain.length){
      await advanceJob(job,'delta_relevance_review_required',{...job.checkpoint,relevanceDecisions:decisions},'blocked','DOCUMENT_RELEVANCE_REVIEW_REQUIRED');
      return res.status(200).json({status:'blocked',reason:'DOCUMENT_RELEVANCE_REVIEW_REQUIRED',documents:uncertain.map(x=>x.id)});
