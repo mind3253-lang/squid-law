@@ -160,8 +160,8 @@ export default async function handler(req,res){
      samples.push({id:doc.id,name:doc.name,pageCount:doc.pageCount,text:(sample.pages||[]).map(p=>p.text||'').join('\\n').slice(0,11000)});
     }
     const request={model:'gpt-6-astra',store:false,
-     input:[{role:'system',content:'You assess whether uploaded documents are plausibly relevant to an existing Korean legal case. Consider witnesses, related litigation and third parties. Never infer relevance solely from a filename or shared name. If unclear or insufficient text, require clarification. Customer clarifications are claims to cross-check against document text and existing case, not automatic proof. Mark relevant only when supported. Respond as strict JSON {"decisions":[{"id":"...","status":"relevant|clarify","reason":"Korean concise explanation"}]}. Only use relevant when substantive connection is visible in document content.'},
-      {role:'user',content:'Return JSON only. '+JSON.stringify({case:{caseId:job.caseId,intake:registry.intake,priorIssues:prior?.findings?.slice(0,12).map(f=>({issueKey:f.issueKey,claim:String(f.claim||'').slice(0,350)}))},documents:samples,customerClarifications:job.checkpoint?.relevanceClarifications||{}})}],
+     input:[{role:'system',content:'You assess whether uploaded documents are plausibly relevant to an existing Korean legal case. Consider witnesses, related litigation and third parties. Never infer relevance solely from a filename or shared name. If unclear or insufficient text, require clarification. Customer clarifications are claims to cross-check against document text and existing case, not automatic proof. A witness statement, confirmation, receipt or short one-page document is plausibly relevant when it corroborates, disputes or explains any prior issue, even if it does not change the previous conclusion. Compare the document with ALL provided prior issues and customer explanation. Treat a supported factual connection as relevant, not only identical parties or legal labels. Clarify only when a specific factual connection is genuinely missing; do not presume unrelatedness from short length or different names. Respond as strict JSON {"decisions":[{"id":"...","status":"relevant|clarify","reason":"Korean concise explanation"}]}. Only use relevant when substantive connection is visible in document content.'},
+      {role:'user',content:'Return JSON only. '+JSON.stringify({case:{caseId:job.caseId,intake:registry.intake,priorIssues:prior?.findings?.slice(0,80).map(f=>({issueKey:f.issueKey,claim:String(f.claim||'').slice(0,700),analysis:String(f.analysis||'').slice(0,400)}))},documents:samples,customerClarifications:job.checkpoint?.relevanceClarifications||{}})}],
      text:{format:{type:'json_object'}}};
     let reviewed;
     try{reviewed=(await invokeDeltaModel({request,apiKey:process.env.OPENAI_API_KEY})).result}
@@ -172,7 +172,7 @@ export default async function handler(req,res){
      return res.status(200).json({status:'blocked',reason:'DOCUMENT_RELEVANCE_REVIEW_REQUIRED'});
     }
     const uncertain=decisions.filter(x=>x.status==='clarify');
-    if(uncertain.length&&Number(job.checkpoint?.relevanceAttempts||0)>0){
+    if(uncertain.length&&Number(job.checkpoint?.relevanceAttempts||0)>=3){
      // A completed model review after the customer's explanation still
      // cannot establish relevance. Do not repeat the same clarification UI.
      // API/model failures above remain review-required, never 'unrelated'.
