@@ -162,7 +162,7 @@
    if(!data.documents?.length)docs.textContent='등록된 원본이 없습니다.';
    out.replaceChildren();
    const own=reports.filter(r=>r.caseId===c.id);
-   for(const [i,r] of own.entries()){const a=document.createElement('a');a.href='#report';a.textContent=(i+1)+'. 분석 보고서';if(r.createdAt&&!Number.isNaN(Date.parse(r.createdAt))){const t=document.createElement('time');t.textContent=new Date(r.createdAt).toLocaleDateString('ko-KR');a.append(t)}a.onclick=e=>{e.preventDefault();openReport(r)};out.append(a)}
+   for(const [i,r] of own.entries()){const a=document.createElement('a');a.href='#report';a.textContent=i===0?'최초 법률분석보고서':`${i}차 추가 분석보고서`;if(r.createdAt&&!Number.isNaN(Date.parse(r.createdAt))){const t=document.createElement('time');t.textContent=new Date(r.createdAt).toLocaleDateString('ko-KR');a.append(t)}a.onclick=e=>{e.preventDefault();openReport(r)};out.append(a)}
    if(!own.length)out.textContent='완료된 보고서가 없습니다.';
   }catch(e){docs.textContent='자료 조회 실패: '+e.message;out.textContent='보고서를 조회하지 못했습니다.'}
  }
