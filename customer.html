@@ -514,7 +514,7 @@ async function send(){if(busy){notice('이전 업로드 요청이 진행 중입�
    if(result.discarded){
     sessionStorage.removeItem(storageKey);log.dataset.deltaBlockedJob='';log.dataset.reanalysisGuide='';
     bubble('첨부한 PDF를 폐기했습니다. 새로운 자료를 첨부해 주세요.','system');
-    reanalysisStep=2;
+    reanalysisAdvance(2);
    }else bubble('폐기 결과를 확인하지 못했습니다. 자료는 유지됩니다.','system');
   }catch(e){bubble('폐기하지 못했습니다. 최근 추가 자료의 확인이 필요합니다. 기존 자료는 유지됩니다.','system')}
 
