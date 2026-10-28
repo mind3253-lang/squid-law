@@ -842,6 +842,21 @@ async function fullReviewStatus(jobId,caseId){
  const j=await fullReviewRequest('/api/customer-analysis-job?caseId='+encodeURIComponent(caseId)+'&jobId='+encodeURIComponent(jobId));
  const job=j.job,cp=job.checkpoint||{};renderFullReview(job,j.queue,j.progress,j.billing);const stageLabels={pdf_extraction_checkpoint:'PDF 원문 페이지별 추출',pdf_extraction_completed:'PDF 추출 완료 · 분석 대기',text_review_checkpoint:'원문 텍스트 검증',text_review_finalize_checkpoint:'전체 문서 교차검증 집계',text_review_completed_visual_pending:'이미지·OCR 검증 대기'};const progress=job.stage==='pdf_extraction_checkpoint'?' · 추출 '+(cp.extractionNextPage?cp.extractionNextPage-1:0)+'페이지':job.stage==='text_review_finalize_checkpoint'?' · 검증 배치 '+(cp.finalizeOffset||0):' · 확인된 문서 '+(cp.verifiedTextDocuments||0)+'/'+(cp.documentCount||'?');/* Status is rendered in the analysis panel; do not duplicate it below chat. */
  // Intermediate source verification remains available internally, not in the customer progress UI.
+ if(job.status==='blocked'&&job.errorCode==='DOCUMENT_RELEVANCE_NOT_ESTABLISHED'&&log.dataset.relevanceNoticeJob!==jobId){
+  log.dataset.relevanceNoticeJob=jobId;reanalysisStep=0;document.body.classList.remove('relevance-chat-active');
+  const details=cp.relevanceNotice?.documents||[];
+  const noticeText=['# 추가 자료 관련성 검토 결과 안내문','',
+   '검토 대상: '+(details.map(x=>x.name).join(', ')||'추가 제출자료'),'',
+   '검토 결과: 고객님의 추가 설명과 제출자료를 대조했으나 기존 사건과의 관련성을 확인하지 못했습니다.','',
+   ...details.flatMap(x=>['확인 사항: '+String(x.reason||'관련성 확인 불가'),'']),
+   '기존 분석보고서와 그 판단은 변경되지 않았습니다.','',
+   '※ 이는 자료가 허위이거나 사건과 무관하다는 확정 판단이 아니라, 제출된 자료와 설명만으로 관련성을 확인하지 못했다는 뜻입니다.'].join('\\n');
+  bubble(noticeText,'system');
+  guideQuestion('검토 결과 안내문을 확인해 주세요.',[['안내문 인쇄',()=>{
+   const win=window.open('','_blank');if(!win){bubble('팝업 허용 후 다시 시도해 주세요.','system');return}
+   const pre=win.document.createElement('pre');pre.textContent=noticeText;pre.style.cssText='white-space:pre-wrap;font:12pt/1.9 serif;margin:24mm';win.document.body.append(pre);win.document.title='추가 자료 관련성 검토 결과 안내문';win.print();
+  }]]);
+ }
  if(['blocked','failed','completed'].includes(job.status)){clearInterval(fullReviewTimer);fullReviewTimer=null;if(job.status==='blocked'&&['DELTA_BASELINE_UNAVAILABLE','DOCUMENT_RELEVANCE_REVIEW_REQUIRED'].includes(job.errorCode)&&log.dataset.deltaBlockedJob!==jobId){log.dataset.deltaBlockedJob=jobId;reanalysisStep=5;
  if(job.errorCode==='DOCUMENT_RELEVANCE_REVIEW_REQUIRED'){
   document.body.classList.add('relevance-chat-active');$('caseChatInput').maxLength=200;
