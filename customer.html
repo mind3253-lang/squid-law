@@ -852,17 +852,10 @@ async function fullReviewStatus(jobId,caseId){
    '기존 분석보고서와 그 판단은 변경되지 않았습니다.','',
    '※ 이는 자료가 허위이거나 사건과 무관하다는 확정 판단이 아니라, 제출된 자료와 설명만으로 관련성을 확인하지 못했다는 뜻입니다.'].join('\\n');
   bubble(noticeText,'system');
-  // Return to the existing supplemental-upload flow; keep the document
-  // notice visible and let the customer add another PDF immediately.
-  reanalysisAdvance(2);
-  const uploadChoices=log.querySelector('.case-guide-choices:last-child');
-  if(uploadChoices){
-   const picker=document.createElement('input');picker.type='file';picker.accept='.pdf,application/pdf';picker.multiple=true;picker.hidden=true;
-   picker.onchange=()=>{if(picker.files?.length)add(picker.files);picker.value=''};
-   const choose=document.createElement('button');choose.type='button';choose.textContent='PDF 자료 추가';
-   choose.onclick=()=>picker.click();
-   uploadChoices.prepend(choose,picker);
-  }
+  // Reuse the original supplemental-analysis guide (including its
+  // cost/approval steps); do not create a separate upload/payment path.
+  log.dataset.reanalysisGuide='';
+  showReanalysisGuide(jobId);
  }
  if(['blocked','failed','completed'].includes(job.status)){clearInterval(fullReviewTimer);fullReviewTimer=null;if(job.status==='blocked'&&['DELTA_BASELINE_UNAVAILABLE','DOCUMENT_RELEVANCE_REVIEW_REQUIRED'].includes(job.errorCode)&&log.dataset.deltaBlockedJob!==jobId){log.dataset.deltaBlockedJob=jobId;reanalysisStep=5;
  if(job.errorCode==='DOCUMENT_RELEVANCE_REVIEW_REQUIRED'){
