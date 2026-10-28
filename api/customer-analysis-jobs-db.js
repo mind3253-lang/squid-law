@@ -152,13 +152,26 @@ export async function latestCaseJob(user,caseId){return withLeaseDb(async db=>{c
 // Permit removing a mistaken additional document only when the remaining source
 // set is an already completed immutable baseline. Never remove evidence used
 // by an active or completed report.
-export async function mayDiscardAdditionalDocument(user,caseId,remainingVersion,currentVersion){
+export async function mayDiscardAdditionalDocument(user,caseId,remainingVersion,currentVersion,remainingDocs=null,targetId=null){
  return withLeaseDb(async db=>{
   const k=key(user);
-  const rows=await db.query("SELECT status,document_version FROM customer_analysis_jobs WHERE customer_key=$1 AND case_id=$2",[k,caseId]);
+  const rows=await db.query("SELECT status,document_version,checkpoint FROM customer_analysis_jobs WHERE customer_key=$1 AND case_id=$2",[k,caseId]);
   if(rows.rows.some(x=>['running','queued','retry'].includes(x.status)))return false;
-  return rows.rows.some(x=>x.status==='completed'&&x.document_version===remainingVersion)
-   &&!rows.rows.some(x=>x.status==='completed'&&x.document_version===currentVersion);
+  const completed=rows.rows.filter(x=>x.status==='completed');
+  if(completed.some(x=>x.document_version===currentVersion))return false;
+  if(completed.some(x=>x.document_version===remainingVersion))return true;
+  // An unrelated upload may be followed by another upload before it is discarded.
+  // Protect every completed source set, rather than requiring the remaining set
+  // to equal a completed version exactly. Unknown legacy snapshots fail closed.
+  if(!Array.isArray(remainingDocs)||!targetId||!completed.length)return false;
+  const byId=new Map(remainingDocs.map(d=>[d.id,d]));
+  return completed.every(x=>{
+   const snapshot=x.checkpoint?.deltaDocumentSnapshot;
+   if(!Array.isArray(snapshot)||!snapshot.length)return false;
+   if(snapshot.some(d=>!d?.id||d.id===targetId||!byId.has(d.id)))return false;
+   const baseline=snapshot.map(d=>byId.get(d.id));
+   return documentVersion(baseline)===x.document_version;
+  });
  });
 }
 
