@@ -20,32 +20,7 @@ record_status() {
   await recordDeploymentEvent({outcome:process.env.STATUS_OUTCOME,revision:process.env.STATUS_REVISION});
  '
 }
-if systemctl is-active --quiet squidlaw-worker.service; then
- record_status skipped_worker_active
- echo "AUTO_UPDATE_SKIPPED_WORKER_ACTIVE"; exit 0
-fi
-if ! git diff --quiet || ! git diff --cached --quiet; then
- record_status skipped_local_changes
- echo "AUTO_UPDATE_SKIPPED_LOCAL_CHANGES"; exit 0
-fi
-if ! git fetch origin main; then
- record_status fetch_failed
- exit 1
-fi
-current="$(git rev-parse HEAD)"
-target="$(git rev-parse origin/main)"
-if [ "$current" = "$target" ]; then
- record_status already_current
- echo "AUTO_UPDATE_ALREADY_CURRENT=$current"; exit 0
-fi
-if ! git merge-base --is-ancestor "$current" "$target"; then
- record_status skipped_non_fast_forward
- echo "AUTO_UPDATE_SKIPPED_NON_FAST_FORWARD"; exit 1
-fi
-echo "AUTO_UPDATE_FROM=$current TO=$target"
-if ! bash deploy/update-worker-code.sh; then
- record_status update_failed
- exit 1
-fi
-record_status applied
-echo "AUTO_UPDATE_APPLIED=$(git rev-parse HEAD)"
+# The old five-minute Git merge/install path is retired.
+# Production code is updated only by gabia-code-deploy.yml.
+record_status canonical_deploy_only
+echo "AUTO_UPDATE_DISABLED_CANONICAL_DEPLOY_ONLY"

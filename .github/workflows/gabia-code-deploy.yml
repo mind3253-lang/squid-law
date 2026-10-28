@@ -44,6 +44,9 @@ jobs:
           mkdir -p /opt/squidlaw/deploy-backups
           backup="/opt/squidlaw/deploy-backups/pre-$(date +%Y%m%d%H%M%S).tar.gz"
           tar -czf "$backup" --exclude=node_modules --exclude=.git --exclude=.env --exclude=uploads --exclude=storage -C /opt/squidlaw/app .
+          # The archived release is the only automatic production code writer.
+          # Disable the retired timer before replacing source files.
+          systemctl disable --now squidlaw-auto-update.timer >/dev/null 2>&1 || true
           tar -xzf /tmp/squidlaw-release.tar.gz -C /opt/squidlaw/app
           npm ci --omit=dev --no-audit --no-fund
           # Validate critical entrypoints before restarting production services.
@@ -51,6 +54,10 @@ jobs:
           if ! (node --check api/customer-analysis-worker.js &&
                 node --check api/customer-delta-worker.mjs &&
                 node --check api/customer-precedents.js &&
+                node --check lib/customer-analysis-brief.mjs &&
+                node --check lib/gpt-legal-expert.mjs &&
+                node --check api/customer-legal-report.js &&
+                node --check lib/document-export.mjs &&
                 node --check lib/legal-customer-report.mjs &&
                 node --check lib/diagnostic-context.mjs &&
                 node --check lib/skynet-worker-completion.mjs &&
@@ -69,6 +76,19 @@ jobs:
             echo DEPLOY_PRESTART_RESTORED
             exit 1
           fi
+          # Detect edits from any remaining out-of-band code writer.
+          for file in lib/customer-analysis-brief.mjs lib/legal-customer-report.mjs lib/gpt-legal-expert.mjs api/customer-legal-report.js customer.html mypage.html; do
+            expected_sha=$(tar -xzOf /tmp/squidlaw-release.tar.gz "$file" | sha256sum | awk '{print $1}')
+            actual_sha=$(sha256sum "/opt/squidlaw/app/$file" | awk '{print $1}')
+            if [ "$expected_sha" != "$actual_sha" ]; then
+              echo "DEPLOY_SOURCE_MISMATCH=$file"
+              tar -xzf "$backup" -C /opt/squidlaw/app
+              npm ci --omit=dev --no-audit --no-fund
+              echo DEPLOY_PRESTART_RESTORED
+              exit 1
+            fi
+          done
+          echo DEPLOY_REPORT_UI_SOURCE_MATCH
           echo DEPLOY_SYNTAX_GATE_PASSED
           # Precedent API is served by squidlaw-api.service, independently of the analysis worker.
           # Validate the actual Node import graph and the API service credential on Gabia.
@@ -170,17 +190,6 @@ jobs:
           test -f /opt/squidlaw/app/docs/GABIA_MAINTENANCE_PROBE.txt
           grep -qx 'GABIA_DIRECT_MAINTENANCE_PROBE_V1' /opt/squidlaw/app/docs/GABIA_MAINTENANCE_PROBE.txt
           echo DEPLOY_PROBE_VERIFIED
-          # Normalize customer report layout on Gabia without re-running AI analysis.
-          python3 - <<'PY_REPORT_LAYOUT'
-          from pathlib import Path
-          p=Path('/opt/squidlaw/app/lib/customer-analysis-brief.mjs')
-          s=p.read_text()
-          s=s.replace("'휴대전화행동과입장허용 인과관계':'휴대전화 행동과 입장 허용 인과관계'","'휴대전화행동과입장허용 인과관계':'휴대전화 행동과 입장허용 인과관계'")
-          s=s.replace("lines.push('### '+(i+1)+'. '+issueTitle(group.title),'',","lines.push('### '+(i+1)+'. '+issueTitle(group.title),")
-          p.write_text(s)
-          print('REPORT_LAYOUT_PATCH_APPLIED')
-          PY_REPORT_LAYOUT
-          node --check /opt/squidlaw/app/lib/customer-analysis-brief.mjs
           echo REPORT_MODULE_SYNTAX_CHECK_BEGIN
           node --check api/customer-legal-report.js
           node --check lib/customer-analysis-brief.mjs
@@ -391,197 +400,3 @@ jobs:
           done
           echo DEPLOY_RESULT_RECORD_BEST_EFFORT
 
-  deploy-static-sidebar-patch:
-    name: Apply sidebar and guide UI patch to Gabia
-    runs-on: ubuntu-latest
-    needs: [deploy]
-    if: ${{ always() && github.ref == 'refs/heads/main' }}
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@v4
-      - name: Patch static UI files over SSH
-        env:
-          KEY: ${{ secrets.GABIA_SSH_PRIVATE_KEY }}
-        run: |
-          set -euo pipefail
-          test -n "$KEY"
-          node --check squid-case-sidebar.js
-          install -d -m 700 ~/.ssh
-          printf '%s\n' "$KEY" > ~/.ssh/gabia.pem
-          chmod 600 ~/.ssh/gabia.pem
-          ssh-keyscan -H -T 10 1.201.111.35 >> ~/.ssh/known_hosts
-          for file in squid-case-sidebar.js squid-case-sidebar.css customer.html; do
-            scp -i ~/.ssh/gabia.pem -o BatchMode=yes "$file" ubuntu@1.201.111.35:"/tmp/$file"
-          done
-          ssh -T -i ~/.ssh/gabia.pem -o BatchMode=yes ubuntu@1.201.111.35 'sudo -n bash -s' <<'REMOTE'
-          set -euo pipefail
-          for file in squid-case-sidebar.js squid-case-sidebar.css customer.html; do
-            test -s "/tmp/$file"
-            install -m 644 "/tmp/$file" "/opt/squidlaw/app/$file"
-            cmp "/tmp/$file" "/opt/squidlaw/app/$file"
-            echo "STATIC_PATCH_OK=$file"
-          done
-          REMOTE
-          scp -i ~/.ssh/gabia.pem -o BatchMode=yes images/legal-terms.svg ubuntu@1.201.111.35:/tmp/legal-terms.svg
-          ssh -T -i ~/.ssh/gabia.pem -o BatchMode=yes ubuntu@1.201.111.35 'sudo -n bash -s' <<'REMOTE'
-          set -euo pipefail
-          install -d -m 755 /opt/squidlaw/app/images
-          install -m 644 /tmp/legal-terms.svg /opt/squidlaw/app/images/legal-terms.svg
-          cmp /tmp/legal-terms.svg /opt/squidlaw/app/images/legal-terms.svg
-          echo LEGAL_TERMS_ICON_DEPLOYED
-          REMOTE
-          echo STATIC_PATCH_DEPLOYED
-
-  deploy-precedent-history-patch:
-    name: Apply precedent history API patch directly on Gabia
-    runs-on: ubuntu-latest
-    if: ${{ github.ref == 'refs/heads/main' }}
-    timeout-minutes: 8
-    steps:
-      - uses: actions/checkout@v4
-      - name: Patch precedent history endpoint over SSH and verify live file
-        env:
-          KEY: ${{ secrets.GABIA_SSH_PRIVATE_KEY }}
-        run: |
-          set -euo pipefail
-          test -n "$KEY"
-          node --check api/customer-precedents.js
-          install -d -m 700 ~/.ssh
-          printf '%s\n' "$KEY" > ~/.ssh/gabia.pem
-          chmod 600 ~/.ssh/gabia.pem
-          ssh-keyscan -H -T 10 1.201.111.35 >> ~/.ssh/known_hosts
-          scp -i ~/.ssh/gabia.pem -o BatchMode=yes api/customer-precedents.js ubuntu@1.201.111.35:/tmp/squidlaw-precedents-patch.js
-          ssh -T -i ~/.ssh/gabia.pem -o BatchMode=yes ubuntu@1.201.111.35 'sudo -n bash -s' <<'REMOTE'
-          set -euo pipefail
-          target=/opt/squidlaw/app/api/customer-precedents.js
-          test -s /tmp/squidlaw-precedents-patch.js
-          test -f "$target"
-          backup="$target.before-history-patch"
-          cp -p "$target" "$backup"
-          install -m 644 /tmp/squidlaw-precedents-patch.js "$target"
-          if ! node --check "$target" || ! cmp -s /tmp/squidlaw-precedents-patch.js "$target"; then
-            cp -p "$backup" "$target"
-            echo PRECEDENT_PATCH_VERIFICATION_FAILED
-            exit 1
-          fi
-          if ! systemctl restart squidlaw-api.service || ! systemctl is-active --quiet squidlaw-api.service; then
-            cp -p "$backup" "$target"
-            systemctl restart squidlaw-api.service || true
-            echo PRECEDENT_PATCH_RESTORED
-            exit 1
-          fi
-          cmp /tmp/squidlaw-precedents-patch.js "$target"
-          echo PRECEDENT_PATCH_LIVE_VERIFIED
-          REMOTE
-      - name: Record independent Gabia precedent patch result
-        if: always()
-        env:
-          GH_TOKEN: ${{ github.token }}
-          PATCH_JOB_STATUS: ${{ job.status }}
-        run: |
-          set -euo pipefail
-          python3 - <<'PY'
-          import json,os,datetime
-          result={'status':os.environ['PATCH_JOB_STATUS'],'commit':os.environ['GITHUB_SHA'],'timestamp':datetime.datetime.now(datetime.timezone.utc).isoformat(),'job':'deploy-precedent-history-patch'}
-          with open('/tmp/precedent-patch-result.json','w') as f: json.dump(result,f)
-          PY
-          encoded=$(base64 -w0 /tmp/precedent-patch-result.json)
-          path=docs/GABIA_PRECEDENT_PATCH_RESULT.json
-          for attempt in 1 2 3; do
-            old=$(gh api "repos/${GITHUB_REPOSITORY}/contents/$path" --jq .sha 2>/dev/null || true)
-            if [ -n "$old" ]; then
-              gh api -X PUT "repos/${GITHUB_REPOSITORY}/contents/$path" -f message='Record independent Gabia precedent patch result' -f content="$encoded" -f sha="$old" >/dev/null && break
-            else
-              gh api -X PUT "repos/${GITHUB_REPOSITORY}/contents/$path" -f message='Record independent Gabia precedent patch result' -f content="$encoded" >/dev/null && break
-            fi
-            sleep 2
-          done
-
-  deploy-legal-token-patch:
-    name: Apply legal GPT token budget directly on Gabia
-    runs-on: ubuntu-latest
-    if: ${{ github.ref == 'refs/heads/main' }}
-    timeout-minutes: 8
-    steps:
-      - uses: actions/checkout@v4
-      - name: Apply and verify legal expert token budget via SSH
-        env:
-          KEY: ${{ secrets.GABIA_SSH_PRIVATE_KEY }}
-        run: |
-          set -Eeuo pipefail
-          trap 'printf "failed_at_line=%s\n" "$LINENO" > /tmp/legal-patch-error.txt' ERR
-          test -n "$KEY"
-          node --check lib/gpt-legal-expert.mjs
-          node --check lib/legal-customer-report.mjs
-          # Restore a truncated customer brief directly from the last complete Git revision.
-          if ! node --check lib/customer-analysis-brief.mjs; then
-            git show 62251cb2e1e1323e10e46a577b29a41e69ce36a3:lib/customer-analysis-brief.mjs > lib/customer-analysis-brief.mjs
-            node --check lib/customer-analysis-brief.mjs
-          fi
-
-          grep -q 'max_output_tokens:50000' lib/gpt-legal-expert.mjs
-          install -d -m 700 ~/.ssh
-          printf '%s\n' "$KEY" > ~/.ssh/gabia.pem
-          chmod 600 ~/.ssh/gabia.pem
-          ssh-keyscan -H -T 10 1.201.111.35 >> ~/.ssh/known_hosts
-          scp -v -i ~/.ssh/gabia.pem -o BatchMode=yes -o ConnectTimeout=15 lib/gpt-legal-expert.mjs ubuntu@1.201.111.35:/tmp/squidlaw-legal-token-patch.mjs
-          scp -i ~/.ssh/gabia.pem -o BatchMode=yes lib/legal-customer-report.mjs ubuntu@1.201.111.35:/tmp/squidlaw-legal-report-patch.mjs
-          scp -i ~/.ssh/gabia.pem -o BatchMode=yes lib/customer-analysis-brief.mjs ubuntu@1.201.111.35:/tmp/squidlaw-customer-brief-patch.mjs
-          ssh -T -i ~/.ssh/gabia.pem -o BatchMode=yes ubuntu@1.201.111.35 'sudo -n bash -s' <<'REMOTE'
-          set -euo pipefail
-          target=/opt/squidlaw/app/lib/gpt-legal-expert.mjs
-          backup="$target.before-token-patch"
-          report_target=/opt/squidlaw/app/lib/legal-customer-report.mjs
-          report_backup="$report_target.before-dedupe-patch"
-          brief_target=/opt/squidlaw/app/lib/customer-analysis-brief.mjs
-          brief_backup="$brief_target.before-concise-patch"
-          cp -p "$brief_target" "$brief_backup"
-          cp -p "$report_target" "$report_backup"
-          test -s /tmp/squidlaw-legal-token-patch.mjs
-          cp -p "$target" "$backup"
-          install -m 644 /tmp/squidlaw-legal-token-patch.mjs "$target"
-          install -m 644 /tmp/squidlaw-legal-report-patch.mjs "$report_target"
-          install -m 644 /tmp/squidlaw-customer-brief-patch.mjs "$brief_target"
-          if ! node --check "$target" || ! cmp -s /tmp/squidlaw-legal-token-patch.mjs "$target" || ! node --check "$report_target" || ! cmp -s /tmp/squidlaw-legal-report-patch.mjs "$report_target" || ! node --check "$brief_target" || ! cmp -s /tmp/squidlaw-customer-brief-patch.mjs "$brief_target"; then
-            cp -p "$backup" "$target"
-            cp -p "$report_backup" "$report_target"
-            cp -p "$brief_backup" "$brief_target"
-            exit 1
-          fi
-          if ! systemctl restart squidlaw-worker.service || ! systemctl is-active --quiet squidlaw-worker.service; then
-            cp -p "$backup" "$target"
-            cp -p "$report_backup" "$report_target"
-            cp -p "$brief_backup" "$brief_target"
-            systemctl restart squidlaw-worker.service || true
-            exit 1
-          fi
-          systemctl restart squidlaw-api.service
-          systemctl is-active --quiet squidlaw-api.service
-          cmp /tmp/squidlaw-customer-brief-patch.mjs "$brief_target"
-          cmp /tmp/squidlaw-legal-token-patch.mjs "$target"
-          grep -q 'max_output_tokens:50000' "$target"
-          cmp /tmp/squidlaw-legal-report-patch.mjs "$report_target"
-          echo GABIA_LEGAL_TOKEN_PATCH_VERIFIED
-          REMOTE
-      - name: Record independent token patch outcome
-        if: always()
-        env:
-          GH_TOKEN: ${{ github.token }}
-          PATCH_STATUS: ${{ job.status }}
-        run: |
-          python3 - <<'PY'
-          import os,json
-          with open('/tmp/legal-token-patch-result.json','w') as f:
-            json.dump({'status':os.environ['PATCH_STATUS'],'commit':os.environ['GITHUB_SHA'],'job':'deploy-legal-token-patch','diagnostic':open('/tmp/legal-patch-error.txt').read().strip() if os.path.exists('/tmp/legal-patch-error.txt') else 'no_local_error_marker'},f)
-          PY
-          encoded=$(base64 -w0 /tmp/legal-token-patch-result.json)
-          path=docs/GABIA_LEGAL_TOKEN_PATCH_RESULT.json
-          for attempt in 1 2 3 4; do
-            old=$(gh api "repos/${GITHUB_REPOSITORY}/contents/$path" --jq .sha 2>/dev/null || true)
-            if [ -n "$old" ]; then
-              gh api -X PUT "repos/${GITHUB_REPOSITORY}/contents/$path" -f message='Record Gabia legal token patch outcome' -f content="$encoded" -f sha="$old" >/dev/null && break
-            else
-              gh api -X PUT "repos/${GITHUB_REPOSITORY}/contents/$path" -f message='Record Gabia legal token patch outcome' -f content="$encoded" >/dev/null && break
-            fi
-            sleep 2
-          done
