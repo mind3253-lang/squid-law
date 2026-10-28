@@ -852,10 +852,17 @@ async function fullReviewStatus(jobId,caseId){
    '기존 분석보고서와 그 판단은 변경되지 않았습니다.','',
    '※ 이는 자료가 허위이거나 사건과 무관하다는 확정 판단이 아니라, 제출된 자료와 설명만으로 관련성을 확인하지 못했다는 뜻입니다.'].join('\\n');
   bubble(noticeText,'system');
-  guideQuestion('검토 결과 안내문을 확인해 주세요.',[['안내문 인쇄',()=>{
-   const win=window.open('','_blank');if(!win){bubble('팝업 허용 후 다시 시도해 주세요.','system');return}
-   const pre=win.document.createElement('pre');pre.textContent=noticeText;pre.style.cssText='white-space:pre-wrap;font:12pt/1.9 serif;margin:24mm';win.document.body.append(pre);win.document.title='추가 자료 관련성 검토 결과 안내문';win.print();
-  }]]);
+  // Return to the existing supplemental-upload flow; keep the document
+  // notice visible and let the customer add another PDF immediately.
+  reanalysisAdvance(2);
+  const uploadChoices=log.querySelector('.case-guide-choices:last-child');
+  if(uploadChoices){
+   const picker=document.createElement('input');picker.type='file';picker.accept='.pdf,application/pdf';picker.multiple=true;picker.hidden=true;
+   picker.onchange=()=>{if(picker.files?.length)add(picker.files);picker.value=''};
+   const choose=document.createElement('button');choose.type='button';choose.textContent='PDF 자료 추가';
+   choose.onclick=()=>picker.click();
+   uploadChoices.prepend(choose,picker);
+  }
  }
  if(['blocked','failed','completed'].includes(job.status)){clearInterval(fullReviewTimer);fullReviewTimer=null;if(job.status==='blocked'&&['DELTA_BASELINE_UNAVAILABLE','DOCUMENT_RELEVANCE_REVIEW_REQUIRED'].includes(job.errorCode)&&log.dataset.deltaBlockedJob!==jobId){log.dataset.deltaBlockedJob=jobId;reanalysisStep=5;
  if(job.errorCode==='DOCUMENT_RELEVANCE_REVIEW_REQUIRED'){
