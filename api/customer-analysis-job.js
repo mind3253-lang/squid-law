@@ -1,7 +1,7 @@
 import {requireOwnedCase} from '../lib/customer-case-access.mjs';
 import {validClientRole} from '../lib/customer-case-intake.mjs';
 import {guard,respond,readJson,documents,casePrefix} from './customer-case.js';
-import {enqueueJob,getJob,resumeJob,queueSnapshot,documentVersion,latestCaseJob,confirmDocumentRelevance,acceptCustomerRequestedEvidence} from './customer-analysis-jobs-db.js';
+import {enqueueJob,getJob,resumeJob,queueSnapshot,documentVersion,latestCaseJob,completedCustomerReports,confirmDocumentRelevance,acceptCustomerRequestedEvidence} from './customer-analysis-jobs-db.js';
 const idOk=id=>/^SL-[a-zA-Z0-9-]{5,40}$/.test(id);
 // Compare explicit party metadata only. Filename keywords are never evidence of mismatch.
 const normParty=s=>String(s||'').replace(/\s+/g,'').trim();
@@ -21,6 +21,30 @@ export default async function handler(req,res){
  if(!registry||registry.id!==caseId)return respond(res,404,{code:'CASE_NOT_FOUND',error:'등록된 사건이 없습니다'});
  if(req.method==='POST'&&!validClientRole(registry.intake?.clientRole))
   return respond(res,409,{code:'CLIENT_ROLE_REQUIRED',error:'원고인가요, 피고인가요? 의뢰인 지위를 먼저 등록해 주세요.'});
+ if(req.method==='GET'&&req.query?.view==='supplemental'){
+  try{
+   const allDocs=await documents(a.user,caseId);
+   const completed=await completedCustomerReports(a.user,caseId);
+   let baseline=null,sourceIds=null;
+   for(const job of completed){
+    const snapshot=job.checkpoint?.deltaDocumentSnapshot;
+    if(!Array.isArray(snapshot)||!snapshot.length)continue;
+    const indexed=new Map(allDocs.map(d=>[d.id,d]));
+    const original=snapshot.map(d=>indexed.get(d.id));
+    if(original.some((d,i)=>!d||d.sha256!==snapshot[i].sha256||d.pageCount!==snapshot[i].pageCount))continue;
+    if(documentVersion(original)!==job.documentVersion)continue;
+    baseline=job;sourceIds=new Set(snapshot.map(d=>d.id));break;
+   }
+   if(!baseline)return respond(res,200,{registered:[],baselineAvailable:false,reason:'COMPLETED_SOURCE_SNAPSHOT_UNAVAILABLE'});
+   const registered=allDocs.filter(d=>!sourceIds.has(d.id)).map(d=>({
+    id:d.id,name:d.name,size:d.size,pageCount:d.pageCount,status:'server_registered'
+   }));
+   return respond(res,200,{registered,baselineAvailable:true,baselineJobId:baseline.jobId,baselineVersion:baseline.documentVersion});
+  }catch(e){
+   console.error('[customer-analysis-job] supplemental list failed',{caseId,errorName:e?.name});
+   return respond(res,503,{code:'SUPPLEMENTAL_LIST_FAILED',error:'서버 등록된 추가 자료 목록을 확인하지 못했습니다.'});
+  }
+ }
  if(req.method==='GET'){
   const jobId=String(req.query?.jobId||'');if(jobId!=='latest'&&!/^[0-9a-f-]{36}$/.test(jobId))return respond(res,400,{error:'작업 ID 오류'});
   try{const job=jobId==='latest'?await latestCaseJob(a.user,caseId):await getJob(a.user,caseId,jobId);// The Gabia continuous worker consumes the durable queue independently of browser polling.
