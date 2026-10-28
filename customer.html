@@ -584,7 +584,7 @@ function renderFullReview(job,queue,progress,billing){
  const clockRunning=state==='running'; const finishedMs=clockRunning?Date.now():new Date(job.completedAt||job.finishedAt||job.updatedAt||job.createdAt||Date.now()).getTime();
  const seconds=startMs?Math.max(0,Math.floor((Math.max(startMs,finishedMs)-startMs)/1000)):null;
  const clockText=seconds===null?'대기 중':String(Math.floor(seconds/60)).padStart(2,'0')+':'+String(seconds%60).padStart(2,'0');
- detail.textContent='대기 : '+ahead+'건 · 분석시간 : ';
+ detail.textContent='대기 : '+ahead+'건 · 작업 경과시간(요금과 무관) : ';
  const clock=document.createElement('span');clock.textContent=clockText;detail.append(clock);
  fullReviewClockNode=clock;fullReviewClockStart=startMs;fullReviewClockEnd=clockRunning?0:Math.max(startMs||0,finishedMs);
  if(!fullReviewClockTicker)fullReviewClockTicker=setInterval(refreshFullReviewClock,1000);
