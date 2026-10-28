@@ -707,7 +707,7 @@ async function startDeltaReanalysis(){
  const caseId=select.value,files=[...reanalysisFiles];
  try{
   bubble('추가 자료 '+files.length+'개를 서버에 등록합니다. 사건 관련성이 불명확하면 분석 전에 확인 질문이 표시됩니다.','system');
-  const uploaded=[];for(const f of files){const result=await uploadLarge(f);if(!result.document?.id)throw Error('PDF 서버 등록 확인 실패: '+f.name);uploaded.push({id:result.document.id,name:result.document.name||f.name});bubble('서버 등록 확인: '+(result.document.name||f.name),'system')}if(uploaded.length!==files.length)throw Error('추가 PDF 등록 수량 불일치');sessionStorage.setItem('squidlaw-delta-uploaded:'+caseId,JSON.stringify(uploaded));
+  const uploaded=[];for(const f of files){const result=await uploadLarge(f);if(result.duplicate||result.reused)throw Error('이미 서버에 등록된 동일 PDF입니다. 중복 분석을 시작하지 않습니다: '+f.name);if(!result.document?.id)throw Error('PDF 서버 등록 확인 실패: '+f.name);uploaded.push({id:result.document.id,name:result.document.name||f.name});bubble('서버 등록 확인: '+(result.document.name||f.name),'system')}if(uploaded.length!==files.length)throw Error('추가 PDF 등록 수량 불일치');sessionStorage.setItem('squidlaw-delta-uploaded:'+caseId,JSON.stringify(uploaded));
   const j=await fullReviewRequest('/api/customer-analysis-job?caseId='+encodeURIComponent(caseId),{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({action:'approve-analysis',approved:true})});
   const id=j.job?.jobId;if(!id)throw Error('분석 작업 등록 응답 오류');
   sessionStorage.setItem('squidlaw-full-review:'+caseId,id);
