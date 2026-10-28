@@ -137,6 +137,10 @@
 .analysis-clean #categoryAnalysisBox .case-guide-choices button:first-child:hover,
 .analysis-clean #categoryAnalysisBox .case-guide-choices button:last-child:hover{background:#dbe8f5;border-color:#d3deea;color:#263748}
 .analysis-clean #categoryAnalysisBox .case-guide-choices button:focus-visible{outline:2px solid #587b9f;outline-offset:2px}
+/* Keep all relevance choices, including Previous, on the same baseline. */
+.analysis-clean #categoryAnalysisBox .case-guide-choices.relevance-choice-buttons{display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-start;gap:9px}
+.analysis-clean #categoryAnalysisBox .case-guide-choices.relevance-choice-buttons button{box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;vertical-align:middle;height:40px;min-height:40px;margin:0;line-height:1.2;flex:0 0 auto}
+
 @media(max-width:700px){.analysis-clean #categoryAnalysisBox .case-chat-message.system,.analysis-clean #categoryAnalysisBox .case-chat-message.user{font-size:16px}}
 </style><style>
 .analysis-clean #categoryAnalysisBox .case-report-attachment{display:flex;align-items:center;gap:12px;width:min(100%,435px);min-height:58px;text-align:left;padding:14px 18px;border:1px solid #e1e5e9;border-radius:16px;background:#fff;color:#273240;font-size:14px;font-weight:500;box-shadow:none;cursor:pointer}
@@ -565,7 +569,7 @@ function renderFullReview(job,queue,progress,billing){
  const waiting=state==='queued'||(state==='retry'&&queue?.ahead>0);
  const stage=job.stage||'queued';
 
- const labels={queued:'분석 대기',running:'분석 진행',retry:'분석 처리 중',blocked:'검증 중단',failed:'분석 실패',completed:'분석 완료'};
+ const labels={queued:'분석 대기',running:'분석 진행',retry:'분석 처리 중',blocked:relevanceWait?'자료 관련성 확인 대기':'검증 중단',failed:'분석 실패',completed:'분석 완료'};
  const title=document.createElement('strong');title.textContent=labels[state]||'분석 진행';
  const detail=document.createElement('p');detail.style.cssText='margin:8px 0;font-size:14px;font-variant-numeric:tabular-nums';
  const ahead=Number.isInteger(queue?.ahead)?Math.max(0,queue.ahead):Math.max(0,(Number.isInteger(queue?.position)?queue.position-1:0));
@@ -702,13 +706,13 @@ async function startDeltaReanalysis(){
  if(!select.value||!reanalysisFiles.length){bubble('추가 PDF가 없습니다.','system');return}
  const caseId=select.value,files=[...reanalysisFiles];
  try{
-  bubble('추가 자료 '+files.length+'개를 서버에 등록하고 기존 분석과 비교합니다.','system');
+  bubble('추가 자료 '+files.length+'개를 서버에 등록합니다. 사건 관련성이 불명확하면 분석 전에 확인 질문이 표시됩니다.','system');
   const uploaded=[];for(const f of files){const result=await uploadLarge(f);if(result.document?.id)uploaded.push({id:result.document.id,name:result.document.name})}sessionStorage.setItem('squidlaw-delta-uploaded:'+caseId,JSON.stringify(uploaded));
   const j=await fullReviewRequest('/api/customer-analysis-job?caseId='+encodeURIComponent(caseId),{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({action:'approve-analysis',approved:true})});
   const id=j.job?.jobId;if(!id)throw Error('분석 작업 등록 응답 오류');
   sessionStorage.setItem('squidlaw-full-review:'+caseId,id);
   reanalysisFiles=[];reanalysisStep=0;
-  bubble('추가 자료 분석 작업을 접수했습니다. 기존 완료 분석을 기준으로 변경사항을 확인합니다.','system');
+  bubble('추가 자료를 접수했습니다. 사건 관련성 확인 후 기존 분석에 미치는 영향을 검토합니다.','system');
   fullReviewStatus(id,caseId).catch(()=>{});
   if(fullReviewTimer)clearInterval(fullReviewTimer);
   if(!['completed','blocked','failed'].includes(j.job.status))fullReviewTimer=setInterval(()=>fullReviewStatus(id,caseId).catch(e=>notice(e.message,'error')),15000);
