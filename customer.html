@@ -705,7 +705,7 @@ function showReanalysisGuide(jobId){
 function reanalysisAdvance(step){
  reanalysisStep=step;
  if(step===1){guideQuestion('1. 추가 자료를 첨부하시겠습니까? 핵심자료가 아니거나, 내용이 미비할 시 분석결과가 크게 바뀌지 않을 수 있습니다.',[['예',()=>reanalysisAdvance(2)],['아니오',()=>bubble('자료 준비 후 다시 방문 바랍니다.','system')]]);return}
- if(step===2){guideQuestion('2. 추가 PDF를 모두 첨부해 주세요. 자료를 다 첨부한 후 [첨부 완료] 버튼을 누르세요.',[['첨부 완료',()=>{if(!reanalysisFiles.length){bubble('추가 PDF를 먼저 첨부해 주세요.','system');return}reanalysisAdvance(3)}]]);return}
+ if(step===2){guideQuestion('2. 필요한 추가 PDF를 모두 첨부해 주세요. 자료를 다 넣었으면 [첨부 완료]를 누르세요.',[['첨부 완료',async()=>{if(!reanalysisFiles.length){bubble('이번 단계에서 새로 선택한 PDF가 없습니다. 이전에 서버에 등록한 자료가 있다면 중복 첨부하지 마세요. 등록된 추가 자료의 분석 연결을 확인하겠습니다.','system');try{const j=await fullReviewRequest('/api/customer-analysis-job?caseId='+encodeURIComponent(select.value)+'&jobId=latest');if(j.job?.status==='completed'){bubble('현재 최신 분석은 완료 상태입니다. 새로 추가할 자료를 선택해 주세요.','system');return}if(j.job?.status==='blocked'||j.job?.status==='failed'){bubble('이전 분석 작업이 중단된 상태입니다. 새 자료가 없다면 분석을 중복 접수하지 않습니다.','system');return}}catch(e){bubble('기존 작업 상태 확인 실패: '+String(e.message||e),'system')}return}reanalysisAdvance(3)}]]);return}
  if(step===3){const bytes=reanalysisFiles.reduce((n,f)=>n+f.size,0);guideQuestion('3. PDF '+reanalysisFiles.length+'개 ('+(bytes/1048576).toFixed(2)+'MB). 현재 파일에 대한 예상 분석비용은 비용 산정 후 표시됩니다. 진행하시겠습니까?',[['예',()=>reanalysisAdvance(4)],['아니오',()=>bubble('진행을 중단했습니다.','system')]]);return}
  if(step===4){guideQuestion('4. 추가 자료를 기존 분석에 반영하시겠습니까?',[['예',()=>startDeltaReanalysis()],['아니오',()=>bubble('진행을 중단했습니다.','system')]]);}
 }
