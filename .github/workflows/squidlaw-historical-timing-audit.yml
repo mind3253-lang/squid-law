@@ -1,0 +1,46 @@
+name: SQUIDLAW historical timing read-only audit
+on:
+  push:
+    branches: [squidlaw-source-snapshot-20261117]
+    paths:
+      - '.github/workflows/squidlaw-historical-timing-audit.yml'
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Aggregate historical stage timings privately on Gabia
+        env:
+          KEY: ${{ secrets.GABIA_SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "$KEY"
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$KEY" > ~/.ssh/gabia.pem
+          chmod 600 ~/.ssh/gabia.pem
+          ssh -T -i ~/.ssh/gabia.pem -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15 ubuntu@1.201.111.35 'sudo -n python3 -' <<'PY'
+          import json, subprocess, collections, datetime
+          starts=[('oct_test','2026-10-25','2026-10-31'),('nov_followup','2026-11-01','2026-11-16')]
+          def audit(label,start,end):
+            cmd=['journalctl','-u','squidlaw-worker.service','--since',start,'--until',end,'--grep=ANALYSIS_TIMING|SQUIDLAW_MODEL_USAGE|WORKER_STEP_FAILED','--no-pager','-o','short-iso']
+            p=subprocess.Popen(cmd,stdout=subprocess.PIPE,stderr=subprocess.DEVNULL,encoding='utf-8',errors='replace')
+            stages=collections.defaultdict(list);days=collections.Counter();events=collections.Counter()
+            for line in p.stdout:
+              day=line[:10] if line[:4].isdigit() else 'unknown'
+              days[day]+=1
+              if 'ANALYSIS_TIMING ' in line:
+                try:
+                  obj=json.loads(line.split('ANALYSIS_TIMING ',1)[1].strip())
+                  stage=str(obj.get('stage','unknown'));value=float(obj.get('durationMs',0))
+                  if 0<=value<1e7:stages[stage].append(value)
+                except Exception:events['timing_parse_failed']+=1
+              elif 'SQUIDLAW_MODEL_USAGE' in line:events['model_usage_records']+=1
+              elif 'WORKER_STEP_FAILED' in line:events['worker_step_failures']+=1
+            p.wait()
+            def summarize(nums):
+              nums.sort();return {'n':len(nums),'sum_seconds':round(sum(nums)/1000,2),'median_ms':round(nums[len(nums)//2],1),'p95_ms':round(nums[int((len(nums)-1)*.95)],1),'max_ms':round(nums[-1],1)}
+            return {'period':label,'events_by_day':dict(days),'stages':{k:summarize(v) for k,v in stages.items()},'events':dict(events),'journal_exit_code':p.returncode}
+          print('SAFE_HISTORICAL_TIMING_JSON='+json.dumps([audit(*args) for args in starts],ensure_ascii=False,sort_keys=True))
+          PY
