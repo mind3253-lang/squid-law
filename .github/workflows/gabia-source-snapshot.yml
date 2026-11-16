@@ -1,0 +1,106 @@
+name: Gabia source-only snapshot (isolated branch)
+on:
+  push:
+    branches: [squidlaw-source-snapshot-20261117]
+    paths:
+      - '.github/workflows/gabia-source-snapshot.yml'
+permissions:
+  contents: read
+jobs:
+  source-snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Prepare SSH authentication
+        env:
+          GABIA_KEY: ${{ secrets.GABIA_SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "$GABIA_KEY"
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$GABIA_KEY" > ~/.ssh/gabia.pem
+          chmod 600 ~/.ssh/gabia.pem
+          ssh-keyscan -H -T 10 1.201.111.35 >> ~/.ssh/known_hosts
+      - name: Collect only source files without touching live services
+        run: |
+          set -euo pipefail
+          ssh -T -i ~/.ssh/gabia.pem -o BatchMode=yes ubuntu@1.201.111.35 'sudo -n bash -s' <<'REMOTE'
+          set -euo pipefail
+          app=/opt/squidlaw/app
+          test -f "$app/package.json"
+          manifest=$(mktemp /tmp/squidlaw-src-files-XXXXXX)
+          python3 - "$app" "$manifest" <<'PY'
+          import os,sys
+          app,manifest=sys.argv[1:]
+          omit={'node_modules','.git','uploads','storage','objects','data','backups','deploy-backups','.cache','tmp','temp','logs','.next','build','dist','coverage','sessions','customer-files','private','secrets','records'}
+          ext={'.js','.mjs','.cjs','.ts','.tsx','.html','.css','.scss','.json','.jsonc','.md','.yml','.yaml','.sh','.py','.sql','.svg','.xml','.txt','.lock','.png','.jpg','.jpeg','.webp','.ico'}
+          out=[]
+          for root,dirs,files in os.walk(app,topdown=True,followlinks=False):
+              dirs[:]=[d for d in dirs if d not in omit and not d.startswith('.__')]
+              for name in files:
+                  if name.startswith('.env') or name.startswith('.secret') or name.endswith(('.pem','.key','.p12','.pfx','.db','.sqlite','.sqlite3','.log','.zip','.tar','.gz','.bak','.old','.map')): continue
+                  if any(s in name.lower() for s in ['secret','credential','private-key','token-dump']): continue
+                  if os.path.splitext(name)[1].lower() not in ext and name not in {'Dockerfile','Makefile','.gitignore','.npmrc'}: continue
+                  p=os.path.join(root,name)
+                  if not os.path.isfile(p) or os.path.islink(p): continue
+                  out.append(os.path.relpath(p,app))
+          out.sort()
+          with open(manifest,'wb') as f:
+              for path in out: f.write(os.fsencode(path)+b'\0')
+          print('SOURCE_FILE_COUNT='+str(len(out)))
+          if len(out)<100: raise SystemExit('SOURCE_FILE_COUNT_UNEXPECTEDLY_LOW')
+          PY
+          archive=/tmp/squidlaw-live-source-snapshot-20261117.tar.gz
+          tar -C "$app" --null -T "$manifest" -czf "$archive"
+          chown ubuntu:ubuntu "$archive"
+          chmod 600 "$archive"
+          echo "SOURCE_ARCHIVE_BYTES=$(stat -c %s "$archive")"
+          sha256sum "$archive" | awk '{print "SOURCE_SHA256="$1}'
+          git -c safe.directory="$app" -C "$app" rev-parse HEAD 2>/dev/null | sed 's/^/SERVER_GIT_HEAD=/' || true
+          rm -f "$manifest"
+          REMOTE
+          scp -i ~/.ssh/gabia.pem -o BatchMode=yes ubuntu@1.201.111.35:/tmp/squidlaw-live-source-snapshot-20261117.tar.gz "$RUNNER_TEMP/source.tar.gz"
+          ssh -T -i ~/.ssh/gabia.pem -o BatchMode=yes ubuntu@1.201.111.35 'rm -f /tmp/squidlaw-live-source-snapshot-20261117.tar.gz'
+          test -s "$RUNNER_TEMP/source.tar.gz"
+          echo "SOURCE_TRANSFER_COMPLETE"
+      - name: Encrypt archive before any artifact upload
+        run: |
+          set -euo pipefail
+          cat > "$RUNNER_TEMP/recipient.pem" <<'CERT'
+          -----BEGIN CERTIFICATE-----
+          MIIEJzCCAo+gAwIBAgIUVIH80nBqHkSyeMVGefYk0wZFZecwDQYJKoZIhvcNAQEL
+          BQAwIzEhMB8GA1UEAwwYU1FVSURMQVcgU291cmNlIFNuYXBzaG90MB4XDTI2MTEx
+          NjIxNDExMFoXDTI2MTExNzIxNDExMFowIzEhMB8GA1UEAwwYU1FVSURMQVcgU291
+          cmNlIFNuYXBzaG90MIIBojANBgkqhkiG9w0BAQEFAAOCAY8AMIIBigKCAYEA0h/k
+          Q/ftUnIki6Yhgsnu0/QoSBCXAVQdO4AWnKXNWxcIvRwxTXAXL0UwuUsQfVKUKmNZ
+          yhQilFhXvb2+EcJ5K0N7sNH+oB9c6Rn9DGvsXZNX/sE1PQnh+dRYRTVC+mR3vL8U
+          3JrQQT0G4mvJe9vsiX2fIY8IL2p4bgS0rK0M1AEr0N+2J80TZimW/hqzDDxjtKnn
+          5kMRoTVrlRwUb7ZfhTc/lilEIUTzzD62kq97bToJ/5A/hMw19TH79TU1rrs027eZ
+          WduTG6TFVrFJ2GlBTTDAqFguZuybIzxvLXIjfgkGSb1yEZs0MBLAUQcE/NQH+VkW
+          yrhDiRjOCohO/XMbVH9fJMNcoxdYGSsNup52HXU+kKhQFTendsdAylWAvfuN/14o
+          7LCe8cxCFA5URYFs63CcVZVdf7kwcvUue3plhxE3rxR9B5wXJIi6Pzc2m07rgmvi
+          kbork3M5QW3z7mYM42JsCCMuI4dASw9SyBbNPbOJHc5XnwHexbpzfa5LIXxTAgMB
+          AAGjUzBRMB0GA1UdDgQWBBQKwYByQxf0nhzR2Qbfc0ozglFsJjAfBgNVHSMEGDAW
+          gBQKwYByQxf0nhzR2Qbfc0ozglFsJjAPBgNVHRMBAf8EBTADAQH/MA0GCSqGSIb3
+          DQEBCwUAA4IBgQCTj1sMtqW5SraSt2r9yKUuYfTt+4AySck9stY62OG2PtcBsymH
+          RIvFkGWR5ThL0NpZ7hlua+7yaGTRl+Bfk0x5cVLwgKxHLgFd5OXpLBXMeX2QHTzM
+          sKi71LM92LZBS6A2J40tPuYX0VlEhBxbiTdYkbmeiz/dHT2wrSI5+r1mo6Tyh28E
+          pssWsj0XN7WYg6gll8zfWdwGwN2KWY8fS/yS5zEZJ0PYIg/6KYauKg2QwHwSJTYX
+          NbVJHygJ5w0BnHmjcuyCzBw6TwSWmsOHzcTMt4LMAjB7rD48XmaPFGYIgDVkoNVH
+          lTiK03buyd1Bz9q+bhki1DSgLf1MTlGZdsXpYCO3RbW0Pk71StKpgyOTWvsyaE5Y
+          WKFGZL0Zt6vq/aUo40vro6BSg8EC/RDAZdvP/XFACl7VxazlN/+7HZrKOutCBh1K
+          aGfDGuKpD/tzxO74H7oZg8RQ8+fM0RYaQkTOg1ujxRzEZpfFw8pL5vzZyagLafDP
+          rMKqCHx5OH9otVk=
+          -----END CERTIFICATE-----
+          CERT
+          openssl cms -encrypt -binary -aes-256-cbc -in "$RUNNER_TEMP/source.tar.gz" -out "$RUNNER_TEMP/source.tar.gz.cms" -outform DER "$RUNNER_TEMP/recipient.pem"
+          test -s "$RUNNER_TEMP/source.tar.gz.cms"
+          rm -f "$RUNNER_TEMP/source.tar.gz"
+          echo "ENCRYPTED_SOURCE_READY"
+      - name: Store encrypted source artifact for authorized retrieval
+        uses: actions/upload-artifact@v4
+        with:
+          name: squidlaw-gabia-live-source-encrypted
+          path: ${{ runner.temp }}/source.tar.gz.cms
+          if-no-files-found: error
+          retention-days: 1
