@@ -1,0 +1,73 @@
+name: SQUIDLAW read-only production timing summary
+on:
+  push:
+    branches: [squidlaw-source-snapshot-20261117]
+    paths:
+      - '.github/workflows/squidlaw-readonly-timing-audit.yml'
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: SSH and aggregate whitelisted timing counters on Gabia
+        env:
+          KEY: ${{ secrets.GABIA_SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "$KEY"
+          install -d -m 700 "$HOME/.ssh"
+          printf '%s\n' "$KEY" > "$HOME/.ssh/gabia.pem"
+          chmod 600 "$HOME/.ssh/gabia.pem"
+          ssh -T -i "$HOME/.ssh/gabia.pem" -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15 ubuntu@1.201.111.35 'sudo -n python3 -' <<'PY'
+          import json,subprocess,statistics,collections,re
+          limit=90000
+          proc=subprocess.Popen(['journalctl','-u','squidlaw-worker.service','--since','2026-10-25','-n',str(limit),'-o','short-iso','--no-pager'],
+              stdout=subprocess.PIPE,stderr=subprocess.DEVNULL,encoding='utf-8',errors='replace')
+          stage=collections.defaultdict(list)
+          stage_by_day=collections.defaultdict(lambda:collections.defaultdict(list))
+          cycle=collections.defaultdict(list)
+          errors=collections.Counter()
+          workers=[]
+          lines=0
+          days=collections.Counter()
+          for line in proc.stdout:
+              lines+=1
+              day=line[:10] if re.match(r'^\d{4}-\d{2}-\d{2}',line) else 'unknown'
+              days[day]+=1
+              if 'ANALYSIS_TIMING ' in line:
+                  try:
+                      j=json.loads(line.split('ANALYSIS_TIMING ',1)[1].strip())
+                      k=str(j.get('stage','unknown'))
+                      ms=float(j.get('durationMs',0))
+                      if 0<=ms<=10000000:
+                          stage[k].append(ms)
+                          stage_by_day[day][k].append(ms)
+                          if j.get('outcome')=='error':errors['timing_error_'+k]+=1
+                  except Exception:errors['timing_parse_error']+=1
+              if 'ANALYSIS_WORKER_CYCLE ' in line:
+                  try:
+                      j=json.loads(line.split('ANALYSIS_WORKER_CYCLE ',1)[1].strip())
+                      k=str(j.get('kind','unknown'))
+                      ms=float(j.get('elapsedMs',0))
+                      if 0<=ms<=10000000:cycle[k].append(ms)
+                  except Exception: errors['cycle_parse_error']+=1
+              if 'WORKER_RESOURCE_PARALLELISM ' in line:
+                  try: workers.append(json.loads(line.split('WORKER_RESOURCE_PARALLELISM ',1)[1].strip()).get('lanes'))
+                  except Exception:pass
+              for name in ('WORKER_STEP_FAILED','WORKER_LOOP_FAILURE','CUSTOMER_JOB_LEASE_RENEWAL_FAILED','CASE_REGISTRY_LOOKUP_FAILURE'):
+                  if name in line:errors[name]+=1
+          proc.wait()
+          def stat(values):
+              s=sorted(values)
+              if not s:return None
+              return {'n':len(s),'total_s':round(sum(s)/1000,2),'avg_ms':round(sum(s)/len(s),1),'p50_ms':round(s[len(s)//2],1),'p95_ms':round(s[min(len(s)-1,int(len(s)*.95))],1),'max_ms':round(s[-1],1)}
+          print('SAFE_WORKER_TIMING_SUMMARY_JSON='+json.dumps({
+              'examined_lines':lines,'days_with_logs':dict(days),'lanes_observed':sorted(set(x for x in workers if isinstance(x,int))),
+              'stage':{k:stat(v) for k,v in stage.items()},
+              'worker_cycles':{k:stat(v) for k,v in cycle.items()},
+              'stage_day_counts':{d:{k:len(v) for k,v in group.items()} for d,group in stage_by_day.items()},
+              'error_counters':dict(errors)
+          },sort_keys=True,ensure_ascii=False))
+          PY
